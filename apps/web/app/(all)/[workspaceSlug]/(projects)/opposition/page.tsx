@@ -12,14 +12,16 @@ const WorkspaceOppositionPage = () => {
     {
       id: "1",
       name: "Fairport High School",
-      website: "https://www.fairporths.edu",
+      website: "http://www.fairporths.edu",
       requests: 0,
+      logo: "",
     },
     {
       id: "2",
       name: "Pittsford Mendon HS",
-      website: "https://www.pittsfordschools.org",
+      website: "http://www.pittsfordschools.org",
       requests: 0,
+      logo: "",
     },
   ];
 
@@ -27,7 +29,7 @@ const WorkspaceOppositionPage = () => {
     <>
       <PageHead title={pageTitle} />
 
-      <div className="p-6">
+      <div className="relative h-full w-full overflow-hidden overflow-y-auto">
       <OppositionTeamsList teams={teams} />
     </div>
     </>

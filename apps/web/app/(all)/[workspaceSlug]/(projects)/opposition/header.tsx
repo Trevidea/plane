@@ -5,14 +5,11 @@ import { observer } from "mobx-react";
 import { UsersRoundIcon } from "lucide-react";
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
-import { EIssuesStoreType } from "@plane/types";
 import { Breadcrumbs, Button, Header } from "@plane/ui";
 import { BreadcrumbLink } from "@/components/common/breadcrumb-link";
-import { CountChip } from "@/components/common/count-chip";
-import { CreateUpdateIssueModal } from "@/components/issues/issue-modal/modal";
 import { useProject } from "@/hooks/store/use-project";
 import { useUserPermissions } from "@/hooks/store/user";
-import { useWorkspaceDraftIssues } from "@/hooks/store/workspace-draft";
+import { CreateOppositionTeamModal } from "./opposition-team-model";
 
 
 export const WorkspaceOppositionHeader = observer(() => {
@@ -20,7 +17,6 @@ export const WorkspaceOppositionHeader = observer(() => {
   const [isDraftIssueModalOpen, setIsDraftIssueModalOpen] = useState(false);
   // store hooks
   const { allowPermissions } = useUserPermissions();
-  const { paginationInfo } = useWorkspaceDraftIssues();
   const { joinedProjectIds } = useProject();
 
   const { t } = useTranslation();
@@ -31,11 +27,9 @@ export const WorkspaceOppositionHeader = observer(() => {
   );
   return (
     <>
-      <CreateUpdateIssueModal
+      <CreateOppositionTeamModal
         isOpen={isDraftIssueModalOpen}
-        storeType={EIssuesStoreType.WORKSPACE_DRAFT}
         onClose={() => setIsDraftIssueModalOpen(false)}
-        isDraft
       />
       <Header>
         <Header.LeftItem>
@@ -47,11 +41,6 @@ export const WorkspaceOppositionHeader = observer(() => {
                 }
               />
             </Breadcrumbs>
-            {paginationInfo?.total_count && paginationInfo?.total_count > 0 ? (
-              <CountChip count={paginationInfo?.total_count} />
-            ) : (
-              <></>
-            )}
           </div>
         </Header.LeftItem>
 
