@@ -1,0 +1,72 @@
+from django.urls import path
+
+from plane.app.views import (
+    MediaAssetEndpoint,
+    MediaAssetDetailEndpoint,
+    MediaAssetUploadCompleteEndpoint,
+    MediaAssetDownloadEndpoint,
+    MediaAssetHlsEndpoint,
+    MediaCollectionEndpoint,
+    MediaCollectionDetailEndpoint,
+    MediaTagEndpoint,
+    MediaAssetShareEndpoint,
+    MediaShareAccessEndpoint,
+)
+
+urlpatterns = [
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/",
+        MediaAssetEndpoint.as_view(),
+        name="media-assets",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/complete/",
+        MediaAssetUploadCompleteEndpoint.as_view(),
+        name="media-assets-complete",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/<uuid:asset_id>/",
+        MediaAssetDetailEndpoint.as_view(),
+        name="media-asset-detail",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/<uuid:asset_id>/download/",
+        MediaAssetDownloadEndpoint.as_view(),
+        name="media-asset-download",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/<uuid:asset_id>/hls/<uuid:rendition_id>/",
+        MediaAssetHlsEndpoint.as_view(),
+        name="media-asset-hls",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/<uuid:asset_id>/share/",
+        MediaAssetShareEndpoint.as_view(),
+        name="media-asset-share",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/<uuid:asset_id>/share/<uuid:share_id>/",
+        MediaAssetShareEndpoint.as_view(),
+        name="media-asset-share-detail",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/collections/",
+        MediaCollectionEndpoint.as_view(),
+        name="media-collections",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/collections/<uuid:collection_id>/",
+        MediaCollectionDetailEndpoint.as_view(),
+        name="media-collections-detail",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/tags/",
+        MediaTagEndpoint.as_view(),
+        name="media-tags",
+    ),
+    path(
+        "media/shares/<uuid:token>/",
+        MediaShareAccessEndpoint.as_view(),
+        name="media-share-access",
+    ),
+]

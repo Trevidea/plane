@@ -233,3 +233,16 @@ from .notification.base import MarkAllReadNotificationViewSet
 from .user.base import AccountEndpoint, ProfileEndpoint, UserSessionEndpoint
 
 from .timezone.base import TimezoneEndpoint
+
+from .media.base import (
+    MediaAssetEndpoint,
+    MediaAssetDetailEndpoint,
+    MediaAssetUploadCompleteEndpoint,
+    MediaAssetDownloadEndpoint,
+    MediaAssetHlsEndpoint,
+    MediaCollectionEndpoint,
+    MediaCollectionDetailEndpoint,
+    MediaTagEndpoint,
+    MediaAssetShareEndpoint,
+    MediaShareAccessEndpoint,
+)

@@ -128,3 +128,12 @@ from .draft import (
     DraftIssueSerializer,
     DraftIssueDetailSerializer,
 )
+
+from .media import (
+    MediaAssetSerializer,
+    MediaAssetDetailSerializer,
+    MediaCollectionSerializer,
+    MediaTagSerializer,
+    MediaRenditionSerializer,
+    MediaShareSerializer,
+)

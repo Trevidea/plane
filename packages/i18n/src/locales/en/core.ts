@@ -3,6 +3,7 @@ export default {
     projects: "Projects",
     opposition: "Opposition",
     pages: "Pages",
+    media_library: "Media library",
     new_work_item: "New work item",
     home: "Home",
     your_work: "Your work",

@@ -277,6 +277,7 @@ CELERY_IMPORTS = (
 )
 
 FILE_SIZE_LIMIT = int(os.environ.get("FILE_SIZE_LIMIT", 5242880))
+MEDIA_LIBRARY_FILE_SIZE_LIMIT = int(os.environ.get("MEDIA_LIBRARY_FILE_SIZE_LIMIT", 2147483648))
 
 # Unsplash Access key
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
@@ -438,6 +439,19 @@ ATTACHMENT_MIME_TYPES = [
     # Gzip
     "application/x-gzip",
 ]
+
+MEDIA_LIBRARY_MIME_TYPES = os.environ.get("MEDIA_LIBRARY_MIME_TYPES")
+if MEDIA_LIBRARY_MIME_TYPES:
+    MEDIA_LIBRARY_MIME_TYPES = [item.strip() for item in MEDIA_LIBRARY_MIME_TYPES.split(",") if item.strip()]
+else:
+    MEDIA_LIBRARY_MIME_TYPES = ATTACHMENT_MIME_TYPES
+
+MEDIA_LIBRARY_VIDEO_RENDITIONS = [
+    {"label": "1080p", "height": 1080, "bitrate_kbps": 5000},
+    {"label": "720p", "height": 720, "bitrate_kbps": 2500},
+    {"label": "480p", "height": 480, "bitrate_kbps": 1200},
+]
+MEDIA_LIBRARY_THUMBNAIL_WIDTH = int(os.environ.get("MEDIA_LIBRARY_THUMBNAIL_WIDTH", 480))
 
 # Seed directory path
 SEED_DIR = os.path.join(BASE_DIR, "seeds")

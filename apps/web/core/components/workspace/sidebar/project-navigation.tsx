@@ -7,7 +7,15 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { EUserPermissionsLevel, EUserPermissions } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
-import { CycleIcon, IntakeIcon, ModuleIcon, PageIcon, ViewsIcon, WorkItemsIcon } from "@plane/propel/icons";
+import {
+  CycleIcon,
+  IntakeIcon,
+  ModuleIcon,
+  PageIcon,
+  PhotoFilterIcon,
+  ViewsIcon,
+  WorkItemsIcon,
+} from "@plane/propel/icons";
 import type { EUserProjectRoles } from "@plane/types";
 // plane ui
 // components
@@ -116,6 +124,16 @@ export const ProjectNavigation: FC<TProjectItemsProps> = observer((props) => {
         sortOrder: 5,
       },
       {
+        i18n_key: "sidebar.media_library",
+        key: "media_library",
+        name: "Media library",
+        href: `/${workspaceSlug}/projects/${projectId}/media`,
+        icon: PhotoFilterIcon,
+        access: [EUserPermissions.ADMIN, EUserPermissions.MEMBER],
+        shouldRender: true,
+        sortOrder: 6,
+      },
+      {
         i18n_key: "sidebar.intake",
         key: "intake",
         name: "Intake",
@@ -123,7 +141,7 @@ export const ProjectNavigation: FC<TProjectItemsProps> = observer((props) => {
         icon: IntakeIcon,
         access: [EUserPermissions.ADMIN, EUserPermissions.MEMBER, EUserPermissions.GUEST],
         shouldRender: project.inbox_view,
-        sortOrder: 6,
+        sortOrder: 7,
       },
     ],
     [project]
