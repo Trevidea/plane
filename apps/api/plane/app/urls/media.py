@@ -6,11 +6,13 @@ from plane.app.views import (
     MediaAssetUploadCompleteEndpoint,
     MediaAssetDownloadEndpoint,
     MediaAssetHlsEndpoint,
+    MediaAssetFileEndpoint,
     MediaCollectionEndpoint,
     MediaCollectionDetailEndpoint,
     MediaTagEndpoint,
     MediaAssetShareEndpoint,
     MediaShareAccessEndpoint,
+    MediaShareFileEndpoint,
 )
 
 urlpatterns = [
@@ -38,6 +40,11 @@ urlpatterns = [
         "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/<uuid:asset_id>/hls/<uuid:rendition_id>/",
         MediaAssetHlsEndpoint.as_view(),
         name="media-asset-hls",
+    ),
+    path(
+        "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/<uuid:asset_id>/file/",
+        MediaAssetFileEndpoint.as_view(),
+        name="media-asset-file",
     ),
     path(
         "media/workspaces/<str:slug>/projects/<uuid:project_id>/assets/<uuid:asset_id>/share/",
@@ -68,5 +75,10 @@ urlpatterns = [
         "media/shares/<uuid:token>/",
         MediaShareAccessEndpoint.as_view(),
         name="media-share-access",
+    ),
+    path(
+        "media/shares/<uuid:token>/file/",
+        MediaShareFileEndpoint.as_view(),
+        name="media-share-file",
     ),
 ]

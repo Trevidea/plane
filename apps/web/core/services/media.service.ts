@@ -44,6 +44,27 @@ export class MediaService extends APIService {
       });
   }
 
+  async uploadLocalMediaAsset(
+    workspaceSlug: string,
+    projectId: string,
+    file: File,
+    payload: TMediaUploadPayload,
+    uploadProgressHandler?: AxiosRequestConfig["onUploadProgress"]
+  ): Promise<TMediaUploadResponse> {
+    const formData = new FormData();
+    formData.append("files", file);
+    formData.append("metadata", JSON.stringify([payload]));
+
+    return this.post(`/api/media/workspaces/${workspaceSlug}/projects/${projectId}/assets/`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: uploadProgressHandler,
+    })
+      .then((response) => (response?.data?.assets ?? [])[0])
+      .catch((error) => {
+        throw error?.response?.data;
+      });
+  }
+
   async completeMediaUploads(workspaceSlug: string, projectId: string, assetIds: string[]): Promise<void> {
     return this.post(`/api/media/workspaces/${workspaceSlug}/projects/${projectId}/assets/complete/`, {
       asset_ids: assetIds,
@@ -59,6 +80,9 @@ export class MediaService extends APIService {
     file: File,
     uploadProgressHandler?: AxiosRequestConfig["onUploadProgress"]
   ): Promise<void> {
+    if (!signedResponse.upload_data) {
+      throw new Error("Missing upload data for signed upload.");
+    }
     const payload = generateFileUploadPayload(
       {
         asset_id: signedResponse.asset_id,
@@ -196,8 +220,11 @@ export class MediaService extends APIService {
       });
   }
 
-  async getShare(token: string): Promise<{ share: TMediaShare; asset: TMediaAssetDetail }> {
-    return this.get(`/api/media/shares/${token}/`)
+  async getShare(
+    token: string,
+    params?: { workspace?: string | null; project_id?: string | null }
+  ): Promise<{ share: TMediaShare; asset: TMediaAssetDetail }> {
+    return this.get(`/api/media/shares/${token}/`, { params })
       .then((response) => response?.data)
       .catch((error) => {
         throw error?.response?.data;

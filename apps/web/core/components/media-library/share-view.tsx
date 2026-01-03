@@ -2,6 +2,7 @@
 
 import type { FC } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 // plane imports
 import type { TMediaAssetDetail } from "@plane/types";
 import { convertBytesToSize } from "@plane/utils";
@@ -17,6 +18,7 @@ type TShareViewProps = {
 
 export const MediaShareView: FC<TShareViewProps> = ({ token }) => {
   const mediaService = useMemo(() => new MediaService(), []);
+  const searchParams = useSearchParams();
   const [asset, setAsset] = useState<TMediaAssetDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -24,14 +26,18 @@ export const MediaShareView: FC<TShareViewProps> = ({ token }) => {
     const fetchShare = async () => {
       setIsLoading(true);
       try {
-        const data = await mediaService.getShare(token);
+        const workspaceParam = searchParams.get("workspace") || searchParams.get("slug");
+        const projectParam = searchParams.get("project_id");
+        const params =
+          workspaceParam && projectParam ? { workspace: workspaceParam, project_id: projectParam } : undefined;
+        const data = await mediaService.getShare(token, params);
         setAsset(data.asset);
       } finally {
         setIsLoading(false);
       }
     };
     fetchShare();
-  }, [mediaService, token]);
+  }, [mediaService, searchParams, token]);
 
   if (isLoading) {
     return (

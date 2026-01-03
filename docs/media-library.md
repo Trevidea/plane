@@ -4,6 +4,8 @@ This doc describes the media library feature: data model, API flow, background p
 
 ## Flow (end-to-end)
 
+### S3/MinIO mode
+
 1) User selects one or more files in the media library UI.
 2) Frontend requests presigned upload data from the API.
 3) Browser uploads files directly to object storage (S3/MinIO).
@@ -12,6 +14,17 @@ This doc describes the media library feature: data model, API flow, background p
 6) API marks the asset as READY; UI updates with preview and metadata.
 
 Access control: project Admin/Member only. Guest access is blocked, except for public share links.
+
+### Manifest mode (local filesystem)
+
+When `MEDIA_LIBRARY_STORAGE=manifest`, the API accepts multipart uploads directly. The local filesystem
+is the source of truth and every level (root, folders, files) has a manifest.
+
+1) User selects one or more files in the media library UI.
+2) Frontend posts multipart `files` + `metadata` to the API.
+3) API writes file data to disk and creates per-file manifests.
+4) Celery worker processes the local file (ffprobe/ffmpeg) to add thumbnails and renditions.
+5) API updates the file manifest status to READY; UI updates with preview and metadata.
 
 ## Backend
 
@@ -73,6 +86,13 @@ File: `apps/api/plane/app/views/media/base.py`
 - GET `/api/media/shares/{token}/`
   Public share access (preview or download).
 
+Manifest-specific additions:
+
+- GET `/api/media/workspaces/{slug}/projects/{project_id}/assets/{asset_id}/file/`
+  Serve local file/thumbnail/preview for manifest mode.
+- GET `/api/media/shares/{token}/file/`
+  Serve shared preview/download for manifest mode (requires workspace + project in query string).
+
 ### Settings
 
 File: `apps/api/plane/settings/common.py`
@@ -85,6 +105,12 @@ Media settings:
 - MEDIA_LIBRARY_THUMBNAIL_WIDTH
 
 Defaults are documented in `.env.example`.
+
+Manifest mode settings:
+
+- `MEDIA_LIBRARY_STORAGE=manifest`
+- `MEDIA_LIBRARY_ROOT` (base directory for the local media library)
+- `NEXT_PUBLIC_MEDIA_LIBRARY_STORAGE=manifest` (web app upload flow)
 
 ### Background processing
 
@@ -144,3 +170,112 @@ Requires `ffmpeg` and `ffprobe` in the worker environment.
 - Uploads use presigned POSTs; the API never receives the file directly.
 - HLS URLs are signed per request and returned from the API.
 - Share links bypass auth but are time/revocation controlled.
+
+## Manifest storage layout
+
+When manifest mode is enabled, a project media library is stored on disk as:
+
+```
+media-library/
+  workspaces/{workspace_id}/projects/{project_id}/media-library/
+    manifest.json
+    files/
+      {file_id}/
+        manifest.json
+        original/{filename}
+        renditions/{...}
+        thumbs/{...}
+    folders/
+      {folder_id}/
+        manifest.json
+        files/{file_id}/...
+        folders/...
+```
+
+Each level has a `manifest.json` and all UI/API queries are derived from these manifests.
+
+### Root manifest (manifest mode)
+
+```json
+{
+  "schema_version": "1.0",
+  "id": "root",
+  "type": "root",
+  "title": "Media Library",
+  "folders": [],
+  "files": [],
+  "files_index": {},
+  "shares_index": {},
+  "stats": {
+    "file_count": 0,
+    "folder_count": 0,
+    "total_bytes": 0
+  },
+  "created_at": "iso",
+  "updated_at": "iso",
+  "revision": 1
+}
+```
+
+### Folder manifest
+
+```json
+{
+  "schema_version": "1.0",
+  "id": "f_...",
+  "type": "folder",
+  "name": "My Folder",
+  "slug": "my-folder",
+  "parent_id": null,
+  "path": "/My Folder",
+  "folders": [],
+  "files": [],
+  "description": "",
+  "created_at": "iso",
+  "updated_at": "iso",
+  "revision": 1
+}
+```
+
+### File manifest
+
+```json
+{
+  "schema_version": "1.0",
+  "id": "m_...",
+  "type": "file",
+  "parent_id": "root",
+  "path": "/filename.mp4",
+  "title": "filename",
+  "description": "",
+  "original": {
+    "filename": "filename.mp4",
+    "relative_path": "original/filename.mp4",
+    "bytes": 0,
+    "mime_type": "video/mp4",
+    "sha256": "..."
+  },
+  "kind": "video",
+  "status": "PROCESSING",
+  "metadata": {
+    "duration_sec": null,
+    "width": null,
+    "height": null,
+    "page_count": null
+  },
+  "tags": [],
+  "collections": [],
+  "renditions": [],
+  "thumbnails": [],
+  "preview": {
+    "preferred": null,
+    "fallback": "original/filename.mp4"
+  },
+  "errors": [],
+  "created_at": "iso",
+  "updated_at": "iso",
+  "revision": 1
+}
+```
+
+Manifest writes use atomic temp file replacement with fsync and a lightweight lock file.

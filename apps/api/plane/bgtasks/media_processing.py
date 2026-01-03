@@ -167,7 +167,11 @@ def _derive_media_kind(mime_type):
         return MediaAsset.MediaKind.VIDEO
     if mime_type.startswith("audio/"):
         return MediaAsset.MediaKind.AUDIO
-    if mime_type in ["application/pdf"]:
+    if mime_type in [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ]:
         return MediaAsset.MediaKind.DOCUMENT
     if mime_type in ["application/zip", "application/x-zip-compressed", "application/x-rar"]:
         return MediaAsset.MediaKind.ARCHIVE
@@ -213,7 +217,9 @@ def process_media_asset(media_asset_id):
             prefix = f"{asset.workspace.id}/media/{asset.id}"
             thumbnail_width = getattr(settings, "MEDIA_LIBRARY_THUMBNAIL_WIDTH", 480)
 
-            if asset.media_kind in [MediaAsset.MediaKind.IMAGE, MediaAsset.MediaKind.DOCUMENT]:
+            if asset.media_kind == MediaAsset.MediaKind.IMAGE or (
+                asset.media_kind == MediaAsset.MediaKind.DOCUMENT and asset.mime_type == "application/pdf"
+            ):
                 thumb_path = str(tmp_path / "thumb.jpg")
                 _render_thumbnail(source_path, thumb_path, thumbnail_width)
                 thumb_key = f"{prefix}/thumb.jpg"

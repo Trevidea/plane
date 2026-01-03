@@ -25,6 +25,7 @@ export const MediaLibraryRoot: FC = () => {
   const { workspaceSlug, projectId } = useParams();
   const { t } = useTranslation();
   const mediaService = useMemo(() => new MediaService(), []);
+  const isManifestStorage = process.env.NEXT_PUBLIC_MEDIA_LIBRARY_STORAGE === "manifest";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [assets, setAssets] = useState<TMediaAsset[]>([]);
@@ -96,6 +97,11 @@ export const MediaLibraryRoot: FC = () => {
     if (!files.length || !workspaceSlug || !projectId) return;
     event.target.value = "";
 
+    const createUploadId = () =>
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
     const payloads = await Promise.all(
       files.map(async (file) => {
         const meta = await mediaService.getFileMetaData(file);
@@ -107,6 +113,72 @@ export const MediaLibraryRoot: FC = () => {
         };
       })
     );
+
+    if (isManifestStorage) {
+      const uploads = files.map((file, index) => ({
+        uploadId: createUploadId(),
+        file,
+        payload: payloads[index],
+      }));
+
+      setUploadQueue((prev) => [
+        ...uploads.map((upload) => ({
+          assetId: upload.uploadId,
+          name: upload.file.name,
+          size: upload.file.size,
+          progress: 0,
+          status: "uploading" as const,
+        })),
+        ...prev,
+      ]);
+
+      const uploadTasks = uploads.map((upload) =>
+        mediaService
+          .uploadLocalMediaAsset(
+            workspaceSlug.toString(),
+            projectId.toString(),
+            upload.file,
+            upload.payload,
+            (progressEvent) => {
+              const percent = progressEvent.total
+                ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                : 0;
+              setUploadQueue((prev) =>
+                prev.map((item) =>
+                  item.assetId === upload.uploadId ? { ...item, progress: percent } : item
+                )
+              );
+            }
+          )
+          .then((response) => {
+            setUploadQueue((prev) =>
+              prev.map((item) =>
+                item.assetId === upload.uploadId
+                  ? {
+                      ...item,
+                      assetId: response?.asset_id || upload.uploadId,
+                      status: "processing",
+                      progress: 100,
+                    }
+                  : item
+              )
+            );
+          })
+          .catch(() => {
+            setUploadQueue((prev) =>
+              prev.map((item) =>
+                item.assetId === upload.uploadId ? { ...item, status: "failed" } : item
+              )
+            );
+          })
+      );
+
+      await Promise.allSettled(uploadTasks);
+      fetchAssets(null, false);
+      fetchTags();
+      fetchCollections();
+      return;
+    }
 
     const uploadResponses = await mediaService.requestMediaUploads(
       workspaceSlug.toString(),
@@ -152,6 +224,8 @@ export const MediaLibraryRoot: FC = () => {
         )
       );
       fetchAssets(null, false);
+      fetchTags();
+      fetchCollections();
     } catch (_error) {
       setUploadQueue((prev) => prev.map((item) => ({ ...item, status: "failed" })));
     }

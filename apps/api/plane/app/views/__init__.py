@@ -240,9 +240,11 @@ from .media.base import (
     MediaAssetUploadCompleteEndpoint,
     MediaAssetDownloadEndpoint,
     MediaAssetHlsEndpoint,
+    MediaAssetFileEndpoint,
     MediaCollectionEndpoint,
     MediaCollectionDetailEndpoint,
     MediaTagEndpoint,
     MediaAssetShareEndpoint,
     MediaShareAccessEndpoint,
+    MediaShareFileEndpoint,
 )

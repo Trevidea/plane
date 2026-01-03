@@ -85,7 +85,7 @@ export type TMediaUploadPayload = {
 
 export type TMediaUploadResponse = {
   asset_id: string;
-  upload_data: {
+  upload_data?: {
     url: string;
     fields: Record<string, string>;
   };

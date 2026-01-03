@@ -452,6 +452,8 @@ MEDIA_LIBRARY_VIDEO_RENDITIONS = [
     {"label": "480p", "height": 480, "bitrate_kbps": 1200},
 ]
 MEDIA_LIBRARY_THUMBNAIL_WIDTH = int(os.environ.get("MEDIA_LIBRARY_THUMBNAIL_WIDTH", 480))
+MEDIA_LIBRARY_STORAGE = os.environ.get("MEDIA_LIBRARY_STORAGE", "s3")
+MEDIA_LIBRARY_ROOT = os.environ.get("MEDIA_LIBRARY_ROOT", os.path.join(BASE_DIR, "media-library"))
 
 # Seed directory path
 SEED_DIR = os.path.join(BASE_DIR, "seeds")
