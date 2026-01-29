@@ -287,6 +287,11 @@ const MediaDetailPage = () => {
         >
           <ArrowLeft className="size-md h-3.2 w-3.2" />
         </Link>
+
+
+        {/* Currently not using this section */}
+
+        
         {/* <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-md border border-custom-border-200 bg-custom-background-100 px-1 py-1 text-[11px] text-custom-text-300">
             <button
@@ -445,11 +450,10 @@ const MediaDetailPage = () => {
             <button
               type="button"
               onClick={() => setActiveTab("details")}
-              className={`rounded-full px-3 py-1 ${
-                activeTab === "details"
+              className={`rounded-full px-3 py-1 ${activeTab === "details"
                   ? "border border-custom-border-200 bg-custom-background-100 text-custom-text-100"
                   : "hover:text-custom-text-100"
-              }`}
+                }`}
             >
               Details
             </button>
