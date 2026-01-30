@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import videojs from "video.js";
+import "video.js/dist/video-js.css";
 import { ArrowLeft, Calendar, FileText, User } from "lucide-react";
 import { LogoSpinner } from "@/components/common/logo-spinner";
 import { useMediaLibraryItems } from "../(list)/use-media-library-items";
-import { HlsVideo } from "../hls-video";
 import { TagsSection } from "./tags-section";
 
 const formatMetaValue = (value: unknown) => {
@@ -83,6 +84,11 @@ const getVideoMimeType = (format: string) => {
   return "";
 };
 
+const getVideoFormatFromSrc = (src: string) => {
+  const match = src.toLowerCase().match(/\.(mp4|m4v|m3u8|mov|webm|avi|mkv|mpeg|mpg)(\?.*)?$/);
+  return match?.[1] ?? "";
+};
+
 const MediaDetailPage = () => {
   const { mediaId, workspaceSlug, projectId } = useParams() as {
     mediaId: string;
@@ -92,6 +98,7 @@ const MediaDetailPage = () => {
   const { items: libraryItems, isLoading } = useMediaLibraryItems(workspaceSlug, projectId);
   const [activeTab, setActiveTab] = useState<"details" | "tags">("details");
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const playerRef = useRef<ReturnType<typeof videojs> | null>(null);
   const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
   const [textPreview, setTextPreview] = useState<string | null>(null);
   const [textPreviewError, setTextPreviewError] = useState<string | null>(null);
@@ -112,14 +119,31 @@ const MediaDetailPage = () => {
   }, [libraryItems, mediaId]);
   const normalizedAction = (item?.action ?? "").toLowerCase();
   const documentFormat = item?.format?.toLowerCase() ?? "";
+  const videoSrc = item?.videoSrc ?? item?.fileSrc ?? "";
+  const resolvedVideoFormat = documentFormat || getVideoFormatFromSrc(videoSrc);
   const isVideoAction = new Set(["play", "play_hls", "play_streaming", "open_mp4"]).has(normalizedAction);
   const isVideoFormat = new Set(["mp4", "m4v", "m3u8", "mov", "webm", "avi", "mkv", "mpeg", "mpg", "stream"]).has(
-    documentFormat
+    resolvedVideoFormat
   );
   const isVideo = item?.mediaType === "video" || item?.linkedMediaType === "video" || isVideoAction || isVideoFormat;
   const isHls =
-    isVideo && (documentFormat === "m3u8" || (documentFormat === "stream" && normalizedAction === "play_streaming"));
-  const videoSrc = item?.videoSrc ?? item?.fileSrc ?? "";
+    isVideo &&
+    (resolvedVideoFormat === "m3u8" ||
+      resolvedVideoFormat === "stream" ||
+      videoSrc.toLowerCase().includes(".m3u8") ||
+      normalizedAction === "play_streaming");
+  const proxiedVideoSrc = useMemo(() => {
+    if (!videoSrc) return videoSrc;
+    if (!isHls) return videoSrc;
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+      const url = new URL(videoSrc, base);
+      if (url.origin === base) return videoSrc;
+      return `/api/hls?url=${encodeURIComponent(url.toString())}`;
+    } catch {
+      return videoSrc;
+    }
+  }, [isHls, videoSrc]);
   const isPdf = item?.mediaType === "document" && documentFormat === "pdf";
   const isTextDocument =
     item?.mediaType === "document" &&
@@ -245,10 +269,234 @@ const MediaDetailPage = () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [isBinaryDocument, isDocx, isPptx, isXlsx, item?.fileSrc, item?.mediaType]);
+
+  useEffect(() => {
+    if (!isVideo) {
+      if (playerRef.current) {
+        playerRef.current.dispose();
+        playerRef.current = null;
+      }
+      return;
+    }
+
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (!playerRef.current) {
+      playerRef.current = videojs(videoElement, {
+        controls: true,
+        autoplay: true,
+        preload: "auto",
+        playsinline: true,
+        playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+        html5: {
+          vhs: {
+            withCredentials: true,
+          },
+        },
+        controlBar: {
+          progressControl: true,
+          playToggle: true,
+          volumePanel: true,
+          currentTimeDisplay: true,
+          timeDivider: true,
+          durationDisplay: true,
+          playbackRateMenuButton: true,
+          fullscreenToggle: true,
+        },
+      });
+
+      const player = playerRef.current as any;
+      if (!player) return;
+
+      const Button = videojs.getComponent("Button");
+      const MenuButton = videojs.getComponent("MenuButton");
+      const MenuItem = videojs.getComponent("MenuItem");
+
+      const ensureSkipButtons = () => {
+        const SkipBase = class extends (Button as any) {
+          seconds: number;
+          constructor(playerInstance: any, options: any) {
+            super(playerInstance, options);
+            this.seconds = options?.seconds ?? 0;
+            const label = this.seconds > 0 ? `+${this.seconds}s` : `${this.seconds}s`;
+            this.controlText(`Skip ${label}`);
+            this.addClass("vjs-skip-button");
+            this.addClass(this.seconds > 0 ? "vjs-skip-forward" : "vjs-skip-backward");
+            this.el().textContent = "";
+            this.addClass(this.seconds > 0 ? "vjs-icon-next-item" : "vjs-icon-previous-item");
+          }
+
+          handleClick() {
+            const playerInstance = this.player();
+            if (!playerInstance) return;
+            const current = playerInstance.currentTime() ?? 0;
+            const seekable = playerInstance.seekable && playerInstance.seekable();
+            let target = current + this.seconds;
+            const duration = playerInstance.duration?.();
+            if (Number.isFinite(duration) && duration > 0) {
+              target = Math.min(duration, Math.max(0, target));
+            } else if (seekable && seekable.length) {
+              const start = seekable.start(0);
+              const end = seekable.end(0);
+              target = Math.min(end, Math.max(start, target));
+            } else {
+              target = Math.max(0, target);
+            }
+            playerInstance.currentTime(target);
+            const afterSet = playerInstance.currentTime() ?? 0;
+            if (Math.abs(afterSet - target) < 0.1) return;
+            if (!Number.isFinite(duration) && (!seekable || !seekable.length)) {
+              const readyState = playerInstance.readyState?.() ?? 0;
+              if (readyState < 1) {
+                const pendingTarget = target;
+                const retrySeek = () => {
+                  const nextDuration = playerInstance.duration?.();
+                  const nextTarget =
+                    Number.isFinite(nextDuration) && nextDuration > 0
+                      ? Math.min(nextDuration, Math.max(0, pendingTarget))
+                      : Math.max(0, pendingTarget);
+                  playerInstance.currentTime(nextTarget);
+                };
+                playerInstance.one("loadedmetadata", retrySeek);
+                playerInstance.one("canplay", retrySeek);
+              }
+            }
+          }
+        };
+
+        const skipBackName = "SkipBack5";
+        const skipForwardName = "SkipForward5";
+
+        if (!videojs.getComponent(skipBackName)) {
+          const SkipBack = class extends SkipBase {};
+          videojs.registerComponent(skipBackName, SkipBack as any);
+        }
+        if (!videojs.getComponent(skipForwardName)) {
+          const SkipForward = class extends SkipBase {};
+          videojs.registerComponent(skipForwardName, SkipForward as any);
+        }
+
+        const controlBar = player.controlBar;
+        if (!controlBar) return;
+
+        if (!controlBar.getChild(skipBackName)) {
+          const playToggleIndex = controlBar.children().findIndex((child: any) => child?.name?.() === "PlayToggle");
+          const insertIndex = playToggleIndex >= 0 ? playToggleIndex + 1 : 1;
+          controlBar.addChild(skipBackName, { seconds: -5 }, insertIndex);
+          controlBar.addChild(skipForwardName, { seconds: 5 }, insertIndex + 1);
+        }
+      };
+
+      const ensureQualityMenu = () => {
+        if (!MenuButton || !MenuItem) return;
+        const reps = player.tech()?.vhs?.representations?.() ?? [];
+        if (!reps.length) return;
+
+        class AutoMenuItem extends (MenuItem as any) {
+          constructor(playerInstance: any, options?: any) {
+            super(playerInstance, { ...(options ?? {}), label: options?.label ?? "Auto" });
+            this.on("click", () => {
+              reps.forEach((rep: any) => {
+                try {
+                  rep?.enabled?.(true);
+                } catch {
+                  // Ignore representation errors from non-evented objects.
+                }
+              });
+            });
+          }
+        }
+
+        class QualityMenuItem extends (MenuItem as any) {
+          height: number;
+          constructor(playerInstance: any, options: any) {
+            super(playerInstance, { ...(options ?? {}), label: options?.label ?? "Quality" });
+            this.height = options?.height ?? 0;
+            this.on("click", () => {
+              const hasExact = reps.some((rep: any) => rep?.height === this.height);
+              reps.forEach((rep: any) => {
+                try {
+                  rep?.enabled?.(hasExact ? rep?.height === this.height : true);
+                } catch {
+                  // Ignore representation errors from non-evented objects.
+                }
+              });
+            });
+          }
+        }
+
+        class QualityMenuButton extends (MenuButton as any) {
+          constructor(playerInstance: any, options?: any) {
+            super(playerInstance, options);
+            this.controlText("Quality");
+            this.addClass("vjs-quality-selector");
+            this.addClass("vjs-icon-cog");
+            const label = document.createElement("span");
+            label.className = "vjs-quality-label";
+            label.textContent = "Quality";
+            this.el().appendChild(label);
+          }
+
+          createItems() {
+            const items: any[] = [new AutoMenuItem(player, { label: "Auto" })];
+            const heights = Array.from(
+              new Set(
+                reps
+                  .map((rep: any) => rep?.height)
+                  .filter((height: number) => Number.isFinite(height) && height > 0)
+              )
+            ).sort((a: number, b: number) => b - a);
+            heights.forEach((height) => items.push(new QualityMenuItem(player, { label: `${height}p`, height })));
+            return items;
+          }
+        }
+
+        if (!videojs.getComponent("QualityMenuButton")) {
+          videojs.registerComponent("QualityMenuButton", QualityMenuButton as any);
+        }
+        const controlBar = player.controlBar;
+        if (!controlBar) return;
+        const existing = controlBar
+          .children()
+          .some((child: any) => child?.name?.() === "QualityMenuButton");
+        if (existing) return;
+        controlBar.addChild("QualityMenuButton", {}, controlBar.children().length - 1);
+      };
+
+      player.ready(() => {
+        ensureSkipButtons();
+        ensureQualityMenu();
+      });
+      player.on("loadedmetadata", ensureSkipButtons);
+      player.on("loadedmetadata", ensureQualityMenu);
+      player.on("loadeddata", ensureQualityMenu);
+    }
+
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.dispose();
+        playerRef.current = null;
+      }
+    };
+  }, [isVideo]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || !proxiedVideoSrc) return;
+    const type = getVideoMimeType(resolvedVideoFormat);
+    const source = type ? { src: proxiedVideoSrc, type } : { src: proxiedVideoSrc };
+    player.src(source);
+    player.poster(item?.thumbnail ?? "");
+  }, [item?.thumbnail, proxiedVideoSrc, resolvedVideoFormat]);
   const handlePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
     video.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (playerRef.current) {
+      playerRef.current.play().catch(() => undefined);
+      return;
+    }
     video.play().catch(() => undefined);
   }, []);
   if (!item && isLoading) {
@@ -320,18 +568,43 @@ const MediaDetailPage = () => {
         <div className="rounded-lg  bg-custom-background-100 p-4 ">
           {isVideo ? (
             <div className="mx-auto h-[505px] w-100 max-w-full overflow-hidden rounded-lg border border-custom-border-200 bg-black">
-              {isHls ? (
-                <HlsVideo
-                  src={videoSrc}
-                  poster={item.thumbnail}
-                  className="h-full w-full object-contain"
-                  videoRef={videoRef}
-                />
-              ) : (
-                <video ref={videoRef} controls poster={item.thumbnail} className="h-full w-full object-contain">
-                  <source src={videoSrc} type={getVideoMimeType(documentFormat) || undefined} />
-                </video>
-              )}
+              <video
+                ref={videoRef}
+                className="video-js vjs-default-skin h-full w-full"
+                poster={item.thumbnail}
+                playsInline
+                preload="auto"
+                crossOrigin="use-credentials"
+              />
+              <style jsx global>{`
+                .video-js .vjs-quality-selector {
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 6px;
+                }
+                .video-js .vjs-quality-selector .vjs-quality-label {
+                  color: #ffffff;
+                  font-size: 12px;
+                  font-weight: 600;
+                  letter-spacing: 0.02em;
+                }
+                .video-js .vjs-quality-selector .vjs-icon-placeholder:before {
+                  color: #ffffff;
+                }
+                .video-js .vjs-control .vjs-icon-placeholder:before {
+                  font-size: 20px;
+                }
+                .video-js .vjs-skip-button {
+                  color: #ffffff;
+                  font-weight: 600;
+                  min-width: 20px;
+                  margin-left: 0;
+                  margin-right: 0;
+                }
+                .video-js .vjs-skip-button .vjs-icon-placeholder:before {
+                  font-size: 100px;
+                }
+              `}</style>
             </div>
           ) : item.mediaType === "image" ? (
             <div className="overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90">
