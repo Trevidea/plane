@@ -6,11 +6,13 @@ import { APIService } from "@/services/api.service";
 export type TMediaArtifact = {
   name: string;
   title: string;
+  description?: string | null;
   format: string;
   path: string;
   link: string | null;
   action: string;
   meta: Record<string, unknown>;
+  work_item_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -18,10 +20,12 @@ export type TMediaArtifact = {
 export type TMediaArtifactPayload = {
   name: string;
   title: string;
+  description?: string | null;
   format: string;
   link?: string | null;
   action: string;
   meta: Record<string, unknown>;
+  work_item_id?: string | null;
   created_at?: string;
   updated_at?: string;
   path?: string;
@@ -120,9 +124,15 @@ export class MediaLibraryService extends APIService {
     formData.append("file", file);
     formData.append("name", payload.name);
     formData.append("title", payload.title);
+    if (payload.description !== undefined) {
+      formData.append("description", payload.description ?? "");
+    }
     formData.append("format", payload.format);
     formData.append("action", payload.action);
     formData.append("meta", JSON.stringify(payload.meta ?? {}));
+    if (payload.work_item_id !== undefined) {
+      formData.append("work_item_id", payload.work_item_id ?? "");
+    }
     if (payload.link !== undefined) {
       formData.append("link", payload.link ?? "");
     }
