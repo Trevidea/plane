@@ -383,10 +383,15 @@ const MediaDetailPage = () => {
         if (!controlBar) return;
 
         if (!controlBar.getChild(skipBackName)) {
-          const playToggleIndex = controlBar.children().findIndex((child: any) => child?.name?.() === "PlayToggle");
-          const insertIndex = playToggleIndex >= 0 ? playToggleIndex + 1 : 1;
-          controlBar.addChild(skipBackName, { seconds: -5 }, insertIndex);
-          controlBar.addChild(skipForwardName, { seconds: 5 }, insertIndex + 1);
+          const children = controlBar.children();
+          let playToggleIndex = children.findIndex((child: any) => child?.name?.() === "PlayToggle");
+          const baseIndex = playToggleIndex >= 0 ? playToggleIndex : 0;
+          // Add skip back before play toggle.
+          controlBar.addChild(skipBackName, { seconds: -5 }, baseIndex);
+          // Recompute play toggle index since children shifted.
+          playToggleIndex = controlBar.children().findIndex((child: any) => child?.name?.() === "PlayToggle");
+          const forwardIndex = playToggleIndex >= 0 ? playToggleIndex + 1 : controlBar.children().length;
+          controlBar.addChild(skipForwardName, { seconds: 5 }, forwardIndex);
         }
       };
 
@@ -446,7 +451,7 @@ const MediaDetailPage = () => {
               new Set(
                 reps
                   .map((rep: any) => rep?.height)
-                  .filter((height: number) => Number.isFinite(height) && height > 0)
+                  .filter((height: unknown): height is number => Number.isFinite(height) && (height as number) > 0)
               )
             ).sort((a: number, b: number) => b - a);
             heights.forEach((height) => items.push(new QualityMenuItem(player, { label: `${height}p`, height })));
@@ -508,7 +513,7 @@ const handlePlay = useCallback(() => {
     if (!video) return;
     video.scrollIntoView({ behavior: "smooth", block: "center" });
     if (playerRef.current) {
-      playerRef.current.play().catch(() => undefined);
+      Promise.resolve(playerRef.current.play?.()).catch(() => undefined);
       return;
     }
     video.play().catch(() => undefined);
@@ -616,7 +621,7 @@ const handlePlay = useCallback(() => {
                   margin-right: 0;
                 }
                 .video-js .vjs-skip-button .vjs-icon-placeholder:before {
-                  font-size: 100px;
+                  font-size: 36px;
                 }
               `}</style>
             </div>
