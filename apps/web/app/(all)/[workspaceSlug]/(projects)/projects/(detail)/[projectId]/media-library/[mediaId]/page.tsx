@@ -508,7 +508,7 @@ useEffect(() => {
     setDocumentPreviewError("Only PDF and XLSX files are supported.");
   }, [isUnsupportedDocument]);
 
-const handlePlay = useCallback(() => {
+  const handlePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
     video.scrollIntoView({ behavior: "smooth", block: "center" });
