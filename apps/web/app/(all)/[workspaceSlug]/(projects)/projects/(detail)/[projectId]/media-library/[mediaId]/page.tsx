@@ -89,6 +89,39 @@ const getVideoFormatFromSrc = (src: string) => {
   return match?.[1] ?? "";
 };
 
+type TCaptionTrack = {
+  src: string;
+  label?: string;
+  srclang?: string;
+  kind?: "captions" | "subtitles";
+  default?: boolean;
+};
+
+const getCaptionTracks = (meta: unknown): TCaptionTrack[] => {
+  if (!meta || typeof meta !== "object") return [];
+  const raw = (meta as Record<string, unknown>).captions ?? (meta as Record<string, unknown>).subtitles;
+  if (!raw) return [];
+  const tracks = Array.isArray(raw) ? raw : [raw];
+  return tracks
+    .map((entry) => {
+      if (typeof entry === "string") {
+        return { src: entry, label: "CC", kind: "captions" } as TCaptionTrack;
+      }
+      if (!entry || typeof entry !== "object") return null;
+      const data = entry as Record<string, unknown>;
+      const src = typeof data.src === "string" ? data.src : "";
+      if (!src) return null;
+      return {
+        src,
+        label: typeof data.label === "string" ? data.label : undefined,
+        srclang: typeof data.srclang === "string" ? data.srclang : undefined,
+        kind: data.kind === "subtitles" ? "subtitles" : "captions",
+        default: Boolean(data.default),
+      } as TCaptionTrack;
+    })
+    .filter((entry): entry is TCaptionTrack => Boolean(entry?.src));
+};
+
 const MediaDetailPage = () => {
   const { mediaId, workspaceSlug, projectId } = useParams() as {
     mediaId: string;
@@ -497,6 +530,31 @@ const MediaDetailPage = () => {
     player.poster(item?.thumbnail ?? "");
   }, [item?.thumbnail, proxiedVideoSrc, resolvedVideoFormat]);
 
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    const tracks = getCaptionTracks(item?.meta);
+    const existing = player.remoteTextTracks?.();
+    if (existing && existing.length) {
+      for (let i = existing.length - 1; i >= 0; i -= 1) {
+        player.removeRemoteTextTrack(existing[i]);
+      }
+    }
+    if (!tracks.length) return;
+    tracks.forEach((track) => {
+      player.addRemoteTextTrack(
+        {
+          kind: track.kind ?? "captions",
+          src: track.src,
+          srclang: track.srclang,
+          label: track.label ?? "CC",
+          default: track.default ?? false,
+        },
+        false
+      );
+    });
+  }, [item?.meta]);
+
 useEffect(() => {
     if (!isUnsupportedDocument) return;
     setTextPreview(null);
@@ -613,6 +671,10 @@ useEffect(() => {
                 .video-js .vjs-control .vjs-icon-placeholder:before {
                   font-size: 20px;
                 }
+                .video-js .vjs-skip-backward .vjs-icon-placeholder:before,
+                .video-js .vjs-skip-forward .vjs-icon-placeholder:before {
+                  font-size: 32px;
+                }
                 .video-js .vjs-skip-button {
                   color: #ffffff;
                   font-weight: 600;
@@ -621,7 +683,7 @@ useEffect(() => {
                   margin-right: 0;
                 }
                 .video-js .vjs-skip-button .vjs-icon-placeholder:before {
-                  font-size: 36px;
+                  font-size: 20px;
                 }
               `}</style>
             </div>
