@@ -122,6 +122,27 @@ const getCaptionTracks = (meta: unknown): TCaptionTrack[] => {
     .filter((entry): entry is TCaptionTrack => Boolean(entry?.src));
 };
 
+const getVideoRepresentations = (player: any) => {
+  const tech = player?.tech?.(true);
+  const vhs = tech?.vhs;
+  const reps = typeof vhs?.representations === "function" ? vhs.representations() : [];
+  return Array.isArray(reps) ? reps : [];
+};
+
+const getQualitySelection = (representations: any[]) => {
+  const enabled = representations.filter((rep) => rep?.enabled?.());
+  if (enabled.length === 1) {
+    return { isAuto: false, activeRep: enabled[0] };
+  }
+  return { isAuto: true, activeRep: null };
+};
+
+const buildDownloadUrl = (src: string) => {
+  if (!src) return "";
+  const separator = src.includes("?") ? "&" : "?";
+  return `${src}${separator}download=1`;
+};
+
 const MediaDetailPage = () => {
   const { mediaId, workspaceSlug, projectId } = useParams() as {
     mediaId: string;
@@ -150,6 +171,7 @@ const MediaDetailPage = () => {
     const normalizedId = decodeURIComponent(mediaId);
     return libraryItems.find((entry) => entry.id === normalizedId) ?? null;
   }, [libraryItems, mediaId]);
+  const meta = (item?.meta ?? {}) as Record<string, unknown>;
   const normalizedAction = (item?.action ?? "").toLowerCase();
   const documentFormat = item?.format?.toLowerCase() ?? "";
   const videoSrc = item?.videoSrc ?? item?.fileSrc ?? "";
@@ -164,7 +186,8 @@ const MediaDetailPage = () => {
     (resolvedVideoFormat === "m3u8" ||
       resolvedVideoFormat === "stream" ||
       videoSrc.toLowerCase().includes(".m3u8") ||
-      normalizedAction === "play_streaming");
+      normalizedAction === "play_streaming" ||
+      Boolean(meta?.hls));
   const proxiedVideoSrc = useMemo(() => {
     if (!videoSrc) return videoSrc;
     if (!isHls) return videoSrc;
@@ -177,6 +200,7 @@ const MediaDetailPage = () => {
       return videoSrc;
     }
   }, [isHls, videoSrc]);
+  const videoDownloadSrc = videoSrc ? buildDownloadUrl(videoSrc) : "";
   const isPdf = item?.mediaType === "document" && documentFormat === "pdf";
   const isTextDocument =
     item?.mediaType === "document" &&
@@ -428,89 +452,164 @@ const MediaDetailPage = () => {
         }
       };
 
+      player.ready(() => {
+        ensureSkipButtons();
+      });
+      player.on("loadedmetadata", ensureSkipButtons);
+
+      let qualityButton: any = null;
+      let qualityRetryId: ReturnType<typeof setTimeout> | null = null;
+      const qualityButtonName = "QualityMenuButton";
+
       const ensureQualityMenu = () => {
-        if (!MenuButton || !MenuItem) return;
-        const reps = player.tech()?.vhs?.representations?.() ?? [];
-        if (!reps.length) return;
+        const representations = getVideoRepresentations(player);
+        if (representations.length === 0 && isHls && !qualityRetryId) {
+          qualityRetryId = setTimeout(() => {
+            qualityRetryId = null;
+            if (playerRef.current === player) ensureQualityMenu();
+          }, 500);
+        }
+        if (representations.length === 0) {
+          if (qualityButton && player.controlBar) {
+            player.controlBar.removeChild(qualityButton);
+            qualityButton = null;
+          }
+          return;
+        }
 
-        class AutoMenuItem extends (MenuItem as any) {
-          constructor(playerInstance: any, options?: any) {
-            super(playerInstance, { ...(options ?? {}), label: options?.label ?? "Auto" });
-            this.on("click", () => {
-              reps.forEach((rep: any) => {
-                try {
-                  rep?.enabled?.(true);
-                } catch {
-                  // Ignore representation errors from non-evented objects.
+        if (!videojs.getComponent(qualityButtonName)) {
+          const QualityMenuItem = class extends (MenuItem as any) {
+            rep?: any;
+            isAuto: boolean;
+
+            constructor(playerInstance: any, options: any) {
+              super(playerInstance, options);
+              this.rep = options?.rep;
+              this.isAuto = Boolean(options?.isAuto);
+              this.on("click", this.handleClick);
+            }
+
+            handleClick() {
+              const playerInstance = this.player();
+              const reps = getVideoRepresentations(playerInstance);
+              if (!reps.length) return;
+              if (this.isAuto) {
+                reps.forEach((rep) => rep?.enabled?.(true));
+              } else {
+                reps.forEach((rep) => rep?.enabled?.(rep === this.rep));
+              }
+              playerInstance.trigger("qualitychange");
+              const button = playerInstance?.controlBar?.getChild?.(qualityButtonName) as any;
+              button?.update?.();
+            }
+          };
+
+          const QualityMenuButton = class extends (MenuButton as any) {
+            items: any[] = [];
+            constructor(playerInstance: any, options: any) {
+              super(playerInstance, options);
+              this.controlText("Quality");
+              this.addClass("vjs-quality-selector");
+              this.addClass("vjs-icon-cog");
+              this.addClass("vjs-menu-button-popup");
+            }
+
+            createItems() {
+              const playerInstance = this.player();
+              const reps = getVideoRepresentations(playerInstance);
+              if (!reps.length) {
+                return [
+                  new QualityMenuItem(playerInstance, {
+                    label: "Auto",
+                    selectable: false,
+                    selected: true,
+                    isAuto: true,
+                  }),
+                ];
+              }
+              const { isAuto, activeRep } = getQualitySelection(reps);
+
+              const sorted = reps
+                .map((rep, index) => ({
+                  rep,
+                  height: rep?.height ?? 0,
+                  bandwidth: rep?.bandwidth ?? rep?.bitrate ?? 0,
+                  index,
+                }))
+                .sort((left, right) => {
+                  if (left.height !== right.height) return right.height - left.height;
+                  if (left.bandwidth !== right.bandwidth) return right.bandwidth - left.bandwidth;
+                  return left.index - right.index;
+                });
+
+              const items = [
+                new QualityMenuItem(playerInstance, {
+                  label: "Auto",
+                  selectable: true,
+                  selected: isAuto,
+                  isAuto: true,
+                }),
+              ];
+
+              sorted.forEach(({ rep, height, bandwidth }) => {
+                const label = height
+                  ? `${height}p`
+                  : bandwidth
+                    ? `${Math.round(bandwidth / 1000)} kbps`
+                    : "Source";
+                items.push(
+                  new QualityMenuItem(playerInstance, {
+                    label,
+                    selectable: true,
+                    selected: !isAuto && activeRep === rep,
+                    rep,
+                    isAuto: false,
+                  })
+                );
+              });
+
+              this.items = items;
+              return items;
+            }
+
+            update() {
+              const reps = getVideoRepresentations(this.player());
+              if (!reps.length) return;
+              const { isAuto, activeRep } = getQualitySelection(reps);
+              this.items?.forEach((item) => {
+                if (item?.isAuto) {
+                  item.selected?.(isAuto);
+                } else if (item?.rep) {
+                  item.selected?.(activeRep === item.rep);
                 }
               });
-            });
+            }
+          };
+
+          videojs.registerComponent(qualityButtonName, QualityMenuButton as any);
+        }
+
+        if (!qualityButton && player.controlBar) {
+          qualityButton = player.controlBar.addChild(qualityButtonName, {});
+          const fullscreenToggle = player.controlBar.getChild("FullscreenToggle");
+          if (fullscreenToggle && qualityButton?.el && player.controlBar.el) {
+            player.controlBar.el().insertBefore(qualityButton.el(), fullscreenToggle.el());
           }
         }
 
-        class QualityMenuItem extends (MenuItem as any) {
-          height: number;
-          constructor(playerInstance: any, options: any) {
-            super(playerInstance, { ...(options ?? {}), label: options?.label ?? "Quality" });
-            this.height = options?.height ?? 0;
-            this.on("click", () => {
-              const hasExact = reps.some((rep: any) => rep?.height === this.height);
-              reps.forEach((rep: any) => {
-                try {
-                  rep?.enabled?.(hasExact ? rep?.height === this.height : true);
-                } catch {
-                  // Ignore representation errors from non-evented objects.
-                }
-              });
-            });
-          }
-        }
-
-        class QualityMenuButton extends (MenuButton as any) {
-          constructor(playerInstance: any, options?: any) {
-            super(playerInstance, options);
-            this.controlText("Quality");
-            this.addClass("vjs-quality-selector");
-            this.addClass("vjs-icon-cog");
-            const label = document.createElement("span");
-            label.className = "vjs-quality-label";
-            label.textContent = "Quality";
-            this.el().appendChild(label);
-          }
-
-          createItems() {
-            const items: any[] = [new AutoMenuItem(player, { label: "Auto" })];
-            const heights = Array.from(
-              new Set(
-                reps
-                  .map((rep: any) => rep?.height)
-                  .filter((height: unknown): height is number => Number.isFinite(height) && (height as number) > 0)
-              )
-            ).sort((a: number, b: number) => b - a);
-            heights.forEach((height) => items.push(new QualityMenuItem(player, { label: `${height}p`, height })));
-            return items;
-          }
-        }
-
-        if (!videojs.getComponent("QualityMenuButton")) {
-          videojs.registerComponent("QualityMenuButton", QualityMenuButton as any);
-        }
-        const controlBar = player.controlBar;
-        if (!controlBar) return;
-        const existing = controlBar
-          .children()
-          .some((child: any) => child?.name?.() === "QualityMenuButton");
-        if (existing) return;
-        controlBar.addChild("QualityMenuButton", {}, controlBar.children().length - 1);
+        qualityButton?.update?.();
       };
 
       player.ready(() => {
-        ensureSkipButtons();
         ensureQualityMenu();
       });
-      player.on("loadedmetadata", ensureSkipButtons);
       player.on("loadedmetadata", ensureQualityMenu);
       player.on("loadeddata", ensureQualityMenu);
+      player.on("canplay", ensureQualityMenu);
+      player.on("play", ensureQualityMenu);
+      player.on("qualitychange", ensureQualityMenu);
+      void MenuButton;
+      void MenuItem;
     }
 
     return () => {
@@ -519,7 +618,7 @@ const MediaDetailPage = () => {
         playerRef.current = null;
       }
     };
-  }, [isVideo]);
+  }, [isVideo, isHls]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -594,7 +693,6 @@ useEffect(() => {
       </div>
     );
   }
-  const meta = item.meta ?? {};
   const metaEntries = Object.entries(meta)
     .filter(([key]) => key !== "duration_sec" && key !== "durationSec")
     .sort(([left], [right]) => left.localeCompare(right));
@@ -644,49 +742,79 @@ useEffect(() => {
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="rounded-lg  bg-custom-background-100 p-4 ">
           {isVideo ? (
-            <div className="mx-auto h-[505px] w-100 max-w-full overflow-hidden rounded-lg border border-custom-border-200 bg-black">
-              <video
-                ref={videoRef}
-                className="video-js vjs-default-skin h-full w-full"
-                poster={item.thumbnail}
-                playsInline
-                preload="auto"
-                crossOrigin="use-credentials"
-              />
-              <style jsx global>{`
-                .video-js .vjs-quality-selector {
-                  display: inline-flex;
-                  align-items: center;
-                  gap: 6px;
-                }
-                .video-js .vjs-quality-selector .vjs-quality-label {
-                  color: #ffffff;
-                  font-size: 12px;
-                  font-weight: 600;
-                  letter-spacing: 0.02em;
-                }
-                .video-js .vjs-quality-selector .vjs-icon-placeholder:before {
-                  color: #ffffff;
-                }
-                .video-js .vjs-control .vjs-icon-placeholder:before {
-                  font-size: 20px;
-                }
-                .video-js .vjs-skip-backward .vjs-icon-placeholder:before,
-                .video-js .vjs-skip-forward .vjs-icon-placeholder:before {
-                  font-size: 32px;
-                }
-                .video-js .vjs-skip-button {
-                  color: #ffffff;
-                  font-weight: 600;
-                  min-width: 20px;
-                  margin-left: 0;
-                  margin-right: 0;
-                }
-                .video-js .vjs-skip-button .vjs-icon-placeholder:before {
-                  font-size: 20px;
-                }
-              `}</style>
-            </div>
+            <>
+              <div className="media-player mx-auto h-[505px] w-100 max-w-full overflow-hidden rounded-lg border border-custom-border-200 bg-black">
+                <video
+                  ref={videoRef}
+                  className="video-js vjs-default-skin h-full w-full"
+                  poster={item.thumbnail}
+                  playsInline
+                  preload="auto"
+                  crossOrigin="use-credentials"
+                />
+                <style jsx global>{`
+                  .media-player .video-js .vjs-control-bar {
+                    display: flex;
+                    align-items: center;
+                  }
+                  .media-player .video-js .vjs-control {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                  }
+                  .media-player .video-js .vjs-control .vjs-icon-placeholder {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                  }
+                  .media-player .video-js .vjs-quality-selector,
+                  .media-player .video-js .vjs-hls-quality-selector,
+                  .media-player .video-js .vjs-quality-menu,
+                  .media-player .video-js .vjs-menu-button.vjs-icon-cog {
+                    height: 100%;
+               
+                    padding: 0;
+                    line-height: 1;
+                    margin-left: 8px;
+                  }
+                  .media-player .video-js .vjs-quality-selector .vjs-icon-placeholder:before,
+                  .media-player .video-js .vjs-hls-quality-selector .vjs-icon-placeholder:before,
+                  .media-player .video-js .vjs-quality-menu .vjs-icon-placeholder:before,
+                  .media-player .video-js .vjs-menu-button.vjs-icon-cog .vjs-icon-placeholder:before {
+                    line-height: 1;
+                    display: block;
+                  }
+                  .media-player .video-js .vjs-quality-selector .vjs-icon-placeholder:before,
+                  .media-player .video-js .vjs-hls-quality-selector .vjs-icon-placeholder:before,
+                  .media-player .video-js .vjs-quality-menu .vjs-icon-placeholder:before,
+                  .media-player .video-js .vjs-menu-button.vjs-icon-cog .vjs-icon-placeholder:before {
+                    transform: translateX(2px);
+                  }
+                  .media-player .video-js .vjs-live-control,
+                  .media-player .video-js .vjs-live-display,
+                  .media-player .video-js .vjs-live,
+                  .media-player .video-js .vjs-live-button {
+                    display: none !important;
+                  }
+                  .media-player .video-js .vjs-control-bar [class*="live"] {
+                    display: none !important;
+                  }
+                `}</style>
+              </div>
+              {videoDownloadSrc ? (
+                <div className="flex justify-end border-t border-custom-border-200 p-3">
+                  <a
+                    href={videoDownloadSrc}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-full border border-custom-border-200 px-3 py-1 text-xs text-custom-text-300 hover:text-custom-text-100"
+                  >
+                    Download video
+                  </a>
+                </div>
+              ) : null}
+            </>
           ) : item.mediaType === "image" ? (
             <div className="overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90">
               <button
