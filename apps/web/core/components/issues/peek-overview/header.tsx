@@ -36,6 +36,7 @@ import {
   isDuplicateArtifactError,
   resolveArtifactAction,
   resolveArtifactFormat,
+  resolveArtifactPathFromAssetUrl,
   resolveAttachmentDownloadUrl,
   resolveAttachmentFileName,
 } from "../issue-detail-widgets/action-buttons";
@@ -448,16 +449,7 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
         }
 
         try {
-          const downloadUrl = await resolveAttachmentDownloadUrl(assetUrl);
-          if (!downloadUrl) {
-            throw new Error(`Unable to fetch "${fileName}".`);
-          }
-          const response = await fetch(downloadUrl);
-          if (!response.ok) {
-            throw new Error(`Unable to fetch "${fileName}".`);
-          }
-          const blob = await response.blob();
-          const file = new File([blob], fileName, { type: blob.type || undefined });
+          const directPath = resolveArtifactPathFromAssetUrl(assetUrl);
           const artifactName = buildArtifactName(fileName, attachmentItem.id);
           const title = getFileName(fileName) || "Attachment";
           const action = resolveArtifactAction(format);
@@ -468,6 +460,32 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
             meta.file_size = attachmentItem.attributes?.size;
             meta.file_type = format;
           }
+
+          if (directPath) {
+            await mediaLibraryService.createArtifact(workspaceSlug, projectId, packageId, {
+              name: artifactName,
+              title,
+              format,
+              link: null,
+              action,
+              meta,
+              work_item_id: issueId,
+              path: directPath,
+            });
+            result.successCount += 1;
+            continue;
+          }
+
+          const downloadUrl = await resolveAttachmentDownloadUrl(assetUrl);
+          if (!downloadUrl) {
+            throw new Error(`Unable to fetch "${fileName}".`);
+          }
+          const response = await fetch(downloadUrl);
+          if (!response.ok) {
+            throw new Error(`Unable to fetch "${fileName}".`);
+          }
+          const blob = await response.blob();
+          const file = new File([blob], fileName, { type: blob.type || undefined });
 
           await mediaLibraryService.uploadArtifact(
             workspaceSlug,
@@ -504,6 +522,33 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
         let format = resolveArtifactFormat(fileName);
 
         try {
+          const action = resolveArtifactAction(format);
+          const meta: Record<string, unknown> = {
+            ...baseEventMeta,
+            source: "work_item_description",
+          };
+          const directPath = resolveArtifactPathFromAssetUrl(resolvedUrl);
+
+          if (directPath && format && IMAGE_FORMATS.has(format)) {
+            if (!fileName.toLowerCase().includes(".") && format) {
+              fileName = `${fileName}.${format}`;
+            }
+            const artifactName = buildArtifactName(fileName, resolveInlineFileId(resolvedUrl, index + 1));
+            const title = getFileName(fileName) || "Inline image";
+            await mediaLibraryService.createArtifact(workspaceSlug, projectId, packageId, {
+              name: artifactName,
+              title,
+              format,
+              link: null,
+              action,
+              meta,
+              work_item_id: issueId,
+              path: directPath,
+            });
+            result.successCount += 1;
+            continue;
+          }
+
           const response = await fetchInlineImageResponse(resolvedUrl);
           const blob = await response.blob();
           if (!format) {
@@ -516,14 +561,9 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
           if (!fileName.toLowerCase().includes(".") && format) {
             fileName = `${fileName}.${format}`;
           }
-          const file = new File([blob], fileName, { type: blob.type || undefined });
           const artifactName = buildArtifactName(fileName, resolveInlineFileId(resolvedUrl, index + 1));
           const title = getFileName(fileName) || "Inline image";
-          const action = resolveArtifactAction(format);
-          const meta: Record<string, unknown> = {
-            ...baseEventMeta,
-            source: "work_item_description",
-          };
+          const file = new File([blob], fileName, { type: blob.type || undefined });
 
           await mediaLibraryService.uploadArtifact(
             workspaceSlug,
