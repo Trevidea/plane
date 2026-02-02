@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Calendar, Clock, FileText, Mail, MapPin, Phone, User } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Download, FileText, Mail, MapPin, Phone, User } from "lucide-react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 import { LogoSpinner } from "@/components/common/logo-spinner";
@@ -1009,9 +1009,10 @@ useEffect(() => {
                     href={videoDownloadSrc}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-full border border-custom-border-200 px-3 py-1 text-xs text-custom-text-300 hover:text-custom-text-100"
+                    className="inline-flex items-center gap-1.5 rounded bg-custom-primary-100 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-custom-primary-200"
                   >
-                    Download video
+                    <Download className="h-3.5 w-3.5" />
+                    Download
                   </a>
                 </div>
               ) : null}
@@ -1097,9 +1098,10 @@ useEffect(() => {
                     href={item.fileSrc}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-full border border-custom-border-200 px-3 py-1 text-xs text-custom-text-300 hover:text-custom-text-100"
+                      className="inline-flex items-center gap-1.5 rounded bg-custom-primary-100 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-custom-primary-200"
                   >
-                    Open document
+                    <Download className="h-3.5 w-3.5" />
+                    Download
                   </a>
                 </div>
               ) : null}
