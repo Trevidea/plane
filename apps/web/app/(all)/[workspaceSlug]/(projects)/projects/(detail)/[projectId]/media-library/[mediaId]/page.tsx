@@ -446,7 +446,7 @@ const MediaDetailPage = () => {
     }
 
     if (!isVideoAssetApiUrl) {
-      setResolvedVideoSrc(videoSrc);
+      setResolvedVideoSrc("");
       return () => {
         isMounted = false;
       };
