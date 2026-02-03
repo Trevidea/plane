@@ -1044,6 +1044,31 @@ class MediaArtifactsListAPIView(BaseAPIView):
                     continue
 
                 if format_value in _IMAGE_FORMATS:
+                    raw_path = artifact.get("path") or ""
+                    if not isinstance(raw_path, str) or not raw_path:
+                        continue
+                    thumbnail_name = f"{artifact.get('name')}-thumbnail"
+                    validate_segment(thumbnail_name, "artifactId")
+                    if thumbnail_name in existing_names or thumbnail_name in incoming_names:
+                        continue
+                    thumbnail_entry = {
+                        "name": thumbnail_name,
+                        "title": artifact.get("title") or "Image thumbnail",
+                        "format": "thumbnail",
+                        "path": raw_path,
+                        "link": artifact.get("name"),
+                        "action": "view",
+                        "metadata_ref": artifact.get("metadata_ref") or artifact.get("name"),
+                        "created_at": artifact.get("created_at") or timestamp,
+                        "updated_at": artifact.get("updated_at") or artifact.get("created_at") or timestamp,
+                    }
+                    work_item_id = artifact.get("work_item_id")
+                    if work_item_id is not None:
+                        thumbnail_entry["work_item_id"] = work_item_id
+                    thumbnail_serializer = MediaArtifactSerializer(data=thumbnail_entry)
+                    thumbnail_serializer.is_valid(raise_exception=True)
+                    validated_artifacts.append(thumbnail_serializer.validated_data)
+                    incoming_names.add(thumbnail_name)
                     continue
 
                 thumbnail_name = f"{artifact.get('name')}-thumb"

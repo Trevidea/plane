@@ -180,6 +180,35 @@ const resolveFormatFromMime = (mime: string) => {
   return "";
 };
 
+const resolveFormatFromDisposition = (value: string) => {
+  if (!value) return "";
+  const filenameStarMatch = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(value);
+  if (filenameStarMatch?.[1]) {
+    return resolveArtifactFormat(decodeURIComponent(filenameStarMatch[1]));
+  }
+  const filenameMatch = /filename\s*=\s*"?([^\";]+)"?/i.exec(value);
+  if (filenameMatch?.[1]) {
+    return resolveArtifactFormat(decodeURIComponent(filenameMatch[1]));
+  }
+  return "";
+};
+
+const resolveInlineImageFormatFromAssetUrl = async (url: string) => {
+  if (!url || !API_BASE_URL || !url.startsWith(API_BASE_URL)) return "";
+  try {
+    const signedUrl = await resolveAttachmentDownloadUrl(url);
+    if (!signedUrl) return "";
+    const parsed = new URL(signedUrl);
+    const disposition = parsed.searchParams.get("response-content-disposition") ?? "";
+    const formatFromDisposition = resolveFormatFromDisposition(disposition);
+    if (formatFromDisposition) return formatFromDisposition;
+    const fileName = decodeURIComponent(parsed.pathname.split("/").pop() ?? "");
+    return resolveArtifactFormat(fileName);
+  } catch {
+    return "";
+  }
+};
+
 const getApiOrigin = () => {
   if (!API_BASE_URL) return "";
   try {
@@ -528,6 +557,10 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
             source: "work_item_description",
           };
           const directPath = resolveArtifactPathFromAssetUrl(resolvedUrl);
+
+          if (directPath && !format) {
+            format = await resolveInlineImageFormatFromAssetUrl(directPath);
+          }
 
           if (directPath && format && IMAGE_FORMATS.has(format)) {
             if (!fileName.toLowerCase().includes(".") && format) {
