@@ -7,9 +7,11 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Calendar, Clock, FileText, Mail, MapPin, Phone, User } from "lucide-react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
+import { API_BASE_URL } from "@plane/constants";
 import { LogoSpinner } from "@/components/common/logo-spinner";
-import { useMediaLibraryItems } from "../(list)/use-media-library-items";
-import { TagsSection } from "./tags-section";
+import { resolveAttachmentDownloadUrl } from "@/components/issues/issue-detail-widgets/media-library-utils";
+import { useMediaLibraryItems } from "../hooks/use-media-library-items";
+import { TagsSection } from "../components/tags-section";
 
 const formatMetaValue = (value: unknown) => {
   if (value === null || value === undefined) return "--";
@@ -277,6 +279,18 @@ const buildDownloadUrl = (src: string) => {
   return `${src}${separator}download=1`;
 };
 
+const addInlineDisposition = (src: string) => {
+  if (!src) return "";
+  try {
+    const url = new URL(src);
+    url.searchParams.set("disposition", "inline");
+    return url.toString();
+  } catch {
+    const separator = src.includes("?") ? "&" : "?";
+    return `${src}${separator}disposition=inline`;
+  }
+};
+
 const MediaDetailPage = () => {
   const { mediaId, workspaceSlug, projectId } = useParams() as {
     mediaId: string;
@@ -309,6 +323,24 @@ const MediaDetailPage = () => {
   const normalizedAction = (item?.action ?? "").toLowerCase();
   const documentFormat = item?.format?.toLowerCase() ?? "";
   const videoSrc = item?.videoSrc ?? item?.fileSrc ?? "";
+  const [resolvedVideoSrc, setResolvedVideoSrc] = useState<string>("");
+  const [resolvedDocumentSrc, setResolvedDocumentSrc] = useState<string>("");
+  const isVideoAssetApiUrl = useMemo(
+    () =>
+      Boolean(API_BASE_URL) &&
+      typeof videoSrc === "string" &&
+      videoSrc.startsWith(API_BASE_URL) &&
+      videoSrc.includes("/api/assets/v2/"),
+    [videoSrc]
+  );
+  const isDocumentAssetApiUrl = useMemo(
+    () =>
+      Boolean(API_BASE_URL) &&
+      typeof item?.fileSrc === "string" &&
+      item.fileSrc.startsWith(API_BASE_URL) &&
+      item.fileSrc.includes("/api/assets/v2/"),
+    [item?.fileSrc]
+  );
   const resolvedVideoFormat = documentFormat || getVideoFormatFromSrc(videoSrc);
   const isVideoAction = new Set(["play", "play_hls", "play_streaming", "open_mp4"]).has(normalizedAction);
   const isVideoFormat = new Set(["mp4", "m4v", "m3u8", "mov", "webm", "avi", "mkv", "mpeg", "mpg", "stream"]).has(
@@ -334,7 +366,46 @@ const MediaDetailPage = () => {
       return videoSrc;
     }
   }, [isHls, videoSrc]);
+  const effectiveVideoSrc = isVideoAssetApiUrl ? resolvedVideoSrc : resolvedVideoSrc || proxiedVideoSrc || videoSrc;
+  const credentialOrigins = useMemo(() => {
+    const origins = new Set<string>();
+    if (typeof window !== "undefined") {
+      origins.add(window.location.origin);
+    }
+    if (API_BASE_URL) {
+      try {
+        origins.add(new URL(API_BASE_URL).origin);
+      } catch {
+        // ignore invalid API base URL
+      }
+    }
+    return origins;
+  }, []);
+  const shouldUseCredentials = useCallback(
+    (src: string) => {
+      if (!src) return true;
+      if (src.startsWith("/")) return true;
+      if (!/^https?:\/\//i.test(src)) return true;
+      try {
+        const url = new URL(src);
+        return credentialOrigins.has(url.origin);
+      } catch {
+        return true;
+      }
+    },
+    [credentialOrigins]
+  );
+  const useCredentials = useMemo(
+    () => shouldUseCredentials(effectiveVideoSrc),
+    [effectiveVideoSrc, shouldUseCredentials]
+  );
+  const crossOrigin = useCredentials ? "use-credentials" : "anonymous";
   const videoDownloadSrc = videoSrc ? buildDownloadUrl(videoSrc) : "";
+  const effectiveDocumentSrc = isDocumentAssetApiUrl ? resolvedDocumentSrc : resolvedDocumentSrc || item?.fileSrc || "";
+  const useDocumentCredentials = useMemo(
+    () => shouldUseCredentials(effectiveDocumentSrc),
+    [effectiveDocumentSrc, shouldUseCredentials]
+  );
   const isPdf = item?.mediaType === "document" && documentFormat === "pdf";
   const isTextDocument =
     item?.mediaType === "document" &&
@@ -348,7 +419,74 @@ const MediaDetailPage = () => {
 
   useEffect(() => {
     let isMounted = true;
+    if (!isVideo || !videoSrc) {
+      setResolvedVideoSrc("");
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    if (!isVideoAssetApiUrl) {
+      setResolvedVideoSrc(videoSrc);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setResolvedVideoSrc("");
+    const resolveUrl = async () => {
+      try {
+        const resolved = await resolveAttachmentDownloadUrl(addInlineDisposition(videoSrc));
+        if (isMounted) setResolvedVideoSrc(resolved || videoSrc);
+      } catch {
+        if (isMounted) setResolvedVideoSrc(videoSrc);
+      }
+    };
+
+    void resolveUrl();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isVideo, isVideoAssetApiUrl, videoSrc]);
+
+  useEffect(() => {
+    let isMounted = true;
     const fileSrc = item?.fileSrc;
+    if (!item || item.mediaType !== "document" || !fileSrc) {
+      setResolvedDocumentSrc("");
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    if (!isDocumentAssetApiUrl) {
+      setResolvedDocumentSrc(fileSrc);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setResolvedDocumentSrc("");
+    const resolveUrl = async () => {
+      try {
+        const resolved = await resolveAttachmentDownloadUrl(addInlineDisposition(fileSrc));
+        if (isMounted) setResolvedDocumentSrc(resolved || fileSrc);
+      } catch {
+        if (isMounted) setResolvedDocumentSrc(fileSrc);
+      }
+    };
+
+    void resolveUrl();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isDocumentAssetApiUrl, item?.fileSrc, item?.mediaType]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fileSrc = effectiveDocumentSrc;
     if (!item || item.mediaType !== "document" || !fileSrc || !isTextDocument || isUnsupportedDocument) {
       setTextPreview(null);
       setTextPreviewError(null);
@@ -361,7 +499,7 @@ const MediaDetailPage = () => {
     const loadTextPreview = async () => {
       try {
         setIsTextPreviewLoading(true);
-        const response = await fetch(fileSrc, { credentials: "include" });
+        const response = await fetch(fileSrc, { credentials: useDocumentCredentials ? "include" : "omit" });
         if (!response.ok) {
           throw new Error(`Failed to load document preview (status ${response.status}).`);
         }
@@ -390,12 +528,12 @@ const MediaDetailPage = () => {
     return () => {
       isMounted = false;
     };
-  }, [documentFormat, isTextDocument, item?.fileSrc, item?.mediaType]);
+  }, [documentFormat, effectiveDocumentSrc, isTextDocument, item?.mediaType, isUnsupportedDocument, useDocumentCredentials]);
 
   useEffect(() => {
     let isMounted = true;
     let objectUrl: string | null = null;
-    const fileSrc = item?.fileSrc;
+    const fileSrc = effectiveDocumentSrc;
 
     if (!item || !fileSrc || !isBinaryDocument || isUnsupportedDocument) {
       setDocumentPreviewUrl(null);
@@ -413,7 +551,7 @@ const MediaDetailPage = () => {
         setIsDocumentPreviewLoading(true);
         setDocumentPreviewError(null);
         setDocumentPreviewHtml(null);
-        const response = await fetch(fileSrc, { credentials: "include" });
+        const response = await fetch(fileSrc, { credentials: useDocumentCredentials ? "include" : "omit" });
         if (!response.ok) {
           throw new Error(`Failed to load document preview (status ${response.status}).`);
         }
@@ -461,7 +599,16 @@ const MediaDetailPage = () => {
       isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [isBinaryDocument, isDocx, isPptx, isUnsupportedDocument, isXlsx, item?.fileSrc, item?.mediaType]);
+  }, [
+    effectiveDocumentSrc,
+    isBinaryDocument,
+    isDocx,
+    isPptx,
+    isUnsupportedDocument,
+    isXlsx,
+    item?.mediaType,
+    useDocumentCredentials,
+  ]);
 
   useEffect(() => {
     if (!isVideo) {
@@ -473,18 +620,25 @@ const MediaDetailPage = () => {
     }
 
     const videoElement = videoRef.current;
-    if (!videoElement) return;
+    if (!videoElement || !videoElement.isConnected) return;
+
+    if (playerRef.current && playerRef.current.el?.() !== videoElement) {
+      playerRef.current.dispose();
+      playerRef.current = null;
+    }
 
     if (!playerRef.current) {
+      videoElement.crossOrigin = crossOrigin;
       playerRef.current = videojs(videoElement, {
         controls: true,
         autoplay: true,
-        preload: "auto",
+        preload: "metadata",
         playsinline: true,
+        crossOrigin,
         playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
         html5: {
           vhs: {
-            withCredentials: true,
+            withCredentials: useCredentials,
           },
         },
         controlBar: {
@@ -752,16 +906,16 @@ const MediaDetailPage = () => {
         playerRef.current = null;
       }
     };
-  }, [isVideo, isHls]);
+  }, [isVideo, isHls, useCredentials]);
 
   useEffect(() => {
     const player = playerRef.current;
-    if (!player || !proxiedVideoSrc) return;
+    if (!player || !effectiveVideoSrc) return;
     const type = getVideoMimeType(resolvedVideoFormat);
-    const source = type ? { src: proxiedVideoSrc, type } : { src: proxiedVideoSrc };
+    const source = type ? { src: effectiveVideoSrc, type } : { src: effectiveVideoSrc };
     player.src(source);
     player.poster(item?.thumbnail ?? "");
-  }, [item?.thumbnail, proxiedVideoSrc, resolvedVideoFormat]);
+  }, [item?.thumbnail, effectiveVideoSrc, resolvedVideoFormat]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -900,7 +1054,6 @@ useEffect(() => {
   const durationLabel = formatMetaValue(meta.duration ?? item.duration);
   const durationSecLabel = formatMetaValue(meta.duration_sec ?? meta.durationSec);
 
-  console.log("Rendering MediaDetailPage for item:", item);
 
   return (
     <div className="flex flex-col gap-6 px-3 py-3">
@@ -950,8 +1103,8 @@ useEffect(() => {
                   className="video-js vjs-default-skin h-full w-full"
                   poster={item.thumbnail}
                   playsInline
-                  preload="auto"
-                  crossOrigin="use-credentials"
+                  preload="metadata"
+                  crossOrigin={crossOrigin}
                 />
                 <style jsx global>{`
                   .media-player .video-js .vjs-control-bar {
@@ -1081,8 +1234,8 @@ useEffect(() => {
                     <pre className="whitespace-pre-wrap break-words">{textPreview}</pre>
                   )}
                 </div>
-              ) : item.fileSrc ? (
-                <iframe src={item.fileSrc} title={item.title} className="h-[505px] w-full rounded-lg bg-white" />
+              ) : effectiveDocumentSrc ? (
+                <iframe src={effectiveDocumentSrc} title={item.title} className="h-[505px] w-full rounded-lg bg-white" />
               ) : (
                 <div className="flex h-80 flex-col items-center justify-center gap-3 rounded-lg text-custom-text-300">
                   <div className="flex flex-col items-center gap-2 text-sm">
@@ -1091,10 +1244,10 @@ useEffect(() => {
                   </div>
                 </div>
               )}
-              {item.fileSrc && !isUnsupportedDocument ? (
+              {effectiveDocumentSrc && !isUnsupportedDocument ? (
                 <div className="flex justify-end border-t border-custom-border-200 p-3">
                   <a
-                    href={item.fileSrc}
+                    href={effectiveDocumentSrc}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-full border border-custom-border-200 px-3 py-1 text-xs text-custom-text-300 hover:text-custom-text-100"

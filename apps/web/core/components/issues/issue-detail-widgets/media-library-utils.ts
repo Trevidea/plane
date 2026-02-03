@@ -118,13 +118,25 @@ export const getErrorMessage = (error: unknown) => {
   return "";
 };
 
-export const resolveAttachmentDownloadUrl = async (rawUrl: string) => {
+const toAbsoluteApiUrl = (rawUrl: string) => {
   if (!rawUrl) return "";
-  if (!API_BASE_URL || !rawUrl.startsWith(API_BASE_URL)) {
+  if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+  if (!API_BASE_URL) return rawUrl;
+  try {
+    return new URL(rawUrl, API_BASE_URL).toString();
+  } catch {
     return rawUrl;
   }
+};
 
-  const url = new URL(rawUrl);
+export const resolveAttachmentDownloadUrl = async (rawUrl: string) => {
+  if (!rawUrl) return "";
+  const normalizedUrl = toAbsoluteApiUrl(rawUrl);
+  if (!API_BASE_URL || !normalizedUrl.startsWith(API_BASE_URL)) {
+    return normalizedUrl || rawUrl;
+  }
+
+  const url = new URL(normalizedUrl);
   url.searchParams.set("response", "json");
   const response = await fetch(url.toString(), { credentials: "include" });
   if (!response.ok) {
