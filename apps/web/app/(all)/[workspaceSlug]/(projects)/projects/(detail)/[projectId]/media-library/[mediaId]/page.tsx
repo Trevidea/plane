@@ -282,6 +282,21 @@ const buildDownloadUrl = (src: string) => {
   return `${src}${separator}download=1`;
 };
 
+const buildMediaLibraryDownloadUrl = (args: {
+  workspaceSlug?: string;
+  projectId?: string;
+  packageId?: string;
+  artifactId?: string;
+}) => {
+  const { workspaceSlug, projectId, packageId, artifactId } = args;
+  if (!API_BASE_URL || !workspaceSlug || !projectId || !packageId || !artifactId) return "";
+  const base = API_BASE_URL.replace(/\/$/, "");
+  const path = `/api/workspaces/${workspaceSlug}/projects/${projectId}/media-library/packages/${packageId}/artifacts/${encodeURIComponent(
+    artifactId
+  )}/file/`;
+  return `${base}${path}?download=1`;
+};
+
 const addInlineDisposition = (src: string) => {
   if (!src) return "";
   try {
@@ -419,7 +434,13 @@ const MediaDetailPage = () => {
     [effectiveVideoSrc, shouldUseCredentials]
   );
   const crossOrigin = useCredentials ? "use-credentials" : "anonymous";
-  const videoDownloadSrc = videoSrc ? buildDownloadUrl(videoSrc) : "";
+  const mediaLibraryDownloadSrc = buildMediaLibraryDownloadUrl({
+    workspaceSlug,
+    projectId,
+    packageId: item?.packageId,
+    artifactId: item?.id,
+  });
+  const videoDownloadSrc = mediaLibraryDownloadSrc || (videoSrc ? buildDownloadUrl(videoSrc) : "");
   const effectiveDocumentSrc = isDocumentAssetApiUrl ? resolvedDocumentSrc : resolvedDocumentSrc || item?.fileSrc || "";
   const useDocumentCredentials = useMemo(
     () => shouldUseCredentials(effectiveDocumentSrc),
