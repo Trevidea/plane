@@ -83,6 +83,7 @@ const MediaDetailPage = () => {
     documentFormat,
     normalizedAction,
   });
+  console.log("Resolved Media Sources:", crossOrigin, useCredentials);
   const isPdf = item?.mediaType === "document" && documentFormat === "pdf";
   const isTextDocument =
     item?.mediaType === "document" &&

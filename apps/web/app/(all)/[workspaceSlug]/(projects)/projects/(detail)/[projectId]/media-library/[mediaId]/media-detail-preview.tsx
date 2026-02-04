@@ -24,7 +24,7 @@ type TMediaDetailPreviewProps = {
   onSelectQuality: (option: TQualityOption) => void;
   onSelectRate: (rate: number) => void;
   settingsPanelRef: RefObject<HTMLDivElement>;
-  crossOrigin: string;
+  crossOrigin: "anonymous" | "use-credentials" | "" | undefined;
   videoDownloadSrc: string;
   effectiveImageSrc: string;
   isUnsupportedDocument: boolean;
