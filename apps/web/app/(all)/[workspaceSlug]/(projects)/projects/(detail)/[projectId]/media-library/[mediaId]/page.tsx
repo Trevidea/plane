@@ -490,9 +490,12 @@ const MediaDetailPage = () => {
     if (!player) return;
     const tracks = getCaptionTracks(item?.meta);
     const existing = player.remoteTextTracks?.();
-    if (existing && existing.length) {
-      for (let i = existing.length - 1; i >= 0; i -= 1) {
-        player.removeRemoteTextTrack(existing[i]);
+    const trackList = existing as { length?: number; item?: (index: number) => TextTrack | null } | undefined;
+    const trackCount = typeof trackList?.length === "number" ? trackList.length : 0;
+    if (trackCount && typeof trackList?.item === "function") {
+      for (let i = trackCount - 1; i >= 0; i -= 1) {
+        const track = trackList.item(i);
+        if (track) player.removeRemoteTextTrack(track);
       }
     }
     if (!tracks.length) return;
@@ -576,7 +579,7 @@ const MediaDetailPage = () => {
     const seekable = player.seekable && player.seekable();
     let target = current + delta;
     const duration = player.duration?.();
-    if (Number.isFinite(duration) && duration > 0) {
+    if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
       target = Math.min(duration, Math.max(0, target));
     } else if (seekable && seekable.length) {
       const start = seekable.start(0);
