@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
@@ -35,6 +35,14 @@ const MediaDetailPage = () => {
     workspaceSlug: string;
     projectId: string;
   };
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get("from") ?? "";
+  const backHref = useMemo(() => {
+    const defaultHref = `/${workspaceSlug}/projects/${projectId}/media-library`;
+    if (!fromParam || !fromParam.startsWith("/") || fromParam.startsWith("//")) return defaultHref;
+    if (!fromParam.startsWith(defaultHref)) return defaultHref;
+    return fromParam;
+  }, [fromParam, projectId, workspaceSlug]);
   const { items: libraryItems, isLoading } = useMediaLibraryItems(workspaceSlug, projectId);
   const [activeTab, setActiveTab] = useState<"details" | "tags">("details");
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -769,7 +777,7 @@ const MediaDetailPage = () => {
     <div className="flex flex-col gap-6 px-3 py-3">
       <div className="flex items-center justify-between gap-4">
         <Link
-          href={`/${workspaceSlug}/projects/${projectId}/media-library`}
+          href={backHref}
           className="inline-flex items-center gap-2 rounded-full px-4 py-1 text-xs text-custom-text-300 hover:text-custom-text-100"
         >
           <ArrowLeft className="size-md h-3.2 w-3.2" />
