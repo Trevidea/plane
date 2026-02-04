@@ -1,7 +1,7 @@
 "use client";
 
 import type { RefObject } from "react";
-import { FileText } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { LogoSpinner } from "@/components/common/logo-spinner";
 import { PlayerOverlay, PlayerSettingsPanel } from "./player-ui";
 import type { TQualityOption } from "./player-ui";
@@ -111,9 +111,12 @@ export const MediaDetailPreview = ({
                 href={videoDownloadSrc}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-full border border-custom-border-200 px-3 py-1 text-xs text-custom-text-300 hover:text-custom-text-100"
+                className="inline-flex items-center gap-3 rounded-md bg-custom-primary-100 px-2 py-1 text-sm font-medium text-custom-100"
               >
-                Download video
+                <span className="flex h-6 w-6 items-center justify-center">
+                  <Download className="h-4 w-4" />
+                </span>
+                Download
               </a>
             </div>
           ) : null}
@@ -205,10 +208,13 @@ export const MediaDetailPreview = ({
                 href={effectiveDocumentSrc}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-full border border-custom-border-200 px-3 py-1 text-xs text-custom-text-300 hover:text-custom-text-100"
+               className="inline-flex items-center gap-3 rounded-md bg-custom-primary-100 px-2 py-1 text-sm font-medium text-custom-100"
               >
-                Open document
-              </a>
+                <span className="flex h-6 w-6 items-center justify-center">
+                  <Download className="h-4 w-4" />
+                </span>
+                Download
+                </a>
             </div>
           ) : null}
         </div>

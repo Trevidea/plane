@@ -119,7 +119,13 @@ export const useResolvedMediaSources = ({
     () => shouldUseCredentials(effectiveDocumentSrc),
     [effectiveDocumentSrc, shouldUseCredentials]
   );
-  const videoDownloadSrc = videoSrc ? buildDownloadUrl(videoSrc) : "";
+  const videoDownloadSrc = useMemo(() => {
+    if (!isVideo) return "";
+    if (typeof item?.downloadSrc === "string" && item.downloadSrc) {
+      return buildDownloadUrl(item.downloadSrc);
+    }
+    return videoSrc ? buildDownloadUrl(videoSrc) : "";
+  }, [isVideo, item?.downloadSrc, videoSrc]);
 
   useEffect(() => {
     let isMounted = true;

@@ -76,6 +76,36 @@ HLS_RENDITIONS: tuple[dict[str, str | int], ...] = (
         "audio_bitrate": "128k",
         "bandwidth": 5350000,
     },
+    {
+        "name": "1440p",
+        "width": 2560,
+        "height": 1440,
+        "video_bitrate": "8000k",
+        "maxrate": "8560k",
+        "bufsize": "12000k",
+        "audio_bitrate": "160k",
+        "bandwidth": 8560000,
+    },
+    {
+        "name": "2160p",
+        "width": 3840,
+        "height": 2160,
+        "video_bitrate": "14000k",
+        "maxrate": "14980k",
+        "bufsize": "21000k",
+        "audio_bitrate": "192k",
+        "bandwidth": 14980000,
+    },
+    {
+        "name": "4320p",
+        "width": 7680,
+        "height": 4320,
+        "video_bitrate": "28000k",
+        "maxrate": "29960k",
+        "bufsize": "42000k",
+        "audio_bitrate": "192k",
+        "bandwidth": 29960000,
+    },
 )
 
 EVENT_META_KEYS = {
