@@ -14,13 +14,23 @@ type Props = {
   downloadSrc: string;
   isFullScreenEnabled: boolean;
   isTouchDevice: boolean;
+  reverseButtonLogic?: boolean;
   src: string;
   toggleFullScreenMode: (val: boolean) => void;
   width: string;
 };
 
 const ImageFullScreenModalWithoutPortal = (props: Props) => {
-  const { aspectRatio, isFullScreenEnabled, isTouchDevice, downloadSrc, src, toggleFullScreenMode, width } = props;
+  const {
+    aspectRatio,
+    isFullScreenEnabled,
+    isTouchDevice,
+    downloadSrc,
+    reverseButtonLogic = false,
+    src,
+    toggleFullScreenMode,
+    width,
+  } = props;
   // refs
   const dragStart = useRef({ x: 0, y: 0 });
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -190,6 +200,11 @@ const ImageFullScreenModalWithoutPortal = (props: Props) => {
 
   if (!isFullScreenEnabled) return null;
 
+  const resolvedDownloadSrc = reverseButtonLogic ? src : downloadSrc;
+  const resolvedOpenSrc = reverseButtonLogic ? downloadSrc : src;
+  const downloadLabel = reverseButtonLogic ? "Open image in new tab" : "Download image";
+  const openLabel = reverseButtonLogic ? "Download image" : "Open image in new tab";
+
   return (
     <div
       className={cn("fixed inset-0 size-full z-50 bg-black/90 opacity-0 pointer-events-none transition-opacity", {
@@ -267,9 +282,9 @@ const ImageFullScreenModalWithoutPortal = (props: Props) => {
           {!isTouchDevice && (
             <button
               type="button"
-              onClick={() => window.open(downloadSrc, "_blank")}
+              onClick={() => window.open(resolvedDownloadSrc, "_blank")}
               className="flex-shrink-0 size-8 grid place-items-center text-white/60 hover:text-white transition-colors duration-200"
-              aria-label="Download image"
+              aria-label={downloadLabel}
             >
               <Download className="size-4" />
             </button>
@@ -277,9 +292,9 @@ const ImageFullScreenModalWithoutPortal = (props: Props) => {
           {!isTouchDevice && (
             <button
               type="button"
-              onClick={() => window.open(src, "_blank")}
+              onClick={() => window.open(resolvedOpenSrc, "_blank")}
               className="flex-shrink-0 size-8 grid place-items-center text-white/60 hover:text-white transition-colors duration-200"
-              aria-label="Open image in new tab"
+              aria-label={openLabel}
             >
               <ExternalLink className="size-4" />
             </button>

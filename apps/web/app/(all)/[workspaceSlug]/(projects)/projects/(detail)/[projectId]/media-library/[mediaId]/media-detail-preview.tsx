@@ -2,8 +2,9 @@
 
 import type { RefObject } from "react";
 import { Download, FileText } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { ImageFullScreenModal } from "@plane/editor";
 import { LogoSpinner } from "@/components/common/logo-spinner";
 import { PlayerOverlay, PlayerSettingsPanel } from "./player-ui";
 import type { TQualityOption } from "./player-ui";
@@ -84,6 +85,52 @@ export const MediaDetailPreview = ({
   createdByLabel,
   createdAt,
 }: TMediaDetailPreviewProps) => {
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const isTouchDevice = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  }, []);
+
+  useEffect(() => {
+    if (!effectiveImageSrc) {
+      setImageDimensions(null);
+      return;
+    }
+
+    setImageDimensions(null);
+    let isMounted = true;
+    const image = new Image();
+    image.onload = () => {
+      if (!isMounted) return;
+      const width = image.naturalWidth || image.width;
+      const height = image.naturalHeight || image.height;
+      if (width > 0 && height > 0) {
+        setImageDimensions({ width, height });
+      }
+    };
+    image.onerror = () => {
+      if (isMounted) setImageDimensions(null);
+    };
+    image.src = effectiveImageSrc;
+
+    return () => {
+      isMounted = false;
+    };
+  }, [effectiveImageSrc]);
+
+  const imageAspectRatio = useMemo(() => {
+    if (!imageDimensions) return 1;
+    return imageDimensions.width / imageDimensions.height;
+  }, [imageDimensions]);
+  const imageWidth = useMemo(() => {
+    if (!imageDimensions) return "0px";
+    return `${imageDimensions.width}px`;
+  }, [imageDimensions]);
+  const imageDownloadSrc = useMemo(
+    () => item?.downloadSrc || effectiveImageSrc,
+    [effectiveImageSrc, item?.downloadSrc]
+  );
+
   const overlayContent = (
     <>
       <PlayerOverlay isPlaying={isPlaying} onToggle={onOverlayToggle} onSeek={onOverlaySeek} />
@@ -158,6 +205,12 @@ export const MediaDetailPreview = ({
                 loading="lazy"
                 decoding="async"
                 className="h-full w-full object-cover"
+                onLoad={(event) => {
+                  const { naturalWidth, naturalHeight } = event.currentTarget;
+                  if (naturalWidth > 0 && naturalHeight > 0) {
+                    setImageDimensions({ width: naturalWidth, height: naturalHeight });
+                  }
+                }}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs text-custom-text-300">
@@ -253,29 +306,28 @@ export const MediaDetailPreview = ({
       <hr className="border-t border-custom-border-200" />
     </div>
 
-    {isImageZoomOpen && item.mediaType === "image" && (
+    {isImageZoomOpen && item.mediaType === "image" && !imageDimensions ? (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
         onClick={() => setIsImageZoomOpen(false)}
         role="dialog"
         aria-modal="true"
       >
-        <button
-          type="button"
-          onClick={() => setIsImageZoomOpen(false)}
-          className="absolute right-4 top-4 rounded-full border border-white/30 px-3 py-1 text-xs text-white hover:border-white"
-        >
-          Close
-        </button>
-        {effectiveImageSrc ? (
-          <img src={effectiveImageSrc} alt={item.title} className="h-[90vh] w-[90vw] object-contain" />
-        ) : (
-          <div className="flex h-[90vh] w-[90vw] items-center justify-center text-xs text-white">
-            Loading image...
-          </div>
-        )}
+        <div className="flex h-[90vh] w-[90vw] items-center justify-center text-xs text-white">Loading image...</div>
       </div>
-    )}
+    ) : null}
+    {isImageZoomOpen && item.mediaType === "image" && imageDimensions ? (
+      <ImageFullScreenModal
+        aspectRatio={imageAspectRatio}
+        downloadSrc={imageDownloadSrc || effectiveImageSrc}
+        isFullScreenEnabled={isImageZoomOpen}
+        isTouchDevice={isTouchDevice}
+        reverseButtonLogic
+        src={effectiveImageSrc}
+        toggleFullScreenMode={setIsImageZoomOpen}
+        width={imageWidth}
+      />
+    ) : null}
     </>
   );
 };

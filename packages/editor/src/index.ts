@@ -16,6 +16,9 @@ export * from "@/helpers/yjs-utils";
 export { CORE_EXTENSIONS } from "@/constants/extension";
 export { ADDITIONAL_EXTENSIONS } from "@/plane-editor/constants/extensions";
 
+// shared components
+export { ImageFullScreenModal } from "@/extensions/custom-image/components/toolbar/full-screen/modal";
+
 // types
 export * from "@/types";
 
