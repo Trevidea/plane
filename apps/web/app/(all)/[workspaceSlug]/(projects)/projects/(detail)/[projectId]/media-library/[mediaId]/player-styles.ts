@@ -248,6 +248,10 @@ export const PLAYER_STYLE = `
                     opacity: 1;
                     visibility: visible;
                   }
+                  .media-player .video-js.vjs-fullscreen.vjs-user-inactive .player-overlay-controls {
+                    opacity: 0 !important;
+                    visibility: hidden !important;
+                  }
                   .media-player .player-overlay-box {
                     pointer-events: auto;
                     display: inline-flex;
