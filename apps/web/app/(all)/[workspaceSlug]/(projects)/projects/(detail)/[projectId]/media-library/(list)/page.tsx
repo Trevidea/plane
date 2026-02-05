@@ -10,12 +10,12 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useFiltersOperatorConfigs } from "@/plane-web/hooks/rich-filters/use-filters-operator-configs";
 import { MediaCard } from "../components/media-card";
-import type { TMediaItem, TMediaSection } from "../types";
-import { groupMediaItemsByTag, resolveMediaItemActionHref } from "../utils/media-items";
-import { useMediaLibrary } from "../state/media-library-context";
-import { buildMetaFilterConfigs, collectMetaFilterOptions } from "../utils/media-library-filters";
 import { MediaListView } from "../components/media-list-view";
 import { useMediaLibraryItems } from "../hooks/use-media-library-items";
+import { useMediaLibrary } from "../state/media-library-context";
+import type { TMediaItem, TMediaSection } from "../types";
+import { groupMediaItemsByTag, resolveMediaItemActionHref } from "../utils/media-items";
+import { buildMetaFilterConfigs, collectMetaFilterOptions } from "../utils/media-library-filters";
 
 const MediaRow = ({ section, getItemHref }: { section: TMediaSection; getItemHref: (item: TMediaItem) => string }) => {
   const rowId = useId().replace(/:/g, "");
@@ -97,7 +97,7 @@ const MediaRow = ({ section, getItemHref }: { section: TMediaSection; getItemHre
   );
 };
 
-const BLOCKED_DOCUMENT_FORMATS = new Set(["doc", "docx", "txt","csv", "pptx"]);
+const ALLOWED_DOCUMENT_FORMATS = new Set(["docx", "pdf", "xlsx", "csv"]);
 
 const MediaLibraryListPage = observer(() => {
   const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
@@ -125,8 +125,10 @@ const MediaLibraryListPage = observer(() => {
       libraryItems.filter((item) => {
         const format = item.format?.toLowerCase() ?? "";
         const linkedFormat = item.linkedFormat?.toLowerCase() ?? "";
-        if (BLOCKED_DOCUMENT_FORMATS.has(format)) return false;
-        if (format === "thumbnail" && linkedFormat && BLOCKED_DOCUMENT_FORMATS.has(linkedFormat)) return false;
+        const isDocument = item.mediaType === "document";
+        const isDocumentThumbnail = item.mediaType === "image" && item.linkedMediaType === "document";
+        if (isDocument) return ALLOWED_DOCUMENT_FORMATS.has(format);
+        if (format === "thumbnail" && isDocumentThumbnail) return ALLOWED_DOCUMENT_FORMATS.has(linkedFormat);
         return true;
       }),
     [libraryItems]
