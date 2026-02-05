@@ -12,7 +12,7 @@ export const formatMetaValue = (value: unknown): string => {
     const namedValue = (value as Record<string, unknown>)?.name;
     if (typeof namedValue === "string" && namedValue.trim()) return namedValue.trim();
   }
-  return JSON.stringify(value);
+  return JSON.stringify(value) || "";
 };
 
 export const formatMetaLabel = (value: string) => {
