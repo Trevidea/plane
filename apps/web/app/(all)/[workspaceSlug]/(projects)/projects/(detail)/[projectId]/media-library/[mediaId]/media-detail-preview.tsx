@@ -117,7 +117,7 @@ export const MediaDetailPreview = ({
                 ref={videoRef}
                 className="video-js vjs-default-skin h-full w-full"
                 poster={item.thumbnail}
-                playsInline
+                playsInlineconsole
                 preload="metadata"
                 crossOrigin={crossOrigin}
               />
@@ -152,8 +152,8 @@ export const MediaDetailPreview = ({
             aria-label="Zoom image"
           >
             {effectiveImageSrc ? (
-              <>
-              {console.log("Effective image src:", effectiveImageSrc)}
+          
+              
               <img
                 src={effectiveImageSrc}
                 alt={item.title}
@@ -161,7 +161,7 @@ export const MediaDetailPreview = ({
                 decoding="async"
                 className="h-full w-full object-cover"
               />
-              </>
+           
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xs text-custom-text-300">
                 Loading image...
@@ -272,10 +272,9 @@ export const MediaDetailPreview = ({
           Close
         </button>
         {effectiveImageSrc ? (
-          <>
-          {console.log("Effective image src:", effectiveImageSrc)}
+        
           <img src={effectiveImageSrc} alt={item.title} className="h-[90vh] w-[90vw] object-contain" />
-          </>
+        
         ) : (
           <div className="flex h-[90vh] w-[90vw] items-center justify-center text-xs text-white">
             Loading image...
