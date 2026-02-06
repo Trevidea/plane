@@ -117,7 +117,7 @@ export const MediaDetailPreview = ({
                 ref={videoRef}
                 className="video-js vjs-default-skin h-full w-full"
                 poster={item.thumbnail}
-                playsInlineconsole
+                playsInline
                 preload="metadata"
                 crossOrigin={crossOrigin}
               />
