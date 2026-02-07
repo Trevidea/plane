@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "@plane/constants";
 import { resolveAttachmentDownloadUrl } from "@/components/issues/issue-detail-widgets/media-library-utils";
-import { addInlineDisposition, buildDownloadUrl, getVideoFormatFromSrc } from "./media-detail-utils";
+import { addInlineDisposition, buildDownloadUrl, getVideoFormatFromSrc } from "../[mediaId]/media-detail-utils";
 
 type TUseResolvedMediaSourcesArgs = {
   item: any;
@@ -19,7 +19,7 @@ export const useResolvedMediaSources = ({
   normalizedAction,
 }: TUseResolvedMediaSourcesArgs) => {
   const videoSrc = item?.videoSrc ?? item?.fileSrc ?? "";
-  const rawImageSrc = item?.mediaType === "image" ? item.thumbnail : "";
+  const rawImageSrc = item?.mediaType === "image" ? item.imageSrc || item.thumbnail : "";
   const [resolvedVideoSrc, setResolvedVideoSrc] = useState<string>("");
   const [resolvedDocumentSrc, setResolvedDocumentSrc] = useState<string>("");
   const [resolvedImageSrc, setResolvedImageSrc] = useState<string>("");
@@ -64,9 +64,39 @@ export const useResolvedMediaSources = ({
       Boolean(meta?.hls));
   const resolvedVideoFormat = isHls ? "m3u8" : detectedVideoFormat;
 
+  const hlsProxyOverride = useMemo(() => {
+    const rawMeta = meta as Record<string, unknown> | undefined;
+    if (!rawMeta) return null;
+    const direct = rawMeta.hls_direct ?? rawMeta.hlsDirect;
+    if (typeof direct === "boolean") return direct ? false : true;
+    const proxy = rawMeta.hls_proxy ?? rawMeta.hlsProxy ?? rawMeta.use_hls_proxy ?? rawMeta.useHlsProxy;
+    if (typeof proxy === "boolean") return proxy;
+    return null;
+  }, [meta]);
+
+  const isCrossOriginHls = useMemo(() => {
+    if (!isHls || !videoSrc) return false;
+    if (videoSrc.startsWith("/")) return false;
+    if (!/^https?:\/\//i.test(videoSrc)) return false;
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+      const url = new URL(videoSrc, base);
+      return url.origin !== base;
+    } catch {
+      return true;
+    }
+  }, [isHls, videoSrc]);
+
+  const shouldProxyHls = useMemo(() => {
+    if (!isHls) return false;
+    if (hlsProxyOverride === true) return true;
+    if (hlsProxyOverride === false) return false;
+    return isCrossOriginHls;
+  }, [hlsProxyOverride, isCrossOriginHls, isHls]);
+
   const proxiedVideoSrc = useMemo(() => {
     if (!videoSrc) return videoSrc;
-    if (!isHls) return videoSrc;
+    if (!isHls || !shouldProxyHls) return videoSrc;
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "http://localhost";
       const url = new URL(videoSrc, base);
@@ -75,7 +105,7 @@ export const useResolvedMediaSources = ({
     } catch {
       return videoSrc;
     }
-  }, [isHls, videoSrc]);
+  }, [isHls, shouldProxyHls, videoSrc]);
 
   const effectiveVideoSrc = isVideoAssetApiUrl ? resolvedVideoSrc : resolvedVideoSrc || proxiedVideoSrc || videoSrc;
   const effectiveImageSrc = isImageAssetApiUrl ? resolvedImageSrc : resolvedImageSrc || rawImageSrc;
@@ -255,7 +285,7 @@ type TUseDocumentPreviewArgs = {
   isBinaryDocument: boolean;
   isUnsupportedDocument: boolean;
   isDocx: boolean;
-  isXlsx: boolean;
+  isSpreadsheet: boolean;
   isPptx: boolean;
   useDocumentCredentials: boolean;
 };
@@ -268,7 +298,7 @@ export const useDocumentPreview = ({
   isBinaryDocument,
   isUnsupportedDocument,
   isDocx,
-  isXlsx,
+  isSpreadsheet,
   isPptx,
   useDocumentCredentials,
 }: TUseDocumentPreviewArgs) => {
@@ -279,6 +309,8 @@ export const useDocumentPreview = ({
   const [documentPreviewHtml, setDocumentPreviewHtml] = useState<string | null>(null);
   const [documentPreviewError, setDocumentPreviewError] = useState<string | null>(null);
   const [isDocumentPreviewLoading, setIsDocumentPreviewLoading] = useState(false);
+  const csvPreviewBytes = 512 * 1024;
+  const csvPreviewRows = 500;
 
   useEffect(() => {
     let isMounted = true;
@@ -347,15 +379,15 @@ export const useDocumentPreview = ({
         setIsDocumentPreviewLoading(true);
         setDocumentPreviewError(null);
         setDocumentPreviewHtml(null);
-        const response = await fetch(fileSrc, { credentials: useDocumentCredentials ? "include" : "omit" });
-        if (!response.ok) {
-          throw new Error(`Failed to load document preview (status ${response.status}).`);
-        }
-        const blob = await response.blob();
         if (isPptx) {
           throw new Error("Preview is not available for PowerPoint files.");
         }
         if (isDocx) {
+          const response = await fetch(fileSrc, { credentials: useDocumentCredentials ? "include" : "omit" });
+          if (!response.ok) {
+            throw new Error(`Failed to load document preview (status ${response.status}).`);
+          }
+          const blob = await response.blob();
           const mammothModule = await import("mammoth");
           const convertToHtml = mammothModule.convertToHtml ?? mammothModule.default?.convertToHtml;
           if (!convertToHtml) throw new Error("Document preview is unavailable.");
@@ -364,11 +396,34 @@ export const useDocumentPreview = ({
           if (isMounted) setDocumentPreviewHtml(result.value);
           return;
         }
-        if (isXlsx) {
+        if (isSpreadsheet) {
           const xlsxModule = await import("xlsx");
           const XLSX = "default" in xlsxModule ? xlsxModule.default : xlsxModule;
-          const arrayBuffer = await blob.arrayBuffer();
-          const workbook = XLSX.read(arrayBuffer, { type: "array" });
+          let workbook;
+          if (documentFormat === "csv") {
+            const headers: HeadersInit = { Range: `bytes=0-${csvPreviewBytes - 1}` };
+            let response = await fetch(fileSrc, {
+              credentials: useDocumentCredentials ? "include" : "omit",
+              headers,
+            });
+            if (!response.ok && response.status !== 206) {
+              response = await fetch(fileSrc, { credentials: useDocumentCredentials ? "include" : "omit" });
+            }
+            if (!response.ok) {
+              throw new Error(`Failed to load document preview (status ${response.status}).`);
+            }
+            const csvText = await response.text();
+            const csvBuffer = new TextEncoder().encode(csvText).buffer;
+            workbook = XLSX.read(csvBuffer, { type: "array", sheetRows: csvPreviewRows });
+          } else {
+            const response = await fetch(fileSrc, { credentials: useDocumentCredentials ? "include" : "omit" });
+            if (!response.ok) {
+              throw new Error(`Failed to load document preview (status ${response.status}).`);
+            }
+            const blob = await response.blob();
+            const arrayBuffer = await blob.arrayBuffer();
+            workbook = XLSX.read(arrayBuffer, { type: "array" });
+          }
           const sheetName = workbook.SheetNames[0];
           const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
           if (!sheet) throw new Error("Spreadsheet preview is unavailable.");
@@ -376,6 +431,11 @@ export const useDocumentPreview = ({
           if (isMounted) setDocumentPreviewHtml(html);
           return;
         }
+        const response = await fetch(fileSrc, { credentials: useDocumentCredentials ? "include" : "omit" });
+        if (!response.ok) {
+          throw new Error(`Failed to load document preview (status ${response.status}).`);
+        }
+        const blob = await response.blob();
         objectUrl = URL.createObjectURL(blob);
         if (isMounted) setDocumentPreviewUrl(objectUrl);
       } catch (error) {
@@ -401,9 +461,10 @@ export const useDocumentPreview = ({
     isDocx,
     isPptx,
     isUnsupportedDocument,
-    isXlsx,
+    isSpreadsheet,
     item?.mediaType,
     useDocumentCredentials,
+    documentFormat,
   ]);
 
   useEffect(() => {
@@ -414,7 +475,7 @@ export const useDocumentPreview = ({
     setDocumentPreviewUrl(null);
     setDocumentPreviewHtml(null);
     setIsDocumentPreviewLoading(false);
-    setDocumentPreviewError("Only PDF and XLSX files are supported.");
+    setDocumentPreviewError("Only PDF, DOCX, XLSX, CSV, and text files are supported.");
   }, [isUnsupportedDocument]);
 
   return {
