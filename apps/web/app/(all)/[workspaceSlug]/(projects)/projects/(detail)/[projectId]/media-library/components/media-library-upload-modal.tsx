@@ -449,9 +449,9 @@ export const MediaLibraryUploadModal = () => {
   if (!isUploadOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 sm:items-center">
       <div
-        className={`w-full max-w-4xl overflow-hidden rounded-xl border border-custom-border-200 bg-custom-background-100 shadow-lg`}
+        className={`flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-custom-border-200 bg-custom-background-100 shadow-lg`}
       >
         <div className="flex items-center justify-between border-b border-custom-border-200 px-5 py-3">
           <h2 className="text-lg font-semibold text-custom-text-100">Upload Files</h2>
@@ -465,7 +465,7 @@ export const MediaLibraryUploadModal = () => {
           </button>
         </div>
 
-        <div className="p-5">
+        <div className="flex-1 overflow-y-auto p-5">
           <MediaLibraryUploadTabs value={uploadTarget} onChange={setUploadTarget} />
           {uploadTarget === "work-item" ? (
             <MediaLibraryWorkItemSelector
@@ -533,7 +533,7 @@ export const MediaLibraryUploadModal = () => {
           <hr className="my-4 border-0 border-t border-custom-border-200/60" />
 
           <div className="mt-4 rounded-lg border border-custom-border-200">
-            <div className="max-h-[40vh] overflow-y-scroll">
+            <div className="max-h-[32vh] overflow-y-auto sm:max-h-[40vh]">
               {uploads.length === 0 ? (
                 <div className="px-4 py-3 text-xs text-custom-text-300">No files selected.</div>
               ) : (
