@@ -329,6 +329,7 @@ export const mapArtifactsToMediaItems = (
       linkedFormat,
       action: artifact.action,
       link: artifact.link ?? null,
+      workItemId: artifact.work_item_id ?? null,
       author,
       createdAt,
       views,

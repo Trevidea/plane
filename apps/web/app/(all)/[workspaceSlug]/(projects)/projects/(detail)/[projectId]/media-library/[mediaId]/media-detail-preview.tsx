@@ -2,7 +2,6 @@
 
 import type { RefObject } from "react";
 import { Download, FileText } from "lucide-react";
-import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { LogoSpinner } from "@/components/common/logo-spinner";
 import { PlayerOverlay, PlayerSettingsPanel } from "./player-ui";
@@ -247,14 +246,14 @@ export const MediaDetailPreview = ({
           ) : null}
         </div>
       )}
-      <div className="mt-4">
+      {/* <div className="mt-4">
         <h1 className="text-base font-semibold text-custom-text-100 sm:text-lg">{item.title}</h1>
         <p className="mt-1 text-[11px] text-custom-text-300 sm:text-xs">
           Uploaded by {createdByLabel} - {createdAt}
         </p>
         {description ? <p className="mt-2 text-sm text-custom-text-200">{description}</p> : null}
       </div>
-      <hr className="border-t border-custom-border-200" />
+      <hr className="border-t border-custom-border-200" /> */}
     </div>
 
     {isImageZoomOpen && item.mediaType === "image" && (

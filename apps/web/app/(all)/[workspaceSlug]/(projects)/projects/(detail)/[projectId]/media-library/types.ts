@@ -7,6 +7,7 @@ export type TMediaItem = {
   linkedFormat?: string;
   action: string;
   link?: string | null;
+  workItemId?: string | null;
   author: string;
   createdAt: string;
   views: number;
