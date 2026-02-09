@@ -3,6 +3,7 @@ export type TMediaItem = {
   packageId?: string;
   title: string;
   description?: string;
+  descriptionHtml?: string;
   format: string;
   linkedFormat?: string;
   action: string;

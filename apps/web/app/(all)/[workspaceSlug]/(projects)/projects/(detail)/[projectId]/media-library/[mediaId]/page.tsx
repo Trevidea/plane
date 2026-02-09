@@ -201,8 +201,8 @@ const MediaDetailPage = () => {
 
       playerRef.current = videojs(videoElement, {
         controls: true,
-        autoplay: false,
-        preload: "metadata",
+        autoplay: true,
+        preload: "auto",
         playsinline: true,
         crossOrigin,
         nativeTextTracks: false,
@@ -734,8 +734,8 @@ const MediaDetailPage = () => {
   const createdByLabel = createdBy || item.author;
 
   return (
-    <div className="relative h-full w-full overflow-hidden overflow-y-auto">
-      <div className="flex min-h-full flex-col gap-6 px-3 py-3">
+    <div className="relative h-full w-full overflow-x-hidden overflow-y-auto lg:overflow-y-hidden">
+      <div className="flex min-h-full flex-col gap-6 px-3 py-3 lg:h-full lg:min-h-0">
         <div className="flex items-center justify-between gap-4">
           <Link
             href={backHref}
@@ -770,7 +770,7 @@ const MediaDetailPage = () => {
         </div> */}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr] lg:gap-0">
+        <div className="grid gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[2fr_1fr] lg:gap-0">
           <MediaDetailPreview
             item={item}
             isVideo={isVideo}

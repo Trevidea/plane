@@ -24,7 +24,7 @@ import { useDebouncedDuplicateIssues } from "@/plane-web/hooks/use-debounced-dup
 // local components
 import { WorkItemVersionService } from "@/services/issue";
 import { IssueDescriptionInput } from "@/components/issues/description-input";
-import { TIssueOperations } from "@/components/issues/issue-detail";
+import type { TIssueOperations } from "@/components/issues/issue-detail";
 import { IssueParentDetail } from "@/components/issues/issue-detail/parent";
 import { IssueReaction } from "@/components/issues/issue-detail/reactions";
 import { IssueTitleInput } from "@/components/issues/title-input";
@@ -102,30 +102,38 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
 
   if (!issue || !issue.project_id) return <></>;
 
-  const escapeHtml = useCallback((value: string) => {
-    return value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }, []);
+  const escapeHtml = useCallback(
+    (value: string) =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;"),
+    []
+  );
+
+  const getMediaDescriptionSeed = useCallback(
+    (item?: TMediaItem) => {
+      const html = item?.descriptionHtml?.trim();
+      if (html) return html;
+      const text = item?.description?.trim() ?? "";
+      if (!text) return "<p></p>";
+      return `<p>${escapeHtml(text).replace(/\n/g, "<br />")}</p>`;
+    },
+    [escapeHtml]
+  );
 
   const mediaTitle = mediaItem?.title ?? "";
-  const [mediaDescriptionSeed, setMediaDescriptionSeed] = useState(mediaItem?.description ?? "");
+  const [mediaDescriptionSeed, setMediaDescriptionSeed] = useState(() => getMediaDescriptionSeed(mediaItem));
   const mediaDescriptionIdRef = useRef<string | null>(mediaItem?.id ?? null);
   useEffect(() => {
     const nextId = mediaItem?.id ?? null;
     if (nextId === mediaDescriptionIdRef.current) return;
     mediaDescriptionIdRef.current = nextId;
-    setMediaDescriptionSeed(mediaItem?.description ?? "");
-  }, [mediaItem?.description, mediaItem?.id]);
-  const mediaDescriptionText = mediaDescriptionSeed;
-  const mediaDescriptionHtml = useMemo(() => {
-    if (!mediaDescriptionText) return "<p></p>";
-    const escaped = escapeHtml(mediaDescriptionText);
-    return `<p>${escaped.replace(/\n/g, "<br />")}</p>`;
-  }, [escapeHtml, mediaDescriptionText]);
+    setMediaDescriptionSeed(getMediaDescriptionSeed(mediaItem));
+  }, [getMediaDescriptionSeed, mediaItem, mediaItem?.id]);
+  const mediaDescriptionHtml = mediaDescriptionSeed || "<p></p>";
 
   const updateMediaArtifact = useCallback(
     async (data: Partial<TIssue>) => {
@@ -138,10 +146,10 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
         updatedFields.title = trimmed;
       }
       if (data.description_html !== undefined) {
-        const rawText = getTextContent(data.description_html ?? "");
-        const trimmed = rawText.trim();
-        payload.description = trimmed ? trimmed : null;
-        updatedFields.description = trimmed;
+        const htmlDescription = (data.description_html ?? "").trim();
+        payload.description = htmlDescription ? htmlDescription : null;
+        updatedFields.descriptionHtml = htmlDescription || undefined;
+        updatedFields.description = htmlDescription ? getTextContent(htmlDescription) : "";
       }
       if (Object.keys(payload).length === 0) return;
       await mediaLibraryService.updateManifestArtifacts(workspaceSlug, projectId, mediaItem.packageId, {
@@ -164,11 +172,9 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
   }, [issueOperations, mediaItem, updateMediaArtifact]);
 
   const issueDescription =
-    issue.description_html !== undefined || issue.description_html !== null
-      ? issue.description_html != ""
-        ? issue.description_html
-        : "<p></p>"
-      : undefined;
+    issue.description_html !== undefined && issue.description_html !== null && issue.description_html !== ""
+      ? issue.description_html
+      : "<p></p>";
 
   return (
     <div className="space-y-2">

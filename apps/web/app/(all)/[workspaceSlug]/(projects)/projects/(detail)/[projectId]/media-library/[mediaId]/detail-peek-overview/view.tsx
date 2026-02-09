@@ -19,7 +19,7 @@ import { IssuePeekOverviewHeader } from "./header";
 import { PeekOverviewIssueDetails } from "./issue-detail";
 import { IssuePeekOverviewLoader } from "./loader";
 import { PeekOverviewProperties } from "./properties";
-import { TIssueOperations } from "@/components/issues/issue-detail";
+import type { TIssueOperations } from "@/components/issues/issue-detail";
 import { IssueActivity } from "@/components/issues/issue-detail/issue-activity";
 import { IssueDetailWidgets } from "@/components/issues/issue-detail-widgets";
 import type { TMediaItem } from "../../types";
@@ -206,7 +206,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
   const portalContainer = document.getElementById("full-screen-portal") as HTMLElement;
 
   const content = (
-    <div className="w-full !text-base">
+    <div className="h-full w-full !text-base">
       {issueId && (
         <div
           ref={issuePeekOverviewRef}

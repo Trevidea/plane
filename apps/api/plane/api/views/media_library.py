@@ -64,6 +64,15 @@ _VIDEO_FORMATS = {"mp4", "m3u8", "mov", "webm", "avi", "mkv", "mpeg", "mpg", "m4
 logger = logging.getLogger(__name__)
 
 
+def _default_artifact_description(title: str) -> str:
+    title_value = (title or "Uploaded file").strip() or "Uploaded file"
+    return (
+        "<p>This asset was uploaded to the media library and is ready for use.<br />"
+        "It can be previewed, downloaded, or used in projects as needed.<br />"
+        f"File name: {title_value}</p>"
+    )
+
+
 class ListPaginator:
     def __init__(self, items):
         self.items = items
@@ -655,9 +664,7 @@ class MediaArtifactsListAPIEndpoint(BaseAPIView):
             primary_entry = {
                 "name": artifact_name,
                 "title": title,
-                "description": f"This asset was uploaded to the media library and is ready for use.\n"
-                     f"It can be previewed, downloaded, or used in projects as needed.\n"
-                     f"File name: {title}",
+                "description": _default_artifact_description(title),
                 "format": format_value,
                 "path": relative_path,
                 "link": link,
@@ -692,11 +699,7 @@ class MediaArtifactsListAPIEndpoint(BaseAPIView):
                 entry.pop("description", None)
             elif not entry.get("description"):
                 title_value = entry.get("title") or "Untitled file"
-                entry["description"] = (
-                     f"This asset was uploaded to the media library and is ready for use.\n"
-                     f"It can be previewed, downloaded, or used in projects as needed.\n"
-                     f"File name: {title_value}"
-            )
+                entry["description"] = _default_artifact_description(title_value)
             if not entry.get("created_at"):
                 entry["created_at"] = timestamp
             if not entry.get("updated_at"):
