@@ -124,6 +124,7 @@ EVENT_META_KEYS = {
 ARTIFACT_FIELD_KEYS = {
     "title",
     "description",
+    "meta",
 }
 
 
@@ -204,6 +205,8 @@ def update_manifest_artifact_fields(
             if key not in updates:
                 continue
             value = updates.get(key)
+            if key == "meta" and value not in (None, "") and not isinstance(value, dict):
+                continue
             if value is None or value == "":
                 if key in artifact:
                     artifact.pop(key, None)
