@@ -280,9 +280,11 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
               renderPlaceholder
               placeholder={{ from: "From", to: "To" }}
               hideIcon={{ from: false, to: true }}
+              usePointerOutsideClick
               buttonVariant="transparent-with-text"
               buttonClassName="h-7 rounded px-2 text-xs"
               buttonContainerClassName="w-[180px]"
+              clearIconClassName="h-3.5 w-3.5"
               isClearable
             />
           </div>
@@ -345,9 +347,11 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
                     mergeDates
                     renderPlaceholder
                     placeholder={{ from: "From", to: "To" }}
+                    usePointerOutsideClick
                     buttonVariant="transparent-with-text"
                     buttonClassName="h-8 rounded border border-custom-border-200 px-2 text-xs"
                     buttonContainerClassName="w-full text-left"
+                    clearIconClassName="h-3.5 w-3.5"
                     isClearable
                   />
                 </div>
