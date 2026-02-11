@@ -17,9 +17,9 @@ urlpatterns = [
         name="media-library-init",
     ),
     path(
-        "workspaces/<str:slug>/projects/<uuid:project_id>/media-library/work-items/sync/",
+        "workspaces/<str:slug>/projects/<uuid:project_id>/media-library/work-items/webhook/",
         MediaWorkItemSyncAPIView.as_view(),
-        name="media-library-work-item-sync",
+        name="media-library-work-item-webhook",
     ),
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/media-library/packages/",
