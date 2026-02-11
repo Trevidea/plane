@@ -563,6 +563,12 @@ class ProjectAssetEndpoint(BaseAPIView):
         # asset key
         asset_key = f"{workspace.id}/{uuid.uuid4().hex}-{name}"
 
+        entity_fields = self.get_entity_id_field(entity_type, entity_identifier)
+        # Keep project scoping for this endpoint while avoiding duplicate kwargs
+        # when entity_type already maps to project_id (e.g. PROJECT_COVER).
+        if "project_id" not in entity_fields or not entity_fields["project_id"]:
+            entity_fields["project_id"] = project_id
+
         # Create a File Asset
         asset = FileAsset.objects.create(
             attributes={"name": name, "type": type, "size": size_limit},
@@ -571,8 +577,7 @@ class ProjectAssetEndpoint(BaseAPIView):
             workspace=workspace,
             created_by=request.user,
             entity_type=entity_type,
-            project_id=project_id,
-            **self.get_entity_id_field(entity_type, entity_identifier),
+            **entity_fields,
         )
 
         # Get the presigned URL
@@ -618,8 +623,20 @@ class ProjectAssetEndpoint(BaseAPIView):
 
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def get(self, request, slug, project_id, pk):
-        # get the asset id
-        asset = FileAsset.objects.get(workspace__slug=slug, project_id=project_id, pk=pk)
+        asset = FileAsset.objects.filter(workspace__slug=slug, project_id=project_id, pk=pk).first()
+        if not asset and request.query_params.get("response") == "json":
+            # Allow media-library resolution for soft-deleted assets still present in MinIO.
+            asset = FileAsset.all_objects.filter(
+                workspace__slug=slug,
+                project_id=project_id,
+                pk=pk,
+                is_deleted=True,
+            ).first()
+        if not asset:
+            return Response(
+                {"error": "The requested asset could not be found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Check if the asset is uploaded
         if not asset.is_uploaded:
