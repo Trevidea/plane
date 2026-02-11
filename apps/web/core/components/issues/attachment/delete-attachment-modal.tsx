@@ -88,7 +88,7 @@ export const IssueAttachmentDeleteModal: FC<Props> = observer((props) => {
                 checked={removeFromManifest}
                 onChange={() => setRemoveFromManifest((prev) => !prev)}
               />
-              <span>Also remove from media library (manifest.json)</span>
+              <span>Also remove from media library</span>
             </label>
           )}
         </>

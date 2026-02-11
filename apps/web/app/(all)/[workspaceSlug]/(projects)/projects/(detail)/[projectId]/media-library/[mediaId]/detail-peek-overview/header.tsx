@@ -918,8 +918,7 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
         content={
           <>
             You removed {inlineCleanupCandidates.length} inline image
-            {inlineCleanupCandidates.length === 1 ? "" : "s"} from the description. Do you want to also remove the
-            corresponding artifacts from the media library (manifest.json)?
+            {inlineCleanupCandidates.length === 1 ? "" : "s"} from the description. Do you also want to remove from the media library?
           </>
         }
       />
