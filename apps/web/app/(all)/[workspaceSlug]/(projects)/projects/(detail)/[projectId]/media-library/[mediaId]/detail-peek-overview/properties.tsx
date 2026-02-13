@@ -133,7 +133,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
   const isPastEvent = eventDateTime ? eventDateTime < new Date() : false;
 
   // final disabled flag
-  const isLocked = disabled || isPastEvent || readOnly || !issue;
+  const isLocked = disabled || isPastEvent || !issue;
 
   const buildManifestMeta = useCallback(
     (currentIssue: TIssue) => ({
@@ -181,7 +181,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
     <div>
       <h6 className="text-sm font-medium">Event Details</h6>
 
-      <div className={`w-full space-y-2 mt-3 ${isLocked ? "opacity-60" : ""}`}>
+      <div className={`w-full space-y-2 mt-3 ${isLocked && !readOnly ? "opacity-60" : ""}`}>
         {/* created by */}
         {createdByLabel ? (
           <div className="flex w-full items-center gap-3 h-8">
@@ -189,7 +189,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
               <UserCircle2 className="h-4 w-4 flex-shrink-0" />
               <span>{t("common.created_by")}</span>
             </div>
-            <div className="w-full h-full flex items-center gap-1.5 rounded px-2 py-0.5 text-sm justify-between cursor-not-allowed">
+            <div className="w-full h-full flex items-center gap-1.5 rounded px-2 py-0.5 text-sm text-custom-text-100 justify-between cursor-default">
               {createdByDetails ? (
                 <ButtonAvatars
                   showTooltip
@@ -220,7 +220,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
             disabled={isLocked}
             className="w-3/4 flex-grow group"
             buttonContainerClassName="w-full text-left"
-            buttonClassName={`text-sm ${resolvedStartDate ? "" : "text-custom-text-400"}`}
+            buttonClassName={`text-sm ${resolvedStartDate ? "text-custom-text-100" : "text-custom-text-400"}`}
             hideIcon
             clearIconClassName="h-3 w-3 hidden group-hover:inline"
           />
@@ -244,7 +244,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
             className="w-3/4 flex-grow group"
             disabled={isLocked}
             buttonContainerClassName="w-full text-left"
-            buttonClassName={`text-sm ${resolvedStartTime ? "" : "text-custom-text-400"}`}
+            buttonClassName={`text-sm ${resolvedStartTime ? "text-custom-text-100" : "text-custom-text-400"}`}
             hideIcon
             clearIconClassName="h-3 w-3 hidden group-hover:inline"
           />
@@ -269,7 +269,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
             className="w-3/4 flex-grow group"
             disabled={isLocked}
             buttonContainerClassName="w-full text-left"
-            buttonClassName={`text-sm ${resolvedLevel ? "" : "text-custom-text-400"}`}
+            buttonClassName={`text-sm ${resolvedLevel ? "text-custom-text-100" : "text-custom-text-400"}`}
             hideIcon
             clearIconClassName="h-3 w-3 hidden group-hover:inline"
           />
@@ -294,7 +294,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
             className="w-3/4 flex-grow group"
             disabled={isLocked}
             buttonContainerClassName="w-full text-left"
-            buttonClassName={`text-sm ${resolvedProgram ? "" : "text-custom-text-400"}`}
+            buttonClassName={`text-sm ${resolvedProgram ? "text-custom-text-100" : "text-custom-text-400"}`}
             hideIcon
             clearIconClassName="h-3 w-3 hidden group-hover:inline"
           />
@@ -319,7 +319,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
             className="w-3/4 flex-grow group"
             disabled={isLocked}
             buttonContainerClassName="w-full text-left"
-            buttonClassName={`text-sm ${resolvedSport ? "" : "text-custom-text-400"}`}
+            buttonClassName={`text-sm ${resolvedSport ? "text-custom-text-100" : "text-custom-text-400"}`}
             hideIcon
             clearIconClassName="h-3 w-3 hidden group-hover:inline"
           />
@@ -363,7 +363,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
             className="w-3/4 flex-grow group"
             disabled={isLocked}
             buttonContainerClassName="w-full text-left"
-            buttonClassName={`text-sm ${resolvedCategory ? "" : "text-custom-text-400"}`}
+            buttonClassName={`text-sm ${resolvedCategory ? "text-custom-text-100" : "text-custom-text-400"}`}
             hideIcon
             clearIconClassName="h-3 w-3 hidden group-hover:inline"
           />
@@ -388,7 +388,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
             className="w-3/4 flex-grow group"
             disabled={isLocked}
             buttonContainerClassName="w-full text-left"
-            buttonClassName={`text-sm ${resolvedSeason ? "" : "text-custom-text-400"}`}
+            buttonClassName={`text-sm ${resolvedSeason ? "text-custom-text-100" : "text-custom-text-400"}`}
             hideIcon
             clearIconClassName="h-3 w-3 hidden group-hover:inline"
           />
