@@ -1,20 +1,19 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { X } from "lucide-react";
-import { renderFormattedPayloadDate } from "@plane/utils";
 import { CategoryDropdown } from "@/components/dropdowns/category-property";
-import { DateDropdown } from "@/components/dropdowns/date";
 import { LevelDropdown } from "@/components/dropdowns/level-property";
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 import { ProgramDropdown } from "@/components/dropdowns/program-property";
 import SportDropdown from "@/components/dropdowns/sport-property";
-import { TimeDropdown } from "@/components/dropdowns/time-picker";
 import { YearRangeDropdown } from "@/components/dropdowns/year-property";
 import type { TMetaFieldChange, TMetaFormState, TUploadTarget } from "./media-library-upload-types";
 
 type Props = {
   projectId: string;
   uploadTarget: TUploadTarget;
+  workItemSelector: ReactNode;
   meta: TMetaFormState;
   isLocked: boolean;
   onFieldChange: TMetaFieldChange;
@@ -29,10 +28,12 @@ const getFieldButtonClassName = (hasValue: boolean) =>
   `${FIELD_BUTTON_BASE_CLASS} text-xs ${hasValue ? "text-custom-text-100" : "text-custom-text-400"}`;
 const getFieldButtonContainerClassName = (isLocked: boolean) =>
   `w-full text-left ${isLocked ? "cursor-default" : ""}`;
+const FIELD_LABEL_CLASS = "pl-1";
 
 export const MediaLibraryUploadMetaForm = ({
   projectId,
   uploadTarget,
+  workItemSelector,
   meta,
   isLocked,
   onFieldChange,
@@ -43,9 +44,10 @@ export const MediaLibraryUploadMetaForm = ({
 }: Props) => (
   <div className="mb-4 rounded-lg border border-custom-border-200 bg-custom-background-90 p-4">
     <div className="text-xs font-semibold text-custom-text-100">Metadata (optional)</div>
+    <div className="mt-2">{workItemSelector}</div>
     <div className="mt-3 grid grid-flow-col auto-cols-fr gap-3">
       <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
-        <span>Category</span>
+        <span className={FIELD_LABEL_CLASS}>Category</span>
         <CategoryDropdown
           value={meta.category}
           onChange={(val) => onFieldChange("category", val)}
@@ -61,7 +63,23 @@ export const MediaLibraryUploadMetaForm = ({
         />
       </div>
       <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
-        <span>Created by</span>
+        <span className={FIELD_LABEL_CLASS}>Sport</span>
+        <SportDropdown
+          value={meta.sport}
+          onChange={(val) => onFieldChange("sport", val)}
+          placeholder="Select sport"
+          buttonVariant="border-with-text"
+          className="h-8"
+          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+          buttonClassName={getFieldButtonClassName(Boolean(meta.sport))}
+          hideIcon
+          clearIconClassName="h-3 w-3"
+          dropdownClassName="z-[70]"
+          disabled={isLocked}
+        />
+      </div>
+      <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
+        <span className={FIELD_LABEL_CLASS}>Created by</span>
         <MemberDropdown
           value={meta.createdByMemberId}
           onChange={(val) => onFieldChange("createdByMemberId", val)}
@@ -78,23 +96,7 @@ export const MediaLibraryUploadMetaForm = ({
         />
       </div>
       <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
-        <span>Sport</span>
-        <SportDropdown
-          value={meta.sport}
-          onChange={(val) => onFieldChange("sport", val)}
-          placeholder="Select sport"
-          buttonVariant="border-with-text"
-          className="h-8"
-          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
-          buttonClassName={getFieldButtonClassName(Boolean(meta.sport))}
-          hideIcon
-          clearIconClassName="h-3 w-3"
-          dropdownClassName="z-[70]"
-          disabled={isLocked}
-        />
-      </div>
-      <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
-        <span>Program</span>
+        <span className={FIELD_LABEL_CLASS}>Program</span>
         <ProgramDropdown
           value={meta.program}
           onChange={(val) => onFieldChange("program", val)}
@@ -110,7 +112,7 @@ export const MediaLibraryUploadMetaForm = ({
         />
       </div>
       <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
-        <span>Level</span>
+        <span className={FIELD_LABEL_CLASS}>Level</span>
         <LevelDropdown
           value={meta.level}
           onChange={(val) => onFieldChange("level", val)}
@@ -126,7 +128,7 @@ export const MediaLibraryUploadMetaForm = ({
         />
       </div>
       <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
-        <span>Season</span>
+        <span className={FIELD_LABEL_CLASS}>Season</span>
         <YearRangeDropdown
           value={meta.season}
           onChange={(val) => onFieldChange("season", val)}
@@ -141,42 +143,6 @@ export const MediaLibraryUploadMetaForm = ({
           disabled={isLocked}
         />
       </div>
-      {uploadTarget === "work-item" ? (
-        <>
-          <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
-            <span>Start date</span>
-            <DateDropdown
-              value={meta.startDate}
-              onChange={(val) => onFieldChange("startDate", val ? renderFormattedPayloadDate(val) : null)}
-              placeholder="Select date"
-              buttonVariant="border-with-text"
-              className="h-8"
-              buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
-              buttonClassName={getFieldButtonClassName(Boolean(meta.startDate))}
-              hideIcon
-              clearIconClassName="h-3 w-3"
-              optionsClassName="z-[70]"
-              disabled={isLocked}
-            />
-          </div>
-          <div className="flex flex-col gap-1 text-[11px] text-custom-text-300">
-            <span>Start time</span>
-            <TimeDropdown
-              value={meta.startTime}
-              onChange={(val) => onFieldChange("startTime", val)}
-              placeholder="Select time"
-              buttonVariant="border-with-text"
-              className="h-8"
-              buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
-              buttonClassName={getFieldButtonClassName(Boolean(meta.startTime))}
-              hideIcon
-              clearIconClassName="h-3 w-3"
-              optionsClassName="z-[70]"
-              disabled={isLocked}
-            />
-          </div>
-        </>
-      ) : null}
     </div>
     <div className="mt-3 text-[11px] text-custom-text-300">
       <div>Tags</div>
@@ -210,11 +176,10 @@ export const MediaLibraryUploadMetaForm = ({
           className="min-w-[140px] flex-1 bg-transparent px-1 py-0.5 text-[11px] text-custom-text-100 placeholder:text-custom-text-400 focus:outline-none"
         />
       </div>
-      <div className="mt-1 text-[10px] text-custom-text-300">Press comma or Enter to add.</div>
-    </div>
-    <div className="mt-2 text-[11px] text-custom-text-300">
-      Metadata applies to all selected files.
-      {isLocked ? " Values are read-only when a work item is selected." : ""}
+      <div className="mt-1 flex items-center justify-between gap-3">
+        <div className="text-[10px] text-custom-text-300">Press comma or Enter to add.</div>
+        <div className="text-[11px] text-custom-text-300">Metadata applies to all selected files.</div>
+      </div>
     </div>
   </div>
 );

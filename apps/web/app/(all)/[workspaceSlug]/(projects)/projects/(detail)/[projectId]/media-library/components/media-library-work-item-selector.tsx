@@ -12,6 +12,7 @@ type Props = {
   isLoading: boolean;
   isDetailsLoading: boolean;
   workItemQuery: string;
+  showCard?: boolean;
   error?: string | null;
   onSelect: (issue: ISearchIssueResponse) => void;
   onQueryChange: (value: string) => void;
@@ -24,6 +25,7 @@ export const MediaLibraryWorkItemSelector = ({
   isLoading,
   isDetailsLoading,
   workItemQuery,
+  showCard = true,
   error,
   onSelect,
   onQueryChange,
@@ -45,15 +47,18 @@ export const MediaLibraryWorkItemSelector = ({
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [isOpen]);
 
-  return (
-    <div className="mb-4 rounded-lg border border-custom-border-200 bg-custom-background-90 p-4">
-      <div className="text-xs font-semibold text-custom-text-100">Work item (optional)</div>
-      <div ref={containerRef} className="relative mt-2">
+  const selectorContent = (
+    <>
+      <div ref={containerRef} className={`relative ${showCard ? "mt-2" : ""}`}>
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
           aria-expanded={isOpen}
-          className="flex h-9 w-full items-center justify-between rounded-md border border-custom-border-200 bg-custom-background-100 px-3 text-left"
+          className={`flex h-9 w-full items-center justify-between rounded-md border px-3 text-left ${
+            isOpen
+              ? "border-white bg-custom-background-100"
+              : "border-custom-border-200 bg-custom-background-100"
+          }`}
         >
           {selectedWorkItem ? (
             <div className="flex min-w-0 items-center gap-2">
@@ -166,10 +171,19 @@ export const MediaLibraryWorkItemSelector = ({
           </div>
         ) : null}
       </div>
-      {error ? <div className="mt-2 text-xs text-red-500">{error}</div> : null}
+      {error ? <div className={`${showCard ? "mt-2" : "mt-1"} text-xs text-red-500`}>{error}</div> : null}
       {isDetailsLoading ? (
-        <div className="mt-2 text-[11px] text-custom-text-300">Loading work item details…</div>
+        <div className={`${showCard ? "mt-2" : "mt-1"} text-[11px] text-custom-text-300`}>Loading work item details…</div>
       ) : null}
+    </>
+  );
+
+  if (!showCard) return selectorContent;
+
+  return (
+    <div className="mb-4 rounded-lg border border-custom-border-200 bg-custom-background-90 p-4">
+      <div className="text-xs font-semibold text-custom-text-100">Work item (optional)</div>
+      {selectorContent}
     </div>
   );
 };

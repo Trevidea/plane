@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { FileImage, FileText, FileVideo, UploadCloud, X } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { ISearchIssueResponse, TIssue } from "@plane/types";
-import { Button } from "@plane/ui";
+import { Button, Checkbox } from "@plane/ui";
 import { useInstance } from "@/hooks/store/use-instance";
 import { IssueService } from "@/services/issue";
 import { MediaLibraryService } from "@/services/media-library.service";
@@ -166,6 +166,7 @@ export const MediaLibraryUploadModal = () => {
   const [metaState, setMetaState] = useState<TMetaFormState>(DEFAULT_META);
   const [workItemResults, setWorkItemResults] = useState<ISearchIssueResponse[]>([]);
   const [workItemQuery, setWorkItemQuery] = useState("");
+  const [isWorkItemSelectorEnabled, setIsWorkItemSelectorEnabled] = useState(false);
   const [isWorkItemLoading, setIsWorkItemLoading] = useState(false);
   const [isWorkItemDetailsLoading, setIsWorkItemDetailsLoading] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState<ISearchIssueResponse | null>(null);
@@ -183,7 +184,7 @@ export const MediaLibraryUploadModal = () => {
   const isWorkItemMetaLocked = Boolean(selectedWorkItem);
 
   useEffect(() => {
-    if (!isUploadOpen || !workspaceSlug || !projectId) return;
+    if (!isUploadOpen || !workspaceSlug || !projectId || !isWorkItemSelectorEnabled) return;
     let isMounted = true;
     setIsWorkItemLoading(true);
     projectService
@@ -207,7 +208,7 @@ export const MediaLibraryUploadModal = () => {
     return () => {
       isMounted = false;
     };
-  }, [debouncedWorkItemQuery, isUploadOpen, projectId, workspaceSlug]);
+  }, [debouncedWorkItemQuery, isUploadOpen, isWorkItemSelectorEnabled, projectId, workspaceSlug]);
 
   const mergeIssueIntoMeta = (issueData: Partial<TIssue> | ISearchIssueResponse | null | undefined) => {
     if (!issueData) return;
@@ -226,6 +227,7 @@ export const MediaLibraryUploadModal = () => {
   };
 
   const handleSelectWorkItem = (issue: ISearchIssueResponse) => {
+    setIsWorkItemSelectorEnabled(true);
     setSelectedWorkItem(issue);
     mergeIssueIntoMeta(issue);
     if (!workspaceSlug || !projectId) return;
@@ -253,6 +255,7 @@ export const MediaLibraryUploadModal = () => {
     setUploads([]);
     setIsDragging(false);
     setSelectionError(null);
+    setIsWorkItemSelectorEnabled(false);
     setMetaState(DEFAULT_META);
     setSelectedWorkItem(null);
     setWorkItemResults([]);
@@ -261,6 +264,11 @@ export const MediaLibraryUploadModal = () => {
     setTagDraft("");
     if (inputRef.current) inputRef.current.value = "";
     closeUpload();
+  };
+
+  const handleWorkItemSelectorToggle = (isChecked: boolean) => {
+    setIsWorkItemSelectorEnabled(isChecked);
+    if (!isChecked) handleClearWorkItem();
   };
 
   const addFiles = (files: File[]) => {
@@ -475,19 +483,35 @@ export const MediaLibraryUploadModal = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
-          <MediaLibraryWorkItemSelector
-            selectedWorkItem={selectedWorkItem}
-            results={workItemResults}
-            isLoading={isWorkItemLoading}
-            isDetailsLoading={isWorkItemDetailsLoading}
-            workItemQuery={workItemQuery}
-            onSelect={handleSelectWorkItem}
-            onQueryChange={setWorkItemQuery}
-            onClear={handleClearWorkItem}
-          />
           <MediaLibraryUploadMetaForm
             projectId={projectId}
             uploadTarget={uploadTarget}
+            workItemSelector={
+              <div className="space-y-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-custom-text-200">
+                  <Checkbox
+                    checked={isWorkItemSelectorEnabled}
+                    onClick={() => handleWorkItemSelectorToggle(!isWorkItemSelectorEnabled)}
+                    className="size-3.5 !outline-none"
+                    iconClassName="size-3"
+                  />
+                  <span>Import Metadata from the work item</span>
+                </label>
+                {isWorkItemSelectorEnabled ? (
+                  <MediaLibraryWorkItemSelector
+                    selectedWorkItem={selectedWorkItem}
+                    results={workItemResults}
+                    isLoading={isWorkItemLoading}
+                    isDetailsLoading={isWorkItemDetailsLoading}
+                    workItemQuery={workItemQuery}
+                    showCard={false}
+                    onSelect={handleSelectWorkItem}
+                    onQueryChange={setWorkItemQuery}
+                    onClear={handleClearWorkItem}
+                  />
+                ) : null}
+              </div>
+            }
             meta={metaState}
             isLocked={isWorkItemMetaLocked}
             onFieldChange={updateMetaField}
@@ -514,11 +538,11 @@ export const MediaLibraryUploadModal = () => {
             }}
           >
             <UploadCloud className="mx-auto h-10 w-10 text-custom-text-300" />
-            <div className="mt-2 text-sm font-medium text-custom-text-100">Drag and drop your files here</div>
+            <div className="mt-2 text-sm font-medium text-custom-text-100">Drag and drop file here</div>
             <div className="mt-1 text-xs text-custom-text-300">or</div>
             <div className="flex justify-center items-center ">
               <Button variant="primary" size="sm" className="mt-3 flex items-center" onClick={() => inputRef.current?.click()}>
-                Browse Files
+                Browse files
               </Button>
             </div>
             {selectionError ? <div className="mt-2 text-xs text-red-500">{selectionError}</div> : null}
@@ -541,7 +565,7 @@ export const MediaLibraryUploadModal = () => {
           <div className="mt-4 rounded-lg border border-custom-border-200">
             <div className="max-h-[32vh] overflow-y-auto sm:max-h-[40vh]">
               {uploads.length === 0 ? (
-                <div className="px-4 py-3 text-xs text-custom-text-300">No files selected.</div>
+                <div className="px-4 py-3 text-center text-xs text-custom-text-300">No file selected</div>
               ) : (
                 uploads.map((item) => (
                   <div
