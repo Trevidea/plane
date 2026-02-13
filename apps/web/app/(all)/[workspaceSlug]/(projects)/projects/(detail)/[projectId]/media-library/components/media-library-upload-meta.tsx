@@ -24,6 +24,12 @@ type Props = {
   onRemoveTag: (value: string) => void;
 };
 
+const FIELD_BUTTON_BASE_CLASS = "h-8 border-custom-border-200 bg-custom-background-100 hover:bg-custom-background-100";
+const getFieldButtonClassName = (hasValue: boolean) =>
+  `${FIELD_BUTTON_BASE_CLASS} text-xs ${hasValue ? "text-custom-text-100" : "text-custom-text-400"}`;
+const getFieldButtonContainerClassName = (isLocked: boolean) =>
+  `w-full text-left ${isLocked ? "cursor-default" : ""}`;
+
 export const MediaLibraryUploadMetaForm = ({
   projectId,
   uploadTarget,
@@ -46,8 +52,8 @@ export const MediaLibraryUploadMetaForm = ({
           placeholder={uploadTarget === "work-item" ? "Work items" : "Uploads"}
           buttonVariant="border-with-text"
           className="h-8"
-          buttonContainerClassName="w-full text-left"
-          buttonClassName={`text-xs ${meta.category ? "" : "text-custom-text-400"}`}
+          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+          buttonClassName={getFieldButtonClassName(Boolean(meta.category))}
           hideIcon
           clearIconClassName="h-3 w-3"
           dropdownClassName="z-[70]"
@@ -64,8 +70,10 @@ export const MediaLibraryUploadMetaForm = ({
           placeholder="Select member"
           buttonVariant="border-with-text"
           className="h-8"
-          buttonContainerClassName="w-full text-left"
-          buttonClassName={`text-xs ${meta.createdByMemberId ? "" : "text-custom-text-400"}`}
+          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+          buttonClassName={getFieldButtonClassName(Boolean(meta.createdByMemberId))}
+          optionsClassName="z-[70]"
+          disabled={isLocked}
           showUserDetails
         />
       </div>
@@ -77,8 +85,8 @@ export const MediaLibraryUploadMetaForm = ({
           placeholder="Select sport"
           buttonVariant="border-with-text"
           className="h-8"
-          buttonContainerClassName="w-full text-left"
-          buttonClassName={`text-xs ${meta.sport ? "" : "text-custom-text-400"}`}
+          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+          buttonClassName={getFieldButtonClassName(Boolean(meta.sport))}
           hideIcon
           clearIconClassName="h-3 w-3"
           dropdownClassName="z-[70]"
@@ -93,8 +101,8 @@ export const MediaLibraryUploadMetaForm = ({
           placeholder="Select program"
           buttonVariant="border-with-text"
           className="h-8"
-          buttonContainerClassName="w-full text-left"
-          buttonClassName={`text-xs ${meta.program ? "" : "text-custom-text-400"}`}
+          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+          buttonClassName={getFieldButtonClassName(Boolean(meta.program))}
           hideIcon
           clearIconClassName="h-3 w-3"
           dropdownClassName="z-[70]"
@@ -109,8 +117,8 @@ export const MediaLibraryUploadMetaForm = ({
           placeholder="Select level"
           buttonVariant="border-with-text"
           className="h-8"
-          buttonContainerClassName="w-full text-left"
-          buttonClassName={`text-xs ${meta.level ? "" : "text-custom-text-400"}`}
+          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+          buttonClassName={getFieldButtonClassName(Boolean(meta.level))}
           hideIcon
           clearIconClassName="h-3 w-3"
           dropdownClassName="z-[70]"
@@ -125,8 +133,8 @@ export const MediaLibraryUploadMetaForm = ({
           placeholder="Select season"
           buttonVariant="border-with-text"
           className="h-8"
-          buttonContainerClassName="w-full text-left"
-          buttonClassName={`text-xs ${meta.season ? "" : "text-custom-text-400"}`}
+          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+          buttonClassName={getFieldButtonClassName(Boolean(meta.season))}
           hideIcon
           clearIconClassName="h-3 w-3"
           dropdownClassName="z-[70]"
@@ -143,8 +151,8 @@ export const MediaLibraryUploadMetaForm = ({
               placeholder="Select date"
               buttonVariant="border-with-text"
               className="h-8"
-              buttonContainerClassName="w-full text-left"
-              buttonClassName={`text-xs ${meta.startDate ? "" : "text-custom-text-400"}`}
+              buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+              buttonClassName={getFieldButtonClassName(Boolean(meta.startDate))}
               hideIcon
               clearIconClassName="h-3 w-3"
               optionsClassName="z-[70]"
@@ -159,8 +167,8 @@ export const MediaLibraryUploadMetaForm = ({
               placeholder="Select time"
               buttonVariant="border-with-text"
               className="h-8"
-              buttonContainerClassName="w-full text-left"
-              buttonClassName={`text-xs ${meta.startTime ? "" : "text-custom-text-400"}`}
+              buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+              buttonClassName={getFieldButtonClassName(Boolean(meta.startTime))}
               hideIcon
               clearIconClassName="h-3 w-3"
               optionsClassName="z-[70]"
