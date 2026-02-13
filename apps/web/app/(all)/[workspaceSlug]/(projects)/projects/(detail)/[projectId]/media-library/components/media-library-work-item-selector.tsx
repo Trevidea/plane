@@ -129,30 +129,38 @@ export const MediaLibraryWorkItemSelector = ({
               ) : results.length === 0 ? (
                 <div className="px-3 py-2 text-xs text-custom-text-300">No work items found.</div>
               ) : (
-                results.map((issue) => (
-                  <button
-                    key={issue.id}
-                    type="button"
-                    onClick={() => {
-                      onSelect(issue);
-                      setIsOpen(false);
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-custom-text-200 hover:bg-custom-background-80"
-                  >
-                    <span
-                      className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
-                      style={{ backgroundColor: issue.state__color }}
-                    />
-                    <IssueIdentifier
-                      projectId={issue.project_id}
-                      issueTypeId={issue.type_id}
-                      projectIdentifier={issue.project__identifier}
-                      issueSequenceId={issue.sequence_id}
-                      textContainerClassName="text-xs text-custom-text-200"
-                    />
-                    <span className="truncate">{issue.name}</span>
-                  </button>
-                ))
+                results.map((issue) => {
+                  const isSelected = selectedWorkItem?.id === issue.id;
+
+                  return (
+                    <button
+                      key={issue.id}
+                      type="button"
+                      onClick={() => {
+                        onSelect(issue);
+                        setIsOpen(false);
+                      }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs ${
+                        isSelected
+                          ? "bg-custom-background-80 text-custom-text-100"
+                          : "text-custom-text-200 hover:bg-custom-background-80"
+                      }`}
+                    >
+                      <span
+                        className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                        style={{ backgroundColor: issue.state__color }}
+                      />
+                      <IssueIdentifier
+                        projectId={issue.project_id}
+                        issueTypeId={issue.type_id}
+                        projectIdentifier={issue.project__identifier}
+                        issueSequenceId={issue.sequence_id}
+                        textContainerClassName={isSelected ? "text-xs text-custom-text-100" : "text-xs text-custom-text-200"}
+                      />
+                      <span className="truncate">{issue.name}</span>
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
