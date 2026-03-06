@@ -80,7 +80,7 @@ from plane.utils.media_library import (
     validate_segment,
     write_manifest_atomic,
 )
-from plane.bgtasks.webhook_task import model_activity
+from plane.bgtasks.webhook_task import model_activity, webhook_activity
 from plane.app.permissions import ROLE
 from plane.utils.openapi import (
     work_item_docs,
@@ -908,6 +908,20 @@ class IssueDetailAPIEndpoint(BaseAPIView):
             )
         current_instance = json.dumps(IssueSerializer(issue).data, cls=DjangoJSONEncoder)
         issue.delete()
+        # delete workitems using service gateway for proper cascade delete and webhook trigger
+        webhook_activity.delay(
+            event="issue",
+            verb="deleted",
+            field=None,
+            old_value=None,
+            new_value=None,
+            actor_id=request.user.id,
+            slug=slug,
+            current_site=base_host(request=request, is_app=True),
+            event_id=issue.id,
+            old_identifier=None,
+            new_identifier=None,
+        )
         issue_activity.delay(
             type="issue.activity.deleted",
             requested_data=json.dumps({"issue_id": str(pk)}),
