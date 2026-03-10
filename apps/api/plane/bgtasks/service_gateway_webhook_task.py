@@ -7,6 +7,7 @@ from celery import shared_task
 from django.conf import settings
 
 from plane.bgtasks import service_gateway_sync_helpers as sg
+from plane.db.models import Issue
 from plane.utils.exception_logger import log_exception
 
 logger = logging.getLogger("plane.worker")
@@ -59,6 +60,22 @@ def _http_error_text(http_error: requests.HTTPError) -> str:
         return ""
     response_json = sg._safe_response_json(response)
     return sg._gateway_error_message(response_json) or response.text or ""
+
+
+def _set_issue_sg_event_id(event_data: Dict[str, Any], sg_event_id: Optional[int]) -> None:
+    issue_id = event_data.get("id")
+    if not issue_id:
+        return
+
+    try:
+        Issue.all_objects.filter(pk=issue_id).update(sg_event_id=sg_event_id)
+    except Exception as exc:
+        logger.warning(
+            "Could not update sg_event_id for Plane work-item %s to %s: %s",
+            issue_id,
+            sg_event_id,
+            exc,
+        )
 
 
 def _resolve_existing_gateway_rows(
@@ -158,6 +175,7 @@ def _sync_created_event(
         return
 
     _force_upcoming_status(session, event_api, service_gateway_event_id, timeout)
+    _set_issue_sg_event_id(sync_ctx.event_data, service_gateway_event_id)
 
     if scheduled_event_api and sync_ctx.event_date is not None and sync_ctx.event_time is not None:
         scheduled_payload = sg._make_scheduled_event_payload(
@@ -265,6 +283,7 @@ def _sync_updated_event(
             timeout=timeout,
         )
         _force_upcoming_status(session, event_api, service_gateway_event_id, timeout)
+    _set_issue_sg_event_id(sync_ctx.event_data, event_ids[0])
 
     if not scheduled_event_api:
         logger.warning(
@@ -430,6 +449,7 @@ def _sync_deleted_event(
     )
     event_ids = sg._unique_positive_ints([row.get("event_id") for row in linked_rows])
     if not event_ids:
+        _set_issue_sg_event_id(event_data, None)
         logger.warning(
             "No service-gateway mapping found for deleted Plane work-item %s; nothing to delete.",
             event_data.get("id"),
@@ -464,6 +484,7 @@ def _sync_deleted_event(
         len(event_ids),
         deleted_scheduled_count,
     )
+    _set_issue_sg_event_id(event_data, None)
 
 
 @shared_task
@@ -477,6 +498,16 @@ def service_gateway_event_sync(event: str, verb: str, event_data: Optional[Dict[
     if not isinstance(event_data, dict):
         logger.warning("Skipping service-gateway sync because event_data is invalid")
         return
+
+    if verb == "created":
+        existing_sg_event_id = sg._int_field(event_data.get("sg_event_id"))
+        if existing_sg_event_id is not None and existing_sg_event_id > 0:
+            logger.info(
+                "Skipping service-gateway create sync for work-item %s because sg_event_id=%s already exists",
+                event_data.get("id"),
+                existing_sg_event_id,
+            )
+            return
 
     event_api = getattr(settings, "SERVICE_GATEWAY_EVENT_API", "")
     if not event_api:
@@ -492,6 +523,20 @@ def service_gateway_event_sync(event: str, verb: str, event_data: Optional[Dict[
 
     try:
         sync_ctx = _build_sync_context(event_data)
+
+        if verb in {"created", "updated"} and (
+            sync_ctx.event_date is None or sync_ctx.event_time is None
+        ):
+            _set_issue_sg_event_id(sync_ctx.event_data, None)
+            logger.info(
+                (
+                    "Skipping service-gateway %s sync for Plane work-item %s "
+                    "because date/time is missing. Keeping work-item in Plane only."
+                ),
+                verb,
+                sync_ctx.event_data.get("id"),
+            )
+            return
 
         with requests.Session() as session:
             session.headers.update({"Content-Type": "application/json"})
