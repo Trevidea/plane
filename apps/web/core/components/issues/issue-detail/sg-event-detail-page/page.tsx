@@ -273,7 +273,6 @@ export const SgEventDetailPage = ({
     handleToggleFavorite,
     handleToggleSearch,
     handleToggleTagSelection,
-    handleUpdateTag,
     isSearchOpen,
     matrixRows,
     playlistPanelRows,
@@ -696,7 +695,6 @@ export const SgEventDetailPage = ({
                     onToggleFavorite={handleToggleFavorite}
                     onToggleSearch={handleToggleSearch}
                     onToggleTagSelection={handleToggleTagSelection}
-                    onUpdateTag={handleUpdateTag}
                     rowFilterMode={rowFilterMode}
                     rows={filteredRows}
                     searchQuery={searchQuery}

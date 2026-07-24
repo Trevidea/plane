@@ -1,4 +1,4 @@
-import type { SgTagRow, SgTagRowEditPayload, SportTableConfig, SportTableKind } from "../../types";
+import type { SgTagRow, SportTableConfig, SportTableKind } from "../../types";
 import { formatLooseLabel, parseTimecodeToSeconds } from "../../utils";
 
 const CONTEXT_COLUMN_PREFIX = "context:";
@@ -213,14 +213,3 @@ const buildFakeRawTagValue = (row: SgTagRow, key: string, label: string, sportLa
 
 export const getRawTagColumnValue = (row: SgTagRow, key: string, label: string, sportLabel: string) =>
   getRealCellValue(row.context[key]) || buildFakeRawTagValue(row, key, label, sportLabel);
-
-export const buildEditDraft = (row: SgTagRow): SgTagRowEditPayload => ({
-  action: row.action,
-  groupValue: row.groupValue,
-  player: row.player,
-  primaryDetail: row.primaryDetail,
-  result: row.result,
-  secondaryDetail: row.secondaryDetail,
-  team: row.team,
-  timecode: row.timecode,
-});

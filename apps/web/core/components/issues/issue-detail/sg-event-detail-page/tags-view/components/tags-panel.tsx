@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, Pencil, Star, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Check, Star, Trash2 } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
 import { cn } from "@plane/utils";
 import { SURFACE_CLASS } from "../../constants";
-import type { RowFilterMode, SgTagRow, SgTagRowEditPayload, SportTableConfig } from "../../types";
+import type { RowFilterMode, SgTagRow, SportTableConfig } from "../../types";
 import {
-  buildEditDraft,
   COLUMN_GROUP_ORDER,
   DEFAULT_VISIBLE_COLUMN_KEYS,
   displayCellValue,
@@ -20,7 +19,6 @@ import {
   STANDARD_RAW_TAG_CONTEXT_KEYS,
 } from "../utils/tags-panel-model";
 import type { SgTagColumn } from "../utils/tags-panel-model";
-import { EditTagRowModal } from "./edit-tag-row-modal";
 import { TagsColumnsPanel } from "./tags-columns-panel";
 import { TagsPanelToolbar } from "./tags-panel-toolbar";
 
@@ -46,7 +44,6 @@ type SgEventTagsPanelProps = {
   onToggleFavorite: (tagId: string) => void;
   onToggleSearch: () => void;
   onToggleTagSelection: (tagId: string) => void;
-  onUpdateTag: (tagId: string, updates: SgTagRowEditPayload) => void;
   rowFilterMode: RowFilterMode;
   rows: SgTagRow[];
   searchQuery: string;
@@ -77,7 +74,6 @@ export const SgEventTagsPanel = ({
   onToggleFavorite,
   onToggleSearch,
   onToggleTagSelection,
-  onUpdateTag,
   rowFilterMode,
   rows,
   searchQuery,
@@ -92,17 +88,6 @@ export const SgEventTagsPanel = ({
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>(DEFAULT_VISIBLE_COLUMN_KEYS);
   const [columnSearchQuery, setColumnSearchQuery] = useState("");
   const [collapsedColumnGroups, setCollapsedColumnGroups] = useState<Record<string, boolean>>({});
-  const [editingRow, setEditingRow] = useState<SgTagRow | null>(null);
-  const [editDraft, setEditDraft] = useState<SgTagRowEditPayload>(() => ({
-    action: "",
-    groupValue: "",
-    player: "",
-    primaryDetail: "",
-    result: "",
-    secondaryDetail: "",
-    team: "",
-    timecode: "",
-  }));
 
   const baseColumnDefinitions = useMemo<SgTagColumn[]>(
     () => [
@@ -270,48 +255,9 @@ export const SgEventTagsPanel = ({
   );
   const selectedAvailableColumnCount = visibleColumns.length;
   const totalColumnCount = columnDefinitions.length;
-  const isEditModalOpen = Boolean(editingRow);
-  const editingRowId = editingRow?.id;
-
-  useEffect(() => {
-    if (!editingRowId) return;
-    const latestRow = rows.find((row) => row.id === editingRowId);
-    if (latestRow) {
-      setEditingRow(latestRow);
-      setEditDraft(buildEditDraft(latestRow));
-    }
-  }, [editingRowId, rows]);
-
-  const openEditModal = (row: SgTagRow) => {
-    setEditingRow(row);
-    setEditDraft(buildEditDraft(row));
-  };
-
-  const closeEditModal = () => {
-    setEditingRow(null);
-  };
-
-  const updateEditDraft = (key: keyof SgTagRowEditPayload, value: string) => {
-    setEditDraft((currentValue) => ({ ...currentValue, [key]: value }));
-  };
-
-  const submitEditDraft = () => {
-    if (!editingRow) return;
-    onUpdateTag(editingRow.id, editDraft);
-    closeEditModal();
-  };
 
   return (
     <section className={cn(SURFACE_CLASS, "overflow-hidden")}>
-      <EditTagRowModal
-        draft={editDraft}
-        isOpen={isEditModalOpen}
-        onChange={updateEditDraft}
-        onClose={closeEditModal}
-        onSubmit={submitEditDraft}
-        row={editingRow}
-      />
-
       <TagsPanelToolbar
         activeFilterLabel={activeFilterLabel}
         availableGroups={availableGroups}
@@ -438,18 +384,6 @@ export const SgEventTagsPanel = ({
                     );
                   })}
                   <div className="flex items-center gap-1.5">
-                    <Tooltip tooltipContent="Edit row" isMobile={false}>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openEditModal(row);
-                        }}
-                        className="rounded-md p-1.5 text-custom-text-300 transition-colors hover:bg-custom-background-100 hover:text-custom-text-100"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    </Tooltip>
                     <Tooltip tooltipContent={isFavorited ? "Remove favorite" : "Favorite"} isMobile={false}>
                       <button
                         type="button"

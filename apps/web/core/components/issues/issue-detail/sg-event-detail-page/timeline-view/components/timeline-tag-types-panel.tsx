@@ -140,11 +140,6 @@ export const TimelineTagTypesPanel = ({
                             onChange={() => onToggleTagType(option.key)}
                             className="h-4 w-4 rounded border-custom-border-200 accent-custom-primary-100"
                           />
-                          <span
-                            aria-hidden="true"
-                            className="h-2.5 w-2.5 shrink-0 rounded-full"
-                            style={{ backgroundColor: option.color }}
-                          />
                           <span className="min-w-0 flex-1 truncate" title={option.label}>
                             {option.label}
                           </span>

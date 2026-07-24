@@ -4,7 +4,7 @@ import type { TMediaArtifact } from "@/services/media-library.service";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
 import { buildMediaThumbnailLookup, resolveTagRowArtifactThumbnail } from "../media-thumbnail-lookup";
 import { buildMockFootballRows } from "../mock-football-rows";
-import type { RowFilterMode, SgTagRow, SgTagRowEditPayload, SportTableKind } from "../types";
+import type { RowFilterMode, SgTagRow, SportTableKind } from "../types";
 
 type UseSgEventTagStateArgs = {
   cpServerBaseUrl: string;
@@ -37,7 +37,6 @@ export const useSgEventTagState = ({
   const [rowFilterMode, setRowFilterMode] = useState<RowFilterMode>("all");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [focusedMatrixRows, setFocusedMatrixRows] = useState<SgTagRow[]>([]);
-  const [editedTagRowsById, setEditedTagRowsById] = useState<Record<string, Partial<SgTagRow>>>({});
 
   const mediaThumbnailLookup = useMemo(
     () =>
@@ -51,12 +50,10 @@ export const useSgEventTagState = ({
   const tagRowsWithThumbnails = useMemo(
     () =>
       tagRows.map((row) => {
-        const editedRow = editedTagRowsById[row.id];
-        const mergedRow = editedRow ? { ...row, ...editedRow } : row;
-        const thumbnailUrl = resolveTagRowArtifactThumbnail(mergedRow, mediaThumbnailLookup, cpServerBaseUrl);
-        return thumbnailUrl && thumbnailUrl !== mergedRow.thumbnailUrl ? { ...mergedRow, thumbnailUrl } : mergedRow;
+        const thumbnailUrl = resolveTagRowArtifactThumbnail(row, mediaThumbnailLookup, cpServerBaseUrl);
+        return thumbnailUrl && thumbnailUrl !== row.thumbnailUrl ? { ...row, thumbnailUrl } : row;
       }),
-    [cpServerBaseUrl, editedTagRowsById, mediaThumbnailLookup, tagRows]
+    [cpServerBaseUrl, mediaThumbnailLookup, tagRows]
   );
   const availableGroups = useMemo(
     () => Array.from(new Set(tagRowsWithThumbnails.map((row) => row.groupValue))),
@@ -161,21 +158,6 @@ export const useSgEventTagState = ({
     setFavoriteTagIds((currentValue) => currentValue.filter((id) => id !== tagId));
   };
 
-  const handleUpdateTag = (tagId: string, updates: SgTagRowEditPayload) => {
-    setEditedTagRowsById((currentValue) => ({
-      ...currentValue,
-      [tagId]: {
-        ...(currentValue[tagId] ?? {}),
-        ...updates,
-      },
-    }));
-    setToast({
-      type: TOAST_TYPE.SUCCESS,
-      title: "Tag updated",
-      message: "The list row has been updated.",
-    });
-  };
-
   const handleCreateMatrixCard = (rows: SgTagRow[]) => {
     setSelectedTagIds(rows.map((row) => row.id));
     setToast({
@@ -202,7 +184,6 @@ export const useSgEventTagState = ({
     handleToggleFavorite,
     handleToggleSearch,
     handleToggleTagSelection,
-    handleUpdateTag,
     isSearchOpen,
     matrixRows,
     playlistPanelRows,
