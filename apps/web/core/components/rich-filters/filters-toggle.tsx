@@ -9,6 +9,7 @@ import { AddFilterButton } from "@/components/rich-filters/add-filters/button";
 
 type TFiltersToggleProps<P extends TFilterProperty, E extends TExternalFilter> = {
   filter: IFilterInstance<P, E> | undefined;
+  inactiveIconClassName?: string;
 };
 
 const COMMON_CLASSNAME =
@@ -16,7 +17,7 @@ const COMMON_CLASSNAME =
 
 export const FiltersToggle = observer(
   <P extends TFilterProperty, E extends TExternalFilter>(props: TFiltersToggleProps<P, E>) => {
-    const { filter } = props;
+    const { filter, inactiveIconClassName = "text-custom-text-300" } = props;
     // derived values
     const hasAnyConditions = (filter?.allConditionsForDisplay.length ?? 0) > 0;
     const isFilterRowVisible = filter?.isVisible ?? false;
@@ -57,10 +58,7 @@ export const FiltersToggle = observer(
       >
         <div className="relative">
           <ListFilter
-            className={cn("size-4", {
-              "text-custom-primary-100": isFilterRowVisible,
-              "text-custom-text-300": !isFilterRowVisible,
-            })}
+            className={cn("size-4", isFilterRowVisible ? "text-custom-primary-100" : inactiveIconClassName)}
           />
           {showFilterRowChangesPill && (
             <span

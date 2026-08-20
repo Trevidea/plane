@@ -303,7 +303,7 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
     <Header className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 sm:grid-cols-[minmax(120px,0.65fr)_minmax(120px,1fr)_auto]">
       {/* LEFT */}
       <Header.LeftItem className="min-w-0 max-w-none flex-none overflow-hidden">
-        <Breadcrumbs isLoading={loader === "init-loader"}>
+        <Breadcrumbs isLoading={loader === "init-loader"} className="[&_*]:!text-custom-text-200">
           <CommonProjectBreadcrumbs workspaceSlug={workspaceSlug} projectId={projectId} />
           <Breadcrumbs.Item component={<BreadcrumbLink label="Media Library" isLast />} />
         </Breadcrumbs>
@@ -312,11 +312,11 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
       {/* CENTER SEARCH */}
       <div className="pointer-events-auto hidden min-w-0 sm:block">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-custom-text-300" />
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-custom-text-200" />
           <input
             type="text"
             placeholder="Search media"
-            className="h-8 w-full rounded-md border border-custom-border-200 bg-custom-background-100 px-8 text-left text-xs text-custom-text-100 placeholder:text-custom-text-300 focus:outline-none"
+            className="h-8 w-full rounded-md border border-custom-border-200 bg-custom-background-100 px-8 text-left text-xs text-custom-text-200 placeholder:text-custom-text-200 focus:outline-none"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -334,7 +334,7 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
               }}
               aria-label="Clear search"
               title="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-custom-text-300 hover:text-custom-text-100"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-custom-text-200 hover:text-custom-text-100"
             >
               <X className="h-4 w-4" />
             </button>
@@ -506,7 +506,9 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
               </Tooltip>
             ))}
           </div>
-          {hasFilterOptions ? <FiltersToggle filter={mediaFilters} /> : null}
+          {hasFilterOptions ? (
+            <FiltersToggle filter={mediaFilters} inactiveIconClassName="text-custom-text-200" />
+          ) : null}
           {/* Upload */}
           <Button variant="primary" size="sm" className="gap-1.5 px-2 @4xl:px-3" onClick={openUpload}>
             <Upload size={16} className="h-3.5 w-3.5 flex-shrink-0" />
