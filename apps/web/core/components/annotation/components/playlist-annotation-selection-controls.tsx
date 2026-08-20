@@ -3,7 +3,11 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { RotateCw } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
-import type { TCustomPlaylistAnnotation, TCustomPlaylistAnnotationPoint } from "../types/annotation.types";
+import type {
+  TCustomPlaylistAnnotation,
+  TCustomPlaylistAnnotationPoint,
+  TCustomPlaylistAnnotationTool,
+} from "../types/annotation.types";
 import type {
   AnnotationBounds,
   AnnotationResizeHandle,
@@ -32,6 +36,7 @@ type PlaylistAnnotationSelectionControlsProps = {
     start: TCustomPlaylistAnnotationPoint;
   } | null;
   selectedLinearAnnotationMidpoint: TCustomPlaylistAnnotationPoint | null;
+  tool: TCustomPlaylistAnnotationTool;
 };
 
 export const PlaylistAnnotationSelectionControls = ({
@@ -46,6 +51,7 @@ export const PlaylistAnnotationSelectionControls = ({
   selectedAnnotationRotation,
   selectedLinearAnnotationEndpoints,
   selectedLinearAnnotationMidpoint,
+  tool,
 }: PlaylistAnnotationSelectionControlsProps) => {
   if (
     canTransformAnnotations &&
@@ -143,7 +149,8 @@ export const PlaylistAnnotationSelectionControls = ({
         ? `${selectedAnnotationBounds.width / 10}%`
         : `max(28px, ${selectedAnnotationBounds.width / 10}%)`,
   };
-  const shouldRenderMoveSurface = selectedAnnotation.type === "text" || selectedAnnotation.type === "image";
+  const shouldRenderMoveSurface =
+    selectedAnnotation.type === tool && (selectedAnnotation.type === "text" || selectedAnnotation.type === "image");
 
   return (
     <div

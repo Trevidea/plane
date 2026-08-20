@@ -680,7 +680,9 @@ export const PlaylistAnnotationOverlay = ({
 
       if (canTransformAnnotations) {
         const annotationToTransform = [...annotations].reverse().find((annotation) => {
-          if (annotation.type === "text" || annotation.type === "image") return isPointInAnnotation(point, annotation);
+          if (annotation.type === tool && (annotation.type === "text" || annotation.type === "image")) {
+            return isPointInAnnotation(point, annotation);
+          }
 
           return isPointOnAnnotationEdge(point, annotation);
         });
@@ -764,10 +766,13 @@ export const PlaylistAnnotationOverlay = ({
 
       if (currentDraftAnnotation && isAnnotationValid(currentDraftAnnotation)) {
         const normalizedAnnotation = normalizePlaylistAnnotations([currentDraftAnnotation])[0];
-        if (normalizedAnnotation) onCreateAnnotation(normalizedAnnotation);
+        if (normalizedAnnotation) {
+          setSelectedAnnotationId(normalizedAnnotation.id);
+          onCreateAnnotation(normalizedAnnotation);
+        }
       }
     },
-    [finishAnnotationTransform, onCreateAnnotation]
+    [finishAnnotationTransform, onCreateAnnotation, setSelectedAnnotationId]
   );
 
   const handlePointerCancel = useCallback(
@@ -829,6 +834,7 @@ export const PlaylistAnnotationOverlay = ({
         selectedAnnotationRotation={selectedAnnotationRotation}
         selectedLinearAnnotationEndpoints={selectedLinearAnnotationEndpoints}
         selectedLinearAnnotationMidpoint={selectedLinearAnnotationMidpoint}
+        tool={tool}
       />
       <PlaylistAnnotationTextDraftInput
         color={color}
