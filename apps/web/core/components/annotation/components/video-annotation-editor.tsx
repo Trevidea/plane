@@ -17,8 +17,8 @@ import {
   applyAnnotationCreationStartTimeOffset,
   getAnnotationStartTimeWithCreationOffset,
 } from "../utils/playlist-annotation-creation-time";
-import { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
-import { resolveAnnotationTimelineLayers } from "../utils/video-annotation-timeline";
+import { VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS, VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
+import { clampTimelineValue, resolveAnnotationTimelineLayers } from "../utils/video-annotation-timeline";
 import {
   PlaylistAnnotationOverlay,
   arePlaylistAnnotationsEqual,
@@ -70,6 +70,7 @@ export const VideoAnnotationEditor = ({
   const [annotationTextFontWeight, setAnnotationTextFontWeight] = useState(700);
   const [annotationTextFontFamily, setAnnotationTextFontFamily] = useState("sans-serif");
   const [isSavingAnnotations, setIsSavingAnnotations] = useState(false);
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const hasAnnotationChanges = !arePlaylistAnnotationsEqual(annotations, baselineAnnotations);
   const availableAnnotationTools = useMemo(
     () => VIDEO_ANNOTATION_TOOLS.filter((toolOption) => enableTextTool || toolOption.type !== "text"),
@@ -104,9 +105,8 @@ export const VideoAnnotationEditor = ({
     annotationImagePlacementKey,
     annotationImageWidth,
     handleAnnotationImageChange,
-    handleAnnotationImageOpacityChange,
-    handleAnnotationImageSizeChange,
-    handleChooseAnnotationImage,
+    handleAnnotationImageOpacityChange: handleDefaultAnnotationImageOpacityChange,
+    handleAnnotationImageSizeChange: handleDefaultAnnotationImageSizeChange,
   } = useVideoAnnotationImageControls({
     onModeChange,
     onRequestPause,
@@ -124,6 +124,23 @@ export const VideoAnnotationEditor = ({
     () => getActivePlaylistAnnotations(sortedAnnotations, effectiveCurrentTime),
     [effectiveCurrentTime, sortedAnnotations]
   );
+  const selectedAnnotation = useMemo(
+    () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
+    [annotations, selectedAnnotationId]
+  );
+  const selectedImageAnnotation = selectedAnnotation?.type === "image" ? selectedAnnotation : null;
+  const selectedImageAnnotationOpacity =
+    typeof selectedImageAnnotation?.style?.opacity === "number"
+      ? clampTimelineValue(selectedImageAnnotation.style.opacity, 0, 1)
+      : annotationImageOpacity;
+  const selectedImageAnnotationHeight =
+    typeof selectedImageAnnotation?.height === "number"
+      ? Math.round(selectedImageAnnotation.height)
+      : annotationImageHeight;
+  const selectedImageAnnotationWidth =
+    typeof selectedImageAnnotation?.width === "number"
+      ? Math.round(selectedImageAnnotation.width)
+      : annotationImageWidth;
   const activeAnnotationIds = useMemo(
     () => new Set(activeAnnotations.map((annotation) => annotation.id)),
     [activeAnnotations]
@@ -175,6 +192,7 @@ export const VideoAnnotationEditor = ({
     setBaselineAnnotations(savedAnnotations);
     setIsAnnotationMode(shouldOpenAnnotationMode);
     setIsSavingAnnotations(false);
+    setSelectedAnnotationId(null);
     onModeChange?.(shouldOpenAnnotationMode);
   }, [annotationKey, canEdit, onModeChange, savedAnnotations]);
 
@@ -204,11 +222,17 @@ export const VideoAnnotationEditor = ({
     onModeChange?.(true);
   }, [autoEnableAnnotationModeKey, canEdit, onModeChange]);
 
+  useEffect(() => {
+    if (!selectedAnnotationId || annotations.some((annotation) => annotation.id === selectedAnnotationId)) return;
+
+    setSelectedAnnotationId(null);
+  }, [annotations, selectedAnnotationId]);
+
   const handleSelectAnnotationTool = useCallback(
     (tool: TCustomPlaylistAnnotationTool) => {
       onRequestPause?.();
       setAnnotationTool(tool);
-      if (tool === "image" && !annotationImageContent) {
+      if (tool === "image") {
         annotationImageInputRef.current?.click();
       }
       if (isAnnotationMode) return;
@@ -216,7 +240,7 @@ export const VideoAnnotationEditor = ({
       setIsAnnotationMode(true);
       onModeChange?.(true);
     },
-    [annotationImageContent, annotationImageInputRef, isAnnotationMode, onModeChange, onRequestPause]
+    [annotationImageInputRef, isAnnotationMode, onModeChange, onRequestPause]
   );
 
   const handleUndoVisibleAnnotation = useCallback(() => {
@@ -265,6 +289,45 @@ export const VideoAnnotationEditor = ({
       );
     },
     [minimumVisibleAnnotationDurationSeconds]
+  );
+
+  const handleAnnotationImageOpacityChange = useCallback(
+    (value: string) => {
+      handleDefaultAnnotationImageOpacityChange(value);
+
+      const nextOpacity = clampTimelineValue(Number(value), 20, 100) / 100;
+      if (!selectedImageAnnotation || !Number.isFinite(nextOpacity)) return;
+
+      handleUpdateAnnotation({
+        ...selectedImageAnnotation,
+        style: {
+          ...selectedImageAnnotation.style,
+          opacity: nextOpacity,
+        },
+      });
+    },
+    [handleDefaultAnnotationImageOpacityChange, handleUpdateAnnotation, selectedImageAnnotation]
+  );
+
+  const handleAnnotationImageSizeChange = useCallback(
+    (dimension: "height" | "width", value: string) => {
+      handleDefaultAnnotationImageSizeChange(dimension, value);
+
+      const nextSize = Math.round(
+        clampTimelineValue(
+          Number(value),
+          VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min,
+          VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max
+        )
+      );
+      if (!selectedImageAnnotation || !Number.isFinite(nextSize)) return;
+
+      handleUpdateAnnotation({
+        ...selectedImageAnnotation,
+        [dimension]: nextSize,
+      });
+    },
+    [handleDefaultAnnotationImageSizeChange, handleUpdateAnnotation, selectedImageAnnotation]
   );
 
   const handleSaveAnnotations = useCallback(async () => {
@@ -369,11 +432,10 @@ export const VideoAnnotationEditor = ({
       annotationColorInputValue={annotationColorInputValue}
       annotationColorRgb={annotationColorRgb}
       annotationDurationSeconds={annotationDurationSeconds}
-      annotationImageContent={annotationImageContent}
-      annotationImageHeight={annotationImageHeight}
-      annotationImageName={annotationImageName}
-      annotationImageOpacity={annotationImageOpacity}
-      annotationImageWidth={annotationImageWidth}
+      annotationImageContent={selectedImageAnnotation?.content ?? annotationImageContent}
+      annotationImageHeight={selectedImageAnnotationHeight}
+      annotationImageOpacity={selectedImageAnnotationOpacity}
+      annotationImageWidth={selectedImageAnnotationWidth}
       annotationStrokeStyle={annotationStrokeStyle}
       annotationStrokeWidth={annotationStrokeWidth}
       annotationTextFontFamily={annotationTextFontFamily}
@@ -391,7 +453,6 @@ export const VideoAnnotationEditor = ({
       onAnnotationColorPickerPointerMove={handleAnnotationColorPickerPointerMove}
       onAnnotationImageOpacityChange={handleAnnotationImageOpacityChange}
       onAnnotationImageSizeChange={handleAnnotationImageSizeChange}
-      onChooseAnnotationImage={handleChooseAnnotationImage}
       onDurationChange={setAnnotationDurationSeconds}
       onStrokeStyleChange={setAnnotationStrokeStyle}
       onStrokeWidthChange={setAnnotationStrokeWidth}
@@ -454,7 +515,9 @@ export const VideoAnnotationEditor = ({
         imageWidth={annotationImageWidth}
         inputEnabled={annotationInputEnabled}
         onCreateAnnotation={handleCreateAnnotation}
+        onSelectedAnnotationIdChange={setSelectedAnnotationId}
         onUpdateAnnotation={handleUpdateAnnotation}
+        selectedAnnotationId={selectedAnnotationId}
         startTime={effectiveCurrentTime}
         strokeStyle={annotationStrokeStyle}
         strokeWidth={annotationStrokeWidth}

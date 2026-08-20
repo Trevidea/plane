@@ -281,7 +281,7 @@ const getTextAnnotationSize = (annotation: TCustomPlaylistAnnotation, fontSize: 
 
   return {
     height: Math.max(18, fontSize * 1.25),
-    width: Math.max(48, content.length * fontSize * 0.62),
+    width: Math.max(fontSize * 0.35, content.length * fontSize * 0.62),
   };
 };
 
@@ -705,9 +705,10 @@ const isPointOnAnnotationEdge = (point: TCustomPlaylistAnnotationPoint, annotati
 const moveAnnotation = (
   annotation: TCustomPlaylistAnnotation,
   deltaX: number,
-  deltaY: number
+  deltaY: number,
+  annotationBounds?: AnnotationBounds | null
 ): TCustomPlaylistAnnotation => {
-  const bounds = getAnnotationBounds(annotation);
+  const bounds = annotationBounds ?? getAnnotationBounds(annotation);
   if (!bounds) return annotation;
 
   const clampedDeltaX = clamp(deltaX, -bounds.x, CANVAS_SIZE - (bounds.x + bounds.width));

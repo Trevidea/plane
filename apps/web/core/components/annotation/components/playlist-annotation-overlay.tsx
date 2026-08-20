@@ -18,6 +18,7 @@ import {
   createPlaylistAnnotationId,
   getAnnotationBounds,
   getAnnotationRotation,
+  getAnnotationStyle,
   getLinearAnnotationEndpoints,
   getPointAngle,
   getPointBounds,
@@ -40,6 +41,7 @@ import {
 } from "../utils/playlist-annotation-rendering";
 import { PlaylistAnnotationSelectionControls } from "./playlist-annotation-selection-controls";
 import { PlaylistAnnotationTextDraftInput } from "./playlist-annotation-text-draft-input";
+import type { PlaylistAnnotationTextDraft } from "./playlist-annotation-text-draft-input";
 
 export {
   DEFAULT_PLAYLIST_ANNOTATION_DURATION_SECONDS,
@@ -96,7 +98,9 @@ export const PlaylistAnnotationOverlay = ({
   imageWidth,
   inputEnabled = enabled,
   onCreateAnnotation,
+  onSelectedAnnotationIdChange,
   onUpdateAnnotation,
+  selectedAnnotationId: controlledSelectedAnnotationId,
   textFontFamily,
   textFontSize,
   textFontWeight,
@@ -117,10 +121,22 @@ export const PlaylistAnnotationOverlay = ({
   const shouldSkipTextDraftCommitRef = useRef(false);
   const [draftAnnotation, setDraftAnnotation] = useState<TCustomPlaylistAnnotation | null>(null);
   const [overlayBounds, setOverlayBounds] = useState<OverlayBounds | null>(null);
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
-  const [textDraft, setTextDraft] = useState<{ point: TCustomPlaylistAnnotationPoint; value: string } | null>(null);
+  const [internalSelectedAnnotationId, setInternalSelectedAnnotationId] = useState<string | null>(null);
+  const [textDraft, setTextDraft] = useState<PlaylistAnnotationTextDraft | null>(null);
   const [canvasRevision, setCanvasRevision] = useState(0);
   const [imageRevision, setImageRevision] = useState(0);
+  const isSelectedAnnotationIdControlled = controlledSelectedAnnotationId !== undefined;
+  const selectedAnnotationId = isSelectedAnnotationIdControlled
+    ? controlledSelectedAnnotationId
+    : internalSelectedAnnotationId;
+
+  const setSelectedAnnotationId = useCallback(
+    (annotationId: string | null) => {
+      if (!isSelectedAnnotationIdControlled) setInternalSelectedAnnotationId(annotationId);
+      onSelectedAnnotationIdChange?.(annotationId);
+    },
+    [isSelectedAnnotationIdControlled, onSelectedAnnotationIdChange]
+  );
 
   const renderedAnnotations = useMemo(
     () => [...annotations, ...(draftAnnotation ? [draftAnnotation] : [])],
@@ -132,7 +148,6 @@ export const PlaylistAnnotationOverlay = ({
     [annotations, selectedAnnotationId]
   );
   const selectedAnnotationIsLinear = selectedAnnotation ? isLinearAnnotation(selectedAnnotation) : false;
-  const selectedAnnotationBounds = selectedAnnotation ? getAnnotationBounds(selectedAnnotation) : null;
   const selectedAnnotationRotation = selectedAnnotation ? getAnnotationRotation(selectedAnnotation) : 0;
   const selectedAnnotationCanResize = selectedAnnotation ? isAnnotationResizable(selectedAnnotation) : false;
   const selectedLinearAnnotationEndpoints =
@@ -153,13 +168,13 @@ export const PlaylistAnnotationOverlay = ({
     setSelectedAnnotationId(null);
     setTextDraft(null);
     pointerIdRef.current = null;
-  }, [enabled]);
+  }, [enabled, setSelectedAnnotationId]);
 
   useEffect(() => {
     if (!selectedAnnotationId || annotations.some((annotation) => annotation.id === selectedAnnotationId)) return;
 
     setSelectedAnnotationId(null);
-  }, [annotations, selectedAnnotationId]);
+  }, [annotations, selectedAnnotationId, setSelectedAnnotationId]);
 
   const updateOverlayBounds = useCallback(() => {
     if (!fitToVideoBounds) {
@@ -300,6 +315,45 @@ export const PlaylistAnnotationOverlay = ({
     };
   }, []);
 
+  const getMeasuredTextAnnotationBounds = useCallback((annotation: TCustomPlaylistAnnotation) => {
+    if (annotation.type !== "text") return null;
+
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    const rect = canvas?.getBoundingClientRect();
+    if (!canvas || !context || !rect || rect.width <= 0 || rect.height <= 0) return null;
+
+    const resolvedStyle = getAnnotationStyle(annotation);
+    const fontSize = Math.max(8, (resolvedStyle.fontSize / CANVAS_SIZE) * rect.height);
+    const fontWeight = resolvedStyle.fontWeight ? `${resolvedStyle.fontWeight} ` : "";
+
+    context.save();
+    context.font = `${fontWeight}${fontSize}px ${resolvedStyle.fontFamily}`;
+    context.textBaseline = "alphabetic";
+    const metrics = context.measureText(annotation.content?.trim() || "Text");
+    context.restore();
+
+    const leftPx = metrics.actualBoundingBoxLeft || 0;
+    const widthPx = Math.max(1, leftPx + (metrics.actualBoundingBoxRight || metrics.width));
+    const ascentPx = metrics.actualBoundingBoxAscent || fontSize;
+    const descentPx = metrics.actualBoundingBoxDescent || fontSize * 0.2;
+
+    return {
+      height: clamp(((ascentPx + descentPx) / rect.height) * CANVAS_SIZE, 1, CANVAS_SIZE),
+      width: clamp((widthPx / rect.width) * CANVAS_SIZE, 1, CANVAS_SIZE),
+      x: clamp(annotation.x - (leftPx / rect.width) * CANVAS_SIZE, 0, CANVAS_SIZE),
+      y: clamp(annotation.y - (ascentPx / rect.height) * CANVAS_SIZE, 0, CANVAS_SIZE),
+    };
+  }, []);
+
+  const getResolvedAnnotationBounds = useCallback(
+    (annotation: TCustomPlaylistAnnotation) =>
+      getMeasuredTextAnnotationBounds(annotation) ?? getAnnotationBounds(annotation),
+    [getMeasuredTextAnnotationBounds]
+  );
+
+  const selectedAnnotationBounds = selectedAnnotation ? getResolvedAnnotationBounds(selectedAnnotation) : null;
+
   const buildAnnotation = useCallback(
     (point: TCustomPlaylistAnnotationPoint, content?: string): TCustomPlaylistAnnotation => ({
       content: tool === "image" ? (imageContent ?? undefined) : content,
@@ -359,7 +413,64 @@ export const PlaylistAnnotationOverlay = ({
     setDraftAnnotation(null);
     setSelectedAnnotationId(normalizedAnnotation.id);
     onCreateAnnotation(normalizedAnnotation);
-  }, [buildAnnotation, enabled, imageContent, imageHeight, imagePlacementKey, imageWidth, onCreateAnnotation, tool]);
+  }, [
+    buildAnnotation,
+    enabled,
+    imageContent,
+    imageHeight,
+    imagePlacementKey,
+    imageWidth,
+    onCreateAnnotation,
+    setSelectedAnnotationId,
+    tool,
+  ]);
+
+  const buildTextDraftAnnotation = useCallback(
+    (draft: PlaylistAnnotationTextDraft, content: string): TCustomPlaylistAnnotation => ({
+      ...buildAnnotation(draft.point, content),
+      id: draft.annotationId,
+    }),
+    [buildAnnotation]
+  );
+
+  const handleTextDraftChange = useCallback(
+    (value: string) => {
+      if (!textDraft) return;
+
+      const content = value.trim();
+      const nextDraft = { ...textDraft, value };
+
+      if (!content) {
+        if (textDraft.isCommitted && onUpdateAnnotation) {
+          onUpdateAnnotation(buildTextDraftAnnotation(textDraft, ""));
+        }
+        setTextDraft({ ...nextDraft, isCommitted: false });
+        setSelectedAnnotationId(null);
+        return;
+      }
+
+      if (!onUpdateAnnotation) {
+        setTextDraft(nextDraft);
+        return;
+      }
+
+      const normalizedAnnotation = normalizePlaylistAnnotations([buildTextDraftAnnotation(textDraft, content)])[0];
+      if (!normalizedAnnotation) {
+        setTextDraft(nextDraft);
+        return;
+      }
+
+      if (textDraft.isCommitted) {
+        onUpdateAnnotation?.(normalizedAnnotation);
+      } else {
+        onCreateAnnotation(normalizedAnnotation);
+      }
+
+      setSelectedAnnotationId(normalizedAnnotation.id);
+      setTextDraft({ ...nextDraft, isCommitted: true });
+    },
+    [buildTextDraftAnnotation, onCreateAnnotation, onUpdateAnnotation, setSelectedAnnotationId, textDraft]
+  );
 
   const commitTextDraft = useCallback(() => {
     if (shouldSkipTextDraftCommitRef.current) {
@@ -374,10 +485,11 @@ export const PlaylistAnnotationOverlay = ({
     shouldSkipTextDraftCommitRef.current = false;
     setTextDraft(null);
     if (!content) return;
+    if (textDraft.isCommitted) return;
 
-    const normalizedAnnotation = normalizePlaylistAnnotations([buildAnnotation(textDraft.point, content)])[0];
+    const normalizedAnnotation = normalizePlaylistAnnotations([buildTextDraftAnnotation(textDraft, content)])[0];
     if (normalizedAnnotation) onCreateAnnotation(normalizedAnnotation);
-  }, [buildAnnotation, onCreateAnnotation, textDraft]);
+  }, [buildTextDraftAnnotation, onCreateAnnotation, textDraft]);
 
   const handleTextDraftKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -388,11 +500,15 @@ export const PlaylistAnnotationOverlay = ({
 
       if (event.key === "Escape") {
         event.preventDefault();
+        if (textDraft?.isCommitted && onUpdateAnnotation) {
+          onUpdateAnnotation(buildTextDraftAnnotation(textDraft, ""));
+          setSelectedAnnotationId(null);
+        }
         shouldSkipTextDraftCommitRef.current = true;
         setTextDraft(null);
       }
     },
-    [commitTextDraft]
+    [buildTextDraftAnnotation, commitTextDraft, onUpdateAnnotation, setSelectedAnnotationId, textDraft]
   );
 
   const updateDraftAnnotation = useCallback(
@@ -449,7 +565,7 @@ export const PlaylistAnnotationOverlay = ({
       if (mode === "resize" && (!resizeHandle || !isAnnotationResizable(annotation))) return false;
 
       const point = getEventPoint(event);
-      const bounds = getAnnotationBounds(annotation);
+      const bounds = getResolvedAnnotationBounds(annotation);
       const center = bounds
         ? {
             x: bounds.x + bounds.width / 2,
@@ -481,7 +597,7 @@ export const PlaylistAnnotationOverlay = ({
 
       return true;
     },
-    [canTransformAnnotations, getEventPoint]
+    [canTransformAnnotations, getEventPoint, getResolvedAnnotationBounds, setSelectedAnnotationId]
   );
 
   const handleAnnotationTransformPointerMove = useCallback(
@@ -500,7 +616,8 @@ export const PlaylistAnnotationOverlay = ({
           ? moveAnnotation(
               transformState.originalAnnotation,
               point.x - transformState.startPoint.x,
-              point.y - transformState.startPoint.y
+              point.y - transformState.startPoint.y,
+              transformState.originalBounds
             )
           : transformState.mode === "resize" && transformState.resizeHandle
             ? resizeAnnotation(
@@ -561,16 +678,12 @@ export const PlaylistAnnotationOverlay = ({
       const point = getEventPoint(event);
       if (!point) return;
 
-      if (tool === "image" && !imageContent) return;
-
       if (canTransformAnnotations) {
-        const annotationToTransform = [...annotations]
-          .reverse()
-          .find((annotation) =>
-            annotation.type === "image" && tool === "image"
-              ? isPointInAnnotation(point, annotation)
-              : isPointOnAnnotationEdge(point, annotation)
-          );
+        const annotationToTransform = [...annotations].reverse().find((annotation) => {
+          if (annotation.type === "text" || annotation.type === "image") return isPointInAnnotation(point, annotation);
+
+          return isPointOnAnnotationEdge(point, annotation);
+        });
         if (annotationToTransform && startAnnotationTransform(event, annotationToTransform, "move")) return;
         setSelectedAnnotationId(null);
       }
@@ -580,9 +693,16 @@ export const PlaylistAnnotationOverlay = ({
 
       if (tool === "text") {
         shouldSkipTextDraftCommitRef.current = false;
-        setTextDraft({ point, value: "" });
+        setTextDraft({
+          annotationId: createPlaylistAnnotationId(),
+          isCommitted: false,
+          point,
+          value: "",
+        });
         return;
       }
+
+      if (tool === "image") return;
 
       event.currentTarget.setPointerCapture(event.pointerId);
       pointerIdRef.current = event.pointerId;
@@ -597,8 +717,8 @@ export const PlaylistAnnotationOverlay = ({
       buildAnnotation,
       canTransformAnnotations,
       getEventPoint,
-      imageContent,
       inputEnabled,
+      setSelectedAnnotationId,
       startAnnotationTransform,
       tool,
     ]
@@ -717,7 +837,7 @@ export const PlaylistAnnotationOverlay = ({
         onBlur={commitTextDraft}
         onKeyDown={handleTextDraftKeyDown}
         onPointerDown={(event) => event.stopPropagation()}
-        onTextDraftChange={setTextDraft}
+        onTextDraftChange={handleTextDraftChange}
         textDraft={textDraft}
         textFontFamily={textFontFamily}
         textFontSize={textFontSize}

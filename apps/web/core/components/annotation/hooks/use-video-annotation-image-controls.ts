@@ -69,11 +69,6 @@ export const useVideoAnnotationImageControls = ({
   const [annotationImageWidth, setAnnotationImageWidth] = useState(DEFAULT_IMAGE_ANNOTATION_WIDTH);
   const annotationImageInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleChooseAnnotationImage = useCallback(() => {
-    onRequestPause?.();
-    annotationImageInputRef.current?.click();
-  }, [onRequestPause]);
-
   const handleAnnotationImageChange = useCallback(
     (fileList: FileList | null) => {
       const selectedFile = fileList?.[0];
@@ -141,6 +136,7 @@ export const useVideoAnnotationImageControls = ({
     const nextValue = Math.round(
       clampTimelineValue(Number(value), VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min, VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max)
     );
+    if (!Number.isFinite(nextValue)) return;
 
     if (dimension === "height") {
       setAnnotationImageHeight(nextValue);
@@ -165,6 +161,5 @@ export const useVideoAnnotationImageControls = ({
     handleAnnotationImageChange,
     handleAnnotationImageOpacityChange,
     handleAnnotationImageSizeChange,
-    handleChooseAnnotationImage,
   };
 };

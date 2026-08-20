@@ -21,7 +21,9 @@ export type PlaylistAnnotationOverlayProps = {
   imageWidth: number;
   inputEnabled?: boolean;
   onCreateAnnotation: (annotation: TCustomPlaylistAnnotation) => void;
+  onSelectedAnnotationIdChange?: (annotationId: string | null) => void;
   onUpdateAnnotation?: (annotation: TCustomPlaylistAnnotation) => void;
+  selectedAnnotationId?: string | null;
   textFontFamily: string;
   textFontSize: number;
   textFontWeight: number;

@@ -129,18 +129,38 @@ export const PlaylistAnnotationSelectionControls = ({
 
   if (!canTransformAnnotations || !selectedAnnotation || !selectedAnnotationBounds) return null;
 
+  const selectionBoundsStyle = {
+    height:
+      selectedAnnotation.type === "text"
+        ? `${selectedAnnotationBounds.height / 10}%`
+        : `max(24px, ${selectedAnnotationBounds.height / 10}%)`,
+    left: `${selectedAnnotationBounds.x / 10}%`,
+    top: `${selectedAnnotationBounds.y / 10}%`,
+    transform: `rotate(${selectedAnnotationRotation}deg)`,
+    transformOrigin: "center",
+    width:
+      selectedAnnotation.type === "text"
+        ? `${selectedAnnotationBounds.width / 10}%`
+        : `max(28px, ${selectedAnnotationBounds.width / 10}%)`,
+  };
+  const shouldRenderMoveSurface = selectedAnnotation.type === "text" || selectedAnnotation.type === "image";
+
   return (
     <div
       className="pointer-events-none absolute z-10 rounded-[4px] border border-dashed border-[#facc15] shadow-[0_0_0_1px_rgba(0,0,0,0.36),0_0_18px_rgba(250,204,21,0.28)]"
-      style={{
-        height: `max(24px, ${selectedAnnotationBounds.height / 10}%)`,
-        left: `${selectedAnnotationBounds.x / 10}%`,
-        top: `${selectedAnnotationBounds.y / 10}%`,
-        transform: `rotate(${selectedAnnotationRotation}deg)`,
-        transformOrigin: "center",
-        width: `max(28px, ${selectedAnnotationBounds.width / 10}%)`,
-      }}
+      style={selectionBoundsStyle}
     >
+      {shouldRenderMoveSurface ? (
+        <button
+          type="button"
+          onPointerCancel={onCancelAnnotationTransform}
+          onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "move")}
+          onPointerMove={onTransformPointerMove}
+          onPointerUp={onFinishAnnotationTransform}
+          className="pointer-events-auto absolute inset-0 touch-none cursor-move rounded-[4px] bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[#facc15]/50"
+          aria-label={`Move selected ${selectedAnnotation.type} annotation`}
+        />
+      ) : null}
       {selectedAnnotationCanResize
         ? ANNOTATION_RESIZE_HANDLES.map(({ className: handleClassName, cursorClassName, handle, label }) => (
             <span
