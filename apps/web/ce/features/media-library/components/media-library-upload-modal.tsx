@@ -2,70 +2,36 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock3,
-  FileImage,
-  FileText,
-  FileVideo,
-  RefreshCw,
-  Trash2,
-  UploadCloud,
-  X,
-} from "lucide-react";
-import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import { AlertTriangle, FileImage, FileText, FileVideo, Trash2, UploadCloud, X } from "lucide-react";
 import type { ISearchIssueResponse, TIssue } from "@plane/types";
 import { Button, Checkbox } from "@plane/ui";
 import { useInstance } from "@/hooks/store/use-instance";
 import { useUser } from "@/hooks/store/user";
 import { IssueService } from "@/services/issue";
-import { MediaLibraryService } from "@/services/media-library.service";
-import type { TMediaArtifact } from "@/services/media-library.service";
 import { ProjectService } from "@/services/project";
 import { useMediaLibrary } from "../store/media-library-context";
-import { getDocumentThumbnailPath } from "../utils/media-items";
+import {
+  buildUploadId,
+  FALLBACK_MEDIA_LIBRARY_MAX_FILE_SIZE,
+  formatFileSize,
+  getFileExtension,
+  readMediaLibraryFileSizeLimit,
+  resolveArtifactFormat,
+} from "../utils/media-library-upload-jobs";
+import { buildUploadTraceId, logMediaUploadLifecycle } from "../utils/upload-progress";
 import { MediaLibraryUploadMetaForm } from "./media-library-upload-meta";
 import { UPLOAD_MODAL_TEXT_CLASS } from "./media-library-upload-style-classes";
 import type { TMetaFieldChange, TMetaFormState, TUploadTarget } from "./media-library-upload-types";
 import { MediaLibraryWorkItemSelector } from "./media-library-work-item-selector";
 
-const FALLBACK_MEDIA_LIBRARY_MAX_FILE_SIZE = 1024 * 1024 * 1024;
-const readMediaLibraryFileSizeLimit = (value: unknown) => {
-  const limit = typeof value === "number" ? value : typeof value === "string" ? Number(value.trim()) : NaN;
-  return Number.isFinite(limit) && limit > 0 ? limit : null;
-};
-const IMAGE_FORMATS = new Set([
-  "jpg",
-  "jpeg",
-  "png",
-  "svg",
-  "webp",
-  "gif",
-  "bmp",
-  "tif",
-  "tiff",
-  "avif",
-  "heic",
-  "heif",
-]);
-const VIDEO_FORMATS = new Set(["mp4", "m3u8"]);
-const DOC_FORMATS = new Set(["json", "csv", "pdf", "docx", "xlsx", "pptx", "txt"]);
-
-type TUploadStatus = "queued" | "uploading" | "uploaded" | "ready" | "failed" | "cancelled";
-type TUploadFailurePhase = "upload";
+type TPreparedUploadStatus = "selected" | "failed";
 
 type TUploadItem = {
   id: string;
   file: File;
-  status: TUploadStatus;
-  progress: number;
+  status: TPreparedUploadStatus;
+  uploadId: string;
   error?: string;
-  artifact?: TMediaArtifact;
-  packageId?: string;
-  failedPhase?: TUploadFailurePhase;
-  abortController?: AbortController;
-  retryCount?: number;
 };
 
 const createDefaultMeta = (createdByMemberId: string | null = null): TMetaFormState => ({
@@ -94,125 +60,8 @@ const useDebouncedValue = (value: string, delayMs: number) => {
   return debouncedValue;
 };
 
-const getTitleFromFile = (fileName: string) => fileName.replace(/\.[^/.]+$/, "");
-const getFileExtension = (fileName: string) => fileName.split(".").pop()?.toLowerCase() ?? "";
-const buildUploadId = (file: File) => `${file.name}-${file.size}-${file.lastModified}`;
-
-const buildArtifactName = (fileName: string, uploadedAt: number, index: number) => {
-  const base = getTitleFromFile(fileName)
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/(^-+|-+$)/g, "");
-  const suffix = `${uploadedAt}-${index}`;
-  return base ? `${base}-${suffix}` : `artifact-${suffix}`;
-};
-
-const resolveArtifactFormat = (fileName: string) => {
-  const extension = getFileExtension(fileName);
-  if (IMAGE_FORMATS.has(extension)) return extension;
-  if (VIDEO_FORMATS.has(extension)) return extension;
-  if (DOC_FORMATS.has(extension)) return extension;
-  return "";
-};
-
-const updateUploadEntry = (prev: TUploadItem[], id: string, updates: Partial<TUploadItem>): TUploadItem[] =>
-  prev.map((item) => (item.id === id ? { ...item, ...updates } : item));
-
-const isMp4Upload = (file: File) => getFileExtension(file.name) === "mp4" || file.type === "video/mp4";
-
-const isActiveStatus = (status: TUploadStatus) => status === "uploading";
-
-const getVisibleProgress = (item: TUploadItem) => Math.min(100, Math.max(0, item.progress ?? 0));
-
-const getHttpStatus = (error: unknown): number | null => {
-  if (!error || typeof error !== "object") return null;
-  const record = error as Record<string, unknown>;
-  const status = record.status ?? record.statusCode;
-  if (typeof status === "number") return status;
-  if (typeof status === "string") {
-    const parsedStatus = Number(status);
-    return Number.isFinite(parsedStatus) ? parsedStatus : null;
-  }
-  return null;
-};
-
-const isServerFileSizeError = (error: unknown) => {
-  if (getHttpStatus(error) === 413) return true;
-  if (typeof error === "string") {
-    const normalizedError = error.toLowerCase();
-    return normalizedError.includes("413") || normalizedError.includes("too large");
-  }
-  if (error && typeof error === "object") {
-    const record = error as Record<string, unknown>;
-    const data = record.data;
-    if (data && typeof data === "object") {
-      const responseData = data as Record<string, unknown>;
-      return responseData.code === "MEDIA_LIBRARY_FILE_TOO_LARGE" || responseData.error === "REQUEST_BODY_TOO_LARGE";
-    }
-    return record.code === "MEDIA_LIBRARY_FILE_TOO_LARGE" || record.error === "REQUEST_BODY_TOO_LARGE";
-  }
-  return false;
-};
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (error && typeof error === "object") {
-    const record = error as Record<string, unknown>;
-    const data = record.data;
-    if (data && typeof data === "object") {
-      const responseData = data as Record<string, unknown>;
-      if (typeof responseData.detail === "string" && responseData.detail.trim()) return responseData.detail;
-      if (typeof responseData.message === "string" && responseData.message.trim()) return responseData.message;
-      if (typeof responseData.error === "string" && responseData.error.trim()) return responseData.error;
-    }
-    const nestedError = record.error;
-    if (nestedError && typeof nestedError === "object") {
-      const nested = nestedError as Record<string, unknown>;
-      if (typeof nested.message === "string" && nested.message.trim()) return nested.message;
-      if (typeof nested.code === "string" && nested.code.trim()) return nested.code;
-    }
-    if (typeof record.message === "string" && record.message.trim()) return record.message;
-    if (typeof record.error === "string" && record.error.trim()) return record.error;
-  }
-  return fallback;
-};
-
-const getUploadErrorMessage = (error: unknown) => {
-  if (isServerFileSizeError(error)) {
-    return "Server rejected this file as too large. Increase the upload size limit or choose a smaller file.";
-  }
-  return getErrorMessage(error, "Upload failed");
-};
-
-const getUploadStatusLabel = (item: TUploadItem) => {
-  if (item.status === "queued") return "Queued";
-  if (item.status === "uploading") return "Uploading";
-  if (item.status === "uploaded") return "Uploaded";
-  if (item.status === "ready") return "Uploaded";
-  if (item.status === "cancelled") return "Cancelled";
-  return "Failed";
-};
-
-const isCompletedStatus = (status: TUploadStatus) => status === "uploaded" || status === "ready";
-
-const formatFileSize = (value: number) => {
-  if (!Number.isFinite(value) || value <= 0) return "0MB";
-  const sizeInMb = value / (1024 * 1024);
-  if (sizeInMb >= 1024) {
-    const sizeInGb = sizeInMb / 1024;
-    return `${sizeInGb.toFixed(sizeInGb >= 10 ? 0 : 1)}GB`;
-  }
-  return `${sizeInMb.toFixed(0)}MB`;
-};
-
 const normalizeInputValue = (value: string | null | undefined) => (value ?? "").trim();
 const normalizeTagValue = (value: string) => value.trim();
-const escapeHtml = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 const buildMetaPayload = (
   metaState: TMetaFormState,
   uploadTarget: TUploadTarget,
@@ -258,7 +107,7 @@ const buildMetaPayload = (
 const projectService = new ProjectService();
 
 export const MediaLibraryUploadModal = () => {
-  const { isUploadOpen, closeUpload, refreshLibrary, pendingUploadFiles, setPendingUploadFiles, trackTranscodeJob } =
+  const { isUploadOpen, closeUpload, pendingUploadFiles, setPendingUploadFiles, enqueueUploadBatch } =
     useMediaLibrary();
   const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
   const { config } = useInstance();
@@ -277,7 +126,6 @@ export const MediaLibraryUploadModal = () => {
   const [tagDraft, setTagDraft] = useState("");
   const debouncedWorkItemQuery = useDebouncedValue(workItemQuery, 300);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
   const issueService = useMemo(() => new IssueService(), []);
   const envMaxFileSize = readMediaLibraryFileSizeLimit(process.env.NEXT_PUBLIC_MEDIA_LIBRARY_FILE_SIZE_LIMIT);
   const instanceMaxFileSize = readMediaLibraryFileSizeLimit(
@@ -285,13 +133,8 @@ export const MediaLibraryUploadModal = () => {
   );
   const maxFileSize = instanceMaxFileSize ?? envMaxFileSize ?? FALLBACK_MEDIA_LIBRARY_MAX_FILE_SIZE;
   const maxSizeLabel = formatFileSize(maxFileSize);
-  const hasActiveUploads = uploads.some((item) => isActiveStatus(item.status));
-  const queuedUploads = uploads.filter((item) => item.status === "queued");
+  const readyToUploadItems = uploads.filter((item) => item.status === "selected");
   const failedUploads = uploads.filter((item) => item.status === "failed");
-  const completedUploads = uploads.filter((item) => isCompletedStatus(item.status));
-  const overallProgress = uploads.length
-    ? Math.round(uploads.reduce((total, item) => total + getVisibleProgress(item), 0) / uploads.length)
-    : 0;
   const uploadTarget: TUploadTarget = selectedWorkItem ? "work-item" : "library";
   const isWorkItemMetaLocked = Boolean(selectedWorkItem);
 
@@ -369,9 +212,6 @@ export const MediaLibraryUploadModal = () => {
   };
 
   const handleClose = () => {
-    uploads.forEach((item) => {
-      item.abortController?.abort();
-    });
     setUploads([]);
     setIsDragging(false);
     setSelectionError(null);
@@ -394,14 +234,34 @@ export const MediaLibraryUploadModal = () => {
   const addFiles = useCallback(
     (files: File[]) => {
       if (files.length === 0) return;
+      const selectedAtMs = Date.now();
+      const incomingFiles = files.map((file, index) => {
+        const uploadId = buildUploadTraceId({
+          fileName: file.name,
+          fileSize: file.size,
+          lastModified: file.lastModified,
+          timestampMs: selectedAtMs + index,
+        });
+        logMediaUploadLifecycle({
+          event: "file_selected",
+          uploadId,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type || getFileExtension(file.name),
+        });
+        return {
+          file,
+          id: buildUploadId(file),
+          uploadId,
+        };
+      });
       setUploads((prev) => {
         const existingIds = new Set(prev.map((item) => item.id));
         const duplicateNames: string[] = [];
         const oversizedFiles: Array<{ name: string; size: number }> = [];
         const nextItems: TUploadItem[] = [];
 
-        files.forEach((file) => {
-          const id = buildUploadId(file);
+        incomingFiles.forEach(({ file, id, uploadId }) => {
           if (existingIds.has(id)) {
             duplicateNames.push(file.name);
             return;
@@ -416,9 +276,8 @@ export const MediaLibraryUploadModal = () => {
           nextItems.push({
             id,
             file,
-            status: tooLarge || unsupported ? "failed" : "queued",
-            progress: 0,
-            failedPhase: tooLarge || unsupported ? "upload" : undefined,
+            uploadId,
+            status: tooLarge || unsupported ? "failed" : "selected",
             error: tooLarge ? `File exceeds ${maxSizeLabel} limit` : unsupported ? "Unsupported file type" : undefined,
           });
         });
@@ -455,229 +314,37 @@ export const MediaLibraryUploadModal = () => {
     setPendingUploadFiles([]);
   }, [addFiles, isUploadOpen, pendingUploadFiles, setPendingUploadFiles]);
 
-  const uploadSingle = async (item: TUploadItem, packageId: string, index: number, uploadedAt: number) => {
-    const file = item.file;
-    const format = resolveArtifactFormat(file.name);
-    if (!format) {
-      setUploads((prev) =>
-        updateUploadEntry(prev, item.id, {
-          status: "failed",
-          failedPhase: "upload",
-          error: "Unsupported file type",
-        })
-      );
-      return false;
-    }
-
-    const artifactName = item.artifact?.name || buildArtifactName(file.name, uploadedAt, index);
-    const title = getTitleFromFile(file.name) || "Untitled Upload";
-    const description = `<p>Uploaded file: ${escapeHtml(title)}</p>`;
-    const action = VIDEO_FORMATS.has(format) ? "play" : IMAGE_FORMATS.has(format) ? "view" : "download";
-    const meta = buildMetaPayload(metaState, uploadTarget, selectedWorkItem);
-    if (DOC_FORMATS.has(format)) {
-      meta.kind = "document_file";
-      meta.file_size = file.size;
-      meta.file_type = file.type || format;
-      meta.thumbnail = getDocumentThumbnailPath(format);
-    }
-
-    try {
-      const abortController = new AbortController();
-      setUploads((prev) =>
-        updateUploadEntry(prev, item.id, {
-          status: "uploading",
-          progress: 0,
-          error: undefined,
-          failedPhase: undefined,
-          abortController,
-        })
-      );
-      const artifact = await mediaLibraryService.uploadArtifact(
-        workspaceSlug,
-        projectId,
-        packageId,
-        {
-          name: artifactName,
-          title,
-          description,
-          format,
-          link: null,
-          action,
-          meta,
-          work_item_id: selectedWorkItem?.id ?? undefined,
-        },
-        file,
-        (progressEvent) => {
-          const total = progressEvent.total ?? 0;
-          if (!total) return;
-          const percent = Math.min(100, Math.round((progressEvent.loaded / total) * 100));
-          setUploads((prev) => updateUploadEntry(prev, item.id, { progress: percent, status: "uploading" }));
-        },
-        { signal: abortController.signal }
-      );
-
-      setUploads((prev) =>
-        updateUploadEntry(prev, item.id, {
-          artifact,
-          packageId,
-          abortController: undefined,
-          progress: 100,
-          status: "uploaded",
-        })
-      );
-      refreshLibrary();
-
-      const transcodeJobId = artifact.transcode_job?.job_id;
-      if (isMp4Upload(file) && transcodeJobId) {
-        trackTranscodeJob({
-          workspaceSlug,
-          projectId,
-          packageId,
-          artifactId: artifact.name,
-          jobId: transcodeJobId,
-        });
-      }
-
-      if (isMp4Upload(file) && artifact.transcode_job_error) {
-        setToast({
-          type: TOAST_TYPE.ERROR,
-          title: "Background transcoding was not queued",
-          message: getErrorMessage(
-            artifact.transcode_job_error,
-            "The MP4 was uploaded, but transcoding was not queued."
-          ),
-        });
-      }
-      return true;
-    } catch (error) {
-      const wasCancelled =
-        error && typeof error === "object" && (error as Record<string, unknown>).code === "ERR_CANCELED";
-      setUploads((prev) =>
-        updateUploadEntry(prev, item.id, {
-          status: wasCancelled ? "cancelled" : "failed",
-          failedPhase: wasCancelled ? undefined : "upload",
-          abortController: undefined,
-          error: wasCancelled ? "Cancelled" : getUploadErrorMessage(error),
-        })
-      );
-      return false;
-    }
+  const resetSelectionForm = () => {
+    setUploads([]);
+    setIsDragging(false);
+    setSelectionError(null);
+    setIsWorkItemSelectorEnabled(false);
+    setMetaState(createDefaultMeta(currentUserId));
+    setSelectedWorkItem(null);
+    setWorkItemResults([]);
+    setIsWorkItemDetailsLoading(false);
+    setWorkItemQuery("");
+    setTagDraft("");
+    if (inputRef.current) inputRef.current.value = "";
   };
 
-  const handleUpload = async () => {
-    const itemsToUpload = uploads.filter((item) => item.status === "queued");
-    if (itemsToUpload.length === 0 || !workspaceSlug || !projectId || hasActiveUploads) return;
-    const uploadedAt = Date.now();
-    let packageId: string | null = null;
+  const handleUpload = () => {
+    const itemsToUpload = uploads.filter((item) => item.status === "selected");
+    if (itemsToUpload.length === 0 || !workspaceSlug || !projectId) return;
 
-    try {
-      const manifest = await mediaLibraryService.ensureProjectLibrary(workspaceSlug, projectId);
-      packageId = typeof manifest?.id === "string" ? manifest.id : null;
-    } catch {
-      setUploads((prev) =>
-        prev.map((item) =>
-          item.status === "queued"
-            ? { ...item, status: "failed", failedPhase: "upload", error: "Unable to initialize media library" }
-            : item
-        )
-      );
-      return;
-    }
-
-    if (!packageId) {
-      setUploads((prev) =>
-        prev.map((item) =>
-          item.status === "queued"
-            ? { ...item, status: "failed", failedPhase: "upload", error: "Media library package not available" }
-            : item
-        )
-      );
-      return;
-    }
-
-    const results = await Promise.allSettled(
-      itemsToUpload.map((item, index) => uploadSingle(item, packageId, index, uploadedAt))
-    );
-    const successCount = results.filter(
-      (result): result is PromiseFulfilledResult<boolean> => result.status === "fulfilled" && result.value
-    ).length;
-    const allUploadsCompleted = successCount === itemsToUpload.length;
-
-    if (successCount > 0) {
-      setToast({
-        type: TOAST_TYPE.SUCCESS,
-        title: "Success",
-        message:
-          successCount === 1
-            ? "File uploaded. Background transcoding will continue automatically."
-            : `${successCount} files uploaded. Background transcoding will continue automatically.`,
-      });
-    }
-
-    if (allUploadsCompleted) {
-      setUploads([]);
-      setIsDragging(false);
-      setSelectionError(null);
-      setIsWorkItemSelectorEnabled(false);
-      setMetaState(createDefaultMeta(currentUserId));
-      setSelectedWorkItem(null);
-      setWorkItemResults([]);
-      setIsWorkItemDetailsLoading(false);
-      setWorkItemQuery("");
-      setTagDraft("");
-      if (inputRef.current) inputRef.current.value = "";
-      closeUpload();
-    }
+    enqueueUploadBatch({
+      workspaceSlug,
+      projectId,
+      files: itemsToUpload.map((item) => item.file),
+      meta: buildMetaPayload(metaState, uploadTarget, selectedWorkItem),
+      workItemId: selectedWorkItem?.id ?? null,
+    });
+    resetSelectionForm();
+    closeUpload();
   };
 
-  const handleRetryUpload = async (item: TUploadItem) => {
-    if (hasActiveUploads) return;
-    const retryTooLarge = item.file.size > maxFileSize;
-    const retryUnsupported = !resolveArtifactFormat(item.file.name);
-    if (retryTooLarge || retryUnsupported) {
-      setUploads((prev) =>
-        updateUploadEntry(prev, item.id, {
-          status: "failed",
-          failedPhase: "upload",
-          progress: 0,
-          error: retryTooLarge ? `File exceeds ${maxSizeLabel} limit` : "Unsupported file type",
-        })
-      );
-      return;
-    }
-    setUploads((prev) =>
-      updateUploadEntry(prev, item.id, {
-        status: "queued",
-        progress: 0,
-        error: undefined,
-        failedPhase: undefined,
-        artifact: undefined,
-        packageId: undefined,
-        retryCount: (item.retryCount ?? 0) + 1,
-      })
-    );
-  };
-
-  const handleCancelUpload = async (item: TUploadItem) => {
-    if (item.status === "queued") {
-      setUploads((prev) => updateUploadEntry(prev, item.id, { status: "cancelled", error: "Cancelled" }));
-      return;
-    }
-    if (item.status === "uploading") {
-      item.abortController?.abort();
-      setUploads((prev) =>
-        updateUploadEntry(prev, item.id, {
-          status: "cancelled",
-          abortController: undefined,
-          error: "Cancelled",
-        })
-      );
-      return;
-    }
-  };
-
-  const handleClearCompleted = () => {
-    setUploads((prev) => prev.filter((item) => !isCompletedStatus(item.status) && item.status !== "cancelled"));
+  const removeSelectedUpload = (itemId: string) => {
+    setUploads((prev) => prev.filter((entry) => entry.id !== itemId));
   };
 
   const getFileIcon = (file: File) => {
@@ -719,14 +386,12 @@ export const MediaLibraryUploadModal = () => {
     updateMetaTags((prev) => prev.filter((tag) => tag.toLowerCase() !== value.toLowerCase()));
   };
 
-  const activeIndex = uploads.findIndex((item) => isActiveStatus(item.status) || item.status === "queued");
   const queueSummaryLabel =
     uploads.length === 0
       ? "No file selected"
-      : hasActiveUploads
-        ? `Uploading ${Math.max(1, activeIndex + 1)} of ${uploads.length}`
-        : `${completedUploads.length} of ${uploads.length} completed`;
-  const uploadButtonLabel = hasActiveUploads ? "Uploading..." : "Save & Upload";
+      : uploads.length === 1
+        ? "1 file selected"
+        : `${uploads.length} files selected`;
 
   if (!isUploadOpen) return null;
 
@@ -842,35 +507,12 @@ export const MediaLibraryUploadModal = () => {
                 <div className={`min-w-[130px] text-xs font-normal ${UPLOAD_MODAL_TEXT_CLASS.muted}`}>
                   {queueSummaryLabel}
                 </div>
-                <div className="h-1.5 min-w-[180px] flex-1 overflow-hidden rounded-full bg-custom-border-200 dark:bg-[#242424]">
-                  <div
-                    className={`h-full rounded-full transition-[width] ${
-                      failedUploads.length > 0 && completedUploads.length === 0
-                        ? "bg-red-500 dark:bg-[#FF3434]"
-                        : completedUploads.length === uploads.length && uploads.length > 0
-                          ? "bg-green-500 dark:bg-[#12D8A0]"
-                          : "bg-custom-primary-100 dark:bg-[#2D9CDB]"
-                    }`}
-                    style={{ width: `${overallProgress}%` }}
-                  />
-                </div>
-                <div className={`w-10 text-right text-xs font-medium ${UPLOAD_MODAL_TEXT_CLASS.muted}`}>
-                  {overallProgress}%
-                </div>
+                <div className="min-w-[180px] flex-1" />
                 {failedUploads.length > 0 ? (
                   <div className="inline-flex items-center gap-1 text-xs font-medium text-red-500 dark:text-[#FF3434]">
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    {failedUploads.length} failed
+                    {failedUploads.length} invalid
                   </div>
-                ) : null}
-                {completedUploads.length > 0 ? (
-                  <button
-                    type="button"
-                    className={`ml-auto text-xs font-medium ${UPLOAD_MODAL_TEXT_CLASS.mutedAction}`}
-                    onClick={handleClearCompleted}
-                  >
-                    Clear completed
-                  </button>
                 ) : null}
               </div>
 
@@ -881,10 +523,7 @@ export const MediaLibraryUploadModal = () => {
                   </div>
                 ) : (
                   uploads.map((item) => {
-                    const progress = getVisibleProgress(item);
                     const isFailed = item.status === "failed";
-                    const isComplete = isCompletedStatus(item.status);
-                    const canCancel = item.status === "queued" || item.status === "uploading";
                     return (
                       <div
                         key={item.id}
@@ -894,9 +533,7 @@ export const MediaLibraryUploadModal = () => {
                           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border ${
                             isFailed
                               ? "border-red-500/40 text-red-500 dark:border-[#FF3434]/40 dark:text-[#FF3434]"
-                              : isComplete
-                                ? "border-green-500/40 text-green-500 dark:border-[#12D8A0]/40 dark:text-[#12D8A0]"
-                                : `border-custom-border-200 ${UPLOAD_MODAL_TEXT_CLASS.muted} dark:border-[#303030]`
+                              : `border-custom-border-200 ${UPLOAD_MODAL_TEXT_CLASS.muted} dark:border-[#303030]`
                           }`}
                         >
                           {getFileIcon(item.file)}
@@ -910,82 +547,22 @@ export const MediaLibraryUploadModal = () => {
                               {formatFileSize(item.file.size)}
                             </div>
                           </div>
-                          <div className="mt-2 flex items-center gap-3">
-                            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-custom-border-200 dark:bg-[#242424]">
-                              <div
-                                className={`h-full rounded-full transition-[width] ${
-                                  isFailed
-                                    ? "bg-red-500 dark:bg-[#FF3434]"
-                                    : isComplete
-                                      ? "bg-green-500 dark:bg-[#12D8A0]"
-                                      : "bg-custom-primary-100 dark:bg-[#2D9CDB]"
-                                }`}
-                                style={{ width: `${progress}%` }}
-                              />
-                            </div>
-                            <div
-                              className={`w-9 text-right text-[11px] font-medium ${
-                                isFailed
-                                  ? "text-red-500 dark:text-[#FF3434]"
-                                  : isComplete
-                                    ? "text-green-500 dark:text-[#12D8A0]"
-                                    : "text-custom-primary-100 dark:text-[#2D9CDB]"
-                              }`}
-                            >
-                              {progress}%
-                            </div>
-                          </div>
-                          <div
-                            className={`mt-1 flex items-center gap-1.5 text-xs ${
-                              isFailed
-                                ? "text-red-500 dark:text-[#FF3434]"
-                                : isComplete
-                                  ? "text-green-500 dark:text-[#12D8A0]"
-                                  : item.status === "cancelled"
-                                    ? UPLOAD_MODAL_TEXT_CLASS.muted
-                                    : "text-custom-primary-100 dark:text-[#2D9CDB]"
-                            }`}
-                          >
-                            {isFailed ? (
+                          {isFailed ? (
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-red-500 dark:text-[#FF3434]">
                               <AlertTriangle className="h-3.5 w-3.5" />
-                            ) : isComplete ? (
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            ) : (
-                              <Clock3 className="h-3.5 w-3.5" />
-                            )}
-                            <span className="truncate">{getUploadStatusLabel(item)}</span>
-                          </div>
+                              <span className="truncate">{item.error ?? "Invalid file"}</span>
+                            </div>
+                          ) : null}
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          {isFailed ? (
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 text-xs font-medium text-custom-primary-100 hover:text-custom-primary-200 disabled:cursor-not-allowed disabled:opacity-60 dark:text-[#2D9CDB] dark:hover:text-[#58B8EA]"
-                              disabled={hasActiveUploads}
-                              onClick={() => handleRetryUpload(item)}
-                            >
-                              <RefreshCw className="h-3.5 w-3.5" />
-                              Retry
-                            </button>
-                          ) : canCancel ? (
-                            <button
-                              type="button"
-                              className={`text-xs font-medium ${UPLOAD_MODAL_TEXT_CLASS.mutedAction}`}
-                              onClick={() => handleCancelUpload(item)}
-                            >
-                              Cancel
-                            </button>
-                          ) : null}
-                          {!isActiveStatus(item.status) ? (
-                            <button
-                              type="button"
-                              className={`inline-flex h-7 w-7 items-center justify-center rounded border border-transparent ${UPLOAD_MODAL_TEXT_CLASS.mutedAction} hover:border-custom-border-200 dark:hover:border-[#303030]`}
-                              aria-label={`Remove ${item.file.name}`}
-                              onClick={() => setUploads((prev) => prev.filter((entry) => entry.id !== item.id))}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          ) : null}
+                          <button
+                            type="button"
+                            className={`inline-flex h-7 w-7 items-center justify-center rounded border border-transparent ${UPLOAD_MODAL_TEXT_CLASS.mutedAction} hover:border-custom-border-200 dark:hover:border-[#303030]`}
+                            aria-label={`Remove ${item.file.name}`}
+                            onClick={() => removeSelectedUpload(item.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </div>
                     );
@@ -1009,9 +586,9 @@ export const MediaLibraryUploadModal = () => {
               size="sm"
               className="disabled:!cursor-default disabled:opacity-70"
               onClick={handleUpload}
-              disabled={hasActiveUploads || queuedUploads.length === 0}
+              disabled={readyToUploadItems.length === 0}
             >
-              {uploadButtonLabel}
+              Save & Upload
             </Button>
           </div>
         </div>
