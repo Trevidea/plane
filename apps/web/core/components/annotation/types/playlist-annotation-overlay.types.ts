@@ -25,6 +25,8 @@ export type PlaylistAnnotationOverlayProps = {
   onSelectedAnnotationIdChange?: (annotationId: string | null) => void;
   onUpdateAnnotation?: (annotation: TCustomPlaylistAnnotation) => void;
   selectedAnnotationId?: string | null;
+  shapeBackgroundEnabled: boolean;
+  shapeBackgroundOpacity: number;
   textFontFamily: string;
   textFontSize: number;
   textFontWeight: number;

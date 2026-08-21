@@ -10,6 +10,10 @@ import {
   getAnnotationStyle,
   getStrokeLineDash,
 } from "./playlist-annotation-model";
+import {
+  DEFAULT_VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY,
+  VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY_LIMITS,
+} from "./video-annotation-editor-config";
 
 const toCanvasX = (value: number, size: CanvasSize) => (value / CANVAS_SIZE) * size.width;
 
@@ -27,6 +31,63 @@ const toCanvasHeight = (value: number, size: CanvasSize) => (value / CANVAS_SIZE
 const getPositiveNumber = (value: unknown) => {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+};
+
+const getColorWithAlpha = (color: string, alpha: number) => {
+  const normalizedColor = color.trim();
+  const hexMatch = normalizedColor.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    const hexValue =
+      hexMatch[1].length === 3
+        ? hexMatch[1]
+            .split("")
+            .map((character) => `${character}${character}`)
+            .join("")
+        : hexMatch[1];
+    const red = Number.parseInt(hexValue.slice(0, 2), 16);
+    const green = Number.parseInt(hexValue.slice(2, 4), 16);
+    const blue = Number.parseInt(hexValue.slice(4, 6), 16);
+
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  const rgbMatch = normalizedColor.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+  if (rgbMatch) {
+    return `rgba(${rgbMatch[1]}, ${rgbMatch[2]}, ${rgbMatch[3]}, ${alpha})`;
+  }
+
+  return null;
+};
+
+const fillShapeBackground = (context: CanvasRenderingContext2D, annotation: TCustomPlaylistAnnotation) => {
+  const backgroundColor =
+    typeof annotation.style?.backgroundColor === "string" && annotation.style.backgroundColor.trim()
+      ? annotation.style.backgroundColor
+      : "";
+  if (!backgroundColor) return;
+
+  const opacity =
+    typeof annotation.style?.backgroundOpacity === "number"
+      ? clamp(
+          annotation.style.backgroundOpacity,
+          VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY_LIMITS.min / 100,
+          VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY_LIMITS.max / 100
+        )
+      : DEFAULT_VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY;
+  const translucentColor = getColorWithAlpha(backgroundColor, opacity);
+  const previousFillStyle = context.fillStyle;
+  const previousGlobalAlpha = context.globalAlpha;
+
+  if (translucentColor) {
+    context.fillStyle = translucentColor;
+  } else {
+    context.fillStyle = backgroundColor;
+    context.globalAlpha = previousGlobalAlpha * opacity;
+  }
+
+  context.fill();
+  context.fillStyle = previousFillStyle;
+  context.globalAlpha = previousGlobalAlpha;
 };
 
 export const getFittedVideoBounds = (root: HTMLElement): OverlayBounds | null => {
@@ -277,6 +338,7 @@ export const drawCanvasAnnotation = ({
       toCanvasHeight(annotation.height ?? 0, size),
       6
     );
+    fillShapeBackground(context, annotation);
     context.stroke();
     context.restore();
     return;
@@ -296,6 +358,7 @@ export const drawCanvasAnnotation = ({
       0,
       Math.PI * 2
     );
+    fillShapeBackground(context, annotation);
     context.stroke();
     context.restore();
     return;
