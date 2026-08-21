@@ -34,6 +34,7 @@ export type TMediaItem = {
   isTranscodeActive?: boolean;
   isTranscodeFailed?: boolean;
   isTranscodeComplete?: boolean;
+  isAnnotated?: boolean;
 };
 
 export type TMediaSection = {

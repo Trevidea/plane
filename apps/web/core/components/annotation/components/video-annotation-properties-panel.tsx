@@ -8,6 +8,7 @@ import {
   VIDEO_ANNOTATION_COLOR_PRESETS,
   VIDEO_ANNOTATION_DURATIONS,
   VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS,
+  VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY_LIMITS,
   VIDEO_ANNOTATION_STROKE_STYLES,
   VIDEO_ANNOTATION_STROKE_WIDTHS,
   VIDEO_ANNOTATION_TEXT_FONT_FAMILIES,
@@ -36,6 +37,8 @@ type VideoAnnotationPropertiesPanelProps = {
   annotationImageHeight: number;
   annotationImageOpacity: number;
   annotationImageWidth: number;
+  annotationShapeBackgroundEnabled: boolean;
+  annotationShapeBackgroundOpacity: number;
   annotationStrokeStyle: TCustomPlaylistAnnotationStrokeStyle;
   annotationStrokeWidth: number;
   annotationTextFontFamily: string;
@@ -55,6 +58,8 @@ type VideoAnnotationPropertiesPanelProps = {
   onAnnotationImageOpacityChange: (value: string) => void;
   onAnnotationImageSizeChange: (dimension: "height" | "width", value: string) => void;
   onDurationChange: (durationSeconds: number) => void;
+  onShapeBackgroundOpacityChange: (value: string) => void;
+  onShapeBackgroundToggle: (enabled: boolean) => void;
   onStrokeStyleChange: (strokeStyle: TCustomPlaylistAnnotationStrokeStyle) => void;
   onStrokeWidthChange: (strokeWidth: number) => void;
   onTextFontFamilyChange: (fontFamily: string) => void;
@@ -77,6 +82,8 @@ export const VideoAnnotationPropertiesPanel = ({
   annotationImageHeight,
   annotationImageOpacity,
   annotationImageWidth,
+  annotationShapeBackgroundEnabled,
+  annotationShapeBackgroundOpacity,
   annotationStrokeStyle,
   annotationStrokeWidth,
   annotationTextFontFamily,
@@ -96,6 +103,8 @@ export const VideoAnnotationPropertiesPanel = ({
   onAnnotationImageOpacityChange,
   onAnnotationImageSizeChange,
   onDurationChange,
+  onShapeBackgroundOpacityChange,
+  onShapeBackgroundToggle,
   onStrokeStyleChange,
   onStrokeWidthChange,
   onTextFontFamilyChange,
@@ -107,6 +116,7 @@ export const VideoAnnotationPropertiesPanel = ({
   const SelectedAnnotationToolIcon = selectedAnnotationToolOption?.icon ?? Pencil;
   const shouldShowImageProperties = isImageAnnotationSelected;
   const shouldShowDurationProperties = annotationTool !== "image" || shouldShowImageProperties;
+  const shouldShowShapeBackgroundProperties = annotationTool === "rectangle" || annotationTool === "ellipse";
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col gap-3 overflow-y-auto rounded-[7px] border border-custom-border-200 bg-custom-background-100 p-2 shadow-sm">
@@ -422,62 +432,123 @@ export const VideoAnnotationPropertiesPanel = ({
               </div>
             </div>
           ) : annotationTool === "image" ? null : (
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Stroke</div>
-              <div className="grid grid-cols-1 gap-1">
-                {VIDEO_ANNOTATION_STROKE_WIDTHS.map((strokeWidth) => {
-                  const isSelected = annotationStrokeWidth === strokeWidth;
+            <>
+              {shouldShowShapeBackgroundProperties ? (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">
+                    Background
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {[
+                      { label: "Hollow", value: false },
+                      { label: "Fill", value: true },
+                    ].map((backgroundOption) => {
+                      const isSelected = annotationShapeBackgroundEnabled === backgroundOption.value;
 
-                  return (
-                    <button
-                      key={strokeWidth}
-                      type="button"
-                      onClick={() => onStrokeWidthChange(strokeWidth)}
-                      className={[
-                        VIDEO_ANNOTATION_TOOL_BUTTON_CLASS,
-                        "w-full",
-                        isSelected ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100" : "",
-                      ].join(" ")}
-                      aria-label={`${strokeWidth}px annotation stroke`}
-                      aria-pressed={isSelected}
-                      title={`${strokeWidth}px`}
-                    >
-                      <span
-                        className="w-4 rounded-full bg-current"
-                        style={{ height: Math.max(2, strokeWidth / 1.5) }}
+                      return (
+                        <button
+                          key={backgroundOption.label}
+                          type="button"
+                          onClick={() => onShapeBackgroundToggle(backgroundOption.value)}
+                          className={[
+                            annotationPanelOptionClass,
+                            isSelected
+                              ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100"
+                              : "",
+                          ].join(" ")}
+                          aria-label={`${backgroundOption.label} shape background`}
+                          aria-pressed={isSelected}
+                          title={backgroundOption.label}
+                        >
+                          {backgroundOption.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {annotationShapeBackgroundEnabled ? (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">
+                          Opacity
+                        </span>
+                        <span className="font-mono text-[10px] font-semibold text-custom-text-300">
+                          {Math.round(annotationShapeBackgroundOpacity * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY_LIMITS.min}
+                        max={VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY_LIMITS.max}
+                        value={Math.round(annotationShapeBackgroundOpacity * 100)}
+                        onChange={(event) => onShapeBackgroundOpacityChange(event.currentTarget.value)}
+                        className="h-1.5 w-full accent-custom-primary-100"
+                        aria-label="Shape background opacity"
                       />
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="grid grid-cols-1 gap-1">
-                {VIDEO_ANNOTATION_STROKE_STYLES.map((strokeStyleOption) => {
-                  const isSelected = annotationStrokeStyle === strokeStyleOption.value;
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Stroke</div>
+                <div className="grid grid-cols-1 gap-1">
+                  {VIDEO_ANNOTATION_STROKE_WIDTHS.map((strokeWidth) => {
+                    const isSelected = annotationStrokeWidth === strokeWidth;
 
-                  return (
-                    <button
-                      key={strokeStyleOption.value}
-                      type="button"
-                      onClick={() => onStrokeStyleChange(strokeStyleOption.value)}
-                      className={[
-                        annotationPanelOptionClass,
-                        isSelected ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100" : "",
-                      ].join(" ")}
-                      aria-label={`${strokeStyleOption.label} annotation stroke`}
-                      aria-pressed={isSelected}
-                      title={`${strokeStyleOption.label} stroke`}
-                    >
-                      <span
+                    return (
+                      <button
+                        key={strokeWidth}
+                        type="button"
+                        onClick={() => onStrokeWidthChange(strokeWidth)}
                         className={[
-                          "w-8 border-t-2 border-current",
-                          strokeStyleOption.value === "dotted" ? "border-dotted" : "border-solid",
+                          VIDEO_ANNOTATION_TOOL_BUTTON_CLASS,
+                          "w-full",
+                          isSelected
+                            ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100"
+                            : "",
                         ].join(" ")}
-                      />
-                    </button>
-                  );
-                })}
+                        aria-label={`${strokeWidth}px annotation stroke`}
+                        aria-pressed={isSelected}
+                        title={`${strokeWidth}px`}
+                      >
+                        <span
+                          className="w-4 rounded-full bg-current"
+                          style={{ height: Math.max(2, strokeWidth / 1.5) }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-1 gap-1">
+                  {VIDEO_ANNOTATION_STROKE_STYLES.map((strokeStyleOption) => {
+                    const isSelected = annotationStrokeStyle === strokeStyleOption.value;
+
+                    return (
+                      <button
+                        key={strokeStyleOption.value}
+                        type="button"
+                        onClick={() => onStrokeStyleChange(strokeStyleOption.value)}
+                        className={[
+                          annotationPanelOptionClass,
+                          isSelected
+                            ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100"
+                            : "",
+                        ].join(" ")}
+                        aria-label={`${strokeStyleOption.label} annotation stroke`}
+                        aria-pressed={isSelected}
+                        title={`${strokeStyleOption.label} stroke`}
+                      >
+                        <span
+                          className={[
+                            "w-8 border-t-2 border-current",
+                            strokeStyleOption.value === "dotted" ? "border-dotted" : "border-solid",
+                          ].join(" ")}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </>
       ) : null}

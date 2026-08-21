@@ -175,6 +175,34 @@ const getMetaBoolean = (meta: Record<string, unknown>, keys: string[], fallback 
   return fallback;
 };
 
+const hasAnnotationList = (value: unknown) => Array.isArray(value) && value.length > 0;
+
+const hasAnnotationsInMediaReferences = (value: unknown): boolean => {
+  if (!Array.isArray(value)) return false;
+
+  return value.some((entry) => {
+    const reference = getMetaObject(entry);
+    return (
+      hasAnnotationList(reference.annotations) ||
+      hasAnnotationsInMediaReferences(reference.mediaReferences) ||
+      hasAnnotationsInMediaReferences(reference.media_references) ||
+      hasAnnotationsInMediaReferences(reference.devices)
+    );
+  });
+};
+
+const hasSavedVideoAnnotations = (meta: Record<string, unknown>) => {
+  const sources = [meta, getMetaObject(meta.event), getMetaObject(meta.rawEvent ?? meta.raw_event)];
+
+  return sources.some(
+    (source) =>
+      hasAnnotationList(source.annotations) ||
+      hasAnnotationsInMediaReferences(source.mediaReferences) ||
+      hasAnnotationsInMediaReferences(source.media_references) ||
+      hasAnnotationsInMediaReferences(source.devices)
+  );
+};
+
 const getTranscodeLabel = (status: string) => {
   switch (status) {
     case "UPLOAD_COMPLETE":
@@ -519,6 +547,7 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
 
     const metaThumbnail = getThumbnailHint(artifact, meta);
     const transcodeState = getTranscodeState(meta);
+    const isAnnotated = hasSavedVideoAnnotations(meta);
     const artifactThumbnail = artifact.name ? thumbnailByLink.get(normalizeKey(artifact.name)) : "";
     const planeCoachThumbnail =
       metaSource === "plane-coach" && mediaType === "document" ? metaThumbnail || getPlaneCoachThumbnailPath() : "";
@@ -557,6 +586,7 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
       fileSrc: mediaType === "document" ? resolvedPath : undefined,
       downloadSrc: preferredDownloadPath || undefined,
       docs,
+      isAnnotated,
       ...transcodeState,
     };
   });

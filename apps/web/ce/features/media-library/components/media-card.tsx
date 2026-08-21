@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   ImageOff,
   LoaderCircle,
+  PencilLine,
   Video,
 } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
@@ -99,6 +100,7 @@ export const MediaCard = ({
   const useCredentials = shouldUseCredentials(item.videoSrc ?? "");
   const crossOrigin = useCredentials ? "use-credentials" : "anonymous";
   const isVideoLike = item.mediaType === "video" || item.linkedMediaType === "video";
+  const showAnnotatedIndicator = isVideoLike && Boolean(item.isAnnotated);
   const LinkedTypeIcon = showLinkedTypeIndicator
     ? isEventItem
       ? Video
@@ -146,6 +148,15 @@ export const MediaCard = ({
       }`.trim()}
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-custom-background-90">
+        {showAnnotatedIndicator ? (
+          <span
+            className="absolute top-2 left-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#505050] bg-[#303030]/95 text-[#F5A524] shadow-[0_1px_3px_rgba(0,0,0,0.45)]"
+            aria-label="Annotated video"
+            title="Annotated video"
+          >
+            <PencilLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </span>
+        ) : null}
         {showLinkedTypeIndicator && LinkedTypeIcon ? (
           <span className="absolute right-2 bottom-1 flex h-7 w-7 items-center justify-center rounded-full bg-custom-background-100/80 text-custom-text-200 backdrop-blur">
             <span className="sr-only">{linkedTypeLabel}</span>
@@ -255,6 +266,12 @@ export const MediaCard = ({
           >
             {item.primaryTag}
           </Tag>
+          {showAnnotatedIndicator ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 font-medium text-amber-500">
+              <PencilLine className="h-3 w-3" strokeWidth={2.5} />
+              Annotated
+            </span>
+          ) : null}
           {isEventItem && eventDetails?.status ? (
             <span className="rounded-full border border-custom-border-200 bg-custom-background-100 px-2 py-1 text-[11px] font-medium text-custom-text-300">
               {eventDetails.status}

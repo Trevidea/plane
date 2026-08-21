@@ -1,15 +1,15 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
-import { Popover, Transition } from "@headlessui/react";
 import { AlertTriangle, CheckCircle2, Clock3, Loader2, RefreshCw, Trash2, UploadCloud, X } from "lucide-react";
+import { Popover, Transition } from "@headlessui/react";
 import { useMediaLibrary } from "../store/media-library-context";
+import type { TMediaLibraryUploadJob } from "../utils/media-library-upload-jobs";
 import {
   formatFileSize,
   getUploadStatusLabel,
   getVisibleUploadProgress,
   isActiveUploadStatus,
-  type TMediaLibraryUploadJob,
 } from "../utils/media-library-upload-jobs";
 import { formatUploadEta, formatUploadSpeed } from "../utils/upload-progress";
 
@@ -35,10 +35,9 @@ const UploadStatusIcon = ({ status }: { status: TMediaLibraryUploadJob["status"]
   return <Clock3 className="h-3.5 w-3.5" />;
 };
 
-const UploadJobRow = ({ job }: { job: TMediaLibraryUploadJob }) => {
+export const MediaLibraryUploadJobRow = ({ job }: { job: TMediaLibraryUploadJob }) => {
   const { cancelUploadJob, retryUploadJob, dismissUploadJob } = useMediaLibrary();
   const progress = getVisibleUploadProgress(job);
-  const isActive = isActiveUploadStatus(job.status);
   const isFinished = job.status === "completed" || job.status === "failed" || job.status === "cancelled";
   const uploadDetail =
     job.status === "uploading"
@@ -188,7 +187,7 @@ export const MediaLibraryUploadStatus = () => {
           </div>
           <div className="max-h-80 overflow-y-auto">
             {uploadJobs.map((job) => (
-              <UploadJobRow key={job.id} job={job} />
+              <MediaLibraryUploadJobRow key={job.id} job={job} />
             ))}
           </div>
         </Popover.Panel>
