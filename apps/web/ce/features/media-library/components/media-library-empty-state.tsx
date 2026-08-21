@@ -6,7 +6,7 @@ import { ArrowRight, FileImage, FileText, FileVideo, FolderOpen, UploadCloud } f
 import { Button } from "@plane/propel/button";
 import { useMediaLibrary } from "../store/media-library-context";
 
-const SUPPORTED_FORMATS = ["JPEG", "PNG", "MP4", "HLS", "PDF", "CSV", "XLSX", "DOCX", "PPTX", "TXT"];
+const SUPPORTED_FORMATS = ["JPEG", "PNG", "MP4",  "PDF", "CSV", "XLSX", "DOCX", "PPTX", "TXT"];
 
 export const MediaLibraryEmptyState = () => {
   const { openUpload, setPendingUploadFiles } = useMediaLibrary();
@@ -82,9 +82,6 @@ export const MediaLibraryEmptyState = () => {
                 {format}
               </span>
             ))}
-            <span className="rounded-full border border-custom-border-200 bg-custom-background-80 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-custom-text-300">
-              Up to 1 GB
-            </span>
           </div>
         </div>
 

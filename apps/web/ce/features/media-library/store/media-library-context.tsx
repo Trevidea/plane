@@ -12,6 +12,7 @@ import { MediaLibraryService } from "@/services/media-library.service";
 import { getDocumentThumbnailPath } from "../utils/media-items";
 import type { TMediaLibraryExternalFilter, TMediaLibraryFilterProperty } from "../utils/media-library-filters";
 import { mediaLibraryFiltersAdapter } from "../utils/media-library-filters";
+import type { TMediaLibraryUploadBatchInput, TMediaLibraryUploadJob } from "../utils/media-library-upload-jobs";
 import {
   buildArtifactName,
   buildMediaLibraryUploadJobs,
@@ -28,8 +29,6 @@ import {
   isMp4Upload,
   isVideoUploadFormat,
   resolveArtifactFormat,
-  type TMediaLibraryUploadBatchInput,
-  type TMediaLibraryUploadJob,
 } from "../utils/media-library-upload-jobs";
 import {
   calculateUploadProgressMetrics,
@@ -56,7 +55,7 @@ type TMediaLibraryContext = {
   libraryVersion: number;
   refreshLibrary: () => void;
   trackTranscodeJob: (job: TMediaTranscodeJobTrackerInput) => void;
-  enqueueUploadBatch: (input: TMediaLibraryUploadBatchInput) => void;
+  enqueueUploadBatch: (input: TMediaLibraryUploadBatchInput) => TMediaLibraryUploadJob[];
   cancelUploadJob: (jobId: string) => void;
   retryUploadJob: (jobId: string) => void;
   dismissUploadJob: (jobId: string) => void;
@@ -442,7 +441,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
 
   const enqueueUploadBatch = useCallback(
     (input: TMediaLibraryUploadBatchInput) => {
-      if (!input.files.length || !input.workspaceSlug || !input.projectId) return;
+      if (!input.files.length || !input.workspaceSlug || !input.projectId) return [];
       const jobs = buildMediaLibraryUploadJobs(input);
       jobs.forEach((job) => {
         logMediaUploadLifecycle({
@@ -457,6 +456,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
       });
       setUploadJobs((prev) => [...prev, ...jobs]);
       void processUploadBatch(jobs);
+      return jobs;
     },
     [processUploadBatch]
   );

@@ -8,6 +8,7 @@ import { API_BASE_URL } from "@plane/constants";
 import { ImageFullScreenModal } from "@plane/editor";
 import { Button, EModalWidth, ModalCore } from "@plane/ui";
 import { LogoSpinner } from "@/components/common/logo-spinner";
+import type { TMediaItem } from "../types/media-library.types";
 import {
   buildDownloadUrl,
   DOCUMENT_PREVIEW_STYLE,
@@ -18,7 +19,7 @@ import { PlayerOverlay, PlayerSettingsPanel } from "./player-ui";
 import type { TQualityOption } from "./player-ui";
 
 type TMediaDetailPreviewProps = {
-  item: any;
+  item: TMediaItem;
   isVideo: boolean;
   isImageZoomOpen: boolean;
   setIsImageZoomOpen: (open: boolean) => void;
@@ -376,7 +377,7 @@ export const MediaDetailPreview = ({
                   title="Close annotation editor"
                 >
                   <Check className="h-4 w-4 shrink-0" />
-                  <span className="whitespace-nowrap leading-none">Done</span>
+                  <span className="whitespace-nowrap leading-none">Save</span>
                 </button>
               </div>
             ) : null}
@@ -615,10 +616,9 @@ export const MediaDetailPreview = ({
         width={EModalWidth.XL}
       >
         <div className="flex flex-col gap-2 px-5 py-4">
-          <h3 className="text-lg font-medium text-custom-text-100">Done with annotations?</h3>
+          <h3 className="text-lg font-medium text-custom-text-100">Save annotations?</h3>
           <p className="text-sm leading-5 text-custom-text-200">
-            Are you sure you are done with the annotated changes? Your annotation changes will be saved before leaving
-            the editor.
+            Your annotation changes will be saved before leaving the editor.
           </p>
         </div>
         <div className="flex flex-col-reverse gap-2 border-t border-custom-border-200 px-5 py-4 sm:flex-row sm:justify-end">
@@ -636,9 +636,10 @@ export const MediaDetailPreview = ({
             onClick={() => {
               void handleConfirmCloseVideoAnnotationWorkspace();
             }}
+            disabled={isCompletingVideoAnnotation}
             loading={isCompletingVideoAnnotation}
           >
-            Done
+            {isCompletingVideoAnnotation ? "Saving..." : "Save"}
           </Button>
         </div>
       </ModalCore>

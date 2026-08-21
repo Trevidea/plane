@@ -15,11 +15,13 @@ import {
   FALLBACK_MEDIA_LIBRARY_MAX_FILE_SIZE,
   formatFileSize,
   getFileExtension,
+  isActiveUploadStatus,
   readMediaLibraryFileSizeLimit,
   resolveArtifactFormat,
 } from "../utils/media-library-upload-jobs";
 import { buildUploadTraceId, logMediaUploadLifecycle } from "../utils/upload-progress";
 import { MediaLibraryUploadMetaForm } from "./media-library-upload-meta";
+import { MediaLibraryUploadJobRow } from "./media-library-upload-status";
 import { UPLOAD_MODAL_TEXT_CLASS } from "./media-library-upload-style-classes";
 import type { TMetaFieldChange, TMetaFormState, TUploadTarget } from "./media-library-upload-types";
 import { MediaLibraryWorkItemSelector } from "./media-library-work-item-selector";
@@ -107,7 +109,7 @@ const buildMetaPayload = (
 const projectService = new ProjectService();
 
 export const MediaLibraryUploadModal = () => {
-  const { isUploadOpen, closeUpload, pendingUploadFiles, setPendingUploadFiles, enqueueUploadBatch } =
+  const { isUploadOpen, closeUpload, pendingUploadFiles, setPendingUploadFiles, enqueueUploadBatch, uploadJobs } =
     useMediaLibrary();
   const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
   const { config } = useInstance();
@@ -124,6 +126,7 @@ export const MediaLibraryUploadModal = () => {
   const [isWorkItemDetailsLoading, setIsWorkItemDetailsLoading] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState<ISearchIssueResponse | null>(null);
   const [tagDraft, setTagDraft] = useState("");
+  const [modalUploadJobIds, setModalUploadJobIds] = useState<string[]>([]);
   const debouncedWorkItemQuery = useDebouncedValue(workItemQuery, 300);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const issueService = useMemo(() => new IssueService(), []);
@@ -137,6 +140,14 @@ export const MediaLibraryUploadModal = () => {
   const failedUploads = uploads.filter((item) => item.status === "failed");
   const uploadTarget: TUploadTarget = selectedWorkItem ? "work-item" : "library";
   const isWorkItemMetaLocked = Boolean(selectedWorkItem);
+  const modalUploadJobs = useMemo(() => {
+    if (modalUploadJobIds.length === 0) return [];
+
+    const jobIdSet = new Set(modalUploadJobIds);
+    return uploadJobs.filter((job) => jobIdSet.has(job.id));
+  }, [modalUploadJobIds, uploadJobs]);
+  const activeModalUploadJobs = modalUploadJobs.filter((job) => isActiveUploadStatus(job.status));
+  const finishedModalUploadJobs = modalUploadJobs.filter((job) => !isActiveUploadStatus(job.status));
 
   useEffect(() => {
     if (!isUploadOpen || !currentUserId || selectedWorkItem) return;
@@ -222,6 +233,7 @@ export const MediaLibraryUploadModal = () => {
     setIsWorkItemDetailsLoading(false);
     setWorkItemQuery("");
     setTagDraft("");
+    setModalUploadJobIds([]);
     if (inputRef.current) inputRef.current.value = "";
     closeUpload();
   };
@@ -332,15 +344,21 @@ export const MediaLibraryUploadModal = () => {
     const itemsToUpload = uploads.filter((item) => item.status === "selected");
     if (itemsToUpload.length === 0 || !workspaceSlug || !projectId) return;
 
-    enqueueUploadBatch({
+    const queuedJobs = enqueueUploadBatch({
       workspaceSlug,
       projectId,
       files: itemsToUpload.map((item) => item.file),
       meta: buildMetaPayload(metaState, uploadTarget, selectedWorkItem),
       workItemId: selectedWorkItem?.id ?? null,
     });
+    if (queuedJobs.length > 0) {
+      setModalUploadJobIds((prev) => {
+        const nextJobIds = queuedJobs.map((job) => job.id);
+        const existingIds = new Set(prev);
+        return [...prev, ...nextJobIds.filter((jobId) => !existingIds.has(jobId))];
+      });
+    }
     resetSelectionForm();
-    closeUpload();
   };
 
   const removeSelectedUpload = (itemId: string) => {
@@ -386,12 +404,25 @@ export const MediaLibraryUploadModal = () => {
     updateMetaTags((prev) => prev.filter((tag) => tag.toLowerCase() !== value.toLowerCase()));
   };
 
-  const queueSummaryLabel =
-    uploads.length === 0
-      ? "No file selected"
-      : uploads.length === 1
-        ? "1 file selected"
-        : `${uploads.length} files selected`;
+  const queueSummaryLabel = (() => {
+    const parts: string[] = [];
+    if (uploads.length > 0) parts.push(uploads.length === 1 ? "1 file selected" : `${uploads.length} files selected`);
+    if (activeModalUploadJobs.length > 0) {
+      parts.push(
+        activeModalUploadJobs.length === 1
+          ? "1 upload in progress"
+          : `${activeModalUploadJobs.length} uploads in progress`
+      );
+    }
+    if (finishedModalUploadJobs.length > 0) {
+      parts.push(
+        finishedModalUploadJobs.length === 1
+          ? "1 upload finished"
+          : `${finishedModalUploadJobs.length} uploads finished`
+      );
+    }
+    return parts.length > 0 ? parts.join(" / ") : "No file selected";
+  })();
 
   if (!isUploadOpen) return null;
 
@@ -517,56 +548,63 @@ export const MediaLibraryUploadModal = () => {
               </div>
 
               <div className="max-h-[32vh] overflow-y-auto sm:max-h-[40vh]">
-                {uploads.length === 0 ? (
+                {uploads.length === 0 && modalUploadJobs.length === 0 ? (
                   <div className={`px-4 py-5 text-center text-xs ${UPLOAD_MODAL_TEXT_CLASS.muted}`}>
                     No file selected
                   </div>
                 ) : (
-                  uploads.map((item) => {
-                    const isFailed = item.status === "failed";
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-3 border-b border-custom-border-200 px-4 py-3 last:border-b-0 dark:border-[#2A2A2A]"
-                      >
+                  <>
+                    {uploads.map((item) => {
+                      const isFailed = item.status === "failed";
+                      return (
                         <div
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border ${
-                            isFailed
-                              ? "border-red-500/40 text-red-500 dark:border-[#FF3434]/40 dark:text-[#FF3434]"
-                              : `border-custom-border-200 ${UPLOAD_MODAL_TEXT_CLASS.muted} dark:border-[#303030]`
-                          }`}
+                          key={item.id}
+                          className="flex items-center gap-3 border-b border-custom-border-200 px-4 py-3 last:border-b-0 dark:border-[#2A2A2A]"
                         >
-                          {getFileIcon(item.file)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                            <div className={`min-w-0 truncate text-xs font-semibold ${UPLOAD_MODAL_TEXT_CLASS.body}`}>
-                              {item.file.name}
-                            </div>
-                            <div className={`shrink-0 text-[11px] ${UPLOAD_MODAL_TEXT_CLASS.muted}`}>
-                              {formatFileSize(item.file.size)}
-                            </div>
-                          </div>
-                          {isFailed ? (
-                            <div className="mt-1 flex items-center gap-1.5 text-xs text-red-500 dark:text-[#FF3434]">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                              <span className="truncate">{item.error ?? "Invalid file"}</span>
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            className={`inline-flex h-7 w-7 items-center justify-center rounded border border-transparent ${UPLOAD_MODAL_TEXT_CLASS.mutedAction} hover:border-custom-border-200 dark:hover:border-[#303030]`}
-                            aria-label={`Remove ${item.file.name}`}
-                            onClick={() => removeSelectedUpload(item.id)}
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border ${
+                              isFailed
+                                ? "border-red-500/40 text-red-500 dark:border-[#FF3434]/40 dark:text-[#FF3434]"
+                                : `border-custom-border-200 ${UPLOAD_MODAL_TEXT_CLASS.muted} dark:border-[#303030]`
+                            }`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                            {getFileIcon(item.file)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                              <div
+                                className={`min-w-0 truncate text-xs font-semibold ${UPLOAD_MODAL_TEXT_CLASS.body}`}
+                              >
+                                {item.file.name}
+                              </div>
+                              <div className={`shrink-0 text-[11px] ${UPLOAD_MODAL_TEXT_CLASS.muted}`}>
+                                {formatFileSize(item.file.size)}
+                              </div>
+                            </div>
+                            {isFailed ? (
+                              <div className="mt-1 flex items-center gap-1.5 text-xs text-red-500 dark:text-[#FF3434]">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                <span className="truncate">{item.error ?? "Invalid file"}</span>
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              className={`inline-flex h-7 w-7 items-center justify-center rounded border border-transparent ${UPLOAD_MODAL_TEXT_CLASS.mutedAction} hover:border-custom-border-200 dark:hover:border-[#303030]`}
+                              aria-label={`Remove ${item.file.name}`}
+                              onClick={() => removeSelectedUpload(item.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                    {modalUploadJobs.map((job) => (
+                      <MediaLibraryUploadJobRow key={job.id} job={job} />
+                    ))}
+                  </>
                 )}
               </div>
             </div>

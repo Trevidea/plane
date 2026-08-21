@@ -64,9 +64,101 @@ const HIDDEN_ADDITIONAL_META_KEYS = new Set([
   "transcodejobid",
   "transcodeprofile",
   "transcodeprogress",
+  "uploadid",
+  "requestid",
 ]);
 
 const normalizeAdditionalMetaKey = (key: string) => key.replace(/[-_\s]+/g, "").toLowerCase();
+
+const getMetaRecord = (value: unknown): Record<string, unknown> => {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+  return {};
+};
+
+const parseMetaNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const normalizedValue = value.trim();
+  if (!normalizedValue) return null;
+  if (normalizedValue.includes("/")) {
+    const [rawNumerator, rawDenominator] = normalizedValue.split("/", 2);
+    const numerator = Number(rawNumerator);
+    const denominator = Number(rawDenominator);
+    return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0 ? numerator / denominator : null;
+  }
+  const parsed = Number(normalizedValue);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parseHlsRenditions = (value: unknown) => {
+  if (Array.isArray(value)) return value.map(getMetaRecord).filter((entry) => Object.keys(entry).length > 0);
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(getMetaRecord).filter((entry) => Object.keys(entry).length > 0) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getBestHlsRendition = (meta: Record<string, unknown>) => {
+  const renditions = parseHlsRenditions(meta.hls_renditions ?? meta.hlsRenditions);
+  return renditions
+    .map((rendition, index) => {
+      const width = parseMetaNumber(rendition.width) ?? parseMetaNumber(rendition.configured_width) ?? 0;
+      const height = parseMetaNumber(rendition.height) ?? parseMetaNumber(rendition.configured_height) ?? 0;
+      const frameRate =
+        parseMetaNumber(rendition.frame_rate) ??
+        parseMetaNumber(rendition.frameRate) ??
+        parseMetaNumber(rendition.average_frame_rate);
+      const bandwidth =
+        parseMetaNumber(rendition.bandwidth) ??
+        parseMetaNumber(rendition.configured_bandwidth) ??
+        parseMetaNumber(rendition.average_bandwidth) ??
+        0;
+      return {
+        bandwidth,
+        frameRate,
+        height: Math.round(height),
+        index,
+        width: Math.round(width),
+      };
+    })
+    .filter((rendition) => rendition.width > 0 || rendition.height > 0 || rendition.frameRate)
+    .sort((left, right) => {
+      if (left.height !== right.height) return right.height - left.height;
+      if (left.width !== right.width) return right.width - left.width;
+      if (left.bandwidth !== right.bandwidth) return right.bandwidth - left.bandwidth;
+      return left.index - right.index;
+    })[0];
+};
+
+const getResolutionName = (width: number, height: number) => {
+  const longestSide = Math.max(width, height);
+  const shortestSide = Math.min(width, height);
+  if (longestSide >= 7680 || shortestSide >= 4320) return "8K UHD";
+  if (longestSide >= 3840 || shortestSide >= 2160) return "4K UHD";
+  if (shortestSide >= 1440) return "Quad HD";
+  if (shortestSide >= 1080) return "Full HD";
+  if (shortestSide >= 720) return "HD";
+  if (shortestSide >= 480) return "SD";
+  return "";
+};
+
+const formatResolutionSpec = (width: number, height: number) => {
+  if (width <= 0 && height <= 0) return "--";
+  const resolutionName = getResolutionName(width, height);
+  const heightLabel = height > 0 ? `${height}p` : "";
+  const dimensionsLabel = width > 0 && height > 0 ? `${width} x ${height}` : "";
+  return [resolutionName, heightLabel, dimensionsLabel ? `(${dimensionsLabel})` : ""].filter(Boolean).join(" ");
+};
+
+const formatFrameRateSpec = (frameRate: number | null | undefined) => {
+  if (!frameRate || !Number.isFinite(frameRate) || frameRate <= 0) return "--";
+  const rounded = Math.round(frameRate);
+  const normalizedFrameRate = Math.abs(frameRate - rounded) < 0.01 ? String(rounded) : frameRate.toFixed(2);
+  return `${normalizedFrameRate} fps`;
+};
 
 export const MediaDetailSidebar = ({
   workspaceSlug,
@@ -182,18 +274,44 @@ export const MediaDetailSidebar = ({
   );
   const getFormattedAdditionalMetaValue = useCallback((key: string, value: unknown) => {
     const normalizedKey = key.toLowerCase();
-    if (normalizedKey === "file_size" || normalizedKey === "filesize" || normalizedKey === "size_in_bytes") {
+    const compactKey = normalizeAdditionalMetaKey(key);
+    if (
+      normalizedKey === "file_size" ||
+      normalizedKey === "filesize" ||
+      normalizedKey === "size_in_bytes" ||
+      compactKey === "sourcefilesize"
+    ) {
       const sizeValue = formatFileSize(value);
-      return sizeValue === "--" ? sizeValue : sizeValue.toLowerCase();
+      return sizeValue;
     }
     return formatMetaValue(value);
   }, []);
+  const mediaSpecFields = useMemo(() => {
+    const isHlsMedia =
+      item.format.toLowerCase() === "m3u8" ||
+      Boolean(
+        artifactMeta.hls_master_playlist ||
+          artifactMeta.hlsMasterPlaylist ||
+          artifactMeta.hls_renditions ||
+          artifactMeta.hlsRenditions
+      );
+    if (!isHlsMedia) return [];
+
+    const bestRendition = getBestHlsRendition(artifactMeta);
+    if (!bestRendition) return [];
+
+    return [
+      { label: "Resolution", value: formatResolutionSpec(bestRendition.width, bestRendition.height) },
+      { label: "Frame rate", value: formatFrameRateSpec(bestRendition.frameRate) },
+    ].filter((field) => field.value && field.value !== "--");
+  }, [artifactMeta, item.format]);
   const fallbackFields = useMemo(
     () => [
       { label: "Format", value: formatMetaValue(item.format) },
+      ...mediaSpecFields,
       { label: "Created", value: formatMetaValue(item.createdAt) },
     ],
-    [item.createdAt, item.format]
+    [item.createdAt, item.format, mediaSpecFields]
   );
   const eventSummaryFields = useMemo(
     () =>
@@ -272,7 +390,7 @@ export const MediaDetailSidebar = ({
             </div>
 
             <div className="space-y-3">
-              <h6 className="text-sm font-medium text-custom-text-100">Artifact Details</h6>
+              <h6 className="text-sm font-medium text-custom-text-100">Media Details</h6>
               <div className="space-y-2">
                 {fallbackFields
                   .filter((field) => field.value && field.value !== "--")
