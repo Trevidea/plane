@@ -192,6 +192,7 @@ export type TCustomPlaylistAnnotationStrokeStyle = "solid" | "dotted";
 export type TCustomPlaylistAnnotationStyle = {
   [key: string]: boolean | number | string | null | undefined;
   backgroundColor?: string;
+  backgroundOpacity?: number;
   color?: string;
   fontFamily?: string;
   fontSize?: number;

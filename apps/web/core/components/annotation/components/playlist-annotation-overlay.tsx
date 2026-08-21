@@ -120,6 +120,23 @@ const getAspectLockedImageAnnotation = (
   });
 };
 
+const getAnnotationStackTimestamp = (annotation: TCustomPlaylistAnnotation) => {
+  if (typeof annotation.createdAt !== "string" || !annotation.createdAt.trim()) return 0;
+
+  const timestamp = Date.parse(annotation.createdAt);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const getStackedAnnotations = (annotationItems: TCustomPlaylistAnnotation[]) =>
+  annotationItems
+    .map((annotation, index) => ({
+      annotation,
+      index,
+      timestamp: getAnnotationStackTimestamp(annotation),
+    }))
+    .sort((firstItem, secondItem) => firstItem.timestamp - secondItem.timestamp || firstItem.index - secondItem.index)
+    .map((item) => item.annotation);
+
 export const PlaylistAnnotationOverlay = ({
   annotations,
   className,
@@ -140,6 +157,8 @@ export const PlaylistAnnotationOverlay = ({
   onSelectedAnnotationIdChange,
   onUpdateAnnotation,
   selectedAnnotationId: controlledSelectedAnnotationId,
+  shapeBackgroundEnabled,
+  shapeBackgroundOpacity,
   textFontFamily,
   textFontSize,
   textFontWeight,
@@ -181,6 +200,8 @@ export const PlaylistAnnotationOverlay = ({
     () => [...annotations, ...(draftAnnotation ? [draftAnnotation] : [])],
     [annotations, draftAnnotation]
   );
+  const stackedAnnotations = useMemo(() => getStackedAnnotations(annotations), [annotations]);
+  const stackedRenderedAnnotations = useMemo(() => getStackedAnnotations(renderedAnnotations), [renderedAnnotations]);
   const canTransformAnnotations = inputEnabled && enableAnnotationTransforms && Boolean(onUpdateAnnotation);
   const selectedAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === selectedAnnotationId) ?? null,
@@ -324,10 +345,10 @@ export const PlaylistAnnotationOverlay = ({
 
     const annotationsToDraw = selectedAnnotationId
       ? [
-          ...renderedAnnotations.filter((annotation) => annotation.id !== selectedAnnotationId),
-          ...renderedAnnotations.filter((annotation) => annotation.id === selectedAnnotationId),
+          ...stackedRenderedAnnotations.filter((annotation) => annotation.id !== selectedAnnotationId),
+          ...stackedRenderedAnnotations.filter((annotation) => annotation.id === selectedAnnotationId),
         ]
-      : renderedAnnotations;
+      : stackedRenderedAnnotations;
 
     annotationsToDraw.forEach((annotation) => {
       drawCanvasAnnotation({
@@ -342,7 +363,14 @@ export const PlaylistAnnotationOverlay = ({
         },
       });
     });
-  }, [canvasRevision, draftAnnotation?.id, handleImageLoad, imageRevision, renderedAnnotations, selectedAnnotationId]);
+  }, [
+    canvasRevision,
+    draftAnnotation?.id,
+    handleImageLoad,
+    imageRevision,
+    selectedAnnotationId,
+    stackedRenderedAnnotations,
+  ]);
 
   const getEventPoint = useCallback((event: ReactPointerEvent<HTMLElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -438,6 +466,46 @@ export const PlaylistAnnotationOverlay = ({
     [getResolvedAnnotationBounds]
   );
 
+  const getAnnotationInteractionAtPoint = useCallback(
+    (point: TCustomPlaylistAnnotationPoint) => {
+      if (selectedAnnotation) {
+        const isSelectedAnnotationHit =
+          selectedAnnotation.type === "pen"
+            ? isPointOnResolvedAnnotationEdge(point, selectedAnnotation)
+            : isPointInResolvedAnnotation(point, selectedAnnotation) ||
+              isPointOnResolvedAnnotationEdge(point, selectedAnnotation);
+
+        if (isSelectedAnnotationHit) {
+          return {
+            annotation: selectedAnnotation,
+            isSelected: true,
+          };
+        }
+      }
+
+      const annotation = [...stackedAnnotations]
+        .reverse()
+        .find(
+          (currentAnnotation) =>
+            currentAnnotation.id !== selectedAnnotationId && isPointOnResolvedAnnotationEdge(point, currentAnnotation)
+        );
+
+      return annotation
+        ? {
+            annotation,
+            isSelected: false,
+          }
+        : null;
+    },
+    [
+      isPointInResolvedAnnotation,
+      isPointOnResolvedAnnotationEdge,
+      selectedAnnotation,
+      selectedAnnotationId,
+      stackedAnnotations,
+    ]
+  );
+
   const buildAnnotation = useCallback(
     (point: TCustomPlaylistAnnotationPoint, content?: string): TCustomPlaylistAnnotation => ({
       content: tool === "image" ? (imageContent ?? undefined) : content,
@@ -452,6 +520,9 @@ export const PlaylistAnnotationOverlay = ({
         stroke: color,
         strokeStyle,
         strokeWidth,
+        ...(shapeBackgroundEnabled && (tool === "rectangle" || tool === "ellipse")
+          ? { backgroundColor: color, backgroundOpacity: shapeBackgroundOpacity }
+          : {}),
         ...(tool === "image" ? { opacity: imageOpacity } : {}),
         ...(tool === "text" ? { fontFamily: textFontFamily, fontSize: textFontSize, fontWeight: textFontWeight } : {}),
       },
@@ -469,6 +540,8 @@ export const PlaylistAnnotationOverlay = ({
       imageOpacity,
       imageTitle,
       imageWidth,
+      shapeBackgroundEnabled,
+      shapeBackgroundOpacity,
       startTime,
       strokeStyle,
       strokeWidth,
@@ -765,14 +838,18 @@ export const PlaylistAnnotationOverlay = ({
       if (!point) return;
 
       if (canTransformAnnotations) {
-        const annotationToTransform = [...annotations].reverse().find((annotation) => {
-          if (annotation.type === tool && (annotation.type === "text" || annotation.type === "image")) {
-            return isPointInResolvedAnnotation(point, annotation);
+        const annotationInteraction = getAnnotationInteractionAtPoint(point);
+        if (annotationInteraction) {
+          if (
+            annotationInteraction.isSelected &&
+            startAnnotationTransform(event, annotationInteraction.annotation, "move")
+          ) {
+            return;
           }
 
-          return isPointOnResolvedAnnotationEdge(point, annotation);
-        });
-        if (annotationToTransform && startAnnotationTransform(event, annotationToTransform, "move")) return;
+          setSelectedAnnotationId(annotationInteraction.annotation.id);
+          return;
+        }
         setSelectedAnnotationId(null);
       }
 
@@ -801,13 +878,11 @@ export const PlaylistAnnotationOverlay = ({
       setDraftAnnotation(nextDraftAnnotation);
     },
     [
-      annotations,
       buildAnnotation,
       canTransformAnnotations,
+      getAnnotationInteractionAtPoint,
       getEventPoint,
       inputEnabled,
-      isPointInResolvedAnnotation,
-      isPointOnResolvedAnnotationEdge,
       setSelectedAnnotationId,
       startAnnotationTransform,
       tool,
@@ -923,7 +998,6 @@ export const PlaylistAnnotationOverlay = ({
         selectedAnnotationRotation={selectedAnnotationRotation}
         selectedLinearAnnotationEndpoints={selectedLinearAnnotationEndpoints}
         selectedLinearAnnotationMidpoint={selectedLinearAnnotationMidpoint}
-        tool={tool}
       />
       <PlaylistAnnotationTextDraftInput
         color={color}

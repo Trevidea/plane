@@ -1,9 +1,9 @@
 "use client";
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Download, FileText, FileWarning, Pencil } from "lucide-react";
+import { ArrowLeft, Check, Download, FileText, FileWarning, Pencil } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import { ImageFullScreenModal } from "@plane/editor";
 import { Button, EModalWidth, ModalCore } from "@plane/ui";
@@ -32,6 +32,8 @@ type TMediaDetailPreviewProps = {
   onOverlaySeek: (delta: number) => void;
   onOpenVideoAnnotationWorkspace?: () => void;
   onCloseVideoAnnotationWorkspace?: () => boolean | Promise<boolean>;
+  onDiscardVideoAnnotationWorkspace?: () => void;
+  videoAnnotationBackPromptKey?: number;
   isSettingsOpen: boolean;
   onCloseSettings: () => void;
   qualityOptions: TQualityOption[];
@@ -69,6 +71,8 @@ const VIDEO_ANNOTATION_FLOATING_ACTION_CLASS =
   "!absolute !right-4 !top-4 !z-30 !inline-flex !h-10 !w-auto !min-w-[118px] !items-center !justify-center !gap-2 !rounded-[7px] !border !px-3.5 !text-[13px] !font-semibold !leading-none !shadow-[0_14px_34px_rgba(0,0,0,0.38)] !backdrop-blur-md !transition-[background-color,border-color,color,box-shadow,transform] hover:!-translate-y-0.5 focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-custom-primary-100/40 focus-visible:!ring-offset-2 focus-visible:!ring-offset-black active:!translate-y-0";
 const VIDEO_ANNOTATION_HEADER_ACTION_CLASS =
   "inline-flex h-9 min-w-[118px] items-center justify-center gap-2 rounded-[7px] border border-custom-primary-100 bg-custom-primary-100 px-3.5 text-[13px] font-semibold leading-none text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-custom-primary-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100/40 focus-visible:ring-offset-2 focus-visible:ring-offset-custom-background-100 active:translate-y-0";
+const VIDEO_ANNOTATION_HEADER_BACK_ACTION_CLASS =
+  "inline-flex h-9 items-center justify-center gap-2 rounded-[7px] border border-custom-border-200 bg-custom-background-90 px-3 text-[13px] font-semibold leading-none text-custom-text-200 transition-colors hover:bg-custom-background-80 hover:text-custom-text-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100/40 focus-visible:ring-offset-2 focus-visible:ring-offset-custom-background-100 disabled:cursor-not-allowed disabled:opacity-60";
 
 export const MediaDetailPreview = ({
   item,
@@ -83,6 +87,8 @@ export const MediaDetailPreview = ({
   onOverlaySeek,
   onOpenVideoAnnotationWorkspace,
   onCloseVideoAnnotationWorkspace,
+  onDiscardVideoAnnotationWorkspace,
+  videoAnnotationBackPromptKey,
   isSettingsOpen,
   onCloseSettings,
   qualityOptions,
@@ -118,7 +124,9 @@ export const MediaDetailPreview = ({
   const [isVideoPreviewBroken, setIsVideoPreviewBroken] = useState(false);
   const [isDocumentPreviewBroken, setIsDocumentPreviewBroken] = useState(false);
   const [isVideoAnnotationDoneModalOpen, setIsVideoAnnotationDoneModalOpen] = useState(false);
+  const [isVideoAnnotationBackModalOpen, setIsVideoAnnotationBackModalOpen] = useState(false);
   const [isCompletingVideoAnnotation, setIsCompletingVideoAnnotation] = useState(false);
+  const previousVideoAnnotationBackPromptKeyRef = useRef(videoAnnotationBackPromptKey);
   const [viewport, setViewport] = useState(() => {
     if (typeof window === "undefined") {
       return { width: 0, height: 0 };
@@ -147,6 +155,13 @@ export const MediaDetailPreview = ({
   const handleRequestCloseVideoAnnotationWorkspace = useCallback(() => {
     setIsVideoAnnotationDoneModalOpen(true);
   }, []);
+  const handleRequestDiscardVideoAnnotationWorkspace = useCallback(() => {
+    setIsVideoAnnotationBackModalOpen(true);
+  }, []);
+  const handleConfirmDiscardVideoAnnotationWorkspace = useCallback(() => {
+    setIsVideoAnnotationBackModalOpen(false);
+    onDiscardVideoAnnotationWorkspace?.();
+  }, [onDiscardVideoAnnotationWorkspace]);
   const handleConfirmCloseVideoAnnotationWorkspace = useCallback(async () => {
     if (!onCloseVideoAnnotationWorkspace || isCompletingVideoAnnotation) return;
 
@@ -180,8 +195,18 @@ export const MediaDetailPreview = ({
     if (isVideoAnnotationWorkspaceOpen) return;
 
     setIsVideoAnnotationDoneModalOpen(false);
+    setIsVideoAnnotationBackModalOpen(false);
     setIsCompletingVideoAnnotation(false);
   }, [isVideoAnnotationWorkspaceOpen]);
+
+  useEffect(() => {
+    if (previousVideoAnnotationBackPromptKeyRef.current === videoAnnotationBackPromptKey) return;
+
+    previousVideoAnnotationBackPromptKeyRef.current = videoAnnotationBackPromptKey;
+    if (!isVideoAnnotationWorkspaceOpen) return;
+
+    setIsVideoAnnotationBackModalOpen(true);
+  }, [isVideoAnnotationWorkspaceOpen, videoAnnotationBackPromptKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -368,7 +393,18 @@ export const MediaDetailPreview = ({
         {isVideo ? (
           <>
             {isVideoAnnotationWorkspaceOpen ? (
-              <div className="mb-2 flex h-11 w-full items-center justify-end rounded-lg border border-custom-border-200 bg-custom-background-100 px-3">
+              <div className="mb-2 flex h-11 w-full items-center justify-between rounded-lg border border-custom-border-200 bg-custom-background-100 px-3">
+                <button
+                  type="button"
+                  onClick={handleRequestDiscardVideoAnnotationWorkspace}
+                  className={VIDEO_ANNOTATION_HEADER_BACK_ACTION_CLASS}
+                  disabled={isCompletingVideoAnnotation}
+                  aria-label="Back without saving annotations"
+                  title="Back without saving"
+                >
+                  <ArrowLeft className="h-4 w-4 shrink-0" />
+                  <span className="whitespace-nowrap leading-none">Back</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleRequestCloseVideoAnnotationWorkspace}
@@ -607,6 +643,32 @@ export const MediaDetailPreview = ({
           width={`${modalWidth}px`}
         />
       ) : null}
+      <ModalCore
+        isOpen={isVideoAnnotationBackModalOpen}
+        handleClose={() => setIsVideoAnnotationBackModalOpen(false)}
+        width={EModalWidth.XL}
+      >
+        <div className="flex flex-col gap-2 px-5 py-4">
+          <h3 className="text-lg font-medium text-custom-text-100">Go back without saving?</h3>
+          <p className="text-sm leading-5 text-custom-text-200">
+            Your annotation changes have not been saved. If you go back now, those changes will be discarded.
+          </p>
+        </div>
+        <div className="flex flex-col-reverse gap-2 border-t border-custom-border-200 px-5 py-4 sm:flex-row sm:justify-end">
+          <Button variant="neutral-primary" size="sm" onClick={() => setIsVideoAnnotationBackModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => {
+              handleConfirmDiscardVideoAnnotationWorkspace();
+            }}
+          >
+            Back without saving
+          </Button>
+        </div>
+      </ModalCore>
       <ModalCore
         isOpen={isVideoAnnotationDoneModalOpen}
         handleClose={() => {

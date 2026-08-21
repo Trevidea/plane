@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Save, Trash2, Undo2 } from "lucide-react";
+import { PaintBucket, Save, Trash2, Undo2 } from "lucide-react";
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import type { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
 import {
@@ -16,6 +16,7 @@ type VideoAnnotationToolOption = (typeof VIDEO_ANNOTATION_TOOLS)[number];
 type VideoAnnotationToolbarProps = {
   annotationColorPicker: ReactNode;
   annotationDurationSeconds: number;
+  annotationShapeBackgroundEnabled: boolean;
   annotationStrokeStyle: TCustomPlaylistAnnotationStrokeStyle;
   annotationStrokeWidth: number;
   annotationTool: TCustomPlaylistAnnotationTool | null;
@@ -28,6 +29,7 @@ type VideoAnnotationToolbarProps = {
   onDurationChange: (durationSeconds: number) => void;
   onSaveAnnotations: () => void;
   onSelectAnnotationTool: (tool: TCustomPlaylistAnnotationTool) => void;
+  onShapeBackgroundToggle: (enabled: boolean) => void;
   onStrokeStyleChange: (strokeStyle: TCustomPlaylistAnnotationStrokeStyle) => void;
   onStrokeWidthChange: (strokeWidth: number) => void;
   onUndoVisibleAnnotation: () => void;
@@ -37,6 +39,7 @@ type VideoAnnotationToolbarProps = {
 export const VideoAnnotationToolbar = ({
   annotationColorPicker,
   annotationDurationSeconds,
+  annotationShapeBackgroundEnabled,
   annotationStrokeStyle,
   annotationStrokeWidth,
   annotationTool,
@@ -49,12 +52,14 @@ export const VideoAnnotationToolbar = ({
   onDurationChange,
   onSaveAnnotations,
   onSelectAnnotationTool,
+  onShapeBackgroundToggle,
   onStrokeStyleChange,
   onStrokeWidthChange,
   onUndoVisibleAnnotation,
   shouldRenderSeparateAnnotationProperties,
 }: VideoAnnotationToolbarProps) => {
   const annotationButtonClass = VIDEO_ANNOTATION_TOOL_BUTTON_CLASS;
+  const shouldShowShapeBackgroundControl = annotationTool === "rectangle" || annotationTool === "ellipse";
 
   return (
     <div className="flex flex-col items-center gap-1 rounded-[7px] border border-custom-border-200 bg-custom-background-100 p-1 shadow-sm">
@@ -86,6 +91,24 @@ export const VideoAnnotationToolbar = ({
             <>
               <span className="my-0.5 h-px w-6 bg-custom-border-200" />
               {annotationColorPicker}
+
+              {shouldShowShapeBackgroundControl ? (
+                <button
+                  type="button"
+                  onClick={() => onShapeBackgroundToggle(!annotationShapeBackgroundEnabled)}
+                  className={[
+                    annotationButtonClass,
+                    annotationShapeBackgroundEnabled
+                      ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100"
+                      : "",
+                  ].join(" ")}
+                  aria-label="Toggle shape background fill"
+                  aria-pressed={annotationShapeBackgroundEnabled}
+                  title="Fill"
+                >
+                  <PaintBucket className="h-4 w-4" />
+                </button>
+              ) : null}
 
               <span className="my-0.5 h-px w-6 bg-custom-border-200" />
               {VIDEO_ANNOTATION_DURATIONS.map((durationSeconds) => {

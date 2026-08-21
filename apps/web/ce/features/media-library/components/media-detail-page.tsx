@@ -129,6 +129,7 @@ const MediaDetailPage = () => {
   const [isVideoAnnotationMode, setIsVideoAnnotationMode] = useState(false);
   const [isVideoAnnotationWorkspaceOpen, setIsVideoAnnotationWorkspaceOpen] = useState(false);
   const [videoAnnotationWorkspaceActivationKey, setVideoAnnotationWorkspaceActivationKey] = useState(0);
+  const [videoAnnotationBackPromptKey, setVideoAnnotationBackPromptKey] = useState(0);
   const [currentVideoSeconds, setCurrentVideoSeconds] = useState(0);
   const [currentVideoDurationSeconds, setCurrentVideoDurationSeconds] = useState<number | null>(null);
   const [videoAnnotationPropertiesElement, setVideoAnnotationPropertiesElement] = useState<HTMLDivElement | null>(null);
@@ -927,6 +928,18 @@ const MediaDetailPage = () => {
     setIsVideoAnnotationWorkspaceOpen(false);
     return true;
   }, [backHref, router, shouldOpenVideoAnnotationWorkspaceFromQuery]);
+  const handleDiscardVideoAnnotationWorkspace = useCallback(() => {
+    const player = playerRef.current;
+
+    setIsVideoAnnotationMode(false);
+    player?.controls?.(true);
+    if (shouldOpenVideoAnnotationWorkspaceFromQuery) {
+      router.push(backHref);
+      return;
+    }
+
+    setIsVideoAnnotationWorkspaceOpen(false);
+  }, [backHref, router, shouldOpenVideoAnnotationWorkspaceFromQuery]);
   const handleAnnotationModeChange = useCallback((enabled: boolean) => {
     setIsVideoAnnotationMode(enabled);
 
@@ -1013,12 +1026,45 @@ const MediaDetailPage = () => {
     ]
   );
   const canAnnotateCurrentVideo = isVideo && Boolean(item?.packageId && item.id);
+  const isFocusedVideoAnnotationWorkspace = isVideo && isVideoAnnotationWorkspaceOpen;
 
   useEffect(() => {
     if (!shouldOpenVideoAnnotationWorkspaceFromQuery || !canAnnotateCurrentVideo) return;
 
     handleOpenVideoAnnotationWorkspace();
   }, [canAnnotateCurrentVideo, handleOpenVideoAnnotationWorkspace, shouldOpenVideoAnnotationWorkspaceFromQuery]);
+
+  useEffect(() => {
+    if (!isFocusedVideoAnnotationWorkspace || typeof window === "undefined") return;
+
+    const guardStateKey = "planeVideoAnnotationBackGuard";
+    const getHistoryState = () => {
+      const state = window.history.state;
+      return state && typeof state === "object" ? (state as Record<string, unknown>) : {};
+    };
+    const pushGuardState = () => {
+      const state = getHistoryState();
+      if (state[guardStateKey] === true) return;
+
+      window.history.pushState({ ...state, [guardStateKey]: true }, "", window.location.href);
+    };
+
+    pushGuardState();
+
+    const handleBrowserBack = (event: PopStateEvent) => {
+      const state = event.state;
+      const isGuardState = Boolean(state && typeof state === "object" && guardStateKey in state);
+      if (isGuardState) return;
+
+      setVideoAnnotationBackPromptKey((currentValue) => currentValue + 1);
+      pushGuardState();
+    };
+
+    window.addEventListener("popstate", handleBrowserBack);
+    return () => {
+      window.removeEventListener("popstate", handleBrowserBack);
+    };
+  }, [isFocusedVideoAnnotationWorkspace]);
 
   if (!item && isLoading) {
     return (
@@ -1041,7 +1087,6 @@ const MediaDetailPage = () => {
   const createdBy = getMetaString(meta, ["created_by", "createdBy"], "");
   const createdByLabel = (createdBy ? (getUserDetails(createdBy)?.display_name ?? createdBy) : "") || item.author;
   const canAnnotateUploadedVideo = canAnnotateCurrentVideo;
-  const isFocusedVideoAnnotationWorkspace = isVideo && isVideoAnnotationWorkspaceOpen;
 
   if (isSgEventAsset && !(shouldOpenVideoAnnotationWorkspaceFromQuery && isVideo)) {
     return (
@@ -1128,6 +1173,8 @@ const MediaDetailPage = () => {
               onOverlaySeek={handleOverlaySeek}
               onOpenVideoAnnotationWorkspace={handleOpenVideoAnnotationWorkspace}
               onCloseVideoAnnotationWorkspace={handleCloseVideoAnnotationWorkspace}
+              onDiscardVideoAnnotationWorkspace={handleDiscardVideoAnnotationWorkspace}
+              videoAnnotationBackPromptKey={videoAnnotationBackPromptKey}
               isSettingsOpen={isSettingsOpen}
               onCloseSettings={() => setIsSettingsOpen(false)}
               qualityOptions={qualityOptions}
