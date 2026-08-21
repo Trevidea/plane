@@ -324,6 +324,11 @@ const getAnnotationCenter = (annotation: TCustomPlaylistAnnotation) => {
   };
 };
 
+const getBoundsCenter = (bounds: AnnotationBounds) => ({
+  x: bounds.x + bounds.width / 2,
+  y: bounds.y + bounds.height / 2,
+});
+
 const getPointAngle = (point: TCustomPlaylistAnnotationPoint, center: TCustomPlaylistAnnotationPoint) =>
   Math.atan2(point.y - center.y, point.x - center.x);
 
@@ -630,14 +635,18 @@ const resizeAnnotation = (
   });
 };
 
-const isPointInAnnotation = (point: TCustomPlaylistAnnotationPoint, annotation: TCustomPlaylistAnnotation) => {
+const isPointInAnnotation = (
+  point: TCustomPlaylistAnnotationPoint,
+  annotation: TCustomPlaylistAnnotation,
+  resolvedBounds?: AnnotationBounds | null
+) => {
   if (isLinearAnnotation(annotation)) {
     const endpoints = getLinearAnnotationEndpoints(annotation);
     return getPointToSegmentDistance(point, endpoints.start, endpoints.end) <= 18;
   }
 
-  const bounds = getAnnotationBounds(annotation);
-  const center = getAnnotationCenter(annotation);
+  const bounds = resolvedBounds ?? getAnnotationBounds(annotation);
+  const center = bounds ? getBoundsCenter(bounds) : getAnnotationCenter(annotation);
   if (!bounds || !center) return false;
 
   const unrotatedPoint = rotatePointAroundCenter(point, center, -getAnnotationRotation(annotation));
@@ -651,7 +660,11 @@ const isPointInAnnotation = (point: TCustomPlaylistAnnotationPoint, annotation: 
   );
 };
 
-const isPointOnAnnotationEdge = (point: TCustomPlaylistAnnotationPoint, annotation: TCustomPlaylistAnnotation) => {
+const isPointOnAnnotationEdge = (
+  point: TCustomPlaylistAnnotationPoint,
+  annotation: TCustomPlaylistAnnotation,
+  resolvedBounds?: AnnotationBounds | null
+) => {
   if (isLinearAnnotation(annotation)) {
     const endpoints = getLinearAnnotationEndpoints(annotation);
     return getPointToSegmentDistance(point, endpoints.start, endpoints.end) <= 18;
@@ -661,8 +674,8 @@ const isPointOnAnnotationEdge = (point: TCustomPlaylistAnnotationPoint, annotati
     return isPointNearPolyline(point, annotation.points ?? []);
   }
 
-  const bounds = getAnnotationBounds(annotation);
-  const center = getAnnotationCenter(annotation);
+  const bounds = resolvedBounds ?? getAnnotationBounds(annotation);
+  const center = bounds ? getBoundsCenter(bounds) : getAnnotationCenter(annotation);
   if (!bounds || !center) return false;
 
   const hitPadding = annotation.type === "text" ? 12 : 18;

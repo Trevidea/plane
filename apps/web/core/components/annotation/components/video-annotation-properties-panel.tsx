@@ -44,6 +44,7 @@ type VideoAnnotationPropertiesPanelProps = {
   annotationTool: TCustomPlaylistAnnotationTool;
   isAnnotationColorPickerOpen: boolean;
   isAnnotationMode: boolean;
+  isImageAnnotationSelected: boolean;
   onAnnotationColorChange: (colorValue: string) => void;
   onAnnotationColorChannelChange: (channel: "blue" | "green" | "red", colorValue: string) => void;
   onAnnotationColorHueChange: (hueValue: string) => void;
@@ -84,6 +85,7 @@ export const VideoAnnotationPropertiesPanel = ({
   annotationTool,
   isAnnotationColorPickerOpen,
   isAnnotationMode,
+  isImageAnnotationSelected,
   onAnnotationColorChange,
   onAnnotationColorChannelChange,
   onAnnotationColorHueChange,
@@ -103,6 +105,8 @@ export const VideoAnnotationPropertiesPanel = ({
   setIsAnnotationColorPickerOpen,
 }: VideoAnnotationPropertiesPanelProps) => {
   const SelectedAnnotationToolIcon = selectedAnnotationToolOption?.icon ?? Pencil;
+  const shouldShowImageProperties = isImageAnnotationSelected;
+  const shouldShowDurationProperties = annotationTool !== "image" || shouldShowImageProperties;
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col gap-3 overflow-y-auto rounded-[7px] border border-custom-border-200 bg-custom-background-100 p-2 shadow-sm">
@@ -116,7 +120,7 @@ export const VideoAnnotationPropertiesPanel = ({
 
       {isAnnotationMode ? (
         <>
-          {annotationTool !== "image" ? (
+          {!shouldShowImageProperties && annotationTool !== "image" ? (
             <div className="space-y-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Color</div>
               <div className="space-y-2">
@@ -245,33 +249,97 @@ export const VideoAnnotationPropertiesPanel = ({
             </div>
           ) : null}
 
-          <div className="space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Duration</div>
-            <div className="grid grid-cols-1 gap-1">
-              {VIDEO_ANNOTATION_DURATIONS.map((durationSeconds) => {
-                const isSelected = annotationDurationSeconds === durationSeconds;
+          {shouldShowDurationProperties ? (
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Duration</div>
+              <div className="grid grid-cols-1 gap-1">
+                {VIDEO_ANNOTATION_DURATIONS.map((durationSeconds) => {
+                  const isSelected = annotationDurationSeconds === durationSeconds;
 
-                return (
-                  <button
-                    key={durationSeconds}
-                    type="button"
-                    onClick={() => onDurationChange(durationSeconds)}
-                    className={[
-                      annotationPanelOptionClass,
-                      isSelected ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100" : "",
-                    ].join(" ")}
-                    aria-label={`Show annotation for ${durationSeconds} seconds`}
-                    aria-pressed={isSelected}
-                    title={`${durationSeconds}s duration`}
-                  >
-                    {durationSeconds}s
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={durationSeconds}
+                      type="button"
+                      onClick={() => onDurationChange(durationSeconds)}
+                      className={[
+                        annotationPanelOptionClass,
+                        isSelected ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100" : "",
+                      ].join(" ")}
+                      aria-label={`Show annotation for ${durationSeconds} seconds`}
+                      aria-pressed={isSelected}
+                      title={`${durationSeconds}s duration`}
+                    >
+                      {durationSeconds}s
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {annotationTool === "text" ? (
+          {shouldShowImageProperties ? (
+            <div className="space-y-2">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Image</div>
+              {annotationImageContent ? (
+                <div className="flex h-20 items-center justify-center overflow-hidden rounded-[5px] border border-custom-border-200 bg-custom-background-90">
+                  <img
+                    src={annotationImageContent}
+                    alt=""
+                    className="max-h-full max-w-full object-contain"
+                    style={{ opacity: annotationImageOpacity }}
+                  />
+                </div>
+              ) : null}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">
+                    Opacity
+                  </span>
+                  <span className="font-mono text-[10px] font-semibold text-custom-text-300">
+                    {Math.round(annotationImageOpacity * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={20}
+                  max={100}
+                  value={Math.round(annotationImageOpacity * 100)}
+                  onChange={(event) => onAnnotationImageOpacityChange(event.currentTarget.value)}
+                  className="h-1.5 w-full accent-custom-primary-100"
+                  aria-label="Image annotation opacity"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Size</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <label className="space-y-1">
+                    <span className="text-[10px] font-medium text-custom-text-300">Width</span>
+                    <input
+                      type="number"
+                      min={VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min}
+                      max={VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max}
+                      value={annotationImageWidth}
+                      onChange={(event) => onAnnotationImageSizeChange("width", event.currentTarget.value)}
+                      className="h-8 w-full rounded-[5px] border border-custom-border-200 bg-custom-background-90 px-2 text-[11px] font-semibold text-custom-text-100 outline-none transition-colors focus:border-custom-primary-100 focus:ring-2 focus:ring-custom-primary-100/30"
+                      aria-label="Image annotation width"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[10px] font-medium text-custom-text-300">Height</span>
+                    <input
+                      type="number"
+                      min={VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min}
+                      max={VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max}
+                      value={annotationImageHeight}
+                      onChange={(event) => onAnnotationImageSizeChange("height", event.currentTarget.value)}
+                      className="h-8 w-full rounded-[5px] border border-custom-border-200 bg-custom-background-90 px-2 text-[11px] font-semibold text-custom-text-100 outline-none transition-colors focus:border-custom-primary-100 focus:ring-2 focus:ring-custom-primary-100/30"
+                      aria-label="Image annotation height"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+          ) : annotationTool === "text" ? (
             <div className="space-y-2">
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Text</div>
               <div className="space-y-1.5">
@@ -353,69 +421,7 @@ export const VideoAnnotationPropertiesPanel = ({
                 </div>
               </div>
             </div>
-          ) : annotationTool === "image" ? (
-            <div className="space-y-2">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Image</div>
-              {annotationImageContent ? (
-                <div className="flex h-20 items-center justify-center overflow-hidden rounded-[5px] border border-custom-border-200 bg-custom-background-90">
-                  <img
-                    src={annotationImageContent}
-                    alt=""
-                    className="max-h-full max-w-full object-contain"
-                    style={{ opacity: annotationImageOpacity }}
-                  />
-                </div>
-              ) : null}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">
-                    Opacity
-                  </span>
-                  <span className="font-mono text-[10px] font-semibold text-custom-text-300">
-                    {Math.round(annotationImageOpacity * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={20}
-                  max={100}
-                  value={Math.round(annotationImageOpacity * 100)}
-                  onChange={(event) => onAnnotationImageOpacityChange(event.currentTarget.value)}
-                  className="h-1.5 w-full accent-custom-primary-100"
-                  aria-label="Image annotation opacity"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Size</div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-medium text-custom-text-300">Width</span>
-                    <input
-                      type="number"
-                      min={VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min}
-                      max={VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max}
-                      value={annotationImageWidth}
-                      onChange={(event) => onAnnotationImageSizeChange("width", event.currentTarget.value)}
-                      className="h-8 w-full rounded-[5px] border border-custom-border-200 bg-custom-background-90 px-2 text-[11px] font-semibold text-custom-text-100 outline-none transition-colors focus:border-custom-primary-100 focus:ring-2 focus:ring-custom-primary-100/30"
-                      aria-label="Image annotation width"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[10px] font-medium text-custom-text-300">Height</span>
-                    <input
-                      type="number"
-                      min={VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min}
-                      max={VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max}
-                      value={annotationImageHeight}
-                      onChange={(event) => onAnnotationImageSizeChange("height", event.currentTarget.value)}
-                      className="h-8 w-full rounded-[5px] border border-custom-border-200 bg-custom-background-90 px-2 text-[11px] font-semibold text-custom-text-100 outline-none transition-colors focus:border-custom-primary-100 focus:ring-2 focus:ring-custom-primary-100/30"
-                      aria-label="Image annotation height"
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
-          ) : (
+          ) : annotationTool === "image" ? null : (
             <div className="space-y-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Stroke</div>
               <div className="grid grid-cols-1 gap-1">

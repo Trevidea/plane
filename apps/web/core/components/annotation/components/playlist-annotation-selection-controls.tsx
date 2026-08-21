@@ -122,10 +122,10 @@ export const PlaylistAnnotationSelectionControls = ({
               onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "rotate")}
               onPointerMove={onTransformPointerMove}
               onPointerUp={onFinishAnnotationTransform}
-              className="pointer-events-auto flex h-6 w-6 cursor-grab items-center justify-center rounded-full border border-[#facc15] bg-custom-background-100 text-[13px] font-semibold leading-none text-[#facc15] shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-[#facc15]/50 active:cursor-grabbing"
+              className="pointer-events-auto relative flex h-6 w-6 cursor-grab items-center justify-center rounded-full border border-[#facc15] bg-custom-background-100 text-[13px] font-semibold leading-none text-[#facc15] shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-[#facc15]/50 active:cursor-grabbing"
               aria-label="Rotate annotation"
             >
-              <RotateCw className="h-3.5 w-3.5" />
+              <RotateCw className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
             </button>
           </Tooltip>
         </span>
@@ -200,13 +200,13 @@ export const PlaylistAnnotationSelectionControls = ({
             onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "rotate")}
             onPointerMove={onTransformPointerMove}
             onPointerUp={onFinishAnnotationTransform}
-            className="pointer-events-auto flex h-6 w-6 cursor-grab items-center justify-center rounded-full border border-[#facc15] bg-custom-background-100 text-[13px] font-semibold leading-none text-[#facc15] shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-[#facc15]/50 active:cursor-grabbing"
+            className="pointer-events-auto relative flex h-6 w-6 cursor-grab items-center justify-center rounded-full border border-[#facc15] bg-custom-background-100 text-[13px] font-semibold leading-none text-[#facc15] shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-[#facc15]/50 active:cursor-grabbing"
             style={{
               transform: `rotate(${-selectedAnnotationRotation}deg)`,
             }}
             aria-label="Rotate annotation"
           >
-            <RotateCw className="h-3.5 w-3.5" />
+            <RotateCw className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
           </button>
         </Tooltip>
       </span>

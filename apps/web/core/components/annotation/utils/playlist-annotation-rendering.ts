@@ -24,6 +24,11 @@ const toCanvasWidth = (value: number, size: CanvasSize) => (value / CANVAS_SIZE)
 
 const toCanvasHeight = (value: number, size: CanvasSize) => (value / CANVAS_SIZE) * size.height;
 
+const getPositiveNumber = (value: unknown) => {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+};
+
 export const getFittedVideoBounds = (root: HTMLElement): OverlayBounds | null => {
   const host = root.parentElement;
   const video = host?.querySelector<HTMLVideoElement>("video");
@@ -164,14 +169,27 @@ const drawImageAnnotation = ({
   }
 
   if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
+  const width = getPositiveNumber(annotation.width) ?? image.naturalWidth;
+  const height = getPositiveNumber(annotation.height) ?? Math.round(width * (image.naturalHeight / image.naturalWidth));
 
-  context.drawImage(
-    image,
-    toCanvasX(annotation.x, size),
-    toCanvasY(annotation.y, size),
-    toCanvasWidth(annotation.width || 120, size),
-    toCanvasHeight(annotation.height || 120, size)
-  );
+  context.drawImage(image, toCanvasX(annotation.x, size), toCanvasY(annotation.y, size), width, height);
+};
+
+const getImageAnnotationCanvasCenter = (
+  annotation: TCustomPlaylistAnnotation,
+  imageCache: Map<string, HTMLImageElement>,
+  size: CanvasSize
+) => {
+  const image = annotation.content?.trim() ? imageCache.get(annotation.content) : null;
+  const width = getPositiveNumber(annotation.width) ?? image?.naturalWidth ?? 120;
+  const height =
+    getPositiveNumber(annotation.height) ??
+    (image && image.naturalWidth > 0 ? Math.round(width * (image.naturalHeight / image.naturalWidth)) : 120);
+
+  return {
+    x: toCanvasX(annotation.x, size) + width / 2,
+    y: toCanvasY(annotation.y, size) + height / 2,
+  };
 };
 
 export const drawCanvasAnnotation = ({
@@ -191,13 +209,19 @@ export const drawCanvasAnnotation = ({
 }) => {
   const resolvedStyle = getAnnotationStyle(annotation);
   const rotation = getAnnotationRotation(annotation);
-  const center = rotation ? getAnnotationCenter(annotation) : null;
+  const center = rotation
+    ? annotation.type === "image"
+      ? getImageAnnotationCanvasCenter(annotation, imageCache, size)
+      : getAnnotationCenter(annotation)
+    : null;
 
   context.save();
   if (center) {
-    context.translate(toCanvasX(center.x, size), toCanvasY(center.y, size));
+    const centerX = annotation.type === "image" ? center.x : toCanvasX(center.x, size);
+    const centerY = annotation.type === "image" ? center.y : toCanvasY(center.y, size);
+    context.translate(centerX, centerY);
     context.rotate((rotation * Math.PI) / 180);
-    context.translate(-toCanvasX(center.x, size), -toCanvasY(center.y, size));
+    context.translate(-centerX, -centerY);
   }
 
   context.globalAlpha = (resolvedStyle.opacity ?? 1) * (isDraft ? 0.7 : 1);
