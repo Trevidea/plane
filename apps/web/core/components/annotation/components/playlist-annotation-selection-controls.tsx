@@ -3,7 +3,11 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { RotateCw } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
-import type { TCustomPlaylistAnnotation, TCustomPlaylistAnnotationPoint } from "../types/annotation.types";
+import type {
+  TCustomPlaylistAnnotation,
+  TCustomPlaylistAnnotationPoint,
+  TCustomPlaylistAnnotationTool,
+} from "../types/annotation.types";
 import type {
   AnnotationBounds,
   AnnotationResizeHandle,
@@ -32,6 +36,7 @@ type PlaylistAnnotationSelectionControlsProps = {
     start: TCustomPlaylistAnnotationPoint;
   } | null;
   selectedLinearAnnotationMidpoint: TCustomPlaylistAnnotationPoint | null;
+  tool: TCustomPlaylistAnnotationTool;
 };
 
 export const PlaylistAnnotationSelectionControls = ({
@@ -46,6 +51,7 @@ export const PlaylistAnnotationSelectionControls = ({
   selectedAnnotationRotation,
   selectedLinearAnnotationEndpoints,
   selectedLinearAnnotationMidpoint,
+  tool,
 }: PlaylistAnnotationSelectionControlsProps) => {
   if (
     canTransformAnnotations &&
@@ -116,10 +122,10 @@ export const PlaylistAnnotationSelectionControls = ({
               onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "rotate")}
               onPointerMove={onTransformPointerMove}
               onPointerUp={onFinishAnnotationTransform}
-              className="pointer-events-auto flex h-6 w-6 cursor-grab items-center justify-center rounded-full border border-[#facc15] bg-custom-background-100 text-[13px] font-semibold leading-none text-[#facc15] shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-[#facc15]/50 active:cursor-grabbing"
+              className="pointer-events-auto relative flex h-6 w-6 cursor-grab items-center justify-center rounded-full border border-[#facc15] bg-custom-background-100 text-[13px] font-semibold leading-none text-[#facc15] shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-[#facc15]/50 active:cursor-grabbing"
               aria-label="Rotate annotation"
             >
-              <RotateCw className="h-3.5 w-3.5" />
+              <RotateCw className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
             </button>
           </Tooltip>
         </span>
@@ -129,18 +135,39 @@ export const PlaylistAnnotationSelectionControls = ({
 
   if (!canTransformAnnotations || !selectedAnnotation || !selectedAnnotationBounds) return null;
 
+  const selectionBoundsStyle = {
+    height:
+      selectedAnnotation.type === "text"
+        ? `${selectedAnnotationBounds.height / 10}%`
+        : `max(24px, ${selectedAnnotationBounds.height / 10}%)`,
+    left: `${selectedAnnotationBounds.x / 10}%`,
+    top: `${selectedAnnotationBounds.y / 10}%`,
+    transform: `rotate(${selectedAnnotationRotation}deg)`,
+    transformOrigin: "center",
+    width:
+      selectedAnnotation.type === "text"
+        ? `${selectedAnnotationBounds.width / 10}%`
+        : `max(28px, ${selectedAnnotationBounds.width / 10}%)`,
+  };
+  const shouldRenderMoveSurface =
+    selectedAnnotation.type === tool && (selectedAnnotation.type === "text" || selectedAnnotation.type === "image");
+
   return (
     <div
       className="pointer-events-none absolute z-10 rounded-[4px] border border-dashed border-[#facc15] shadow-[0_0_0_1px_rgba(0,0,0,0.36),0_0_18px_rgba(250,204,21,0.28)]"
-      style={{
-        height: `max(24px, ${selectedAnnotationBounds.height / 10}%)`,
-        left: `${selectedAnnotationBounds.x / 10}%`,
-        top: `${selectedAnnotationBounds.y / 10}%`,
-        transform: `rotate(${selectedAnnotationRotation}deg)`,
-        transformOrigin: "center",
-        width: `max(28px, ${selectedAnnotationBounds.width / 10}%)`,
-      }}
+      style={selectionBoundsStyle}
     >
+      {shouldRenderMoveSurface ? (
+        <button
+          type="button"
+          onPointerCancel={onCancelAnnotationTransform}
+          onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "move")}
+          onPointerMove={onTransformPointerMove}
+          onPointerUp={onFinishAnnotationTransform}
+          className="pointer-events-auto absolute inset-0 touch-none cursor-move rounded-[4px] bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[#facc15]/50"
+          aria-label={`Move selected ${selectedAnnotation.type} annotation`}
+        />
+      ) : null}
       {selectedAnnotationCanResize
         ? ANNOTATION_RESIZE_HANDLES.map(({ className: handleClassName, cursorClassName, handle, label }) => (
             <span
@@ -173,13 +200,13 @@ export const PlaylistAnnotationSelectionControls = ({
             onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "rotate")}
             onPointerMove={onTransformPointerMove}
             onPointerUp={onFinishAnnotationTransform}
-            className="pointer-events-auto flex h-6 w-6 cursor-grab items-center justify-center rounded-full border border-[#facc15] bg-custom-background-100 text-[13px] font-semibold leading-none text-[#facc15] shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-[#facc15]/50 active:cursor-grabbing"
+            className="pointer-events-auto relative flex h-6 w-6 cursor-grab items-center justify-center rounded-full border border-[#facc15] bg-custom-background-100 text-[13px] font-semibold leading-none text-[#facc15] shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-[#facc15]/50 active:cursor-grabbing"
             style={{
               transform: `rotate(${-selectedAnnotationRotation}deg)`,
             }}
             aria-label="Rotate annotation"
           >
-            <RotateCw className="h-3.5 w-3.5" />
+            <RotateCw className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
           </button>
         </Tooltip>
       </span>

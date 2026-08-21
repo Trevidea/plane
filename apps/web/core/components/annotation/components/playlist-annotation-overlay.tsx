@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { TCustomPlaylistAnnotation, TCustomPlaylistAnnotationPoint } from "../types/annotation.types";
 import type {
+  AnnotationBounds,
   AnnotationResizeHandle,
   AnnotationTransformMode,
   AnnotationTransformState,
+  CanvasSize,
   OverlayBounds,
   PlaylistAnnotationOverlayProps,
 } from "../types/playlist-annotation-overlay.types";
@@ -18,6 +20,7 @@ import {
   createPlaylistAnnotationId,
   getAnnotationBounds,
   getAnnotationRotation,
+  getAnnotationStyle,
   getLinearAnnotationEndpoints,
   getPointAngle,
   getPointBounds,
@@ -40,6 +43,7 @@ import {
 } from "../utils/playlist-annotation-rendering";
 import { PlaylistAnnotationSelectionControls } from "./playlist-annotation-selection-controls";
 import { PlaylistAnnotationTextDraftInput } from "./playlist-annotation-text-draft-input";
+import type { PlaylistAnnotationTextDraft } from "./playlist-annotation-text-draft-input";
 
 export {
   DEFAULT_PLAYLIST_ANNOTATION_DURATION_SECONDS,
@@ -49,6 +53,42 @@ export {
   isPlaylistAnnotationVisibleAtTime,
   normalizePlaylistAnnotations,
 } from "../utils/playlist-annotation-model";
+
+const getDisplayImageAnnotationBounds = (
+  annotation: TCustomPlaylistAnnotation,
+  size: CanvasSize | null
+): AnnotationBounds | null => {
+  if (annotation.type !== "image" || !size || size.width <= 0 || size.height <= 0) return null;
+
+  const width = Number(annotation.width);
+  const height = Number(annotation.height);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+
+  return {
+    height: Math.max(1, (height / size.height) * CANVAS_SIZE),
+    width: Math.max(1, (width / size.width) * CANVAS_SIZE),
+    x: annotation.x,
+    y: annotation.y,
+  };
+};
+
+const getCenteredDisplayImageAnnotationPoint = (
+  imageWidth: number,
+  imageHeight: number,
+  size: CanvasSize | null
+): TCustomPlaylistAnnotationPoint => {
+  if (!size || size.width <= 0 || size.height <= 0) {
+    return {
+      x: clamp((CANVAS_SIZE - imageWidth) / 2, 0, CANVAS_SIZE),
+      y: clamp((CANVAS_SIZE - imageHeight) / 2, 0, CANVAS_SIZE),
+    };
+  }
+
+  return {
+    x: clamp(((size.width - imageWidth) / 2 / size.width) * CANVAS_SIZE, 0, CANVAS_SIZE),
+    y: clamp(((size.height - imageHeight) / 2 / size.height) * CANVAS_SIZE, 0, CANVAS_SIZE),
+  };
+};
 
 const getAspectLockedImageAnnotation = (
   annotation: TCustomPlaylistAnnotation,
@@ -96,7 +136,9 @@ export const PlaylistAnnotationOverlay = ({
   imageWidth,
   inputEnabled = enabled,
   onCreateAnnotation,
+  onSelectedAnnotationIdChange,
   onUpdateAnnotation,
+  selectedAnnotationId: controlledSelectedAnnotationId,
   textFontFamily,
   textFontSize,
   textFontWeight,
@@ -117,10 +159,22 @@ export const PlaylistAnnotationOverlay = ({
   const shouldSkipTextDraftCommitRef = useRef(false);
   const [draftAnnotation, setDraftAnnotation] = useState<TCustomPlaylistAnnotation | null>(null);
   const [overlayBounds, setOverlayBounds] = useState<OverlayBounds | null>(null);
-  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
-  const [textDraft, setTextDraft] = useState<{ point: TCustomPlaylistAnnotationPoint; value: string } | null>(null);
+  const [internalSelectedAnnotationId, setInternalSelectedAnnotationId] = useState<string | null>(null);
+  const [textDraft, setTextDraft] = useState<PlaylistAnnotationTextDraft | null>(null);
   const [canvasRevision, setCanvasRevision] = useState(0);
   const [imageRevision, setImageRevision] = useState(0);
+  const isSelectedAnnotationIdControlled = controlledSelectedAnnotationId !== undefined;
+  const selectedAnnotationId = isSelectedAnnotationIdControlled
+    ? controlledSelectedAnnotationId
+    : internalSelectedAnnotationId;
+
+  const setSelectedAnnotationId = useCallback(
+    (annotationId: string | null) => {
+      if (!isSelectedAnnotationIdControlled) setInternalSelectedAnnotationId(annotationId);
+      onSelectedAnnotationIdChange?.(annotationId);
+    },
+    [isSelectedAnnotationIdControlled, onSelectedAnnotationIdChange]
+  );
 
   const renderedAnnotations = useMemo(
     () => [...annotations, ...(draftAnnotation ? [draftAnnotation] : [])],
@@ -132,7 +186,6 @@ export const PlaylistAnnotationOverlay = ({
     [annotations, selectedAnnotationId]
   );
   const selectedAnnotationIsLinear = selectedAnnotation ? isLinearAnnotation(selectedAnnotation) : false;
-  const selectedAnnotationBounds = selectedAnnotation ? getAnnotationBounds(selectedAnnotation) : null;
   const selectedAnnotationRotation = selectedAnnotation ? getAnnotationRotation(selectedAnnotation) : 0;
   const selectedAnnotationCanResize = selectedAnnotation ? isAnnotationResizable(selectedAnnotation) : false;
   const selectedLinearAnnotationEndpoints =
@@ -153,13 +206,13 @@ export const PlaylistAnnotationOverlay = ({
     setSelectedAnnotationId(null);
     setTextDraft(null);
     pointerIdRef.current = null;
-  }, [enabled]);
+  }, [enabled, setSelectedAnnotationId]);
 
   useEffect(() => {
     if (!selectedAnnotationId || annotations.some((annotation) => annotation.id === selectedAnnotationId)) return;
 
     setSelectedAnnotationId(null);
-  }, [annotations, selectedAnnotationId]);
+  }, [annotations, selectedAnnotationId, setSelectedAnnotationId]);
 
   const updateOverlayBounds = useCallback(() => {
     if (!fitToVideoBounds) {
@@ -300,6 +353,90 @@ export const PlaylistAnnotationOverlay = ({
     };
   }, []);
 
+  const getCanvasSize = useCallback((): CanvasSize | null => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+
+    return {
+      height: rect.height,
+      width: rect.width,
+    };
+  }, []);
+
+  const getDisplayImageBounds = useCallback(
+    (annotation: TCustomPlaylistAnnotation) => getDisplayImageAnnotationBounds(annotation, getCanvasSize()),
+    [getCanvasSize]
+  );
+
+  const getDisplayImageAnnotationFromBounds = useCallback(
+    (annotation: TCustomPlaylistAnnotation): TCustomPlaylistAnnotation => {
+      if (annotation.type !== "image") return annotation;
+
+      const size = getCanvasSize();
+      if (!size) return annotation;
+
+      return {
+        ...annotation,
+        height: Math.round(((annotation.height ?? 0) / CANVAS_SIZE) * size.height),
+        width: Math.round(((annotation.width ?? 0) / CANVAS_SIZE) * size.width),
+      };
+    },
+    [getCanvasSize]
+  );
+
+  const getMeasuredTextAnnotationBounds = useCallback((annotation: TCustomPlaylistAnnotation) => {
+    if (annotation.type !== "text") return null;
+
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    const rect = canvas?.getBoundingClientRect();
+    if (!canvas || !context || !rect || rect.width <= 0 || rect.height <= 0) return null;
+
+    const resolvedStyle = getAnnotationStyle(annotation);
+    const fontSize = Math.max(8, (resolvedStyle.fontSize / CANVAS_SIZE) * rect.height);
+    const fontWeight = resolvedStyle.fontWeight ? `${resolvedStyle.fontWeight} ` : "";
+
+    context.save();
+    context.font = `${fontWeight}${fontSize}px ${resolvedStyle.fontFamily}`;
+    context.textBaseline = "alphabetic";
+    const metrics = context.measureText(annotation.content?.trim() || "Text");
+    context.restore();
+
+    const leftPx = metrics.actualBoundingBoxLeft || 0;
+    const widthPx = Math.max(1, leftPx + (metrics.actualBoundingBoxRight || metrics.width));
+    const ascentPx = metrics.actualBoundingBoxAscent || fontSize;
+    const descentPx = metrics.actualBoundingBoxDescent || fontSize * 0.2;
+
+    return {
+      height: clamp(((ascentPx + descentPx) / rect.height) * CANVAS_SIZE, 1, CANVAS_SIZE),
+      width: clamp((widthPx / rect.width) * CANVAS_SIZE, 1, CANVAS_SIZE),
+      x: clamp(annotation.x - (leftPx / rect.width) * CANVAS_SIZE, 0, CANVAS_SIZE),
+      y: clamp(annotation.y - (ascentPx / rect.height) * CANVAS_SIZE, 0, CANVAS_SIZE),
+    };
+  }, []);
+
+  const getResolvedAnnotationBounds = useCallback(
+    (annotation: TCustomPlaylistAnnotation) =>
+      getMeasuredTextAnnotationBounds(annotation) ??
+      getDisplayImageBounds(annotation) ??
+      getAnnotationBounds(annotation),
+    [getDisplayImageBounds, getMeasuredTextAnnotationBounds]
+  );
+
+  const selectedAnnotationBounds = selectedAnnotation ? getResolvedAnnotationBounds(selectedAnnotation) : null;
+
+  const isPointInResolvedAnnotation = useCallback(
+    (point: TCustomPlaylistAnnotationPoint, annotation: TCustomPlaylistAnnotation) =>
+      isPointInAnnotation(point, annotation, getResolvedAnnotationBounds(annotation)),
+    [getResolvedAnnotationBounds]
+  );
+
+  const isPointOnResolvedAnnotationEdge = useCallback(
+    (point: TCustomPlaylistAnnotationPoint, annotation: TCustomPlaylistAnnotation) =>
+      isPointOnAnnotationEdge(point, annotation, getResolvedAnnotationBounds(annotation)),
+    [getResolvedAnnotationBounds]
+  );
+
   const buildAnnotation = useCallback(
     (point: TCustomPlaylistAnnotationPoint, content?: string): TCustomPlaylistAnnotation => ({
       content: tool === "image" ? (imageContent ?? undefined) : content,
@@ -346,10 +483,7 @@ export const PlaylistAnnotationOverlay = ({
     if (lastImagePlacementKeyRef.current === imagePlacementKey) return;
 
     lastImagePlacementKeyRef.current = imagePlacementKey;
-    const point = {
-      x: clamp((CANVAS_SIZE - imageWidth) / 2, 0, CANVAS_SIZE),
-      y: clamp((CANVAS_SIZE - imageHeight) / 2, 0, CANVAS_SIZE),
-    };
+    const point = getCenteredDisplayImageAnnotationPoint(imageWidth, imageHeight, getCanvasSize());
     const normalizedAnnotation = normalizePlaylistAnnotations([buildAnnotation(point)])[0];
     if (!normalizedAnnotation) return;
 
@@ -359,7 +493,65 @@ export const PlaylistAnnotationOverlay = ({
     setDraftAnnotation(null);
     setSelectedAnnotationId(normalizedAnnotation.id);
     onCreateAnnotation(normalizedAnnotation);
-  }, [buildAnnotation, enabled, imageContent, imageHeight, imagePlacementKey, imageWidth, onCreateAnnotation, tool]);
+  }, [
+    buildAnnotation,
+    enabled,
+    getCanvasSize,
+    imageContent,
+    imageHeight,
+    imagePlacementKey,
+    imageWidth,
+    onCreateAnnotation,
+    setSelectedAnnotationId,
+    tool,
+  ]);
+
+  const buildTextDraftAnnotation = useCallback(
+    (draft: PlaylistAnnotationTextDraft, content: string): TCustomPlaylistAnnotation => ({
+      ...buildAnnotation(draft.point, content),
+      id: draft.annotationId,
+    }),
+    [buildAnnotation]
+  );
+
+  const handleTextDraftChange = useCallback(
+    (value: string) => {
+      if (!textDraft) return;
+
+      const content = value.trim();
+      const nextDraft = { ...textDraft, value };
+
+      if (!content) {
+        if (textDraft.isCommitted && onUpdateAnnotation) {
+          onUpdateAnnotation(buildTextDraftAnnotation(textDraft, ""));
+        }
+        setTextDraft({ ...nextDraft, isCommitted: false });
+        setSelectedAnnotationId(null);
+        return;
+      }
+
+      if (!onUpdateAnnotation) {
+        setTextDraft(nextDraft);
+        return;
+      }
+
+      const normalizedAnnotation = normalizePlaylistAnnotations([buildTextDraftAnnotation(textDraft, content)])[0];
+      if (!normalizedAnnotation) {
+        setTextDraft(nextDraft);
+        return;
+      }
+
+      if (textDraft.isCommitted) {
+        onUpdateAnnotation?.(normalizedAnnotation);
+      } else {
+        onCreateAnnotation(normalizedAnnotation);
+      }
+
+      setSelectedAnnotationId(normalizedAnnotation.id);
+      setTextDraft({ ...nextDraft, isCommitted: true });
+    },
+    [buildTextDraftAnnotation, onCreateAnnotation, onUpdateAnnotation, setSelectedAnnotationId, textDraft]
+  );
 
   const commitTextDraft = useCallback(() => {
     if (shouldSkipTextDraftCommitRef.current) {
@@ -374,10 +566,11 @@ export const PlaylistAnnotationOverlay = ({
     shouldSkipTextDraftCommitRef.current = false;
     setTextDraft(null);
     if (!content) return;
+    if (textDraft.isCommitted) return;
 
-    const normalizedAnnotation = normalizePlaylistAnnotations([buildAnnotation(textDraft.point, content)])[0];
+    const normalizedAnnotation = normalizePlaylistAnnotations([buildTextDraftAnnotation(textDraft, content)])[0];
     if (normalizedAnnotation) onCreateAnnotation(normalizedAnnotation);
-  }, [buildAnnotation, onCreateAnnotation, textDraft]);
+  }, [buildTextDraftAnnotation, onCreateAnnotation, textDraft]);
 
   const handleTextDraftKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -388,11 +581,15 @@ export const PlaylistAnnotationOverlay = ({
 
       if (event.key === "Escape") {
         event.preventDefault();
+        if (textDraft?.isCommitted && onUpdateAnnotation) {
+          onUpdateAnnotation(buildTextDraftAnnotation(textDraft, ""));
+          setSelectedAnnotationId(null);
+        }
         shouldSkipTextDraftCommitRef.current = true;
         setTextDraft(null);
       }
     },
-    [commitTextDraft]
+    [buildTextDraftAnnotation, commitTextDraft, onUpdateAnnotation, setSelectedAnnotationId, textDraft]
   );
 
   const updateDraftAnnotation = useCallback(
@@ -449,7 +646,7 @@ export const PlaylistAnnotationOverlay = ({
       if (mode === "resize" && (!resizeHandle || !isAnnotationResizable(annotation))) return false;
 
       const point = getEventPoint(event);
-      const bounds = getAnnotationBounds(annotation);
+      const bounds = getResolvedAnnotationBounds(annotation);
       const center = bounds
         ? {
             x: bounds.x + bounds.width / 2,
@@ -481,7 +678,7 @@ export const PlaylistAnnotationOverlay = ({
 
       return true;
     },
-    [canTransformAnnotations, getEventPoint]
+    [canTransformAnnotations, getEventPoint, getResolvedAnnotationBounds, setSelectedAnnotationId]
   );
 
   const handleAnnotationTransformPointerMove = useCallback(
@@ -495,35 +692,40 @@ export const PlaylistAnnotationOverlay = ({
       event.preventDefault();
       event.stopPropagation();
 
-      const nextAnnotation =
-        transformState.mode === "move"
-          ? moveAnnotation(
-              transformState.originalAnnotation,
-              point.x - transformState.startPoint.x,
-              point.y - transformState.startPoint.y
-            )
-          : transformState.mode === "resize" && transformState.resizeHandle
-            ? resizeAnnotation(
-                transformState.originalAnnotation,
-                transformState.originalBounds,
-                transformState.center,
-                transformState.originalRotation,
-                transformState.resizeHandle,
-                point
-              )
-            : {
-                ...transformState.originalAnnotation,
-                rotation: normalizeRotation(
-                  transformState.originalRotation +
-                    ((getPointAngle(point, transformState.center) - transformState.startAngle) * 180) / Math.PI
-                ),
-              };
+      let nextAnnotation: TCustomPlaylistAnnotation;
+
+      if (transformState.mode === "move") {
+        nextAnnotation = moveAnnotation(
+          transformState.originalAnnotation,
+          point.x - transformState.startPoint.x,
+          point.y - transformState.startPoint.y,
+          transformState.originalBounds
+        );
+      } else if (transformState.mode === "resize" && transformState.resizeHandle) {
+        const resizedAnnotation = resizeAnnotation(
+          transformState.originalAnnotation,
+          transformState.originalBounds,
+          transformState.center,
+          transformState.originalRotation,
+          transformState.resizeHandle,
+          point
+        );
+        nextAnnotation = getDisplayImageAnnotationFromBounds(resizedAnnotation);
+      } else {
+        nextAnnotation = {
+          ...transformState.originalAnnotation,
+          rotation: normalizeRotation(
+            transformState.originalRotation +
+              ((getPointAngle(point, transformState.center) - transformState.startAngle) * 180) / Math.PI
+          ),
+        };
+      }
 
       onUpdateAnnotation(nextAnnotation);
 
       return true;
     },
-    [getEventPoint, onUpdateAnnotation]
+    [getDisplayImageAnnotationFromBounds, getEventPoint, onUpdateAnnotation]
   );
 
   const finishAnnotationTransform = useCallback((event: ReactPointerEvent<HTMLElement>) => {
@@ -561,16 +763,14 @@ export const PlaylistAnnotationOverlay = ({
       const point = getEventPoint(event);
       if (!point) return;
 
-      if (tool === "image" && !imageContent) return;
-
       if (canTransformAnnotations) {
-        const annotationToTransform = [...annotations]
-          .reverse()
-          .find((annotation) =>
-            annotation.type === "image" && tool === "image"
-              ? isPointInAnnotation(point, annotation)
-              : isPointOnAnnotationEdge(point, annotation)
-          );
+        const annotationToTransform = [...annotations].reverse().find((annotation) => {
+          if (annotation.type === tool && (annotation.type === "text" || annotation.type === "image")) {
+            return isPointInResolvedAnnotation(point, annotation);
+          }
+
+          return isPointOnResolvedAnnotationEdge(point, annotation);
+        });
         if (annotationToTransform && startAnnotationTransform(event, annotationToTransform, "move")) return;
         setSelectedAnnotationId(null);
       }
@@ -580,9 +780,16 @@ export const PlaylistAnnotationOverlay = ({
 
       if (tool === "text") {
         shouldSkipTextDraftCommitRef.current = false;
-        setTextDraft({ point, value: "" });
+        setTextDraft({
+          annotationId: createPlaylistAnnotationId(),
+          isCommitted: false,
+          point,
+          value: "",
+        });
         return;
       }
+
+      if (tool === "image") return;
 
       event.currentTarget.setPointerCapture(event.pointerId);
       pointerIdRef.current = event.pointerId;
@@ -597,8 +804,10 @@ export const PlaylistAnnotationOverlay = ({
       buildAnnotation,
       canTransformAnnotations,
       getEventPoint,
-      imageContent,
       inputEnabled,
+      isPointInResolvedAnnotation,
+      isPointOnResolvedAnnotationEdge,
+      setSelectedAnnotationId,
       startAnnotationTransform,
       tool,
     ]
@@ -644,10 +853,13 @@ export const PlaylistAnnotationOverlay = ({
 
       if (currentDraftAnnotation && isAnnotationValid(currentDraftAnnotation)) {
         const normalizedAnnotation = normalizePlaylistAnnotations([currentDraftAnnotation])[0];
-        if (normalizedAnnotation) onCreateAnnotation(normalizedAnnotation);
+        if (normalizedAnnotation) {
+          setSelectedAnnotationId(normalizedAnnotation.id);
+          onCreateAnnotation(normalizedAnnotation);
+        }
       }
     },
-    [finishAnnotationTransform, onCreateAnnotation]
+    [finishAnnotationTransform, onCreateAnnotation, setSelectedAnnotationId]
   );
 
   const handlePointerCancel = useCallback(
@@ -709,6 +921,7 @@ export const PlaylistAnnotationOverlay = ({
         selectedAnnotationRotation={selectedAnnotationRotation}
         selectedLinearAnnotationEndpoints={selectedLinearAnnotationEndpoints}
         selectedLinearAnnotationMidpoint={selectedLinearAnnotationMidpoint}
+        tool={tool}
       />
       <PlaylistAnnotationTextDraftInput
         color={color}
@@ -717,7 +930,7 @@ export const PlaylistAnnotationOverlay = ({
         onBlur={commitTextDraft}
         onKeyDown={handleTextDraftKeyDown}
         onPointerDown={(event) => event.stopPropagation()}
-        onTextDraftChange={setTextDraft}
+        onTextDraftChange={handleTextDraftChange}
         textDraft={textDraft}
         textFontFamily={textFontFamily}
         textFontSize={textFontSize}

@@ -15,43 +15,59 @@ type UseVideoAnnotationImageControlsParams = {
   setIsAnnotationMode: Dispatch<SetStateAction<boolean>>;
 };
 
-const DEFAULT_IMAGE_ANNOTATION_WIDTH = 180;
-const DEFAULT_IMAGE_ANNOTATION_HEIGHT = 120;
+const DEFAULT_IMAGE_ANNOTATION_WIDTH = 380;
+const FALLBACK_IMAGE_ANNOTATION_ASPECT_RATIO = 16 / 9;
+const FALLBACK_IMAGE_ANNOTATION_HEIGHT = Math.round(
+  DEFAULT_IMAGE_ANNOTATION_WIDTH / FALLBACK_IMAGE_ANNOTATION_ASPECT_RATIO
+);
 
 const getImageAnnotationDefaultSize = (naturalWidth: number, naturalHeight: number) => {
   if (!Number.isFinite(naturalWidth) || !Number.isFinite(naturalHeight) || naturalWidth <= 0 || naturalHeight <= 0) {
     return {
-      height: DEFAULT_IMAGE_ANNOTATION_HEIGHT,
+      height: FALLBACK_IMAGE_ANNOTATION_HEIGHT,
       width: DEFAULT_IMAGE_ANNOTATION_WIDTH,
     };
   }
 
-  const aspectRatio = naturalWidth / naturalHeight;
-  let width = DEFAULT_IMAGE_ANNOTATION_WIDTH;
-  let height = Math.round(width / aspectRatio);
+  return {
+    height: Math.round(DEFAULT_IMAGE_ANNOTATION_WIDTH * (naturalHeight / naturalWidth)),
+    width: DEFAULT_IMAGE_ANNOTATION_WIDTH,
+  };
+};
 
-  if (height > DEFAULT_IMAGE_ANNOTATION_HEIGHT) {
-    height = DEFAULT_IMAGE_ANNOTATION_HEIGHT;
-    width = Math.round(height * aspectRatio);
+const getImageAnnotationAspectRatio = (width: number, height: number) =>
+  Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0
+    ? width / height
+    : FALLBACK_IMAGE_ANNOTATION_ASPECT_RATIO;
+
+const getAspectLockedImageAnnotationSize = ({
+  currentHeight,
+  currentWidth,
+  dimension,
+  value,
+}: {
+  currentHeight: number;
+  currentWidth: number;
+  dimension: "height" | "width";
+  value: string;
+}) => {
+  const nextValue = Math.round(
+    clampTimelineValue(Number(value), VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min, VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max)
+  );
+  if (!Number.isFinite(nextValue)) return null;
+
+  const aspectRatio = getImageAnnotationAspectRatio(currentWidth, currentHeight);
+
+  if (dimension === "height") {
+    return {
+      height: nextValue,
+      width: Math.round(nextValue * aspectRatio),
+    };
   }
 
-  const growScale = Math.max(
-    VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min / Math.max(width, 1),
-    VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min / Math.max(height, 1),
-    1
-  );
-  width *= growScale;
-  height *= growScale;
-
-  const shrinkScale = Math.min(
-    VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max / Math.max(width, 1),
-    VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max / Math.max(height, 1),
-    1
-  );
-
   return {
-    height: Math.round(height * shrinkScale),
-    width: Math.round(width * shrinkScale),
+    height: Math.round(nextValue / aspectRatio),
+    width: nextValue,
   };
 };
 
@@ -62,17 +78,12 @@ export const useVideoAnnotationImageControls = ({
   setIsAnnotationMode,
 }: UseVideoAnnotationImageControlsParams) => {
   const [annotationImageContent, setAnnotationImageContent] = useState<string | null>(null);
-  const [annotationImageHeight, setAnnotationImageHeight] = useState(DEFAULT_IMAGE_ANNOTATION_HEIGHT);
+  const [annotationImageHeight, setAnnotationImageHeight] = useState(FALLBACK_IMAGE_ANNOTATION_HEIGHT);
   const [annotationImageName, setAnnotationImageName] = useState("");
   const [annotationImageOpacity, setAnnotationImageOpacity] = useState(1);
   const [annotationImagePlacementKey, setAnnotationImagePlacementKey] = useState(0);
   const [annotationImageWidth, setAnnotationImageWidth] = useState(DEFAULT_IMAGE_ANNOTATION_WIDTH);
   const annotationImageInputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleChooseAnnotationImage = useCallback(() => {
-    onRequestPause?.();
-    annotationImageInputRef.current?.click();
-  }, [onRequestPause]);
 
   const handleAnnotationImageChange = useCallback(
     (fileList: FileList | null) => {
@@ -137,18 +148,21 @@ export const useVideoAnnotationImageControls = ({
     [onModeChange, onRequestPause, setAnnotationTool, setIsAnnotationMode]
   );
 
-  const handleAnnotationImageSizeChange = useCallback((dimension: "height" | "width", value: string) => {
-    const nextValue = Math.round(
-      clampTimelineValue(Number(value), VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.min, VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS.max)
-    );
+  const handleAnnotationImageSizeChange = useCallback(
+    (dimension: "height" | "width", value: string) => {
+      const nextSize = getAspectLockedImageAnnotationSize({
+        currentHeight: annotationImageHeight,
+        currentWidth: annotationImageWidth,
+        dimension,
+        value,
+      });
+      if (!nextSize) return;
 
-    if (dimension === "height") {
-      setAnnotationImageHeight(nextValue);
-      return;
-    }
-
-    setAnnotationImageWidth(nextValue);
-  }, []);
+      setAnnotationImageHeight(nextSize.height);
+      setAnnotationImageWidth(nextSize.width);
+    },
+    [annotationImageHeight, annotationImageWidth]
+  );
 
   const handleAnnotationImageOpacityChange = useCallback((value: string) => {
     setAnnotationImageOpacity(clampTimelineValue(Number(value), 20, 100) / 100);
@@ -165,6 +179,5 @@ export const useVideoAnnotationImageControls = ({
     handleAnnotationImageChange,
     handleAnnotationImageOpacityChange,
     handleAnnotationImageSizeChange,
-    handleChooseAnnotationImage,
   };
 };

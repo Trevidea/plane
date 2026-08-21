@@ -21,7 +21,7 @@ type VideoAnnotationInlineToolbarProps = {
   annotationPreviewStartTime: number;
   annotationStrokeStyle: TCustomPlaylistAnnotationStrokeStyle;
   annotationStrokeWidth: number;
-  annotationTool: TCustomPlaylistAnnotationTool;
+  annotationTool: TCustomPlaylistAnnotationTool | null;
   availableAnnotationTools: VideoAnnotationToolOption[];
   hasActiveAnnotations: boolean;
   hasAnnotationChanges: boolean;
