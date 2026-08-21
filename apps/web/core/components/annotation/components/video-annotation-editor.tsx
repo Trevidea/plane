@@ -293,6 +293,13 @@ export const VideoAnnotationEditor = ({
     );
   }, [activeAnnotations]);
 
+  const handleDeleteAnnotation = useCallback((annotationId: string) => {
+    setAnnotations((currentAnnotations) => currentAnnotations.filter((annotation) => annotation.id !== annotationId));
+    setSelectedAnnotationId((currentAnnotationId) =>
+      currentAnnotationId === annotationId ? null : currentAnnotationId
+    );
+  }, []);
+
   const handleCreateAnnotation = useCallback(
     (annotation: TCustomPlaylistAnnotation) => {
       const offsetAnnotation = applyAnnotationCreationStartTimeOffset(annotation);
@@ -564,6 +571,7 @@ export const VideoAnnotationEditor = ({
         imageWidth={annotationImageWidth}
         inputEnabled={annotationInputEnabled}
         onCreateAnnotation={handleCreateAnnotation}
+        onDeleteAnnotation={handleDeleteAnnotation}
         onSelectedAnnotationIdChange={setSelectedAnnotationId}
         onUpdateAnnotation={handleUpdateAnnotation}
         selectedAnnotationId={selectedAnnotationId}
