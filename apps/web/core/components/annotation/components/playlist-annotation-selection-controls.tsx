@@ -1,7 +1,7 @@
 "use client";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { RotateCw } from "lucide-react";
+import { Eraser, RotateCw } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
 import type {
   TCustomPlaylistAnnotation,
@@ -20,6 +20,7 @@ type PlaylistAnnotationSelectionControlsProps = {
   canTransformAnnotations: boolean;
   onCancelAnnotationTransform: (event: ReactPointerEvent<HTMLElement>) => boolean;
   onFinishAnnotationTransform: (event: ReactPointerEvent<HTMLElement>) => boolean;
+  onDeleteAnnotation?: (annotationId: string) => void;
   onStartAnnotationTransform: (
     event: ReactPointerEvent<HTMLElement>,
     annotation: TCustomPlaylistAnnotation,
@@ -42,6 +43,7 @@ type PlaylistAnnotationSelectionControlsProps = {
 export const PlaylistAnnotationSelectionControls = ({
   canTransformAnnotations,
   onCancelAnnotationTransform,
+  onDeleteAnnotation,
   onFinishAnnotationTransform,
   onStartAnnotationTransform,
   onTransformPointerMove,
@@ -53,6 +55,14 @@ export const PlaylistAnnotationSelectionControls = ({
   selectedLinearAnnotationMidpoint,
   tool,
 }: PlaylistAnnotationSelectionControlsProps) => {
+  const handleDeleteAnnotationPointerDown = (event: ReactPointerEvent<HTMLButtonElement>, annotationId: string) => {
+    if (!onDeleteAnnotation) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    onDeleteAnnotation(annotationId);
+  };
+
   if (
     canTransformAnnotations &&
     selectedAnnotation &&
@@ -108,7 +118,7 @@ export const PlaylistAnnotationSelectionControls = ({
           </span>
         ))}
         <span
-          className="pointer-events-none absolute flex h-6 w-6 items-center justify-center"
+          className="pointer-events-none absolute flex items-center justify-center gap-1"
           style={{
             left: `${selectedLinearAnnotationMidpoint.x / 10}%`,
             top: `${selectedLinearAnnotationMidpoint.y / 10}%`,
@@ -128,6 +138,18 @@ export const PlaylistAnnotationSelectionControls = ({
               <RotateCw className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
             </button>
           </Tooltip>
+          {onDeleteAnnotation ? (
+            <Tooltip tooltipContent="Delete annotation" position="top" sideOffset={8}>
+              <button
+                type="button"
+                onPointerDown={(event) => handleDeleteAnnotationPointerDown(event, selectedAnnotation.id)}
+                className="pointer-events-auto relative flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-red-500/70 bg-custom-background-100 text-red-500 shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/45"
+                aria-label="Delete selected annotation"
+              >
+                <Eraser className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
+              </button>
+            </Tooltip>
+          ) : null}
         </span>
       </div>
     );
@@ -192,7 +214,7 @@ export const PlaylistAnnotationSelectionControls = ({
           ))
         : null}
       <span className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-[#facc15]" />
-      <span className="pointer-events-none absolute left-1/2 top-0 flex h-6 w-6 -translate-x-1/2 -translate-y-[calc(100%+1.5rem)] items-center justify-center">
+      <span className="pointer-events-none absolute left-1/2 top-0 flex -translate-x-1/2 -translate-y-[calc(100%+1.5rem)] items-center justify-center gap-1">
         <Tooltip tooltipContent="Rotate annotation" position="top" sideOffset={8}>
           <button
             type="button"
@@ -209,6 +231,21 @@ export const PlaylistAnnotationSelectionControls = ({
             <RotateCw className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
           </button>
         </Tooltip>
+        {onDeleteAnnotation ? (
+          <Tooltip tooltipContent="Delete annotation" position="top" sideOffset={8}>
+            <button
+              type="button"
+              onPointerDown={(event) => handleDeleteAnnotationPointerDown(event, selectedAnnotation.id)}
+              className="pointer-events-auto relative flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-red-500/70 bg-custom-background-100 text-red-500 shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/45"
+              style={{
+                transform: `rotate(${-selectedAnnotationRotation}deg)`,
+              }}
+              aria-label="Delete selected annotation"
+            >
+              <Eraser className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
+            </button>
+          </Tooltip>
+        ) : null}
       </span>
     </div>
   );

@@ -136,6 +136,7 @@ export const PlaylistAnnotationOverlay = ({
   imageWidth,
   inputEnabled = enabled,
   onCreateAnnotation,
+  onDeleteAnnotation,
   onSelectedAnnotationIdChange,
   onUpdateAnnotation,
   selectedAnnotationId: controlledSelectedAnnotationId,
@@ -912,6 +913,7 @@ export const PlaylistAnnotationOverlay = ({
       <PlaylistAnnotationSelectionControls
         canTransformAnnotations={canTransformAnnotations}
         onCancelAnnotationTransform={cancelAnnotationTransform}
+        onDeleteAnnotation={onDeleteAnnotation}
         onFinishAnnotationTransform={finishAnnotationTransform}
         onStartAnnotationTransform={startAnnotationTransform}
         onTransformPointerMove={handleAnnotationTransformPointerMove}
