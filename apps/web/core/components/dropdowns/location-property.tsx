@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { createPortal } from "react-dom";
 import { usePopper } from "react-popper";
-import { Ban, Search, Tag, X } from "lucide-react";
+import { Ban, MapPin, Search, X } from "lucide-react";
 
 import { ComboDropDown } from "@plane/ui";
 import { cn } from "@plane/utils";
@@ -24,21 +24,18 @@ type Props = TDropdownProps & {
   dropdownClassName?: string;
 };
 
-const DEFAULT_MEDIA_CATEGORY_OPTIONS = ["Game", "Practice", "Scrimmage", "Scout", "Skill"];
+const LOCATION_OPTIONS = ["Home", "Away"];
 
-const mergeCategoryOptions = (values: string[]) =>
-  Array.from(new Set([...DEFAULT_MEDIA_CATEGORY_OPTIONS, ...values].filter((value) => value.trim()))).sort();
-
-export const CategoryDropdown: React.FC<Props> = observer((props) => {
+export const LocationDropdown: React.FC<Props> = observer((props) => {
   const {
     className = "",
     buttonClassName = "p-1.5",
     buttonContainerClassName = "",
     clearIconClassName = "",
-    placeholder = "Category",
+    placeholder = "Location",
     buttonVariant,
     renderByDefault = true,
-    icon = <Tag className="h-3 w-3 flex-shrink-0" />,
+    icon = <MapPin className="h-3 w-3 flex-shrink-0" />,
     hideIcon = false,
     showTooltip = false,
     disabled = false,
@@ -47,12 +44,8 @@ export const CategoryDropdown: React.FC<Props> = observer((props) => {
     dropdownClassName = "",
   } = props;
 
-  const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
   const [isOpen, setIsOpen] = useState(false);
-
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [referenceElement, setReferenceElement] = useState<HTMLButtonElement | null>(null);
   const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
@@ -68,43 +61,19 @@ export const CategoryDropdown: React.FC<Props> = observer((props) => {
     setIsOpen,
   });
 
-  /* Fetch Categories */
-  useEffect(() => {
-    const API_URL = `${process.env.NEXT_PUBLIC_CP_SERVER_URL}/meta-type?key='CATEGORY'`;
-    setLoading(true);
-
-    fetch(API_URL)
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch");
-        const data = await res.json();
-
-        const block = data?.["Gateway Response"]?.result?.[0] ?? [];
-        const values = block.find((i: any) => i?.field === "values")?.value;
-        if (!Array.isArray(values)) throw new Error("Invalid response");
-
-        setCategories(mergeCategoryOptions(values));
-      })
-      .catch((e) => {
-        setCategories(mergeCategoryOptions([]));
-        setLoadError(e.message);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const filteredCategories = categories.filter((c) =>
-    c.toLowerCase().includes(search.toLowerCase())
+  const filteredLocations = LOCATION_OPTIONS.filter((location) =>
+    location.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSelect = (category: string | null) => {
-    onChange?.(category);
+  const handleSelect = (location: string | null) => {
+    onChange?.(location);
     setSearch("");
     handleClose();
     referenceElement?.blur();
   };
 
-  const displayValue = value ?? placeholder;
+  const displayValue = value || placeholder;
 
-  /* Dropdown Button */
   const comboButton = (
     <button
       type="button"
@@ -132,16 +101,16 @@ export const CategoryDropdown: React.FC<Props> = observer((props) => {
         {!hideIcon && icon}
 
         {BUTTON_VARIANTS_WITH_TEXT.includes(buttonVariant) && (
-          <span className="flex-grow truncate">{displayValue}</span>
+          <span className="min-w-0 flex-grow truncate">{displayValue}</span>
         )}
 
         {!!value && !disabled && (
           <X
             className={cn("h-2.5 w-2.5 flex-shrink-0", clearIconClassName)}
-            onClick={(e) => {
+            onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onChange?.(null);
+              handleSelect(null);
             }}
           />
         )}
@@ -166,58 +135,55 @@ export const CategoryDropdown: React.FC<Props> = observer((props) => {
             style={styles.popper}
             {...attributes.popper}
             className={cn(
-              "my-1 w-52 bg-custom-background-100 shadow-custom-shadow-rg border-[0.5px] border-custom-border-300 rounded-md overflow-hidden z-30",
+              "my-1 w-52 overflow-hidden rounded-md border-[0.5px] border-custom-border-300 bg-custom-background-100 shadow-custom-shadow-rg z-30",
               dropdownClassName
             )}
           >
-            {/* Search */}
             <div className="relative p-2">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+              <Search className="absolute left-4 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
               <input
                 autoFocus
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search"
-                className="w-full py-1 pl-8 pr-2 text-xs rounded bg-custom-background-90 outline-none"
+                className="w-full rounded bg-custom-background-90 py-1 pl-8 pr-2 text-xs outline-none"
               />
             </div>
 
-            {/* None */}
             <div
               onMouseDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleSelect(null);
               }}
-              className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-custom-background-80"
+              className="flex cursor-pointer items-center gap-2 px-2 py-1 hover:bg-custom-background-80"
             >
-              <Ban className="w-3.5 h-3.5 text-gray-400" />
+              <Ban className="h-3.5 w-3.5 text-gray-400" />
               <span className="text-xs text-gray-400">None</span>
             </div>
 
-            {loading && <div className="px-2 py-1 text-xs">Loading…</div>}
-            {loadError && categories.length === 0 ? (
-              <div className="px-2 py-1 text-xs text-red-500">Failed to load</div>
-            ) : null}
-
-            {!loading &&
-              filteredCategories.map((category) => (
-                <div
-                  key={category}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSelect(category);
-                  }}
-                  className="px-2 py-1 cursor-pointer hover:bg-custom-background-80"
-                >
-                  <span className="text-xs">{category}</span>
-                </div>
-              ))}
+            {filteredLocations.map((location) => (
+              <div
+                key={location}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelect(location);
+                }}
+                className={cn(
+                  "cursor-pointer px-2 py-1 text-xs hover:bg-custom-background-80",
+                  value === location && "bg-custom-background-80 font-medium"
+                )}
+              >
+                {location}
+              </div>
+            ))}
           </div>,
           document.body
         )}
     </ComboDropDown>
   );
 });
+
+export default LocationDropdown;

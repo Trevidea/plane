@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   File,
+  FolderOpen,
   Image as ImageIcon,
   ImageOff,
   LoaderCircle,
@@ -24,7 +25,6 @@ import type { TMediaItem } from "../types/media-library.types";
 import { getDisplayMediaTitle } from "../utils/media-detail-utils";
 import {
   getEventMediaContextLabel,
-  getEventMediaDateLabel,
   getEventMediaDetails,
   getEventMediaMetrics,
   isEventMediaItem,
@@ -55,17 +55,41 @@ export const MediaCard = ({
   const [isThumbnailUnavailable, setIsThumbnailUnavailable] = useState(!item.thumbnail);
   const isEventItem = isEventMediaItem(item);
   const eventDetails = getEventMediaDetails(item);
-  const eventDateLabel = getEventMediaDateLabel(item);
+  const eventDateLabel = item.eventDateLabel;
   const eventMetrics = getEventMediaMetrics(item);
   const eventContextLabel = getEventMediaContextLabel(item);
   const itemDescription = item.description || eventContextLabel || "";
   const displayTitle = getDisplayMediaTitle(item.title);
+  const meta = item.meta ?? {};
+  const metaString = (key: string) => {
+    const value = meta[key];
+    return typeof value === "string" && value.trim() ? value.trim() : "";
+  };
+  const metaNumber = (key: string) => {
+    const value = meta[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
 
   useEffect(() => {
     setIsThumbnailUnavailable(!item.thumbnail);
   }, [item.thumbnail]);
 
-  const durationLabel = useVideoDuration(item);
+  const { durationLabel, setVideoDuration } = useVideoDuration(item);
+  const sourceFormat = (metaString("source_format") || item.format || "").toUpperCase();
+  const resolutionHeight = metaNumber("height") || metaNumber("video_height");
+  const resolutionLabel = resolutionHeight ? `${resolutionHeight}p` : "";
+  const mediaSummaryParts =
+    item.mediaType === "video"
+      ? [resolutionLabel, sourceFormat, durationLabel, item.transcodeLabel].filter(Boolean)
+      : item.mediaType === "collection"
+        ? [`${item.itemsCount} ${item.itemsCount === 1 ? "file" : "files"}`, item.secondaryTag].filter(Boolean)
+        : [sourceFormat].filter(Boolean);
+  const mediaSummary = mediaSummaryParts.join(" • ");
   const isExternal = /^https?:\/\//i.test(href);
   const showLinkedTypeIndicator = item.mediaType === "image" && Boolean(item.link) && Boolean(item.linkedMediaType);
   const isLinkedDocumentThumbnail = item.mediaType === "image" && item.linkedMediaType === "document";
@@ -99,7 +123,9 @@ export const MediaCard = ({
   };
   const useCredentials = shouldUseCredentials(item.videoSrc ?? "");
   const crossOrigin = useCredentials ? "use-credentials" : "anonymous";
+  const isCollection = item.mediaType === "collection";
   const isVideoLike = item.mediaType === "video" || item.linkedMediaType === "video";
+  const showDurationBadge = isVideoLike && Boolean(durationLabel);
   const showAnnotatedIndicator = isVideoLike && Boolean(item.isAnnotated);
   const LinkedTypeIcon = showLinkedTypeIndicator
     ? isEventItem
@@ -111,8 +137,8 @@ export const MediaCard = ({
           : File
     : null;
   const showTranscodeBadge =
-    isVideoLike &&
-    Boolean(item.transcodeStatus) &&
+    (isVideoLike || isCollection) &&
+    (Boolean(item.transcodeStatus) || isCollection) &&
     (item.isTranscodeActive || item.isTranscodeFailed || item.isTranscodeComplete);
   const transcodeProgress = clampProgress(item.transcodeProgress);
   const TranscodeIcon = item.isTranscodeFailed ? AlertTriangle : item.isTranscodeComplete ? CheckCircle2 : LoaderCircle;
@@ -124,7 +150,7 @@ export const MediaCard = ({
   const transcodeBadgeLabel = item.isTranscodeActive
     ? `${item.transcodeLabel ?? "Uploading"} ${transcodeProgress > 0 ? `${transcodeProgress}%` : ""}`.trim()
     : item.transcodeLabel;
-  const isDetailDisabled = Boolean(item.isTranscodeActive);
+  const isDetailDisabled = !isCollection && Boolean(item.isTranscodeActive);
   const handleLinkClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (isDetailDisabled) {
       event.preventDefault();
@@ -163,7 +189,36 @@ export const MediaCard = ({
             <LinkedTypeIcon className="h-4 w-4" strokeWidth={3.5} />
           </span>
         ) : null}
-        {item.mediaType === "image" ? (
+        {showDurationBadge ? (
+          <span className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded bg-custom-background-100/85 px-1.5 py-0.5 text-[11px] font-medium text-custom-text-100 shadow-sm backdrop-blur">
+            <Clock className="h-3 w-3 text-custom-text-200" />
+            {durationLabel}
+          </span>
+        ) : null}
+        {isCollection ? (
+          isThumbnailUnavailable ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-custom-text-300">
+              <FolderOpen className="h-12 w-12" strokeWidth={2.2} />
+              <span className="text-[11px]">{item.itemsCount} files</span>
+            </div>
+          ) : (
+            <>
+              <Image
+                src={item.thumbnail}
+                alt={displayTitle}
+                width={100}
+                height={100}
+                loading="lazy"
+                onError={() => setIsThumbnailUnavailable(true)}
+                className="h-full w-full object-cover transition-transform duration-300"
+              />
+              <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded bg-custom-background-100/85 px-2 py-1 text-[11px] font-medium text-custom-text-100 backdrop-blur">
+                <FolderOpen className="h-3.5 w-3.5" />
+                {item.itemsCount} files
+              </span>
+            </>
+          )
+        ) : item.mediaType === "image" ? (
           isThumbnailUnavailable ? (
             thumbnailUnavailableFallback
           ) : (
@@ -203,6 +258,7 @@ export const MediaCard = ({
               playsInline
               preload="metadata"
               crossOrigin={crossOrigin}
+              onLoadedMetadata={(event) => setVideoDuration(event.currentTarget.duration)}
               className="h-full w-full object-cover transition-transform duration-300 "
             />
           )
@@ -236,8 +292,11 @@ export const MediaCard = ({
       </div>
       <div className="mt-2 space-y-1">
         <div className="flex items-center justify-between gap-2">
-          <div className="line-clamp-1 text-sm font-semibold text-custom-text-100">{displayTitle}</div>
+          <div className="line-clamp-1 text-sm font-semibold text-custom-text-100" title={displayTitle}>
+            {displayTitle}
+          </div>
         </div>
+
         {itemDescription ? (
           <div className="line-clamp-2 text-[11px] text-custom-text-300">{itemDescription}</div>
         ) : null}
@@ -246,7 +305,7 @@ export const MediaCard = ({
             <Calendar className="h-3.5 w-3.5 text-custom-text-300" />
             {isEventItem ? eventDateLabel || item.createdAt : item.createdAt}
           </span>
-          {item.mediaType === "video" && !isEventItem ? (
+          {isVideoLike && !isEventItem && durationLabel ? (
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3.5 w-3.5 text-custom-text-300" />
               {durationLabel}
@@ -255,17 +314,24 @@ export const MediaCard = ({
           {isEventItem ? (
             eventMetrics.map((metric) => <span key={metric}>{metric}</span>)
           ) : (
-            <span>Views {item.views}</span>
+            <span title="Views are counted when video playback starts.">Views {item.views}</span>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
-          <Tag
-            variant={ETagVariant.OUTLINED}
-            size={ETagSize.SM}
-            className="min-h-0 rounded-full border-0 bg-custom-primary-100/20 px-2 py-1 text-[11px] font-medium text-custom-primary-100 cursor-default hover:text-custom-primary-100"
-          >
-            {item.primaryTag}
-          </Tag>
+          {item.primaryTag && item.primaryTag !== item.title ? (
+            <Tag
+              variant={ETagVariant.OUTLINED}
+              size={ETagSize.SM}
+              className="min-h-0 rounded-full border-0 bg-custom-primary-100/20 px-2 py-1 text-[11px] font-medium text-custom-primary-100 cursor-default hover:text-custom-primary-100"
+            >
+              {item.primaryTag}
+            </Tag>
+          ) : null}
+          {metaString("location") ? (
+            <span className="rounded-full border border-custom-border-200 bg-custom-background-100 px-2 py-1 font-medium text-custom-text-300">
+              {metaString("location")}
+            </span>
+          ) : null}
           {showAnnotatedIndicator ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 font-medium text-amber-500">
               <PencilLine className="h-3 w-3" strokeWidth={2.5} />
@@ -278,7 +344,9 @@ export const MediaCard = ({
             </span>
           ) : null}
           {showTranscodeBadge ? (
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-medium ${transcodeBadgeClass}`}>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-medium ${transcodeBadgeClass}`}
+            >
               <TranscodeIcon className={`h-3 w-3 ${item.isTranscodeActive ? "animate-spin" : ""}`} />
               {transcodeBadgeLabel}
             </span>

@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, File, Image, ImageOff, LoaderCircle, Video } from "lucide-react";
+import { AlertTriangle, CheckCircle2, File, FolderOpen, Image, ImageOff, LoaderCircle, Video } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@plane/propel/table";
 import type { TMediaItem, TMediaSection } from "../types/media-library.types";
 import { getDisplayMediaTitle } from "../utils/media-detail-utils";
-import { getEventMediaDateLabel, isEventMediaItem } from "../utils/media-event";
+import { isEventMediaItem } from "../utils/media-event";
 
 const clampProgress = (value: unknown) => {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0;
@@ -37,10 +37,12 @@ const MediaListRow = ({
 
   const typeLabel = getItemTypeLabel
     ? getItemTypeLabel(item)
+    : item.mediaType === "collection"
+      ? "folder"
     : isEventItem
       ? "event"
       : (item.linkedMediaType ?? item.mediaType);
-  const dateLabel = isEventItem ? getEventMediaDateLabel(item) || item.createdAt : item.createdAt;
+  const dateLabel = isEventItem ? item.eventDateLabel || item.createdAt : item.createdAt;
   const showLinkedTypeIndicator = item.mediaType === "image" && Boolean(item.link) && Boolean(item.linkedMediaType);
   const isLinkedDocumentThumbnail = item.mediaType === "image" && item.linkedMediaType === "document";
   const linkedTypeLabel = showLinkedTypeIndicator
@@ -61,10 +63,11 @@ const MediaListRow = ({
           ? Image
           : File
     : null;
+  const isCollection = item.mediaType === "collection";
   const isVideoLike = item.mediaType === "video" || item.linkedMediaType === "video";
   const showTranscodeBadge =
-    isVideoLike &&
-    Boolean(item.transcodeStatus) &&
+    (isVideoLike || isCollection) &&
+    (Boolean(item.transcodeStatus) || isCollection) &&
     (item.isTranscodeActive || item.isTranscodeFailed || item.isTranscodeComplete);
   const TranscodeIcon = item.isTranscodeFailed ? AlertTriangle : item.isTranscodeComplete ? CheckCircle2 : LoaderCircle;
   const transcodeBadgeClass = item.isTranscodeFailed
@@ -77,7 +80,7 @@ const MediaListRow = ({
     ? `${item.transcodeLabel ?? "Processing"} ${transcodeProgress > 0 ? `${transcodeProgress}%` : ""}`.trim()
     : item.transcodeLabel;
   const itemHref = getItemHref ? getItemHref(item) : `./${encodeURIComponent(item.id)}`;
-  const isDetailDisabled = Boolean(item.isTranscodeActive);
+  const isDetailDisabled = !isCollection && Boolean(item.isTranscodeActive);
   const handleItemClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (isDetailDisabled) {
       event.preventDefault();
@@ -108,7 +111,12 @@ const MediaListRow = ({
       <TableCell className="w-[140px] min-w-[140px] border-r border-custom-border-200">
         {renderItemLink(
           <div className="relative h-16 w-28 overflow-hidden rounded-md bg-custom-background-90">
-            {!isThumbnailUnavailable ? (
+            {isCollection && isThumbnailUnavailable ? (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-custom-text-300">
+                <FolderOpen className="h-5 w-5" strokeWidth={2.4} />
+                <span className="text-[10px]">{item.itemsCount} files</span>
+              </div>
+            ) : !isThumbnailUnavailable ? (
               <img
                 src={item.thumbnail}
                 alt={displayTitle}
@@ -140,7 +148,9 @@ const MediaListRow = ({
         {renderItemLink(
           <>
             <div className="flex min-w-0 items-center gap-2">
-              <div className="line-clamp-1 min-w-0 text-sm font-semibold text-custom-text-100">{displayTitle}</div>
+              <div className="line-clamp-1 min-w-0 text-sm font-semibold text-custom-text-100" title={displayTitle}>
+                {displayTitle}
+              </div>
               {showTranscodeBadge ? (
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${transcodeBadgeClass}`}>
                   {transcodeBadgeLabel}
@@ -161,7 +171,7 @@ const MediaListRow = ({
         {renderItemLink(dateLabel, "block")}
       </TableCell>
       <TableCell className="min-w-[120px] text-xs text-custom-text-300">
-        {renderItemLink(item.primaryTag, "block")}
+        {renderItemLink(item.primaryTag || "--", "block")}
       </TableCell>
     </TableRow>
   );

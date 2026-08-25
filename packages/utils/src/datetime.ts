@@ -1,6 +1,35 @@
 import { differenceInDays, format, formatDistanceToNow, isAfter, isEqual, isValid, parseISO } from "date-fns";
 import { isNumber } from "lodash-es";
 
+export type TDateFormatPreference = "MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD";
+
+export const DEFAULT_WORKSPACE_DATE_FORMAT: TDateFormatPreference = "MM/DD/YYYY";
+
+export const WORKSPACE_DATE_FORMAT_OPTIONS: TDateFormatPreference[] = [
+  "MM/DD/YYYY",
+  "DD/MM/YYYY",
+  "YYYY-MM-DD",
+];
+
+const WORKSPACE_DATE_FORMAT_TOKENS: Record<TDateFormatPreference, string> = {
+  "MM/DD/YYYY": "MM/dd/yyyy",
+  "DD/MM/YYYY": "dd/MM/yyyy",
+  "YYYY-MM-DD": "yyyy-MM-dd",
+};
+
+export const normalizeDateFormatPreference = (value?: string | null): TDateFormatPreference =>
+  WORKSPACE_DATE_FORMAT_OPTIONS.includes(value as TDateFormatPreference)
+    ? (value as TDateFormatPreference)
+    : DEFAULT_WORKSPACE_DATE_FORMAT;
+
+export const getDateFnsTokenForWorkspaceFormat = (value?: string | null): string =>
+  WORKSPACE_DATE_FORMAT_TOKENS[normalizeDateFormatPreference(value)];
+
+export const renderWorkspaceDate = (
+  date: string | Date | undefined | null,
+  dateFormat?: string | null
+): string | undefined => renderFormattedDate(date, getDateFnsTokenForWorkspaceFormat(dateFormat));
+
 // Format Date Helpers
 /**
  * @returns {string | null} formatted date in the desired format or platform default format (MMM dd, yyyy)

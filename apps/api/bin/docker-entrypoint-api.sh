@@ -32,4 +32,19 @@ python manage.py create_bucket
 # Clear Cache before starting to remove stale values
 python manage.py clear_cache
 
-exec gunicorn -w "$GUNICORN_WORKERS" -k uvicorn.workers.UvicornWorker plane.asgi:application --bind 0.0.0.0:"${PORT:-8000}" --max-requests 1200 --max-requests-jitter 1000 --access-logfile -
+GUNICORN_WORKERS="${GUNICORN_WORKERS:-2}"
+GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-3600}"
+GUNICORN_GRACEFUL_TIMEOUT="${GUNICORN_GRACEFUL_TIMEOUT:-$GUNICORN_TIMEOUT}"
+GUNICORN_KEEP_ALIVE="${GUNICORN_KEEP_ALIVE:-120}"
+
+exec gunicorn \
+  -w "$GUNICORN_WORKERS" \
+  -k uvicorn.workers.UvicornWorker \
+  plane.asgi:application \
+  --bind 0.0.0.0:"${PORT:-8000}" \
+  --timeout "$GUNICORN_TIMEOUT" \
+  --graceful-timeout "$GUNICORN_GRACEFUL_TIMEOUT" \
+  --keep-alive "$GUNICORN_KEEP_ALIVE" \
+  --max-requests 1200 \
+  --max-requests-jitter 1000 \
+  --access-logfile -

@@ -8,6 +8,7 @@ import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 import { ProgramDropdown } from "@/components/dropdowns/program-property";
 import SportDropdown from "@/components/dropdowns/sport-property";
 import { YearRangeDropdown } from "@/components/dropdowns/year-property";
+import { CustomSelect } from "@plane/ui";
 import { UPLOAD_MODAL_TEXT_CLASS } from "./media-library-upload-style-classes";
 import type { TMetaFieldChange, TMetaFormState, TUploadTarget } from "./media-library-upload-types";
 
@@ -28,6 +29,7 @@ const FIELD_BUTTON_BASE_CLASS = `h-8 border-custom-border-200 bg-custom-backgrou
 const getFieldButtonClassName = (_hasValue: boolean) => `${FIELD_BUTTON_BASE_CLASS} text-xs`;
 const getFieldButtonContainerClassName = (isLocked: boolean) => `w-full text-left ${isLocked ? "cursor-default" : ""}`;
 const FIELD_LABEL_CLASS = `pl-1 ${UPLOAD_MODAL_TEXT_CLASS.label}`;
+const LOCATION_OPTIONS = ["Home", "Away"];
 
 export const MediaLibraryUploadMetaForm = ({
   projectId,
@@ -46,13 +48,13 @@ export const MediaLibraryUploadMetaForm = ({
       Metadata <span className={`font-normal ${UPLOAD_MODAL_TEXT_CLASS.optional}`}>(Optional)</span>
     </div>
     <div className="mt-2">{workItemSelector}</div>
-    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-7">
       <div className={`flex flex-col gap-1 text-[11px] ${UPLOAD_MODAL_TEXT_CLASS.label}`}>
         <span className={FIELD_LABEL_CLASS}>Category</span>
         <CategoryDropdown
           value={meta.category}
           onChange={(val) => onFieldChange("category", val)}
-          placeholder={uploadTarget === "work-item" ? "Work items" : "Uploads"}
+          placeholder={uploadTarget === "work-item" ? "Work item category" : "Select category"}
           buttonVariant="border-with-text"
           className="h-8"
           buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
@@ -62,6 +64,30 @@ export const MediaLibraryUploadMetaForm = ({
           dropdownClassName="z-[70]"
           disabled={isLocked}
         />
+      </div>
+      <div className={`flex flex-col gap-1 text-[11px] ${UPLOAD_MODAL_TEXT_CLASS.label}`}>
+        <span className={FIELD_LABEL_CLASS}>Location</span>
+        <CustomSelect
+          value={meta.location}
+          onChange={(val: string | null) => onFieldChange("location", val)}
+          label={
+            <span className="flex min-w-0 flex-1 items-center gap-1 truncate">
+              <span className="truncate">{meta.location || "Select location"}</span>
+            </span>
+          }
+          className="w-full"
+          buttonClassName={getFieldButtonClassName(Boolean(meta.location))}
+          optionsClassName="z-[70]"
+          disabled={isLocked}
+          noChevron
+        >
+          <CustomSelect.Option value={null}>None</CustomSelect.Option>
+          {LOCATION_OPTIONS.map((location) => (
+            <CustomSelect.Option key={location} value={location}>
+              {location}
+            </CustomSelect.Option>
+          ))}
+        </CustomSelect>
       </div>
       <div className={`flex flex-col gap-1 text-[11px] ${UPLOAD_MODAL_TEXT_CLASS.label}`}>
         <span className={FIELD_LABEL_CLASS}>Sport</span>

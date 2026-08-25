@@ -7,6 +7,8 @@ import mimetypes
 import os
 import re
 import time
+import subprocess
+from datetime import datetime, timezone as dt_timezone
 from hashlib import sha1
 from urllib import error as urlerror, request as urlrequest
 from urllib.parse import urlparse
@@ -75,8 +77,13 @@ _IMAGE_FORMATS = {
 }
 _VIDEO_FORMATS = {"mp4", "m3u8", "mov", "webm", "avi", "mkv", "mpeg", "mpg", "m4v"}
 _MP4_FASTSTART_FORMATS = {".mp4", ".m4v"}
-_TRANSCODE_SOURCE_FORMATS = {"mp4"}
+_TRANSCODE_SOURCE_FORMATS = {"mp4", "mov"}
 _TRANSCODE_TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED"}
+_VIEW_DEDUPE_SECONDS = 24 * 60 * 60
+_MAX_TRANSCODE_SOURCE_LONG_EDGE = 1920
+_MAX_TRANSCODE_SOURCE_SHORT_EDGE = 1080
+_SUPPORTED_TRANSCODE_VIDEO_CODECS = {"h264", "hevc", "h265", "mpeg4", "prores"}
+_SUPPORTED_TRANSCODE_AUDIO_CODECS = {"aac", "mp3", "mp2", "pcm_s16le", "pcm_s24le", "alac", "ac3", "eac3"}
 logger = logging.getLogger(__name__)
 
 _UPLOAD_LOG_SAFE_FIELD_NAMES = {
@@ -178,13 +185,136 @@ def _log_media_upload_event(level: int, event: str, trace_fields: dict | None = 
     logger.log(level, json.dumps(payload, separators=(",", ":"), sort_keys=True))
 
 
+class MediaSourceValidationError(ValueError):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+def _probe_number(value: object) -> float | None:
+    try:
+        if value in (None, "N/A"):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _probe_rate(value: object) -> float | None:
+    if not value or value == "0/0":
+        return None
+    text = str(value)
+    if "/" in text:
+        numerator, denominator = text.split("/", 1)
+        denominator_value = _probe_number(denominator)
+        if not denominator_value:
+            return None
+        numerator_value = _probe_number(numerator)
+        return round(numerator_value / denominator_value, 3) if numerator_value is not None else None
+    return _probe_number(text)
+
+
+def _format_duration_hhmmss(value: float | None) -> str | None:
+    if value is None or value < 0:
+        return None
+    total_seconds = int(round(value))
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def _probe_transcode_source(path: Path) -> dict:
+    if shutil.which("ffprobe") is None:
+        raise MediaSourceValidationError("SOURCE_PROBE_UNAVAILABLE", "ffprobe is not installed. Video uploads cannot be inspected.")
+    cmd = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-print_format",
+        "json",
+        "-show_format",
+        "-show_streams",
+        str(path),
+    ]
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        return json.loads(result.stdout or "{}")
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "").strip()
+        if detail:
+            logger.warning("ffprobe rejected upload source %s: %s", path.name, detail[:500])
+        raise MediaSourceValidationError(
+            "SOURCE_PROBE_FAILED",
+            "This video could not be inspected. It may be invalid or corrupted.",
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise MediaSourceValidationError("SOURCE_PROBE_FAILED", "ffprobe returned invalid media metadata.") from exc
+
+
+def _inspect_transcode_source(path: Path) -> dict:
+    raw_probe = _probe_transcode_source(path)
+    streams = raw_probe.get("streams") if isinstance(raw_probe, dict) else []
+    streams = streams if isinstance(streams, list) else []
+    video_stream = next((stream for stream in streams if stream.get("codec_type") == "video"), None)
+    audio_stream = next((stream for stream in streams if stream.get("codec_type") == "audio"), None)
+    if not isinstance(video_stream, dict):
+        raise MediaSourceValidationError("SOURCE_UNSUPPORTED", "No usable video stream found.")
+
+    width = int(_probe_number(video_stream.get("width")) or 0)
+    height = int(_probe_number(video_stream.get("height")) or 0)
+    rotation = int(_probe_number((video_stream.get("tags") or {}).get("rotate")) or 0) if isinstance(video_stream.get("tags"), dict) else 0
+    if abs(rotation) in {90, 270}:
+        display_width, display_height = height, width
+    else:
+        display_width, display_height = width, height
+    long_edge = max(display_width, display_height)
+    short_edge = min(display_width, display_height)
+    if long_edge > _MAX_TRANSCODE_SOURCE_LONG_EDGE or short_edge > _MAX_TRANSCODE_SOURCE_SHORT_EDGE:
+        if long_edge >= 3840 and short_edge >= 2160:
+            raise MediaSourceValidationError(
+                "SOURCE_RESOLUTION_UNSUPPORTED",
+                "This video is 4K. The current upload limit is 1080p.",
+            )
+        raise MediaSourceValidationError(
+            "SOURCE_RESOLUTION_UNSUPPORTED",
+            "This video exceeds the current upload limit of 1080p.",
+        )
+
+    video_codec = str(video_stream.get("codec_name") or "").lower()
+    if video_codec not in _SUPPORTED_TRANSCODE_VIDEO_CODECS:
+        raise MediaSourceValidationError(
+            "SOURCE_CODEC_UNSUPPORTED",
+            f"This video uses unsupported video codec '{video_codec or 'unknown'}'.",
+        )
+    audio_codec = ""
+    if isinstance(audio_stream, dict):
+        audio_codec = str(audio_stream.get("codec_name") or "").lower()
+        if audio_codec and audio_codec not in _SUPPORTED_TRANSCODE_AUDIO_CODECS:
+            raise MediaSourceValidationError(
+                "SOURCE_CODEC_UNSUPPORTED",
+                f"This video uses unsupported audio codec '{audio_codec}'.",
+            )
+
+    fmt = raw_probe.get("format") if isinstance(raw_probe.get("format"), dict) else {}
+    duration_seconds = _probe_number(fmt.get("duration")) or _probe_number(video_stream.get("duration"))
+    return {
+        "duration": _format_duration_hhmmss(duration_seconds),
+        "duration_seconds": duration_seconds,
+        "width": display_width,
+        "height": display_height,
+        "source_width": width,
+        "source_height": height,
+        "video_codec": video_codec,
+        "audio_codec": audio_codec or None,
+        "frame_rate": _probe_rate(video_stream.get("avg_frame_rate") or video_stream.get("r_frame_rate")),
+        "source_container": fmt.get("format_name"),
+    }
+
+
 def _default_artifact_description(title: str) -> str:
-    title_value = (title or "Uploaded file").strip() or "Uploaded file"
-    return (
-        "<p>This asset was uploaded to the media library and is ready for use.<br />"
-        "It can be previewed, downloaded, or used in projects as needed.<br />"
-        f"File name: {title_value}</p>"
-    )
+    return "<p>File uploaded to the Media Library.</p>"
 
 
 class ListPaginator:
@@ -830,6 +960,81 @@ def _update_artifact_transcode_meta(
     return updated_count
 
 
+def _parse_iso_datetime(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=dt_timezone.utc)
+    return parsed.astimezone(dt_timezone.utc)
+
+
+def _viewer_key_for_request(request, payload: dict) -> str:
+    user = getattr(request, "user", None)
+    if getattr(user, "is_authenticated", False) and getattr(user, "id", None):
+        return f"user:{user.id}"
+    session_id = ""
+    if isinstance(payload, dict):
+        session_id = str(payload.get("session_id") or payload.get("sessionId") or "").strip()
+    if not session_id:
+        session_id = str(getattr(request, "headers", {}).get("X-Media-Viewer-Session", "")).strip()
+    if session_id:
+        return f"session:{session_id[:128]}"
+    user_agent = str(getattr(request, "META", {}).get("HTTP_USER_AGENT", ""))
+    remote_addr = str(getattr(request, "META", {}).get("REMOTE_ADDR", ""))
+    return "anonymous:" + sha1(f"{remote_addr}:{user_agent}".encode("utf-8")).hexdigest()
+
+
+def _record_media_artifact_view(project_id: str, package_id: str, artifact_id: str, viewer_key: str) -> dict:
+    manifest_file = manifest_path(project_id, package_id)
+    if not manifest_file.exists():
+        raise NotFound("Manifest not found.")
+    now = datetime.now(dt_timezone.utc).replace(microsecond=0)
+    now_iso = now.isoformat().replace("+00:00", "Z")
+    with manifest_write_lock(manifest_file):
+        manifest = read_manifest(manifest_file)
+        artifact = _find_manifest_artifact(manifest, artifact_id)
+        if not artifact:
+            raise NotFound("Artifact not found.")
+        metadata = manifest.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+            manifest["metadata"] = metadata
+        current_meta = resolve_artifact_metadata(artifact, metadata)
+        next_meta = dict(current_meta)
+        view_events = next_meta.get("view_events")
+        if not isinstance(view_events, dict):
+            view_events = {}
+        existing_event = view_events.get(viewer_key)
+        existing_viewed_at = existing_event.get("last_viewed_at") if isinstance(existing_event, dict) else existing_event
+        last_viewed_at = _parse_iso_datetime(existing_viewed_at)
+        counted = not last_viewed_at or (now - last_viewed_at).total_seconds() >= _VIEW_DEDUPE_SECONDS
+        current_views = next_meta.get("views")
+        try:
+            views = int(current_views)
+        except (TypeError, ValueError):
+            views = 0
+        if counted:
+            views += 1
+        view_events[viewer_key] = {"last_viewed_at": now_iso}
+        next_meta["views"] = views
+        next_meta["view_events"] = view_events
+        metadata_ref = normalize_metadata_ref(artifact.get("metadata_ref")) or normalize_metadata_ref(artifact.get("name"))
+        if metadata_ref:
+            artifact["metadata_ref"] = metadata_ref
+            metadata[metadata_ref] = next_meta
+            artifact.pop("meta", None)
+        else:
+            artifact["meta"] = next_meta
+        manifest["updatedAt"] = _now_iso()
+        normalize_manifest_metadata(manifest)
+        write_manifest_atomic(manifest_file, manifest)
+    return {"views": views, "counted": counted}
+
+
 mimetypes.add_type("application/vnd.apple.mpegurl", ".m3u8")
 mimetypes.add_type("application/x-mpegURL", ".m3u8")
 mimetypes.add_type("video/mp2t", ".ts")
@@ -1358,6 +1563,19 @@ class MediaArtifactDetailAPIView(BaseAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class MediaArtifactViewAPIView(BaseAPIView):
+    @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
+    def post(self, request, slug, project_id, package_id, artifact_id):
+        project_id_str = str(project_id)
+        validate_segment(project_id_str, "projectId")
+        validate_segment(package_id, "packageId")
+        validate_segment(artifact_id, "artifactId")
+        payload = request.data if isinstance(request.data, dict) else {}
+        viewer_key = _viewer_key_for_request(request, payload)
+        result = _record_media_artifact_view(project_id_str, package_id, artifact_id, viewer_key)
+        return Response(result, status=status.HTTP_200_OK)
+
+
 class MediaArtifactTranscodeAPIView(BaseAPIView):
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER], level="PROJECT")
     def post(self, request, slug, project_id, package_id, artifact_id):
@@ -1379,7 +1597,7 @@ class MediaArtifactTranscodeAPIView(BaseAPIView):
         artifact_format = _artifact_transcode_format(artifact)
         if artifact_format not in _TRANSCODE_SOURCE_FORMATS:
             return Response(
-                {"error": {"code": "SOURCE_UNSUPPORTED", "message": "Only MP4 uploads can be transcoded."}},
+                {"error": {"code": "SOURCE_UNSUPPORTED", "message": "Only MP4 or MOV uploads can be transcoded."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -1614,6 +1832,7 @@ class MediaArtifactsListAPIView(BaseAPIView):
             metadata = manifest.get("metadata") if isinstance(manifest, dict) else {}
             query = request.query_params.get("q") or ""
             section = request.query_params.get("section") or ""
+            batch_id = request.query_params.get("batch_id") or request.query_params.get("batchId") or ""
             format_values = request.query_params.getlist("formats")
             if not format_values:
                 format_param = request.query_params.get("formats") or ""
@@ -1635,6 +1854,7 @@ class MediaArtifactsListAPIView(BaseAPIView):
                     query=query,
                     filters=filters,
                     section=section,
+                    batch_id=batch_id,
                     formats=format_values,
                     metadata=metadata,
                 )
@@ -2039,6 +2259,40 @@ class MediaArtifactsListAPIView(BaseAPIView):
                     primary_artifact["meta"] = primary_meta
             if isinstance(primary_artifact, dict):
                 asset_id = _transcode_asset_id(project_id_str, package_id, primary_artifact_name)
+                try:
+                    source_metadata = _inspect_transcode_source(transcode_source_file_path)
+                    primary_meta.update({key: value for key, value in source_metadata.items() if value is not None})
+                    _log_media_upload_event(
+                        logging.INFO,
+                        "source_validation_completed",
+                        trace_fields,
+                        workspace_slug=slug,
+                        project_id=project_id_str,
+                        package_id=package_id,
+                        artifact_name=primary_artifact_name,
+                        format=extension,
+                    )
+                except MediaSourceValidationError as exc:
+                    try:
+                        transcode_source_file_path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    _log_media_upload_event(
+                        logging.WARNING,
+                        "source_validation_failed",
+                        trace_fields,
+                        workspace_slug=slug,
+                        project_id=project_id_str,
+                        package_id=package_id,
+                        artifact_name=primary_artifact_name,
+                        format=extension,
+                        error_code=exc.code,
+                        error=exc.message,
+                    )
+                    return Response(
+                        {"error": {"code": exc.code, "message": exc.message}},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 transcode_payload = {
                     "asset_id": asset_id,
                     "input_path": transcode_source_storage_path,

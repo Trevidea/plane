@@ -24,9 +24,12 @@ export interface IWorkspace {
   readonly created_by: string;
   readonly updated_by: string;
   organization_size: string;
+  date_format: TWorkspaceDateFormat;
   total_projects?: number;
   role: number;
 }
+
+export type TWorkspaceDateFormat = "MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD";
 
 export interface IWorkspaceLite {
   readonly id: string;

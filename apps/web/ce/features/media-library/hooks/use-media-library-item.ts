@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { MediaLibraryService } from "@/services/media-library.service";
+import { useWorkspace } from "@/hooks/store/use-workspace";
 import type { TMediaItem } from "../types/media-library.types";
 import { mapArtifactsToMediaItems } from "../utils/media-items";
 
@@ -15,6 +16,7 @@ export const useMediaLibraryItem = (
   const [item, setItem] = useState<TMediaItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
+  const { currentWorkspace } = useWorkspace();
   const normalizedId = useMemo(() => {
     if (!mediaId) return "";
     try {
@@ -53,6 +55,8 @@ export const useMediaLibraryItem = (
           projectId,
           packageId,
           metadata: metadataMap,
+          dateFormat: currentWorkspace?.date_format,
+          groupBatches: false,
         });
         const resolved = mappedItems.find((entry) => entry.id === normalizedId) ?? null;
         if (isMounted) setItem(resolved);
@@ -68,7 +72,7 @@ export const useMediaLibraryItem = (
     return () => {
       isMounted = false;
     };
-  }, [mediaLibraryService, normalizedId, projectId, refreshKey, workspaceSlug]);
+  }, [currentWorkspace?.date_format, mediaLibraryService, normalizedId, projectId, refreshKey, workspaceSlug]);
 
   return { item, isLoading };
 };
