@@ -39,6 +39,8 @@ import { TagsSection } from "./tags-section";
 
 type TPipCaptionMode = "disabled" | "hidden" | "showing";
 
+const VIDEO_READY_STATE_HAVE_CURRENT_DATA = 2;
+
 const MediaDetailPage = () => {
   const { mediaId, workspaceSlug, projectId } = useParams() as {
     mediaId: string;
@@ -126,8 +128,10 @@ const MediaDetailPage = () => {
   const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isVideoFrameReady, setIsVideoFrameReady] = useState(false);
   const [isVideoAnnotationMode, setIsVideoAnnotationMode] = useState(false);
   const [isVideoAnnotationWorkspaceOpen, setIsVideoAnnotationWorkspaceOpen] = useState(false);
+  const [hasUnsavedVideoAnnotationChanges, setHasUnsavedVideoAnnotationChanges] = useState(false);
   const [videoAnnotationWorkspaceActivationKey, setVideoAnnotationWorkspaceActivationKey] = useState(0);
   const [videoAnnotationBackPromptKey, setVideoAnnotationBackPromptKey] = useState(0);
   const [currentVideoSeconds, setCurrentVideoSeconds] = useState(0);
@@ -150,6 +154,7 @@ const MediaDetailPage = () => {
   useEffect(() => {
     setCurrentVideoSeconds(0);
     setCurrentVideoDurationSeconds(null);
+    setIsVideoFrameReady(false);
     setIsVideoAnnotationMode(false);
     setIsVideoAnnotationWorkspaceOpen(false);
   }, [item?.id]);
@@ -299,6 +304,7 @@ const MediaDetailPage = () => {
 
   useEffect(() => {
     if (!isVideo) {
+      setIsVideoFrameReady(false);
       if (playerRef.current) {
         playerRef.current.dispose();
         playerRef.current = null;
@@ -568,6 +574,7 @@ const MediaDetailPage = () => {
         playerRef.current = null;
       }
       setPlayerElement(null);
+      setIsVideoFrameReady(false);
     };
   }, [handleTogglePip, isHls, isVideo]);
 
@@ -623,18 +630,22 @@ const MediaDetailPage = () => {
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
-    const handleReady = () => setPlayerTick((value) => value + 1);
-    player.on("loadedmetadata", handleReady);
-    player.on("loadeddata", handleReady);
-    player.on("canplay", handleReady);
-    player.on("play", handleReady);
-    return () => {
-      player.off("loadedmetadata", handleReady);
-      player.off("loadeddata", handleReady);
-      player.off("canplay", handleReady);
-      player.off("play", handleReady);
+    const handleReady = () => {
+      setPlayerTick((value) => value + 1);
+      const readyState = Number(player.readyState?.() ?? videoRef.current?.readyState ?? 0);
+      if (readyState >= VIDEO_READY_STATE_HAVE_CURRENT_DATA) {
+        setIsVideoFrameReady(true);
+      }
     };
-  }, [isVideo, proxiedVideoSrc]);
+    const playerEvents = ["loadedmetadata", "loadeddata", "canplay", "playing", "play"];
+
+    playerEvents.forEach((eventName) => player.on(eventName, handleReady));
+    handleReady();
+
+    return () => {
+      playerEvents.forEach((eventName) => player.off(eventName, handleReady));
+    };
+  }, [effectiveVideoSrc, isVideo, item?.id]);
 
   useEffect(() => {
     const player = playerRef.current as any;
@@ -692,6 +703,7 @@ const MediaDetailPage = () => {
 
   useEffect(() => {
     const player = playerRef.current;
+    setIsVideoFrameReady(false);
     if (!player || !effectiveVideoSrc) return;
     const type = getVideoMimeType(resolvedVideoFormat);
     const source = type ? { src: effectiveVideoSrc, type } : { src: effectiveVideoSrc };
@@ -903,6 +915,7 @@ const MediaDetailPage = () => {
     const player = playerRef.current;
 
     player?.pause?.();
+    setHasUnsavedVideoAnnotationChanges(false);
     setIsVideoAnnotationWorkspaceOpen(true);
     setVideoAnnotationWorkspaceActivationKey((currentValue) => currentValue + 1);
   }, []);
@@ -919,6 +932,7 @@ const MediaDetailPage = () => {
     const player = playerRef.current;
 
     setIsVideoAnnotationMode(false);
+    setHasUnsavedVideoAnnotationChanges(false);
     player?.controls?.(true);
     if (shouldOpenVideoAnnotationWorkspaceFromQuery) {
       router.push(backHref);
@@ -932,6 +946,7 @@ const MediaDetailPage = () => {
     const player = playerRef.current;
 
     setIsVideoAnnotationMode(false);
+    setHasUnsavedVideoAnnotationChanges(false);
     player?.controls?.(true);
     if (shouldOpenVideoAnnotationWorkspaceFromQuery) {
       router.push(backHref);
@@ -1056,15 +1071,20 @@ const MediaDetailPage = () => {
       const isGuardState = Boolean(state && typeof state === "object" && guardStateKey in state);
       if (isGuardState) return;
 
-      setVideoAnnotationBackPromptKey((currentValue) => currentValue + 1);
-      pushGuardState();
+      if (hasUnsavedVideoAnnotationChanges) {
+        setVideoAnnotationBackPromptKey((currentValue) => currentValue + 1);
+        pushGuardState();
+        return;
+      }
+
+      handleDiscardVideoAnnotationWorkspace();
     };
 
     window.addEventListener("popstate", handleBrowserBack);
     return () => {
       window.removeEventListener("popstate", handleBrowserBack);
     };
-  }, [isFocusedVideoAnnotationWorkspace]);
+  }, [handleDiscardVideoAnnotationWorkspace, hasUnsavedVideoAnnotationChanges, isFocusedVideoAnnotationWorkspace]);
 
   if (!item && isLoading) {
     return (
@@ -1169,6 +1189,7 @@ const MediaDetailPage = () => {
               canAnnotateVideo={canAnnotateUploadedVideo}
               isVideoAnnotationMode={isVideoAnnotationMode}
               isVideoAnnotationWorkspaceOpen={isFocusedVideoAnnotationWorkspace}
+              hasUnsavedVideoAnnotationChanges={hasUnsavedVideoAnnotationChanges}
               onOverlayToggle={handleOverlayToggle}
               onOverlaySeek={handleOverlaySeek}
               onOpenVideoAnnotationWorkspace={handleOpenVideoAnnotationWorkspace}
@@ -1190,7 +1211,7 @@ const MediaDetailPage = () => {
               onVideoTimelineElementChange={setVideoTimelineElement}
               showVideoTimeline={isFocusedVideoAnnotationWorkspace}
               videoAnnotationContent={
-                isVideo ? (
+                isVideo && isVideoFrameReady ? (
                   <VideoAnnotationEditor
                     annotationKey={`${item.packageId ?? ""}:${item.id}`}
                     annotations={item.meta?.annotations}
@@ -1207,6 +1228,7 @@ const MediaDetailPage = () => {
                     modeResetKey={`${item.id}:${isFocusedVideoAnnotationWorkspace ? "open" : "closed"}`}
                     onModeChange={handleAnnotationModeChange}
                     onRegisterSaveHandler={handleRegisterVideoAnnotationSaveHandler}
+                    onUnsavedChangesChange={setHasUnsavedVideoAnnotationChanges}
                     onRequestPause={handleAnnotationPause}
                     onSave={handleSaveVideoAnnotations}
                     onSeek={handleVideoTimelineSeek}
