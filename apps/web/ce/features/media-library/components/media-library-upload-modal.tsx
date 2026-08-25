@@ -2,20 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import {
-  AlertTriangle,
-  FileImage,
-  FileText,
-  FileVideo,
-  Trash2,
-  UploadCloud,
-  X,
-} from "lucide-react";
+import { AlertTriangle, FileImage, FileText, FileVideo, Trash2, UploadCloud, X } from "lucide-react";
 import type { ISearchIssueResponse, TIssue } from "@plane/types";
 import { Button, Checkbox } from "@plane/ui";
-import { renderWorkspaceDate } from "@plane/utils";
 import { useInstance } from "@/hooks/store/use-instance";
-import { useWorkspace } from "@/hooks/store/use-workspace";
 import { useUser } from "@/hooks/store/user";
 import { IssueService } from "@/services/issue";
 import { ProjectService } from "@/services/project";
@@ -28,6 +18,7 @@ import {
   isActiveUploadStatus,
   readMediaLibraryFileSizeLimit,
   resolveArtifactFormat,
+  shouldAutoCloseUploadModal,
 } from "../utils/media-library-upload-jobs";
 import { buildUploadTraceId, logMediaUploadLifecycle } from "../utils/upload-progress";
 import { MediaLibraryUploadMetaForm } from "./media-library-upload-meta";
@@ -121,17 +112,10 @@ const buildMetaPayload = (
 const projectService = new ProjectService();
 
 export const MediaLibraryUploadModal = () => {
-  const {
-    isUploadOpen,
-    closeUpload,
-    pendingUploadFiles,
-    setPendingUploadFiles,
-    enqueueUploadBatch,
-    uploadJobs,
-  } = useMediaLibrary();
+  const { isUploadOpen, closeUpload, pendingUploadFiles, setPendingUploadFiles, enqueueUploadBatch, uploadJobs } =
+    useMediaLibrary();
   const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
   const { config } = useInstance();
-  const { currentWorkspace } = useWorkspace();
   const { data: currentUser } = useUser();
   const currentUserId = currentUser?.id ?? null;
   const [isDragging, setIsDragging] = useState(false);
@@ -145,7 +129,6 @@ export const MediaLibraryUploadModal = () => {
   const [isWorkItemDetailsLoading, setIsWorkItemDetailsLoading] = useState(false);
   const [selectedWorkItem, setSelectedWorkItem] = useState<ISearchIssueResponse | null>(null);
   const [tagDraft, setTagDraft] = useState("");
-  const [uploadFolderName, setUploadFolderName] = useState("");
   const [modalUploadJobIds, setModalUploadJobIds] = useState<string[]>([]);
   const debouncedWorkItemQuery = useDebouncedValue(workItemQuery, 300);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -168,21 +151,8 @@ export const MediaLibraryUploadModal = () => {
   }, [modalUploadJobIds, uploadJobs]);
   const activeModalUploadJobs = modalUploadJobs.filter((job) => isActiveUploadStatus(job.status));
   const finishedModalUploadJobs = modalUploadJobs.filter((job) => !isActiveUploadStatus(job.status));
-  const transferActiveModalUploadJobs = modalUploadJobs.filter(
-    (job) => job.status === "queued" || job.status === "uploading"
-  );
-  const failedModalUploadJobs = modalUploadJobs.filter((job) => job.status === "failed");
-  const uploadedModalUploadJobs = modalUploadJobs.filter(
-    (job) => job.uploadCompletedAtMs || job.status === "completed" || job.status === "processing"
-  );
   const hasStartedModalUpload = modalUploadJobs.length > 0;
-  const shouldAutoCloseAfterUpload =
-    isUploadOpen &&
-    hasStartedModalUpload &&
-    transferActiveModalUploadJobs.length === 0 &&
-    failedModalUploadJobs.length === 0 &&
-    uploadedModalUploadJobs.length === modalUploadJobs.length;
-  const workspaceDateFormat = currentWorkspace?.date_format ?? "MM/DD/YYYY";
+  const shouldAutoCloseAfterUpload = isUploadOpen && shouldAutoCloseUploadModal(modalUploadJobs);
 
   useEffect(() => {
     if (!isUploadOpen || !currentUserId || selectedWorkItem) return;
@@ -259,13 +229,6 @@ export const MediaLibraryUploadModal = () => {
   };
 
   const handleClose = () => {
-    if (
-      transferActiveModalUploadJobs.length > 0 &&
-      typeof window !== "undefined" &&
-      !window.confirm("Uploads are still running. Close the upload modal anyway?")
-    ) {
-      return;
-    }
     resetSelectionForm();
     closeUpload();
   };
@@ -369,7 +332,6 @@ export const MediaLibraryUploadModal = () => {
     setIsWorkItemDetailsLoading(false);
     setWorkItemQuery("");
     setTagDraft("");
-    setUploadFolderName("");
     setModalUploadJobIds([]);
     if (inputRef.current) inputRef.current.value = "";
   }, [currentUserId]);
@@ -383,8 +345,6 @@ export const MediaLibraryUploadModal = () => {
   const handleUpload = () => {
     const itemsToUpload = uploads.filter((item) => item.status === "selected");
     if (itemsToUpload.length === 0 || !workspaceSlug || !projectId) return;
-    const generatedBatchName = `Upload - ${renderWorkspaceDate(new Date(), workspaceDateFormat) ?? ""}`.trim();
-    const batchName = itemsToUpload.length > 1 ? uploadFolderName.trim() || generatedBatchName : null;
 
     const queuedJobs = enqueueUploadBatch({
       workspaceSlug,
@@ -392,7 +352,6 @@ export const MediaLibraryUploadModal = () => {
       files: itemsToUpload.map((item) => item.file),
       meta: buildMetaPayload(metaState, uploadTarget, selectedWorkItem),
       workItemId: selectedWorkItem?.id ?? null,
-      batchName,
     });
     if (queuedJobs.length > 0) {
       setModalUploadJobIds((prev) => {
@@ -477,7 +436,7 @@ export const MediaLibraryUploadModal = () => {
             type="button"
             onClick={handleClose}
             className={UPLOAD_MODAL_TEXT_CLASS.mutedAction}
-            aria-label={transferActiveModalUploadJobs.length > 0 ? "Close upload with running uploads" : "Close upload"}
+            aria-label="Close upload"
           >
             <X className="h-5 w-5" />
           </button>
@@ -523,21 +482,6 @@ export const MediaLibraryUploadModal = () => {
             onAddTag={handleAddTag}
             onRemoveTag={handleRemoveTag}
           />
-
-          {readyToUploadItems.length > 1 && !hasStartedModalUpload ? (
-            <div className="mb-4 rounded-lg border border-custom-border-200 bg-custom-background-90 p-4 dark:border-[#303030] dark:bg-[#151515]">
-              <label className={`flex flex-col gap-1 text-[11px] ${UPLOAD_MODAL_TEXT_CLASS.label}`}>
-                <span className="pl-1">Upload folder name</span>
-                <input
-                  type="text"
-                  value={uploadFolderName}
-                  onChange={(event) => setUploadFolderName(event.target.value)}
-                  placeholder={`Upload - ${renderWorkspaceDate(new Date(), workspaceDateFormat) ?? "today"}`}
-                  className={`h-8 rounded border border-custom-border-200 bg-custom-background-100 px-2 text-xs ${UPLOAD_MODAL_TEXT_CLASS.input} ${UPLOAD_MODAL_TEXT_CLASS.inputPlaceholder} focus:outline-none dark:border-[#303030] dark:bg-[#171717]`}
-                />
-              </label>
-            </div>
-          ) : null}
 
           <div
             className={`flex min-h-[214px] flex-col items-center justify-center rounded-lg border border-dashed px-4 py-8 text-center transition ${

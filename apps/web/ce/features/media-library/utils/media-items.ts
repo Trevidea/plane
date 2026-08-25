@@ -691,7 +691,7 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
     };
   });
 
-  return context?.groupBatches === false ? items : groupUploadBatchItems(items, context);
+  return context?.groupBatches === true ? groupUploadBatchItems(items, context) : items;
 };
 
 export const groupMediaItemsByTag = (items: TMediaItem[], fallbackTitle = "Media"): TMediaSection[] => {

@@ -639,6 +639,7 @@ const MediaDetailPage = () => {
       }
     } catch {
       // View counting should never interrupt playback.
+      console.error("Failed to record media playback view:", workspaceSlug, projectId, item?.packageId, item?.id);
     }
   }, [handleMediaItemUpdated, isVideo, item?.id, item?.meta, item?.packageId, mediaLibraryService, projectId, workspaceSlug]);
 

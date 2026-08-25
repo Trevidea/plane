@@ -11,6 +11,7 @@ import {
   isTranscodableVideoUpload,
   readMediaLibraryFileSizeLimit,
   resolveArtifactFormat,
+  shouldAutoCloseUploadModal,
 } from "../media-library-upload-jobs.ts";
 
 const createFile = (name, size, type = "video/mp4") =>
@@ -55,6 +56,21 @@ test("buildMediaLibraryUploadJobs persists multi-file upload batch metadata", ()
   assert.equal(jobs[0].batchId, jobs[1].batchId);
 });
 
+test("buildMediaLibraryUploadJobs keeps unnamed multi-file uploads separate", () => {
+  const jobs = buildMediaLibraryUploadJobs({
+    workspaceSlug: "workspace-a",
+    projectId: "project-a",
+    files: [createFile("clip-01.mov", 4, "video/quicktime"), createFile("clip-02.mov", 4, "video/quicktime")],
+    meta: { category: "Practice", location: "Home" },
+  });
+
+  assert.equal(jobs.length, 2);
+  assert.equal(jobs[0].batchId, null);
+  assert.equal(jobs[1].batchId, null);
+  assert.equal(jobs[0].meta.upload_batch_id, undefined);
+  assert.equal(jobs[1].meta.upload_batch_id, undefined);
+});
+
 test("upload helpers normalize size limit and display labels", () => {
   assert.equal(FALLBACK_MEDIA_LIBRARY_MAX_FILE_SIZE, 5 * 1024 * 1024 * 1024);
   assert.equal(readMediaLibraryFileSizeLimit("5368709120"), 5 * 1024 * 1024 * 1024);
@@ -88,4 +104,14 @@ test("upload status helpers distinguish active, completed and failed jobs", () =
   assert.equal(getUploadStatusLabel("failed"), "Failed");
   assert.equal(getVisibleUploadProgress({ progress: 125 }), 100);
   assert.equal(getVisibleUploadProgress({ progress: -10 }), 0);
+});
+
+test("shouldAutoCloseUploadModal closes only after uploads reach background processing", () => {
+  assert.equal(shouldAutoCloseUploadModal([]), false);
+  assert.equal(shouldAutoCloseUploadModal([{ status: "uploading" }, { status: "processing" }]), false);
+  assert.equal(shouldAutoCloseUploadModal([{ status: "queued" }, { status: "processing" }]), false);
+  assert.equal(shouldAutoCloseUploadModal([{ status: "processing" }, { status: "failed" }]), false);
+  assert.equal(shouldAutoCloseUploadModal([{ status: "processing" }, { status: "cancelled" }]), false);
+  assert.equal(shouldAutoCloseUploadModal([{ status: "processing" }, { status: "processing" }]), true);
+  assert.equal(shouldAutoCloseUploadModal([{ status: "processing" }, { status: "completed" }]), true);
 });

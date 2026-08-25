@@ -106,6 +106,9 @@ export const isActiveUploadStatus = (status: TMediaLibraryUploadStatus) =>
 
 export const isCompletedUploadStatus = (status: TMediaLibraryUploadStatus) => status === "completed";
 
+export const shouldAutoCloseUploadModal = (jobs: Pick<TMediaLibraryUploadJob, "status">[]) =>
+  jobs.length > 0 && jobs.every((job) => job.status === "processing" || job.status === "completed");
+
 export const getVisibleUploadProgress = (job: Pick<TMediaLibraryUploadJob, "progress">) =>
   Math.min(100, Math.max(0, job.progress ?? 0));
 
@@ -244,16 +247,16 @@ export const buildMediaLibraryUploadJobs = ({
   batchName,
 }: TMediaLibraryUploadBatchInput): TMediaLibraryUploadJob[] => {
   const createdAtMs = Date.now();
-  const isMultiFileBatch = files.length > 1;
-  const uploadBatchId = isMultiFileBatch ? buildUploadBatchId(createdAtMs, files) : null;
-  const normalizedBatchName = isMultiFileBatch ? batchName?.trim() || null : null;
+  const normalizedBatchName = batchName?.trim() || null;
+  const shouldCreateBatch = files.length > 1 && Boolean(normalizedBatchName);
+  const uploadBatchId = shouldCreateBatch ? buildUploadBatchId(createdAtMs, files) : null;
 
   return files.map((file, index) => {
     const uploadId = buildJobUploadTraceId(file, createdAtMs + index);
     const jobMeta = { ...meta };
     if (uploadBatchId) {
       jobMeta.upload_batch_id = uploadBatchId;
-      jobMeta.upload_batch_name = normalizedBatchName || `Upload ${formatTimestampForId(createdAtMs)}`;
+      jobMeta.upload_batch_name = normalizedBatchName;
       jobMeta.upload_batch_size = files.length;
       jobMeta.upload_batch_index = index + 1;
     }
@@ -270,9 +273,9 @@ export const buildMediaLibraryUploadJobs = ({
       meta: jobMeta,
       workItemId,
       batchId: uploadBatchId,
-      batchName: normalizedBatchName,
-      batchSize: isMultiFileBatch ? files.length : undefined,
-      batchIndex: isMultiFileBatch ? index + 1 : undefined,
+      batchName: uploadBatchId ? normalizedBatchName : null,
+      batchSize: uploadBatchId ? files.length : undefined,
+      batchIndex: uploadBatchId ? index + 1 : undefined,
       createdAtMs,
       updatedAtMs: createdAtMs,
     };
