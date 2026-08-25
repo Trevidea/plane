@@ -148,6 +148,7 @@ export const VideoAnnotationEditor = ({
   modeResetKey,
   onModeChange,
   onRegisterSaveHandler,
+  onUnsavedChangesChange,
   onRequestPause,
   onSave,
   onSeek,
@@ -804,6 +805,17 @@ export const VideoAnnotationEditor = ({
       onRegisterSaveHandler(null);
     };
   }, [canEdit, handleSaveAnnotations, onRegisterSaveHandler]);
+
+  useEffect(() => {
+    onUnsavedChangesChange?.(canEdit && hasAnnotationChanges);
+  }, [canEdit, hasAnnotationChanges, onUnsavedChangesChange]);
+
+  useEffect(
+    () => () => {
+      onUnsavedChangesChange?.(false);
+    },
+    [onUnsavedChangesChange]
+  );
 
   const timelineContent =
     showTimeline && timelineHostElement ? (

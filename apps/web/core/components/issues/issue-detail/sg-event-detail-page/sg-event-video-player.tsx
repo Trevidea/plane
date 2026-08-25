@@ -48,6 +48,7 @@ type TQualityOption = {
 };
 
 const HLS_MIME_TYPES = ["application/x-mpegURL", "application/vnd.apple.mpegurl"] as const;
+const VIDEO_READY_STATE_HAVE_CURRENT_DATA = 2;
 
 export const SgEventVideoPlayer = ({
   item,
@@ -75,6 +76,7 @@ export const SgEventVideoPlayer = ({
   const [qualitySelection, setQualitySelection] = useState<string | null>(null);
   const [playerElement, setPlayerElement] = useState<HTMLElement | null>(null);
   const [currentVideoSeconds, setCurrentVideoSeconds] = useState(0);
+  const [isVideoFrameReady, setIsVideoFrameReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [, setIsVideoAnnotationMode] = useState(false);
   const { effectiveVideoSrc, isVideo, resolvedVideoFormat, useCredentials, crossOrigin } = useResolvedMediaSources({
@@ -90,6 +92,7 @@ export const SgEventVideoPlayer = ({
 
   useEffect(() => {
     setCurrentVideoSeconds(0);
+    setIsVideoFrameReady(false);
     setIsVideoAnnotationMode(false);
     setIsSettingsOpen(false);
     setQualitySelection(null);
@@ -119,6 +122,7 @@ export const SgEventVideoPlayer = ({
 
   useEffect(() => {
     if (!isVideo || !videoRef.current) {
+      setIsVideoFrameReady(false);
       if (playerRef.current) {
         playerRef.current.dispose();
         playerRef.current = null;
@@ -321,11 +325,15 @@ export const SgEventVideoPlayer = ({
         playerRef.current = null;
       }
       setPlayerElement(null);
+      setIsVideoFrameReady(false);
     };
   }, [crossOrigin, isVideo, useCredentials]);
 
   useEffect(() => {
-    if (!playerRef.current || !effectiveVideoSrc) return;
+    if (!playerRef.current || !effectiveVideoSrc) {
+      setIsVideoFrameReady(false);
+      return;
+    }
     const player = playerRef.current;
     const type =
       resolvedVideoFormat === "m3u8"
@@ -364,8 +372,12 @@ export const SgEventVideoPlayer = ({
       }
     };
 
-    const handleLoadedData = () => {
+    const updateVideoFrameReady = () => {
+      const readyState = Number(player.readyState?.() ?? videoRef.current?.readyState ?? 0);
+      if (readyState < VIDEO_READY_STATE_HAVE_CURRENT_DATA) return;
+
       clearStartupTimer();
+      setIsVideoFrameReady(true);
     };
 
     const applyCandidate = (nextIndex: number) => {
@@ -374,6 +386,8 @@ export const SgEventVideoPlayer = ({
       if (!candidate) {
         return;
       }
+
+      setIsVideoFrameReady(false);
 
       const techElement = player.el()?.querySelector("video");
       if (techElement instanceof HTMLVideoElement) {
@@ -423,13 +437,19 @@ export const SgEventVideoPlayer = ({
     };
 
     player.on("error", handlePlayerError);
-    player.on("loadeddata", handleLoadedData);
+    player.on("loadedmetadata", updateVideoFrameReady);
+    player.on("loadeddata", updateVideoFrameReady);
+    player.on("canplay", updateVideoFrameReady);
+    player.on("playing", updateVideoFrameReady);
     applyCandidate(candidateIndex);
 
     return () => {
       clearStartupTimer();
       player.off("error", handlePlayerError);
-      player.off("loadeddata", handleLoadedData);
+      player.off("loadedmetadata", updateVideoFrameReady);
+      player.off("loadeddata", updateVideoFrameReady);
+      player.off("canplay", updateVideoFrameReady);
+      player.off("playing", updateVideoFrameReady);
     };
   }, [
     crossOrigin,
@@ -698,7 +718,7 @@ export const SgEventVideoPlayer = ({
       </div>
     </div>
   ) : null;
-  const videoAnnotationContent = effectiveAnnotationItem ? (
+  const videoAnnotationContent = effectiveAnnotationItem && isVideoFrameReady ? (
     <VideoAnnotationEditor
       annotationKey={`${effectiveAnnotationItem.packageId ?? "event"}:${effectiveAnnotationItem.id}`}
       annotations={effectiveAnnotationItem.meta?.annotations}

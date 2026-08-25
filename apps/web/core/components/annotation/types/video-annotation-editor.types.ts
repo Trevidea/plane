@@ -15,6 +15,7 @@ export type VideoAnnotationEditorProps = {
   modeResetKey?: number | string;
   onModeChange?: (enabled: boolean) => void;
   onRegisterSaveHandler?: (saveAnnotations: (() => Promise<boolean>) | null) => void;
+  onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
   onRequestPause?: () => void;
   onSave: (annotations: TCustomPlaylistAnnotation[]) => Promise<TCustomPlaylistAnnotation[] | void>;
   onSeek?: (seconds: number) => void;
