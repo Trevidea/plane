@@ -56,7 +56,14 @@ export const MediaLibraryUploadJobRow = ({ job }: { job: TMediaLibraryUploadJob 
             <div className="shrink-0 text-[11px] text-custom-text-400">{formatFileSize(job.file.size)}</div>
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-custom-border-200 dark:bg-[#242424]">
+            <div
+              className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-custom-border-200 dark:bg-[#242424]"
+              role="progressbar"
+              aria-label={`${job.file.name} upload progress`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+            >
               <div
                 className={`h-full rounded-full transition-[width] ${statusProgressClass(job.status)}`}
                 style={{ width: `${progress}%` }}

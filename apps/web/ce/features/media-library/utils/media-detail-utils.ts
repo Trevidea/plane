@@ -1,3 +1,5 @@
+import { renderWorkspaceDate } from "@plane/utils";
+
 export const formatMetaValue = (value: unknown): string => {
   if (value === null || value === undefined) return "--";
   if (Array.isArray(value)) {
@@ -99,24 +101,10 @@ const parseDateValue = (value?: string | null) => {
   return { date: new Date(parsed), isDateOnly: false };
 };
 
-export const formatDateValue = (value?: string | null) => {
+export const formatDateValue = (value?: string | null, dateFormat?: string | null) => {
   const parsed = parseDateValue(value);
   if (!parsed) return value?.trim() || "--";
-  const baseOptions: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  };
-  const primaryOptions = parsed.isDateOnly ? { ...baseOptions, timeZone: "UTC" } : baseOptions;
-  try {
-    return parsed.date.toLocaleDateString(undefined, primaryOptions);
-  } catch {
-    try {
-      return parsed.date.toLocaleDateString(undefined, baseOptions);
-    } catch {
-      return parsed.date.toLocaleDateString();
-    }
-  }
+  return renderWorkspaceDate(parsed.date, dateFormat) ?? value?.trim() ?? "--";
 };
 
 export const formatTimeValue = (value?: string | null) => {

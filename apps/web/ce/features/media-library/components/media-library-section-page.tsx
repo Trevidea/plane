@@ -81,6 +81,7 @@ const MediaLibrarySectionPage = observer(() => {
   const { libraryVersion, mediaFilters, setMediaFilterConfigs, trackTranscodeJob } = useMediaLibrary();
   const searchParams = useSearchParams();
   const query = (searchParams.get(SECTION_QUERY_PARAM_KEY) ?? "").trim();
+  const batchId = (searchParams.get("batch_id") ?? "").trim();
   const viewMode = searchParams.get(SECTION_VIEW_PARAM_KEY) === "grid" ? "grid" : "list";
   const pathname = usePathname();
   const pageParam = Number(searchParams.get("page") ?? "1");
@@ -113,6 +114,8 @@ const MediaLibrarySectionPage = observer(() => {
   } = useMediaLibraryItems(workspaceSlug, projectId, libraryVersion, {
     query,
     section: decodedSection,
+    batchId,
+    groupBatches: false,
     filters: filterConditions,
     formats: "thumbnail",
     page: requestedPage,
@@ -279,6 +282,9 @@ const MediaLibrarySectionPage = observer(() => {
   };
 
   const getItemHref = (item: TMediaItem) => {
+    if (item.mediaType === "collection" && item.collectionHref) {
+      return item.collectionHref;
+    }
     const detailTarget = item.link ?? item.id;
     const detailPath = `/${workspaceSlug}/projects/${projectId}/media-library/${encodeURIComponent(detailTarget)}`;
     const params = new URLSearchParams();

@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, CalendarClock, Clock, Handshake, Signal, Tag, User, Volleyball } from "lucide-react";
+import { Calendar, CalendarClock, Clock, Handshake, MapPin, Signal, Tag, User, Volleyball, X } from "lucide-react";
 import type { EditorRefApi } from "@plane/editor";
 import type { TNameDescriptionLoader } from "@plane/types";
 import { renderFormattedPayloadDate } from "@plane/utils";
 import { CategoryDropdown } from "@/components/dropdowns/category-property";
 import { DateDropdown } from "@/components/dropdowns/date";
 import { LevelDropdown } from "@/components/dropdowns/level-property";
+import { LocationDropdown } from "@/components/dropdowns/location-property";
 import { ProgramDropdown } from "@/components/dropdowns/program-property";
 import SportDropdown from "@/components/dropdowns/sport-property";
 import { TimeDropdown } from "@/components/dropdowns/time-picker";
@@ -20,7 +21,6 @@ import { MediaLibraryService } from "@/services/media-library.service";
 import type { TMediaItem } from "../types/media-library.types";
 import { formatFileSize, formatMetaLabel, formatMetaValue } from "../utils/media-detail-utils";
 import {
-  getEventMediaDateLabel,
   getEventMediaDetails,
   getEventMediaMetrics,
   isEventMediaItem,
@@ -46,9 +46,11 @@ type TEditableMetaKey =
   | "program"
   | "level"
   | "season"
+  | "location"
   | "start_date"
   | "start_time"
-  | "opposition";
+  | "opposition"
+  | "tags";
 
 const HIDDEN_ADDITIONAL_META_KEYS = new Set([
   "hlspending",
@@ -66,6 +68,20 @@ const HIDDEN_ADDITIONAL_META_KEYS = new Set([
   "transcodeprogress",
   "uploadid",
   "requestid",
+  "viewevents",
+  "durationseconds",
+  "durationsec",
+  "width",
+  "height",
+  "sourcewidth",
+  "sourceheight",
+  "videowidth",
+  "videoheight",
+  "videocodec",
+  "audiocodec",
+  "framerate",
+  "averageframerate",
+  "sourcecontainer",
 ]);
 
 const normalizeAdditionalMetaKey = (key: string) => key.replace(/[-_\s]+/g, "").toLowerCase();
@@ -150,7 +166,7 @@ const formatResolutionSpec = (width: number, height: number) => {
   const resolutionName = getResolutionName(width, height);
   const heightLabel = height > 0 ? `${height}p` : "";
   const dimensionsLabel = width > 0 && height > 0 ? `${width} x ${height}` : "";
-  return [resolutionName, heightLabel, dimensionsLabel ? `(${dimensionsLabel})` : ""].filter(Boolean).join(" ");
+  return [heightLabel, resolutionName, dimensionsLabel ? `(${dimensionsLabel})` : ""].filter(Boolean).join(" ");
 };
 
 const formatFrameRateSpec = (frameRate: number | null | undefined) => {
@@ -158,6 +174,60 @@ const formatFrameRateSpec = (frameRate: number | null | undefined) => {
   const rounded = Math.round(frameRate);
   const normalizedFrameRate = Math.abs(frameRate - rounded) < 0.01 ? String(rounded) : frameRate.toFixed(2);
   return `${normalizedFrameRate} fps`;
+};
+
+const getFirstMetaNumber = (meta: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const parsed = parseMetaNumber(meta[key]);
+    if (parsed !== null && parsed > 0) return parsed;
+  }
+  return null;
+};
+
+const getFirstMetaString = (meta: Record<string, unknown>, keys: string[]) => {
+  for (const key of keys) {
+    const value = meta[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+};
+
+const formatCodecSpec = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return "--";
+  const labels: Record<string, string> = {
+    h264: "H.264",
+    avc1: "H.264",
+    hevc: "H.265 / HEVC",
+    h265: "H.265 / HEVC",
+    aac: "AAC",
+    mp3: "MP3",
+    mp2: "MP2",
+    mpeg4: "MPEG-4",
+    prores: "Apple ProRes",
+    alac: "Apple Lossless",
+    ac3: "Dolby Digital",
+    eac3: "Dolby Digital Plus",
+  };
+  return labels[normalized] ?? normalized.toUpperCase();
+};
+
+const formatContainerSpec = (value: string) => {
+  if (!value.trim()) return "--";
+  const labels: Record<string, string> = {
+    mov: "MOV",
+    mp4: "MP4",
+    m4a: "M4A",
+    "3gp": "3GP",
+    "3g2": "3G2",
+    mj2: "MJ2",
+  };
+  const parts = value
+    .split(",")
+    .map((entry) => labels[entry.trim().toLowerCase()] ?? entry.trim().toUpperCase())
+    .filter(Boolean);
+  const primaryParts = parts.filter((entry) => entry === "MOV" || entry === "MP4");
+  return Array.from(new Set(primaryParts.length > 0 ? primaryParts : parts)).join(" / ") || "--";
 };
 
 export const MediaDetailSidebar = ({
@@ -184,10 +254,11 @@ export const MediaDetailSidebar = ({
   );
   const [isSubmitting, setIsSubmitting] = useState<TNameDescriptionLoader>("saved");
   const [isSavingMeta, setIsSavingMeta] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
   const artifactMeta = useMemo(() => (item?.meta ?? {}) as Record<string, unknown>, [item?.meta]);
   const isEventItem = useMemo(() => isEventMediaItem(item), [item]);
   const eventDetails = useMemo(() => getEventMediaDetails(item), [item]);
-  const eventDateLabel = useMemo(() => getEventMediaDateLabel(item), [item]);
+  const eventDateLabel = item.eventDateLabel;
   const eventMetrics = useMemo(() => getEventMediaMetrics(item), [item]);
   const getMetaString = useCallback(
     (key: string) => {
@@ -210,7 +281,7 @@ export const MediaDetailSidebar = ({
     } as TOppositionTeam;
   }, [artifactMeta]);
   const updateEditableMeta = useCallback(
-    async (key: TEditableMetaKey, value: string | TOppositionTeam | null) => {
+    async (key: TEditableMetaKey, value: string | string[] | TOppositionTeam | null) => {
       const nextMeta = { ...artifactMeta, [key]: value ?? null };
       setIsSavingMeta(true);
       try {
@@ -237,9 +308,11 @@ export const MediaDetailSidebar = ({
         "program",
         "level",
         "season",
+        "location",
         "start_date",
         "start_time",
         "opposition",
+        "tags",
         "created_by",
         "createdBy",
       ]),
@@ -254,6 +327,38 @@ export const MediaDetailSidebar = ({
     if (createdByMemberId) return getUserDetails(createdByMemberId)?.display_name ?? createdByMemberId;
     return formatMetaValue(item.author);
   }, [createdByMemberId, getUserDetails, item.author]);
+  const userTags = useMemo(
+    () =>
+      Array.isArray(artifactMeta.tags)
+        ? artifactMeta.tags.filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0)
+        : [],
+    [artifactMeta.tags]
+  );
+  const addUserTags = useCallback(
+    (rawValue: string) => {
+      const parts = rawValue
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      if (parts.length === 0) return;
+      const nextTags = [...userTags];
+      for (const part of parts) {
+        if (!nextTags.some((tag) => tag.toLowerCase() === part.toLowerCase())) nextTags.push(part);
+      }
+      setTagDraft("");
+      void updateEditableMeta("tags", nextTags);
+    },
+    [updateEditableMeta, userTags]
+  );
+  const removeUserTag = useCallback(
+    (value: string) => {
+      void updateEditableMeta(
+        "tags",
+        userTags.filter((tag) => tag.toLowerCase() !== value.toLowerCase())
+      );
+    },
+    [updateEditableMeta, userTags]
+  );
   const additionalMetaEntries = useMemo(
     () =>
       Object.entries(artifactMeta).filter(([key, value]) => {
@@ -305,13 +410,41 @@ export const MediaDetailSidebar = ({
       { label: "Frame rate", value: formatFrameRateSpec(bestRendition.frameRate) },
     ].filter((field) => field.value && field.value !== "--");
   }, [artifactMeta, item.format]);
+  const technicalMetadataFields = useMemo(() => {
+    const width = getFirstMetaNumber(artifactMeta, ["width", "video_width", "videoWidth"]);
+    const height = getFirstMetaNumber(artifactMeta, ["height", "video_height", "videoHeight"]);
+    const sourceWidth = getFirstMetaNumber(artifactMeta, ["source_width", "sourceWidth"]);
+    const sourceHeight = getFirstMetaNumber(artifactMeta, ["source_height", "sourceHeight"]);
+    const frameRate = getFirstMetaNumber(artifactMeta, ["frame_rate", "frameRate", "average_frame_rate"]);
+    const videoCodec = getFirstMetaString(artifactMeta, ["video_codec", "videoCodec"]);
+    const audioCodec = getFirstMetaString(artifactMeta, ["audio_codec", "audioCodec"]);
+    const sourceContainer = getFirstMetaString(artifactMeta, ["source_container", "sourceContainer"]);
+
+    const fields = [];
+    if (width && height) {
+      fields.push({ label: "Resolution", value: formatResolutionSpec(Math.round(width), Math.round(height)) });
+    }
+    if (sourceWidth && sourceHeight && (sourceWidth !== width || sourceHeight !== height)) {
+      fields.push({
+        label: "Source resolution",
+        value: formatResolutionSpec(Math.round(sourceWidth), Math.round(sourceHeight)),
+      });
+    }
+    if (frameRate) fields.push({ label: "Frame rate", value: formatFrameRateSpec(frameRate) });
+    if (videoCodec) fields.push({ label: "Video", value: formatCodecSpec(videoCodec) });
+    if (audioCodec) fields.push({ label: "Audio", value: formatCodecSpec(audioCodec) });
+    if (sourceContainer) fields.push({ label: "Container", value: formatContainerSpec(sourceContainer) });
+
+    return fields.filter((field) => field.value && field.value !== "--");
+  }, [artifactMeta]);
   const fallbackFields = useMemo(
     () => [
       { label: "Format", value: formatMetaValue(item.format) },
       ...mediaSpecFields,
+      { label: "Duration", value: formatMetaValue(item.duration) },
       { label: "Created", value: formatMetaValue(item.createdAt) },
     ],
-    [item.createdAt, item.format, mediaSpecFields]
+    [item.createdAt, item.duration, item.format, mediaSpecFields]
   );
   const eventSummaryFields = useMemo(
     () =>
@@ -561,6 +694,28 @@ export const MediaDetailSidebar = ({
 
                 <div className="flex h-8 w-full items-center gap-3">
                   <div className="flex w-1/4 flex-shrink-0 items-center gap-1 text-sm text-custom-text-300">
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                    <span>Location</span>
+                  </div>
+                  <LocationDropdown
+                    value={getMetaString("location")}
+                    onChange={(value) => void updateEditableMeta("location", value)}
+                    placeholder="Add location"
+                    buttonVariant="transparent-with-text"
+                    className="w-3/4 flex-grow group"
+                    buttonContainerClassName="w-full text-left"
+                    buttonClassName={`text-sm ${
+                      getMetaString("location") ? "" : "text-custom-text-400"
+                    }`}
+                    hideIcon
+                    disabled={isSavingMeta}
+                    clearIconClassName="h-3 w-3 hidden group-hover:inline"
+                    dropdownClassName="z-[70]"
+                  />
+                </div>
+
+                <div className="flex h-8 w-full items-center gap-3">
+                  <div className="flex w-1/4 flex-shrink-0 items-center gap-1 text-sm text-custom-text-300">
                     <Calendar className="h-4 w-4 flex-shrink-0" />
                     <span>Season</span>
                   </div>
@@ -580,10 +735,60 @@ export const MediaDetailSidebar = ({
               </div>
             </div>
 
-            {additionalMetaEntries.length > 0 ? (
+            <div className="space-y-3">
+              <h6 className="text-sm font-medium text-custom-text-100">Tags</h6>
+              <div className="flex min-h-[34px] flex-wrap items-center gap-2 rounded-md border border-custom-border-200 bg-custom-background-100 px-2 py-1.5">
+                {userTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-custom-primary-100/30 bg-custom-primary-100/15 px-2 py-0.5 text-[11px] font-medium text-custom-primary-100"
+                  >
+                    <span className="truncate">{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeUserTag(tag)}
+                      className="text-custom-primary-100/80 hover:text-custom-primary-100"
+                      disabled={isSavingMeta}
+                      aria-label={`Remove ${tag}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  value={tagDraft}
+                  onChange={(event) => setTagDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === ",") {
+                      event.preventDefault();
+                      addUserTags(tagDraft);
+                    }
+                  }}
+                  onBlur={() => addUserTags(tagDraft)}
+                  placeholder={userTags.length === 0 ? "Add tags" : ""}
+                  className="min-w-[140px] flex-1 bg-transparent px-1 py-0.5 text-[11px] text-custom-text-100 placeholder:text-custom-text-400 focus:outline-none"
+                  disabled={isSavingMeta}
+                />
+              </div>
+              <div className="text-[10px] text-custom-text-300">Press comma or Enter to add.</div>
+            </div>
+
+            {technicalMetadataFields.length > 0 || additionalMetaEntries.length > 0 ? (
               <div className="space-y-3">
                 <h6 className="text-sm font-medium text-custom-text-100">Metadata</h6>
                 <div className="space-y-2">
+                  {technicalMetadataFields.map((field) => (
+                    <div key={field.label} className="flex items-start justify-between gap-3 text-sm">
+                      <span className="text-custom-text-300">{field.label}</span>
+                      <span
+                        className="ml-auto block max-w-[65%] truncate text-right text-custom-text-100"
+                        title={field.value}
+                      >
+                        {field.value}
+                      </span>
+                    </div>
+                  ))}
                   {additionalMetaEntries.map(([key, value]) => (
                     <div key={key} className="flex items-start justify-between gap-3 text-sm">
                       <span className="text-custom-text-300">{formatMetaLabel(key)}</span>

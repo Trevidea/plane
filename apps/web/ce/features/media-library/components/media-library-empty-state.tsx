@@ -6,7 +6,7 @@ import { ArrowRight, FileImage, FileText, FileVideo, FolderOpen, UploadCloud } f
 import { Button } from "@plane/propel/button";
 import { useMediaLibrary } from "../store/media-library-context";
 
-const SUPPORTED_FORMATS = ["JPEG", "PNG", "MP4",  "PDF", "CSV", "XLSX", "DOCX", "PPTX", "TXT"];
+const SUPPORTED_FORMATS = ["JPEG", "PNG", "MP4", "MOV", "PDF", "CSV", "XLSX", "DOCX", "PPTX", "TXT"];
 
 export const MediaLibraryEmptyState = () => {
   const { openUpload, setPendingUploadFiles } = useMediaLibrary();
@@ -109,7 +109,7 @@ export const MediaLibraryEmptyState = () => {
             <input
               ref={inputRef}
               type="file"
-              accept=".mp4,.m3u8,video/mp4,application/vnd.apple.mpegurl,application/x-mpegurl,image/*,application/pdf,text/csv,application/json,.docx,.xlsx,.pptx,.txt"
+              accept=".mp4,.mov,.m3u8,video/mp4,video/quicktime,video/x-quicktime,application/vnd.apple.mpegurl,application/x-mpegurl,image/*,application/pdf,text/csv,application/json,.docx,.xlsx,.pptx,.txt"
               multiple
               className="hidden"
               onChange={handleFileChange}

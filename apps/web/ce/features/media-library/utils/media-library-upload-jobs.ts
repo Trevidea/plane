@@ -17,7 +17,9 @@ const IMAGE_FORMATS = new Set([
   "heic",
   "heif",
 ]);
-const VIDEO_FORMATS = new Set(["mp4", "m3u8"]);
+const VIDEO_FORMATS = new Set(["mp4", "mov", "m3u8"]);
+const TRANSCODABLE_VIDEO_FORMATS = new Set(["mp4", "mov"]);
+const TRANSCODABLE_VIDEO_MIME_TYPES = new Set(["video/mp4", "video/quicktime", "video/x-quicktime"]);
 const DOC_FORMATS = new Set(["json", "csv", "pdf", "docx", "xlsx", "pptx", "txt"]);
 
 export type TMediaLibraryUploadStatus = "queued" | "uploading" | "processing" | "completed" | "failed" | "cancelled";
@@ -48,6 +50,10 @@ export type TMediaLibraryUploadJob = {
   retryCount?: number;
   meta: Record<string, unknown>;
   workItemId?: string | null;
+  batchId?: string | null;
+  batchName?: string | null;
+  batchSize?: number;
+  batchIndex?: number;
   createdAtMs: number;
   updatedAtMs: number;
 };
@@ -58,6 +64,7 @@ export type TMediaLibraryUploadBatchInput = {
   files: File[];
   meta: Record<string, unknown>;
   workItemId?: string | null;
+  batchName?: string | null;
 };
 
 export const readMediaLibraryFileSizeLimit = (value: unknown) => {
@@ -89,7 +96,10 @@ export const resolveArtifactFormat = (fileName: string) => {
 export const isDocumentUploadFormat = (format: string) => DOC_FORMATS.has(format);
 export const isImageUploadFormat = (format: string) => IMAGE_FORMATS.has(format);
 export const isVideoUploadFormat = (format: string) => VIDEO_FORMATS.has(format);
-export const isMp4Upload = (file: File) => getFileExtension(file.name) === "mp4" || file.type === "video/mp4";
+export const isTranscodableVideoUpload = (file: File) =>
+  TRANSCODABLE_VIDEO_FORMATS.has(getFileExtension(file.name)) ||
+  TRANSCODABLE_VIDEO_MIME_TYPES.has((file.type || "").toLowerCase());
+export const isMp4Upload = isTranscodableVideoUpload;
 
 export const isActiveUploadStatus = (status: TMediaLibraryUploadStatus) =>
   status === "queued" || status === "uploading" || status === "processing";
@@ -139,6 +149,12 @@ const buildJobUploadTraceId = (file: File, timestampMs: number) => {
     0,
     Math.round(file.lastModified)
   )}`;
+};
+
+const buildUploadBatchId = (createdAtMs: number, files: File[]) => {
+  const firstFile = files[0];
+  const namePart = firstFile ? sanitizeIdPart(firstFile.name) : "batch";
+  return `upload-batch-${formatTimestampForId(createdAtMs)}-${namePart}-${files.length}`;
 };
 
 export const formatFileSize = (value: number) => {
@@ -225,11 +241,22 @@ export const buildMediaLibraryUploadJobs = ({
   files,
   meta,
   workItemId,
+  batchName,
 }: TMediaLibraryUploadBatchInput): TMediaLibraryUploadJob[] => {
   const createdAtMs = Date.now();
+  const isMultiFileBatch = files.length > 1;
+  const uploadBatchId = isMultiFileBatch ? buildUploadBatchId(createdAtMs, files) : null;
+  const normalizedBatchName = isMultiFileBatch ? batchName?.trim() || null : null;
 
   return files.map((file, index) => {
     const uploadId = buildJobUploadTraceId(file, createdAtMs + index);
+    const jobMeta = { ...meta };
+    if (uploadBatchId) {
+      jobMeta.upload_batch_id = uploadBatchId;
+      jobMeta.upload_batch_name = normalizedBatchName || `Upload ${formatTimestampForId(createdAtMs)}`;
+      jobMeta.upload_batch_size = files.length;
+      jobMeta.upload_batch_index = index + 1;
+    }
 
     return {
       id: `${uploadId}-${index}`,
@@ -240,8 +267,12 @@ export const buildMediaLibraryUploadJobs = ({
       progress: 0,
       uploadId,
       retryCount: 0,
-      meta: { ...meta },
+      meta: jobMeta,
       workItemId,
+      batchId: uploadBatchId,
+      batchName: normalizedBatchName,
+      batchSize: isMultiFileBatch ? files.length : undefined,
+      batchIndex: isMultiFileBatch ? index + 1 : undefined,
       createdAtMs,
       updatedAtMs: createdAtMs,
     };

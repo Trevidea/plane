@@ -528,6 +528,7 @@ def filter_media_library_artifacts(
     query: str | None = None,
     filters: list[dict] | None = None,
     section: str | None = None,
+    batch_id: str | None = None,
     formats: list[str] | None = None,
     metadata: dict | None = None,
 ) -> list[dict]:
@@ -536,6 +537,7 @@ def filter_media_library_artifacts(
 
     normalized_query = (query or "").strip().lower()
     normalized_section = (section or "").strip()
+    normalized_batch_id = (batch_id or "").strip()
     normalized_formats = {
         str(entry).lower() for entry in (formats or []) if str(entry).strip()
     }
@@ -580,7 +582,14 @@ def filter_media_library_artifacts(
         if not normalized_section:
             return True
         meta = resolve_artifact_metadata(artifact, metadata)
-        return _get_primary_tag(meta) == normalized_section
+        upload_batch_name = _get_meta_string(meta, ["upload_batch_name", "uploadBatchName"], "")
+        return _get_primary_tag(meta) == normalized_section or upload_batch_name == normalized_section
+
+    def matches_batch(artifact: dict) -> bool:
+        if not normalized_batch_id:
+            return True
+        meta = resolve_artifact_metadata(artifact, metadata)
+        return _get_meta_string(meta, ["upload_batch_id", "uploadBatchId"], "") == normalized_batch_id
 
     def matches_query(artifact: dict) -> bool:
         if not normalized_query:
@@ -596,6 +605,7 @@ def filter_media_library_artifacts(
         artifact
         for artifact in artifacts
         if matches_format(artifact)
+        and matches_batch(artifact)
         and matches_section(artifact)
         and matches_query(artifact)
         and matches_filters(artifact)

@@ -219,6 +219,9 @@ const MediaLibraryListPage = observer(() => {
   }, [filterConfigs, setMediaFilterConfigs]);
 
   const getItemHref = (item: TMediaItem) => {
+    if (item.mediaType === "collection" && item.collectionHref) {
+      return item.collectionHref;
+    }
     if (item.link) {
       return `/${workspaceSlug}/projects/${projectId}/media-library/${encodeURIComponent(item.link)}`;
     }

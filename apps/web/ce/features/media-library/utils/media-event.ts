@@ -261,14 +261,14 @@ export const getEventMediaDetails = (source: TMediaEventSource): TEventMediaDeta
 
 export const isEventMediaItem = (source: TMediaEventSource) => Boolean(getEventMediaDetails(source));
 
-export const getEventMediaDateLabel = (source: TMediaEventSource) => {
+export const getEventMediaDateLabel = (source: TMediaEventSource, dateFormat?: string | null) => {
   const details = getEventMediaDetails(source);
 
   if (!details) return null;
 
   const dateSource = details.eventDateTime || details.eventDate;
   const timeSource = details.eventDateTime || details.eventTime;
-  const dateLabel = dateSource ? formatDateValue(dateSource) : null;
+  const dateLabel = dateSource ? formatDateValue(dateSource, dateFormat) : null;
   const timeLabel = timeSource ? formatLooseTimeValue(timeSource) : null;
 
   if (dateLabel && timeLabel) return `${dateLabel} · ${timeLabel}`;

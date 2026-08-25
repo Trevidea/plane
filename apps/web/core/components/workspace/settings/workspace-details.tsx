@@ -18,7 +18,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IWorkspace } from "@plane/types";
 import { CustomSelect, Input } from "@plane/ui";
-import { copyUrlToClipboard, getFileURL } from "@plane/utils";
+import { WORKSPACE_DATE_FORMAT_OPTIONS, copyUrlToClipboard, getFileURL } from "@plane/utils";
 // components
 import { LogoSpinner } from "@/components/common/logo-spinner";
 import { WorkspaceImageUploadModal } from "@/components/core/modals/workspace-image-upload-modal";
@@ -33,6 +33,7 @@ const defaultValues: Partial<IWorkspace> = {
   name: "",
   url: "",
   organization_size: "2-10",
+  date_format: "MM/DD/YYYY",
   logo_url: null,
 };
 
@@ -66,6 +67,7 @@ export const WorkspaceDetails: FC = observer(() => {
     const payload: Partial<IWorkspace> = {
       name: formData.name,
       organization_size: formData.organization_size,
+      date_format: formData.date_format,
     };
 
     await updateWorkspace(currentWorkspace.slug, payload)
@@ -277,6 +279,30 @@ export const WorkspaceDetails: FC = observer(() => {
                     className="w-full"
                     disabled
                   />
+                )}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 ">
+              <h4 className="text-sm">Date format</h4>
+              <Controller
+                name="date_format"
+                control={control}
+                render={({ field: { value, onChange } }) => (
+                  <CustomSelect
+                    value={value}
+                    onChange={onChange}
+                    label={value || "MM/DD/YYYY"}
+                    buttonClassName="!border-[0.5px] !border-custom-border-200 !shadow-none"
+                    input
+                    disabled={!isAdmin}
+                  >
+                    {WORKSPACE_DATE_FORMAT_OPTIONS.map((item) => (
+                      <CustomSelect.Option key={item} value={item}>
+                        {item}
+                      </CustomSelect.Option>
+                    ))}
+                  </CustomSelect>
                 )}
               />
             </div>

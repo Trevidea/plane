@@ -11,14 +11,16 @@ export type TMediaItem = {
   workItemId?: string | null;
   author: string;
   createdAt: string;
+  eventDateLabel?: string | null;
   views: number;
   duration: string;
   primaryTag: string;
   secondaryTag: string;
   itemsCount: number;
   meta: Record<string, unknown>;
-  mediaType: "video" | "image" | "document";
-  linkedMediaType?: "video" | "image" | "document";
+  mediaType: "video" | "image" | "document" | "collection";
+  linkedMediaType?: "video" | "image" | "document" | "collection";
+  collectionHref?: string;
   thumbnail: string;
   videoSrc?: string;
   imageSrc?: string;

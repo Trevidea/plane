@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import RequestDataTooBig
 from django.http import JsonResponse
 
@@ -12,8 +13,19 @@ class RequestBodySizeLimitMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        content_length = self._get_content_length(request)
+        body_size_limit = self._get_body_size_limit()
+        if body_size_limit is not None and content_length is not None and content_length > body_size_limit:
+            return JsonResponse(
+                {
+                    "error": "REQUEST_BODY_TOO_LARGE",
+                    "detail": "The size of the request body exceeds the maximum allowed size.",
+                },
+                status=413,
+            )
+
         try:
-            _ = request.body
+            return self.get_response(request)
         except RequestDataTooBig:
             return JsonResponse(
                 {
@@ -23,5 +35,22 @@ class RequestBodySizeLimitMiddleware:
                 status=413,
             )
 
-        # If body size is OK, continue with the request
-        return self.get_response(request)
+    @staticmethod
+    def _get_body_size_limit():
+        value = getattr(settings, "DATA_UPLOAD_MAX_MEMORY_SIZE", None)
+        if value in (None, ""):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _get_content_length(request):
+        raw_value = request.META.get("CONTENT_LENGTH")
+        if raw_value in (None, ""):
+            return None
+        try:
+            return int(raw_value)
+        except (TypeError, ValueError):
+            return None

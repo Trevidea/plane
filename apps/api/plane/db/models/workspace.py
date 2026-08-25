@@ -114,6 +114,11 @@ def slug_validator(value):
 
 class Workspace(BaseModel):
     TIMEZONE_CHOICES = tuple(zip(pytz.common_timezones, pytz.common_timezones))
+    DATE_FORMAT_CHOICES = (
+        ("MM/DD/YYYY", "MM/DD/YYYY"),
+        ("DD/MM/YYYY", "DD/MM/YYYY"),
+        ("YYYY-MM-DD", "YYYY-MM-DD"),
+    )
 
     name = models.CharField(max_length=80, verbose_name="Workspace Name")
     logo = models.TextField(verbose_name="Logo", blank=True, null=True)
@@ -132,6 +137,7 @@ class Workspace(BaseModel):
     slug = models.SlugField(max_length=48, db_index=True, unique=True, validators=[slug_validator])
     organization_size = models.CharField(max_length=20, blank=True, null=True)
     timezone = models.CharField(max_length=255, default="UTC", choices=TIMEZONE_CHOICES)
+    date_format = models.CharField(max_length=16, default="MM/DD/YYYY", choices=DATE_FORMAT_CHOICES)
     background_color = models.CharField(max_length=255, default=get_random_color)
 
     def __str__(self):

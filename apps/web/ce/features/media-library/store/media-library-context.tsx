@@ -17,7 +17,6 @@ import {
   buildArtifactName,
   buildMediaLibraryUploadJobs,
   buildUploadAttemptRequestId,
-  escapeHtml,
   getErrorMessage,
   getFileExtension,
   getTitleFromFile,
@@ -26,7 +25,7 @@ import {
   isCompletedUploadStatus,
   isDocumentUploadFormat,
   isImageUploadFormat,
-  isMp4Upload,
+  isTranscodableVideoUpload,
   isVideoUploadFormat,
   resolveArtifactFormat,
 } from "../utils/media-library-upload-jobs";
@@ -164,18 +163,22 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const artifactName = job.artifactName || buildArtifactName(file.name, uploadedAt, index);
-      const title = getTitleFromFile(file.name) || "Untitled Upload";
-      const description = `<p>Uploaded file: ${escapeHtml(title)}</p>`;
+      const title = file.name || getTitleFromFile(file.name) || "Untitled Upload";
+      const isTranscodableUpload = isTranscodableVideoUpload(file);
+      const description = isTranscodableUpload
+        ? "<p>Your video is being converted for streaming.</p>"
+        : "<p>File uploaded to the Media Library.</p>";
       const action = isVideoUploadFormat(format) ? "play" : isImageUploadFormat(format) ? "view" : "download";
       const meta = { ...job.meta };
       const requestId = buildUploadAttemptRequestId(job.uploadId, job.retryCount ?? 0);
       meta.upload_id = job.uploadId;
       meta.request_id = requestId;
       meta.upload_client = "plane-web";
+      meta.original_filename = file.name;
+      meta.file_size = file.size;
+      meta.file_type = file.type || format;
       if (isDocumentUploadFormat(format)) {
         meta.kind = "document_file";
-        meta.file_size = file.size;
-        meta.file_type = file.type || format;
         meta.thumbnail = getDocumentThumbnailPath(format);
       }
 
@@ -311,12 +314,12 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
           totalBytes: file.size,
           uploadCompletedAtMs,
           uploadEtaSeconds: 0,
-          status: isMp4Upload(file) && transcodeJobId ? "processing" : "completed",
+          status: isTranscodableUpload && transcodeJobId ? "processing" : "completed",
           transcodeJobId,
         });
         refreshLibrary();
 
-        if (isMp4Upload(file) && transcodeJobId) {
+        if (isTranscodableUpload && transcodeJobId) {
           logMediaUploadLifecycle({
             event: "transcode_tracking_started",
             uploadId: job.uploadId,
@@ -337,13 +340,13 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
           });
         }
 
-        if (isMp4Upload(file) && artifact.transcode_job_error) {
+        if (isTranscodableUpload && artifact.transcode_job_error) {
           setToast({
             type: TOAST_TYPE.ERROR,
             title: "Background transcoding was not queued",
             message: getErrorMessage(
               artifact.transcode_job_error,
-              "The MP4 was uploaded, but transcoding was not queued."
+              "The video was uploaded, but transcoding was not queued."
             ),
           });
         }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { TMediaArtifactsPaginatedResponse, TMediaTranscodeJobResponse } from "@/services/media-library.service";
 import { MediaLibraryService } from "@/services/media-library.service";
+import { useWorkspace } from "@/hooks/store/use-workspace";
 import type { TMediaTranscodeJobTrackerInput } from "../store/media-library-context";
 import type { TMediaItem } from "../types/media-library.types";
 import { mapArtifactsToMediaItems } from "../utils/media-items";
@@ -19,6 +20,8 @@ type TMediaLibraryQueryOptions = {
   filters?: TMediaLibraryFilterCondition[];
   formats?: string;
   section?: string;
+  batchId?: string;
+  groupBatches?: boolean;
   page?: number;
   perPage?: number;
   cursor?: string;
@@ -129,6 +132,7 @@ export const useMediaLibraryItems = (
   const [isLoading, setIsLoading] = useState(false);
   const [pagination, setPagination] = useState<TMediaLibraryPagination | null>(null);
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
+  const { currentWorkspace } = useWorkspace();
   const filtersParam = useMemo(() => {
     if (!options?.filters?.length) return "";
     try {
@@ -140,6 +144,7 @@ export const useMediaLibraryItems = (
   const queryParam = options?.query?.trim() ?? "";
   const formatsParam = options?.formats?.trim() ?? "";
   const sectionParam = options?.section?.trim() ?? "";
+  const batchIdParam = options?.batchId?.trim() ?? "";
   const perPageParam = options?.perPage;
   const pageParam = options?.page;
   const onActiveTranscodeJob = options?.onActiveTranscodeJob;
@@ -186,6 +191,7 @@ export const useMediaLibraryItems = (
           params.formats = formatsParam;
         }
         if (sectionParam) params.section = sectionParam;
+        if (batchIdParam) params.batch_id = batchIdParam;
         if (cursorParam) params.cursor = cursorParam;
         if (perPageParam) params.per_page = String(perPageParam);
         const artifactsResponse = await mediaLibraryService.getArtifacts(
@@ -210,6 +216,8 @@ export const useMediaLibraryItems = (
             projectId,
             packageId,
             metadata: metadataMap,
+            dateFormat: currentWorkspace?.date_format,
+            groupBatches: options?.groupBatches,
           });
           const activeTranscodeItems = mappedItems.filter(
             (item) => item.packageId && item.transcodeJobId && item.isTranscodeActive
@@ -288,6 +296,8 @@ export const useMediaLibraryItems = (
     };
   }, [
     cursorParam,
+    batchIdParam,
+    currentWorkspace?.date_format,
     desiredFormats,
     filtersParam,
     formatsParam,
@@ -300,6 +310,7 @@ export const useMediaLibraryItems = (
     sectionParam,
     shouldPaginate,
     workspaceSlug,
+    options?.groupBatches,
   ]);
 
   return { items, isLoading, pagination };

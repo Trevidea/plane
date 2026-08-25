@@ -1,10 +1,12 @@
 "use client";
 
 import { API_BASE_URL } from "@plane/constants";
+import { renderWorkspaceDate } from "@plane/utils";
 
 import type { TMediaArtifact } from "@/services/media-library.service";
 import type { TMediaItem, TMediaSection } from "../types/media-library.types";
 import { getDisplayMediaTitle } from "./media-detail-utils";
+import { formatMediaDurationLabel } from "./media-duration";
 import { getEventMediaContextLabel, getEventMediaDateLabel, getEventMediaDetails } from "./media-event";
 
 type TArtifactContext = {
@@ -12,6 +14,8 @@ type TArtifactContext = {
   projectId: string;
   packageId: string;
   metadata?: Record<string, Record<string, unknown>>;
+  dateFormat?: string | null;
+  groupBatches?: boolean;
 };
 
 const VIDEO_FORMATS = new Set(["mp4", "m3u8", "mov", "webm", "avi", "mkv", "mpeg", "mpg", "m4v"]);
@@ -42,6 +46,7 @@ const FORMAT_OVERRIDES: Record<string, string> = {
   "application/vnd.apple.mpegurl": "m3u8",
   "application/x-mpegurl": "m3u8",
   "video/quicktime": "mov",
+  "video/x-quicktime": "mov",
   "video/x-msvideo": "avi",
   "video/x-matroska": "mkv",
   "image/svg+xml": "svg",
@@ -106,15 +111,7 @@ const resolveArtifactSource = (artifact: TMediaArtifact, context?: TArtifactCont
   return resolveArtifactPath(rawPath);
 };
 
-const formatDateLabel = (value: string) => {
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return value;
-  const date = new Date(parsed);
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-};
+const formatDateLabel = (value: string, dateFormat?: string | null) => renderWorkspaceDate(value, dateFormat) ?? value;
 
 const getMetaObject = (meta: unknown) => {
   if (meta && typeof meta === "object" && !Array.isArray(meta)) {
@@ -262,11 +259,12 @@ const getMetaStringArray = (meta: Record<string, unknown>, key: string) => {
 };
 
 const getMetaDuration = (meta: Record<string, unknown>, keys: string[], fallback = "") => {
-  const stringValue = getMetaString(meta, keys, "");
-  if (stringValue) return stringValue;
   for (const key of keys) {
     const value = meta[key];
-    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "string" || typeof value === "number") {
+      const duration = formatMediaDurationLabel(value);
+      if (duration) return duration;
+    }
   }
   return fallback;
 };
@@ -365,6 +363,7 @@ const normalizeFormat = (value: string | null | undefined, ...fallbackPaths: Arr
 };
 
 const getMediaType = (format: string, rawFormat = "", action = ""): TMediaItem["mediaType"] => {
+  if (format === "collection" || action === "open_collection") return "collection";
   if (VIDEO_FORMATS.has(format)) return "video";
   if (IMAGE_FORMATS.has(format)) return "image";
   const normalizedRaw = rawFormat.trim().toLowerCase();
@@ -386,6 +385,7 @@ const getPlaneCoachThumbnailPath = () => "attachment/video-icon.png";
 export const resolveMediaItemActionHref = (item: TMediaItem) => {
   const action = (item.action ?? "").toLowerCase();
 
+  if (item.mediaType === "collection") return item.collectionHref ?? null;
   if (item.mediaType === "video" || VIDEO_ACTIONS.has(action)) return null;
   if (action === "open_pdf" && item.fileSrc) {
     return `/viewer?src=${encodeURIComponent(item.fileSrc)}&type=pdf`;
@@ -395,6 +395,105 @@ export const resolveMediaItemActionHref = (item: TMediaItem) => {
   }
 
   return null;
+};
+
+const getUploadBatchId = (item: TMediaItem) => {
+  const value = item.meta?.upload_batch_id ?? item.meta?.uploadBatchId;
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+};
+
+const getUploadBatchName = (item: TMediaItem) => {
+  const value = item.meta?.upload_batch_name ?? item.meta?.uploadBatchName;
+  return typeof value === "string" && value.trim() ? value.trim() : "Upload";
+};
+
+const getUploadBatchSize = (item: TMediaItem) => {
+  const value = item.meta?.upload_batch_size ?? item.meta?.uploadBatchSize;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const getUploadBatchStatus = (items: TMediaItem[]) => {
+  if (items.some((item) => item.isTranscodeFailed || item.transcodeLabel === "Failed")) return "Partially Failed";
+  if (items.some((item) => item.isTranscodeActive)) return "Processing";
+  if (items.some((item) => item.transcodeStatus === "UPLOAD_COMPLETE" || item.transcodeStatus === "QUEUED")) {
+    return "Uploading";
+  }
+  return "Completed";
+};
+
+const groupUploadBatchItems = (items: TMediaItem[], context?: TArtifactContext) => {
+  const grouped = new Map<string, TMediaItem[]>();
+  const output: TMediaItem[] = [];
+
+  for (const item of items) {
+    const batchId = getUploadBatchId(item);
+    const batchSize = getUploadBatchSize(item);
+    if (!batchId || batchSize <= 1) {
+      output.push(item);
+      continue;
+    }
+    const group = grouped.get(batchId);
+    if (group) group.push(item);
+    else grouped.set(batchId, [item]);
+  }
+
+  for (const [batchId, batchItems] of grouped.entries()) {
+    const representative = batchItems.find((item) => item.thumbnail) ?? batchItems[0];
+    const batchName = getUploadBatchName(representative);
+    const statusLabel = getUploadBatchStatus(batchItems);
+    const collectionHref =
+      context?.workspaceSlug && context?.projectId
+        ? `/${context.workspaceSlug}/projects/${context.projectId}/media-library/section/${encodeURIComponent(
+            batchName
+          )}?batch_id=${encodeURIComponent(batchId)}`
+        : undefined;
+
+    output.push({
+      id: batchId,
+      packageId: context?.packageId,
+      title: batchName,
+      description: `${batchItems.length} ${batchItems.length === 1 ? "file" : "files"}`,
+      format: "collection",
+      action: "open_collection",
+      link: null,
+      workItemId: null,
+      author: representative.author,
+      createdAt: representative.createdAt,
+      views: batchItems.reduce((total, item) => total + (item.views || 0), 0),
+      duration: "",
+      primaryTag: batchName,
+      secondaryTag: statusLabel,
+      itemsCount: batchItems.length,
+      meta: {
+        upload_batch_id: batchId,
+        upload_batch_name: batchName,
+        upload_batch_size: batchItems.length,
+        processing_state: statusLabel,
+        category: getMetaString(representative.meta, ["category"], ""),
+        location: getMetaString(representative.meta, ["location"], ""),
+      },
+      mediaType: "collection",
+      collectionHref,
+      thumbnail: representative.thumbnail,
+      docs: [],
+      isTranscodeActive: statusLabel === "Uploading" || statusLabel === "Processing",
+      isTranscodeFailed: statusLabel === "Partially Failed",
+      isTranscodeComplete: statusLabel === "Completed",
+      transcodeLabel: statusLabel,
+    });
+  }
+
+  return output.sort((left, right) => {
+    const leftTime = Date.parse(left.createdAt);
+    const rightTime = Date.parse(right.createdAt);
+    if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) return 0;
+    return rightTime - leftTime;
+  });
 };
 
 export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: TArtifactContext): TMediaItem[] => {
@@ -468,7 +567,7 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
     return rightTime - leftTime;
   });
 
-  return sortedArtifacts.map((artifact) => {
+  const items = sortedArtifacts.map((artifact) => {
     const rawFormat = artifact.format ?? "";
     const normalizedAction = (artifact.action ?? "").toLowerCase();
     const actionFormat =
@@ -488,7 +587,7 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
     // console.log("Display Title:", displayTitle, "Format:", format, "Media Type:", mediaType, "Event Details:", eventDetails, "Linked Artifact:", linkedArtifact);
     const baseDescription = (artifact.description ?? getMetaString(meta, ["description", "summary"], "")).trim();
     const eventContextLabel = getEventMediaContextLabel(meta);
-    const eventDateLabel = getEventMediaDateLabel(meta);
+    const eventDateLabel = getEventMediaDateLabel(meta, context?.dateFormat);
     const descriptionSource =
       eventDetails && !baseDescription
         ? [eventContextLabel, eventDateLabel].filter((entry): entry is string => Boolean(entry)).join(" · ")
@@ -497,11 +596,11 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
     const descriptionHtml =
       format === "thumbnail" || !containsHtmlTags(descriptionSource) ? undefined : descriptionSource;
 
-    const createdAt = formatDateLabel(artifact.created_at || artifact.updated_at || "");
+    const createdAt = formatDateLabel(artifact.created_at || artifact.updated_at || "", context?.dateFormat);
     const views = getMetaNumber(meta, ["views"], 0);
-    const duration = getMetaDuration(meta, ["duration"], "");
+    const duration = getMetaDuration(meta, ["duration", "duration_seconds", "duration_sec", "durationSec"], "");
 
-    const primaryTag = getMetaString(meta, ["category", "sport", "program"], "Uploads");
+    const primaryTag = getMetaString(meta, ["category"], "");
     const linkValue = artifact.link ?? getMetaString(meta, ["for"], "");
     const linkTarget = linkValue ? normalizeKey(linkValue) : "";
     const linkFormat = getFormatFromPath(linkValue);
@@ -533,7 +632,7 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
       ? (mediaTypeByName.get(linkTarget) ?? (linkFormat ? getMediaType(linkFormat) : inferredLinkedMediaType))
       : undefined;
     const secondaryTag =
-      getMetaString(meta, ["season", "level", "status", "coach"], "") || (eventDetails?.status ?? "Media");
+      getMetaString(meta, ["location", "season", "level", "coach"], "") || (eventDetails?.status ?? "");
     const itemsCount = getMetaNumber(meta, ["itemsCount", "items_count"], 1);
     const author = getMetaString(meta, ["coach", "author", "creator"], "Media Library");
     const docs = getMetaStringArray(meta, "docs");
@@ -572,6 +671,7 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
       workItemId: workItemId || null,
       author,
       createdAt,
+      eventDateLabel,
       views,
       duration,
       primaryTag,
@@ -590,9 +690,11 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
       ...transcodeState,
     };
   });
+
+  return context?.groupBatches === false ? items : groupUploadBatchItems(items, context);
 };
 
-export const groupMediaItemsByTag = (items: TMediaItem[], fallbackTitle = "Upload"): TMediaSection[] => {
+export const groupMediaItemsByTag = (items: TMediaItem[], fallbackTitle = "Media"): TMediaSection[] => {
   const grouped = new Map<string, TMediaItem[]>();
   for (const item of items) {
     const key = item.primaryTag || fallbackTitle;

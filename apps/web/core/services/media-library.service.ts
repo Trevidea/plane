@@ -60,6 +60,7 @@ type TMediaLibraryArtifactsQuery = {
   filters?: string;
   formats?: string;
   section?: string;
+  batch_id?: string;
   cursor?: string;
   per_page?: string;
 };
@@ -136,6 +137,11 @@ export type TMediaTranscodeJobResponse = {
     code?: string;
     message?: string;
   } | null;
+};
+
+export type TMediaArtifactViewResponse = {
+  views: number;
+  counted: boolean;
 };
 
 type TMediaTranscodeEnqueuePayload = {
@@ -479,6 +485,25 @@ export class MediaLibraryService extends APIService {
       )}/transcode/jobs/${encodeURIComponent(jobId)}/`
     )
       .then((response) => response?.data as TMediaTranscodeJobResponse)
+      .catch((error) => {
+        throw error?.response?.data ?? error?.response ?? error;
+      });
+  }
+
+  async recordArtifactView(
+    workspaceSlug: string,
+    projectId: string,
+    packageId: string,
+    artifactId: string,
+    payload: { session_id?: string | null } = {}
+  ): Promise<TMediaArtifactViewResponse> {
+    return this.post(
+      `/api/workspaces/${workspaceSlug}/projects/${projectId}/media-library/packages/${packageId}/artifacts/${encodeURIComponent(
+        artifactId
+      )}/views/`,
+      payload
+    )
+      .then((response) => response?.data as TMediaArtifactViewResponse)
       .catch((error) => {
         throw error?.response?.data ?? error?.response ?? error;
       });

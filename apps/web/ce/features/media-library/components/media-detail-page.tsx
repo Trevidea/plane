@@ -33,11 +33,29 @@ import {
   getVideoRepresentations,
 } from "../utils/media-detail-utils";
 import { isEventMediaItem } from "../utils/media-event";
+import { buildMediaViewStorageKey, shouldRecordMediaPlaybackView } from "../utils/media-view-counter";
 import { MediaDetailPreview } from "./media-detail-preview";
 import { MediaDetailSidebar } from "./media-detail-sidebar";
-import { TagsSection } from "./tags-section";
 
 type TPipCaptionMode = "disabled" | "hidden" | "showing";
+
+const MEDIA_VIEWER_SESSION_KEY = "plane-media-viewer-session-id";
+
+const getMediaViewerSessionId = () => {
+  if (typeof window === "undefined") return "";
+  try {
+    const existing = window.localStorage.getItem(MEDIA_VIEWER_SESSION_KEY);
+    if (existing) return existing;
+    const next =
+      typeof window.crypto?.randomUUID === "function"
+        ? window.crypto.randomUUID()
+        : `viewer-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    window.localStorage.setItem(MEDIA_VIEWER_SESSION_KEY, next);
+    return next;
+  } catch {
+    return `viewer-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+};
 
 const MediaDetailPage = () => {
   const { mediaId, workspaceSlug, projectId } = useParams() as {
@@ -66,7 +84,6 @@ const MediaDetailPage = () => {
   }, [fromParam, projectId, workspaceSlug]);
   const { item: rawItem, isLoading } = useMediaLibraryItem(workspaceSlug, projectId, mediaId);
   const [mediaItemOverrides, setMediaItemOverrides] = useState<Partial<TMediaItem> | null>(null);
-  const [isTagsSaving, setIsTagsSaving] = useState(false);
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
   const annotationVideoItem = useMemo(
     () =>
@@ -102,27 +119,9 @@ const MediaDetailPage = () => {
     setMediaItemOverrides((prev) => ({ ...(prev ?? {}), ...updates }));
   }, []);
 
-  const handleTagsUpdate = useCallback(
-    async (nextTags: string[]) => {
-      if (!item?.packageId || !item?.id) return;
-      const nextMeta = { ...(item.meta ?? {}), tags: nextTags };
-      setIsTagsSaving(true);
-      try {
-        await mediaLibraryService.updateManifestArtifacts(workspaceSlug, projectId, item.packageId, {
-          artifact_id: item.id,
-          artifact: {
-            meta: nextMeta,
-          },
-        });
-        handleMediaItemUpdated({ meta: nextMeta });
-      } finally {
-        setIsTagsSaving(false);
-      }
-    },
-    [handleMediaItemUpdated, item?.id, item?.meta, item?.packageId, mediaLibraryService, projectId, workspaceSlug]
-  );
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<ReturnType<typeof videojs> | null>(null);
+  const viewRecordedRef = useRef(false);
   const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -145,6 +144,7 @@ const MediaDetailPage = () => {
   const annotationEventJsonSource = rawItem?.fileSrc || rawItem?.downloadSrc || "";
   useEffect(() => {
     setMediaItemOverrides(null);
+    viewRecordedRef.current = false;
   }, [rawItem?.id]);
 
   useEffect(() => {
@@ -587,6 +587,66 @@ const MediaDetailPage = () => {
       player.off("loadedmetadata", handlePlayState);
     };
   }, [isVideo, proxiedVideoSrc]);
+
+  const recordPlaybackView = useCallback(async () => {
+    if (
+      !shouldRecordMediaPlaybackView({
+        eventType: "playing",
+        isVideo,
+        packageId: item?.packageId,
+        artifactId: item?.id,
+        alreadyRecorded: viewRecordedRef.current,
+      }) ||
+      !item?.packageId ||
+      !item?.id
+    ) {
+      return;
+    }
+    const storageKey = buildMediaViewStorageKey({
+      workspaceSlug,
+      projectId,
+      packageId: item.packageId,
+      artifactId: item.id,
+    });
+    if (typeof window !== "undefined") {
+      try {
+        if (window.sessionStorage.getItem(storageKey)) {
+          viewRecordedRef.current = true;
+          return;
+        }
+        window.sessionStorage.setItem(storageKey, "1");
+      } catch {}
+    }
+    viewRecordedRef.current = true;
+    try {
+      const response = await mediaLibraryService.recordArtifactView(workspaceSlug, projectId, item.packageId, item.id, {
+        session_id: getMediaViewerSessionId(),
+      });
+      if (typeof response.views === "number") {
+        handleMediaItemUpdated({
+          views: response.views,
+          meta: {
+            ...(item.meta ?? {}),
+            views: response.views,
+          },
+        });
+      }
+    } catch {
+      // View counting should never interrupt playback.
+    }
+  }, [handleMediaItemUpdated, isVideo, item?.id, item?.meta, item?.packageId, mediaLibraryService, projectId, workspaceSlug]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || !isVideo) return;
+    const handlePlaybackStarted = () => {
+      void recordPlaybackView();
+    };
+    player.on("playing", handlePlaybackStarted);
+    return () => {
+      player.off("playing", handlePlaybackStarted);
+    };
+  }, [isVideo, proxiedVideoSrc, recordPlaybackView]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -1104,11 +1164,11 @@ const MediaDetailPage = () => {
   }
 
   return (
-    <div className="vertical-scrollbar scrollbar-md relative h-full w-full overflow-x-hidden overflow-y-auto">
+    <div className="vertical-scrollbar scrollbar-md relative h-full w-full overflow-x-hidden overflow-y-auto lg:overflow-hidden">
       <div
         className={[
-          "flex min-h-full flex-col",
-          isFocusedVideoAnnotationWorkspace ? "gap-2 px-2 py-2" : "gap-6 px-3 py-3",
+          "flex min-h-full flex-col lg:h-full lg:min-h-0",
+          isFocusedVideoAnnotationWorkspace ? "gap-2 px-2 py-2" : "gap-6 px-3 py-3 lg:gap-4",
         ].join(" ")}
       >
         {!isFocusedVideoAnnotationWorkspace ? (
@@ -1150,13 +1210,15 @@ const MediaDetailPage = () => {
         <div
           className={[
             "grid",
-            isFocusedVideoAnnotationWorkspace ? "min-h-0 flex-1 gap-0" : "gap-6 lg:grid-cols-[2fr_1fr] lg:gap-0",
+            isFocusedVideoAnnotationWorkspace
+              ? "min-h-0 flex-1 gap-0"
+              : "gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[2fr_1fr] lg:gap-0",
           ].join(" ")}
         >
           <div
             className={[
               "flex flex-col",
-              isFocusedVideoAnnotationWorkspace ? "h-full min-h-0 w-full gap-2" : "gap-6",
+              isFocusedVideoAnnotationWorkspace ? "h-full min-h-0 w-full gap-2" : "gap-6 lg:min-h-0",
             ].join(" ")}
           >
             <MediaDetailPreview
@@ -1236,15 +1298,6 @@ const MediaDetailPage = () => {
               createdByLabel={createdByLabel}
               createdAt={item.createdAt}
             />
-            {!isFocusedVideoAnnotationWorkspace ? (
-              <TagsSection
-                item={item}
-                onPlay={handleOverlayToggle}
-                editable
-                onTagsChange={handleTagsUpdate}
-                isSaving={isTagsSaving}
-              />
-            ) : null}
           </div>
           {isVideo ? (
             <style jsx global>
