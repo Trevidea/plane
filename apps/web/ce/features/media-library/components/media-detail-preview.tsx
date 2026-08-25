@@ -28,6 +28,7 @@ type TMediaDetailPreviewProps = {
   canAnnotateVideo?: boolean;
   isVideoAnnotationMode?: boolean;
   isVideoAnnotationWorkspaceOpen?: boolean;
+  hasUnsavedVideoAnnotationChanges?: boolean;
   onOverlayToggle: () => void;
   onOverlaySeek: (delta: number) => void;
   onOpenVideoAnnotationWorkspace?: () => void;
@@ -83,6 +84,7 @@ export const MediaDetailPreview = ({
   isPlaying,
   canAnnotateVideo = false,
   isVideoAnnotationWorkspaceOpen = false,
+  hasUnsavedVideoAnnotationChanges = false,
   onOverlayToggle,
   onOverlaySeek,
   onOpenVideoAnnotationWorkspace,
@@ -156,8 +158,13 @@ export const MediaDetailPreview = ({
     setIsVideoAnnotationDoneModalOpen(true);
   }, []);
   const handleRequestDiscardVideoAnnotationWorkspace = useCallback(() => {
-    setIsVideoAnnotationBackModalOpen(true);
-  }, []);
+    if (hasUnsavedVideoAnnotationChanges) {
+      setIsVideoAnnotationBackModalOpen(true);
+      return;
+    }
+
+    onDiscardVideoAnnotationWorkspace?.();
+  }, [hasUnsavedVideoAnnotationChanges, onDiscardVideoAnnotationWorkspace]);
   const handleConfirmDiscardVideoAnnotationWorkspace = useCallback(() => {
     setIsVideoAnnotationBackModalOpen(false);
     onDiscardVideoAnnotationWorkspace?.();
@@ -399,8 +406,10 @@ export const MediaDetailPreview = ({
                   onClick={handleRequestDiscardVideoAnnotationWorkspace}
                   className={VIDEO_ANNOTATION_HEADER_BACK_ACTION_CLASS}
                   disabled={isCompletingVideoAnnotation}
-                  aria-label="Back without saving annotations"
-                  title="Back without saving"
+                  aria-label={
+                    hasUnsavedVideoAnnotationChanges ? "Back without saving annotations" : "Back from annotation editor"
+                  }
+                  title={hasUnsavedVideoAnnotationChanges ? "Back without saving" : "Back"}
                 >
                   <ArrowLeft className="h-4 w-4 shrink-0" />
                   <span className="whitespace-nowrap leading-none">Back</span>
