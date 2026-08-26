@@ -133,6 +133,29 @@ ARTIFACT_FIELD_KEYS = {
 }
 
 
+def is_inline_image_data_url(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    header = value.strip()[:200].lower()
+    return header.startswith("data:image/") and ";base64," in header
+
+
+def strip_inline_image_annotation_content(value):
+    if isinstance(value, list):
+        return [strip_inline_image_annotation_content(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+
+    cleaned = {
+        key: strip_inline_image_annotation_content(child)
+        for key, child in value.items()
+    }
+    annotation_type = str(cleaned.get("type") or "").strip().lower()
+    if annotation_type == "image" and is_inline_image_data_url(cleaned.get("content")):
+        cleaned.pop("content", None)
+    return cleaned
+
+
 def _apply_event_meta(existing: dict, updates: dict) -> dict:
     if not isinstance(existing, dict):
         existing = {}
@@ -189,6 +212,7 @@ def update_manifest_artifact_fields(
 ) -> int:
     if not isinstance(manifest, dict):
         return 0
+    updates = strip_inline_image_annotation_content(updates)
     artifacts = manifest.get("artifacts") or []
     if not isinstance(artifacts, list) or not artifacts:
         return 0
@@ -910,7 +934,7 @@ def read_manifest(path: Path) -> dict:
             raise ValidationError({"manifest": "Invalid manifest JSON."}) from exc
     if not isinstance(data.get("artifacts"), list):
         raise ValidationError({"manifest": "Invalid manifest: artifacts must be a list."})
-    return normalize_manifest_metadata(data)
+    return strip_inline_image_annotation_content(normalize_manifest_metadata(data))
 
 
 def write_manifest_atomic(path: Path, data: dict) -> None:
@@ -918,7 +942,7 @@ def write_manifest_atomic(path: Path, data: dict) -> None:
     fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=path.name, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2, sort_keys=False)
+            json.dump(strip_inline_image_annotation_content(data), handle, indent=2, sort_keys=False)
             handle.write("\n")
         os.replace(tmp_path, path)
     finally:

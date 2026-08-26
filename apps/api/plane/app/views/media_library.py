@@ -1,4 +1,6 @@
 # Python imports
+import base64
+import binascii
 import json
 import math
 import logging
@@ -42,6 +44,7 @@ from plane.utils.media_library import (
     get_document_icon_source,
     get_document_thumbnail_hint,
     hydrate_artifacts_with_meta,
+    is_inline_image_data_url,
     manifest_path,
     media_library_root,
     manifest_write_lock,
@@ -76,6 +79,19 @@ _IMAGE_FORMATS = {
     "thumbnail",
 }
 _VIDEO_FORMATS = {"mp4", "m3u8", "mov", "webm", "avi", "mkv", "mpeg", "mpg", "m4v"}
+_ANNOTATION_IMAGE_FORMATS_BY_CONTENT_TYPE = {
+    "image/avif": "avif",
+    "image/bmp": "bmp",
+    "image/gif": "gif",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/svg+xml": "svg",
+    "image/tiff": "tiff",
+    "image/webp": "webp",
+}
 _MP4_FASTSTART_FORMATS = {".mp4", ".m4v"}
 _TRANSCODE_SOURCE_FORMATS = {"mp4", "mov"}
 _TRANSCODE_TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED"}
@@ -85,6 +101,11 @@ _MAX_TRANSCODE_SOURCE_SHORT_EDGE = 1080
 _SUPPORTED_TRANSCODE_VIDEO_CODECS = {"h264", "hevc", "h265", "mpeg4", "prores"}
 _SUPPORTED_TRANSCODE_AUDIO_CODECS = {"aac", "mp3", "mp2", "pcm_s16le", "pcm_s24le", "alac", "ac3", "eac3"}
 logger = logging.getLogger(__name__)
+
+
+class MediaAnnotationImageError(ValueError):
+    pass
+
 
 _UPLOAD_LOG_SAFE_FIELD_NAMES = {
     "artifact_count",
@@ -455,6 +476,119 @@ def _resolve_artifact_disk_path(artifact: dict, base_root: Path) -> Path | None:
     if os.path.commonpath([str(base_root), str(candidate)]) != str(base_root):
         return None
     return candidate
+
+
+def _decode_annotation_image_data_url(value: object) -> tuple[str, str, bytes] | None:
+    if not is_inline_image_data_url(value):
+        return None
+
+    raw_value = str(value).strip()
+    header, separator, encoded_payload = raw_value.partition(",")
+    if not separator:
+        return None
+
+    content_type = header[5:].split(";", 1)[0].strip().lower()
+    image_format = _ANNOTATION_IMAGE_FORMATS_BY_CONTENT_TYPE.get(content_type)
+    if not image_format:
+        raise MediaAnnotationImageError("Unsupported image annotation content type.")
+
+    try:
+        image_bytes = base64.b64decode(encoded_payload, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise MediaAnnotationImageError("Image annotation content must be valid base64.") from exc
+
+    if not image_bytes:
+        raise MediaAnnotationImageError("Image annotation content is empty.")
+
+    return content_type, image_format, image_bytes
+
+
+def _sanitize_annotation_image_segment(value: object) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9_-]+", "-", str(value or "")).strip("-_")
+    return normalized[:72]
+
+
+def _transcode_output_root() -> Path:
+    root = str(getattr(settings, "MEDIA_TRANSCODE_OUTPUT_ROOT", "") or "").strip()
+    if not root:
+        raise MediaAnnotationImageError("Media transcode output root is not configured.")
+    return Path(root).resolve(strict=False)
+
+
+def _write_annotation_image_blob(
+    project_id: str,
+    package_id: str,
+    source_artifact_id: str | None,
+    annotation: dict,
+    image_format: str,
+    image_bytes: bytes,
+) -> str:
+    output_root = _transcode_output_root()
+    annotation_id = _sanitize_annotation_image_segment(annotation.get("id")) or uuid4().hex[:12]
+    image_digest = sha1(image_bytes).hexdigest()
+    asset_seed = f"{project_id}:{package_id}:{source_artifact_id or ''}:{annotation_id}:{image_digest}"
+    asset_id = f"media-annotation-{sha1(asset_seed.encode('utf-8')).hexdigest()}"
+    file_name = f"{annotation_id}-{image_digest[:12]}.{image_format}"
+    file_path = (output_root / asset_id / file_name).resolve(strict=False)
+
+    try:
+        if os.path.commonpath([str(output_root), str(file_path)]) != str(output_root):
+            raise MediaAnnotationImageError("Image annotation output path is invalid.")
+    except ValueError as exc:
+        raise MediaAnnotationImageError("Image annotation output path is invalid.") from exc
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = file_path.with_name(f".{file_path.name}.{uuid4().hex}.tmp")
+    try:
+        temporary_path.write_bytes(image_bytes)
+        os.replace(temporary_path, file_path)
+    finally:
+        try:
+            temporary_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    return _normalize_transcode_output_url(f"transcoded/{asset_id}/{file_name}")
+
+
+def _externalize_annotation_image_content(
+    value,
+    project_id: str,
+    package_id: str,
+    source_artifact_id: str | None = None,
+) -> tuple[object, int]:
+    created_count = 0
+
+    def walk(item):
+        nonlocal created_count
+        if isinstance(item, list):
+            return [walk(child) for child in item]
+        if not isinstance(item, dict):
+            return item
+
+        next_item = {key: walk(child) for key, child in item.items()}
+        annotation_type = str(next_item.get("type") or "").strip().lower()
+        if annotation_type != "image":
+            return next_item
+
+        decoded = _decode_annotation_image_data_url(next_item.get("content"))
+        if not decoded:
+            return next_item
+
+        _, image_format, image_bytes = decoded
+        image_url = _write_annotation_image_blob(
+            project_id,
+            package_id,
+            source_artifact_id,
+            next_item,
+            image_format,
+            image_bytes,
+        )
+        next_item["content"] = image_url
+        created_count += 1
+        return next_item
+
+    return walk(value), created_count
 
 
 def _transcode_source_root() -> Path:
@@ -1173,6 +1307,18 @@ class MediaManifestDetailAPIView(BaseAPIView):
         with manifest_write_lock(manifest_file):
             manifest = read_manifest(manifest_file)
             updated_count = 0
+            if artifact_fields is not None:
+                if not _find_manifest_artifact(manifest, artifact_id):
+                    return Response({"updated": 0}, status=status.HTTP_200_OK)
+                try:
+                    artifact_fields, _ = _externalize_annotation_image_content(
+                        artifact_fields,
+                        project_id_str,
+                        package_id,
+                        source_artifact_id=artifact_id,
+                    )
+                except MediaAnnotationImageError as exc:
+                    return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             if meta is not None:
                 updated_count += update_manifest_event_meta(manifest, work_item_id, meta)
             if artifact_fields is not None:
@@ -1439,6 +1585,16 @@ class MediaArtifactFileAPIView(BaseAPIView):
 
             if best_key is None or best_index < 0:
                 raise NotFound("Matching media reference view not found.")
+
+            try:
+                annotations, _ = _externalize_annotation_image_content(
+                    annotations,
+                    project_id_str,
+                    package_id,
+                    source_artifact_id=artifact_id,
+                )
+            except MediaAnnotationImageError as exc:
+                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
             references = event_payload[best_key]
             media_reference = dict(references[best_index])
