@@ -2,10 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TCustomPlaylistAnnotationTool } from "../types/annotation.types";
-import {
-  MAX_VIDEO_ANNOTATION_IMAGE_BYTES,
-  VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS,
-} from "../utils/video-annotation-editor-config";
+import { VIDEO_ANNOTATION_IMAGE_SIZE_LIMITS } from "../utils/video-annotation-editor-config";
 import { clampTimelineValue } from "../utils/video-annotation-timeline";
 
 type UseVideoAnnotationImageControlsParams = {
@@ -95,15 +92,6 @@ export const useVideoAnnotationImageControls = ({
           type: TOAST_TYPE.ERROR,
           title: "Image annotation failed",
           message: "Choose a valid image file.",
-        });
-        return;
-      }
-
-      if (selectedFile.size > MAX_VIDEO_ANNOTATION_IMAGE_BYTES) {
-        setToast({
-          type: TOAST_TYPE.ERROR,
-          title: "Image annotation failed",
-          message: "Use an image smaller than 2 MB.",
         });
         return;
       }
