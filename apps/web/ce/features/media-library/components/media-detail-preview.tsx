@@ -74,6 +74,8 @@ const VIDEO_ANNOTATION_HEADER_ACTION_CLASS =
   "inline-flex h-9 min-w-[118px] items-center justify-center gap-2 rounded-[7px] border border-custom-primary-100 bg-custom-primary-100 px-3.5 text-[13px] font-semibold leading-none text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-custom-primary-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100/40 focus-visible:ring-offset-2 focus-visible:ring-offset-custom-background-100 active:translate-y-0";
 const VIDEO_ANNOTATION_HEADER_BACK_ACTION_CLASS =
   "inline-flex h-9 items-center justify-center gap-2 rounded-[7px] border border-custom-border-200 bg-custom-background-90 px-3 text-[13px] font-semibold leading-none text-custom-text-200 transition-colors hover:bg-custom-background-80 hover:text-custom-text-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100/40 focus-visible:ring-offset-2 focus-visible:ring-offset-custom-background-100 disabled:cursor-not-allowed disabled:opacity-60";
+const VIDEO_ANNOTATION_DESKTOP_TIMELINE_HEIGHT_RESERVE = 510;
+const VIDEO_ANNOTATION_TABLET_TIMELINE_HEIGHT_RESERVE = 440;
 
 export const MediaDetailPreview = ({
   item,
@@ -292,11 +294,11 @@ export const MediaDetailPreview = ({
 
     if (isVideoAnnotationWorkspaceOpen) {
       if (isDesktopViewport) {
-        return Math.min(860, Math.max(500, viewport.height - 360));
+        return Math.min(700, Math.max(360, viewport.height - VIDEO_ANNOTATION_DESKTOP_TIMELINE_HEIGHT_RESERVE));
       }
 
       if (isTabletViewport) {
-        return Math.min(680, Math.max(380, viewport.height - 330));
+        return Math.min(580, Math.max(320, viewport.height - VIDEO_ANNOTATION_TABLET_TIMELINE_HEIGHT_RESERVE));
       }
 
       return Math.min(500, Math.max(260, viewport.height - 310));
