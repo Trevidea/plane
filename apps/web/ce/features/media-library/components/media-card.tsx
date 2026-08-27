@@ -126,7 +126,7 @@ export const MediaCard = ({
   const isCollection = item.mediaType === "collection";
   const isVideoLike = item.mediaType === "video" || item.linkedMediaType === "video";
   const showDurationBadge = isVideoLike && Boolean(durationLabel);
-  const showAnnotatedIndicator = isVideoLike && Boolean(item.isAnnotated);
+  const showAnnotatedIndicator = (isVideoLike || isEventItem) && Boolean(item.isAnnotated);
   const LinkedTypeIcon = showLinkedTypeIndicator
     ? isEventItem
       ? Video

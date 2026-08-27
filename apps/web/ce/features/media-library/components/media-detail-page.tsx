@@ -1057,20 +1057,27 @@ const MediaDetailPage = () => {
           viewKey: annotationViewKey,
           videoSrc: annotationVideoSrcParam,
         });
+        const nextAnnotations = updatedAnnotations.length > 0 ? updatedAnnotations : annotations;
+        const annotationCount = nextAnnotations.length;
         handleMediaItemUpdated({
+          isAnnotated: annotationCount > 0,
           meta: {
             ...(item.meta ?? {}),
-            annotations: updatedAnnotations.length > 0 ? updatedAnnotations : annotations,
+            annotations: nextAnnotations,
+            annotation_count: annotationCount,
             annotationViewKey,
+            has_annotations: annotationCount > 0,
           },
         });
 
-        return updatedAnnotations.length > 0 ? updatedAnnotations : annotations;
+        return nextAnnotations;
       }
 
       const nextMeta = {
         ...(item.meta ?? {}),
         annotations,
+        annotation_count: annotations.length,
+        has_annotations: annotations.length > 0,
       };
 
       await mediaLibraryService.updateManifestArtifacts(workspaceSlug, projectId, item.packageId, {
@@ -1079,7 +1086,7 @@ const MediaDetailPage = () => {
           meta: nextMeta,
         },
       });
-      handleMediaItemUpdated({ meta: nextMeta });
+      handleMediaItemUpdated({ isAnnotated: annotations.length > 0, meta: nextMeta });
 
       return annotations;
     },
