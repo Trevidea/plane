@@ -736,6 +736,13 @@ _DOCUMENT_ICON_MAP = {
     "css": "css-icon.png",
 }
 _DOCUMENT_ICON_DEFAULT = "default-icon.png"
+_PLANE_COACH_JSON_VIDEO_ICON_HINT = "attachment/video-icon.png"
+_PLANE_COACH_DEFAULT_POSTER_NAMES = {
+    "default.jpg",
+    "default.webp",
+    "defualt.jpg",
+    "defualt.webp",
+}
 
 
 def _now_iso() -> str:
@@ -782,10 +789,25 @@ def _thumbnail_hint_candidates(thumbnail_hint: str | None) -> list[str]:
     return list(dict.fromkeys(candidates))
 
 
+def _is_plane_coach_json(format_value: str, meta: dict) -> bool:
+    source_value = str(meta.get("source") or "").strip().lower()
+    return source_value == "plane-coach" and str(format_value or "").strip().lower() == "json"
+
+
+def _is_default_coach_poster_hint(thumbnail_hint: str | None) -> bool:
+    return any(
+        Path(candidate).name.lower() in _PLANE_COACH_DEFAULT_POSTER_NAMES
+        for candidate in _thumbnail_hint_candidates(thumbnail_hint)
+    )
+
+
 def get_document_thumbnail_hint(format_value: str, meta: dict | None = None) -> str | None:
     if isinstance(meta, dict):
+        is_plane_coach_json = _is_plane_coach_json(format_value, meta)
         thumbnail_hint = _meta_text(meta, "thumbnail")
         if thumbnail_hint:
+            if is_plane_coach_json and _is_default_coach_poster_hint(thumbnail_hint):
+                return _PLANE_COACH_JSON_VIDEO_ICON_HINT
             return thumbnail_hint
 
         poster_hint = _meta_text(meta, "poster_url", "posterUrl", "poster")
@@ -794,11 +816,12 @@ def get_document_thumbnail_hint(format_value: str, meta: dict | None = None) -> 
             if isinstance(event_meta, dict):
                 poster_hint = _meta_text(event_meta, "poster_url", "posterUrl", "poster")
         if poster_hint:
+            if is_plane_coach_json and _is_default_coach_poster_hint(poster_hint):
+                return _PLANE_COACH_JSON_VIDEO_ICON_HINT
             return poster_hint
 
-        source_value = str(meta.get("source") or "").strip().lower()
-        if source_value == "plane-coach" and str(format_value or "").strip().lower() == "json":
-            return "attachment/video-icon.png"
+        if is_plane_coach_json:
+            return _PLANE_COACH_JSON_VIDEO_ICON_HINT
 
     return None
 

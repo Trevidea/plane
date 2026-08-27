@@ -38,6 +38,7 @@ from plane.utils.exception_logger import log_exception
 from plane.utils.media_library import (
     _now_iso,
     create_manifest,
+    ensure_manifest_metadata,
     ensure_project_library,
     filter_media_library_artifacts,
     generate_thumbnail,
@@ -589,6 +590,66 @@ def _externalize_annotation_image_content(
         return next_item
 
     return walk(value), created_count
+
+
+def _count_saved_annotations(value) -> int:
+    if isinstance(value, list):
+        return sum(_count_saved_annotations(item) for item in value)
+    if not isinstance(value, dict):
+        return 0
+
+    count = 0
+    annotations = value.get("annotations")
+    if isinstance(annotations, list):
+        count += len(annotations)
+    for key, child in value.items():
+        if key == "annotations":
+            continue
+        count += _count_saved_annotations(child)
+    return count
+
+
+def _sync_event_annotation_manifest_summary(
+    manifest: dict,
+    artifact: dict,
+    event_payload: dict,
+    updated_at: str,
+) -> bool:
+    annotation_count = _count_saved_annotations(event_payload)
+    has_annotations = annotation_count > 0
+    summary = {
+        "has_annotations": has_annotations,
+        "annotation_count": annotation_count,
+    }
+    if has_annotations:
+        summary["annotations_updated_at"] = updated_at
+
+    metadata_ref = normalize_metadata_ref(artifact.get("metadata_ref")) or normalize_metadata_ref(artifact.get("name"))
+    if metadata_ref:
+        metadata = ensure_manifest_metadata(manifest)
+        existing_meta = metadata.get(metadata_ref)
+        if not isinstance(existing_meta, dict):
+            existing_meta = {}
+        next_meta = dict(existing_meta)
+        if not has_annotations:
+            next_meta.pop("annotations_updated_at", None)
+        next_meta.update(summary)
+        if next_meta == existing_meta:
+            return False
+        metadata[metadata_ref] = next_meta
+        return True
+
+    existing_meta = artifact.get("meta")
+    if not isinstance(existing_meta, dict):
+        existing_meta = {}
+    next_meta = dict(existing_meta)
+    if not has_annotations:
+        next_meta.pop("annotations_updated_at", None)
+    next_meta.update(summary)
+    if next_meta == existing_meta:
+        return False
+    artifact["meta"] = next_meta
+    return True
 
 
 def _transcode_source_root() -> Path:
@@ -1598,8 +1659,9 @@ class MediaArtifactFileAPIView(BaseAPIView):
 
             references = event_payload[best_key]
             media_reference = dict(references[best_index])
+            annotations_updated_at = _now_iso()
             media_reference["annotations"] = annotations
-            media_reference["annotationsUpdatedAt"] = _now_iso()
+            media_reference["annotationsUpdatedAt"] = annotations_updated_at
             if view_key:
                 media_reference["annotationViewKey"] = view_key
             references[best_index] = media_reference
@@ -1607,6 +1669,10 @@ class MediaArtifactFileAPIView(BaseAPIView):
             temporary_path = file_path.with_name(f".{file_path.name}.{uuid4().hex}.tmp")
             temporary_path.write_text(json.dumps(event_payload, indent=2), encoding="utf-8")
             os.replace(temporary_path, file_path)
+            if _sync_event_annotation_manifest_summary(manifest, artifact, event_payload, annotations_updated_at):
+                manifest["updatedAt"] = _now_iso()
+                normalize_manifest_metadata(manifest)
+                write_manifest_atomic(manifest_file, manifest)
 
         return Response(
             {

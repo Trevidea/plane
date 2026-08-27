@@ -333,19 +333,19 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
 
   return (
     <div
-      className="fixed inset-0 z-[40] flex items-center justify-center overflow-y-auto bg-black/60 p-3 text-white backdrop-blur-sm sm:p-5"
+      className="fixed inset-0 z-[40] flex items-center justify-center overflow-y-auto bg-black/45 p-3 text-[var(--sg-matrix-text)] backdrop-blur-sm sm:p-5"
       aria-label={playlistTitle}
       aria-modal="true"
       role="dialog"
     >
-      <div className="flex h-[min(700px,calc(100dvh-1.5rem))] w-[min(1120px,calc(100vw-1.5rem))] min-h-0 flex-col overflow-hidden rounded-[8px] border border-white/10 bg-[#0d1016] shadow-[0_24px_80px_rgba(0,0,0,0.58)] sm:h-[min(720px,calc(100dvh-2.5rem))] sm:w-[min(1120px,calc(100vw-2.5rem))]">
-        <div className="flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.015)_42%,rgba(0,0,0,0)_100%)]">
-          <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 sm:h-16 sm:px-6">
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-[min(1180px,calc(100vw-1.5rem))] min-h-0 flex-col overflow-hidden rounded-[8px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel)] text-[var(--sg-matrix-text)] shadow-[0_24px_80px_rgba(0,0,0,0.36)] sm:max-h-[calc(100dvh-2.5rem)] sm:w-[min(1180px,calc(100vw-2.5rem))]">
+        <div className="flex min-h-0 flex-col">
+          <div className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel)] px-4 sm:h-16 sm:px-6">
             <div className="flex min-w-0 items-center gap-2.5">
-              <h3 className="truncate text-[16px] font-semibold leading-6 tracking-[-0.01em] text-white sm:text-[18px]">
+              <h3 className="truncate text-[16px] font-semibold leading-6 text-[var(--sg-matrix-text)] sm:text-[18px]">
                 {playlistTitle}
               </h3>
-              <span className="shrink-0 rounded-[5px] border border-[#338fdc]/30 bg-[#338fdc]/15 px-2 py-1 text-[11px] font-medium leading-none text-[#7cc6ff]">
+              <span className="shrink-0 rounded-[5px] border border-[var(--sg-matrix-active-border)] bg-[var(--sg-matrix-selected-nav)] px-2 py-1 text-[11px] font-medium leading-none text-[var(--sg-matrix-primary-blue)]">
                 {clipCount} clip{clipCount === 1 ? "" : "s"}
               </span>
             </div>
@@ -365,7 +365,7 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-white/[0.045] text-white/86 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]/70 sm:h-10 sm:w-10"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-[var(--sg-matrix-selected-nav)] text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sg-matrix-active-border)] sm:h-10 sm:w-10"
                 aria-label="Close playlist video"
               >
                 <X className="h-5 w-5" />
@@ -373,9 +373,9 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 px-3 pb-3 sm:px-6 sm:pb-6">
-            <div className="grid h-full min-h-0 grid-rows-[minmax(220px,1fr)_minmax(150px,220px)] gap-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:grid-rows-1">
-              <div className="relative h-full min-h-[240px] overflow-hidden rounded-[5px] border border-white/10 bg-black shadow-[0_18px_54px_rgba(0,0,0,0.44)]">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5 lg:overflow-hidden">
+            <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-stretch xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="relative aspect-video min-h-[180px] w-full overflow-hidden rounded-[5px] border border-[var(--sg-matrix-border)] bg-black shadow-[0_18px_54px_rgba(0,0,0,0.24)] sm:min-h-[240px] lg:max-h-[calc(100dvh-8rem)]">
                 {playlist && playlistUrl ? (
                   <HlsVideo
                     key={playlistUrl}
@@ -387,19 +387,21 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                     className="block h-full w-full bg-black object-contain"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-white/56">
+                  <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-white/60">
                     Playlist video is unavailable.
                   </div>
                 )}
               </div>
 
-              <aside className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-[6px] border border-white/10 bg-white/[0.025]">
-                <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-white/10 px-3">
-                  <div className="text-[14px] font-semibold text-white">Clips ({clipCards.length || clipCount})</div>
+              <aside className="flex max-h-[260px] min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-[6px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel-secondary)] lg:max-h-none">
+                <div className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-[var(--sg-matrix-border)] px-3">
+                  <div className="text-[14px] font-semibold text-[var(--sg-matrix-text)]">
+                    Clips ({clipCards.length || clipCount})
+                  </div>
                   <button
                     type="button"
                     onClick={handlePlayFullPlaylist}
-                    className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[5px] border border-[#338fdc]/30 bg-[#338fdc]/10 px-2 text-[11px] font-medium text-[#7cc6ff] transition-colors hover:bg-[#338fdc]/18"
+                    className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[5px] border border-[var(--sg-matrix-active-border)] bg-[var(--sg-matrix-selected-nav)] px-2 text-[11px] font-medium text-[var(--sg-matrix-primary-blue)] transition-colors hover:bg-[var(--sg-matrix-hover)]"
                   >
                     <Video className="h-3.5 w-3.5" />
                     <span>Full playlist</span>
@@ -422,19 +424,19 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                               className={[
                                 "group relative flex w-full min-w-0 gap-2 rounded-[6px] border p-2 text-left transition-colors",
                                 isActive
-                                  ? "border-[#338fdc]/70 bg-[#338fdc]/12"
-                                  : "border-white/10 bg-white/[0.035] hover:bg-white/[0.055]",
+                                  ? "border-[var(--sg-matrix-active-border)] bg-[var(--sg-matrix-selected-nav)]"
+                                  : "border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel)] hover:bg-[var(--sg-matrix-hover)]",
                                 !canSeek ? "cursor-not-allowed opacity-55" : "",
                               ].join(" ")}
                               aria-pressed={isActive}
                             >
-                              <span className="absolute right-2 top-2 inline-flex max-w-[92px] items-center rounded-[4px] border border-[#338fdc]/20 bg-[#338fdc]/10 px-1.5 py-0.5 text-[10px] leading-none text-[#9bd4ff]">
+                              <span className="absolute right-2 top-2 inline-flex max-w-[92px] items-center rounded-[4px] border border-[var(--sg-matrix-active-border)] bg-[var(--sg-matrix-selected-nav)] px-1.5 py-0.5 text-[10px] leading-none text-[var(--sg-matrix-primary-blue)]">
                                 <span className="truncate">
                                   {clipCard.timestampLabel || `Clip ${clipCard.index + 1}`}
                                 </span>
                               </span>
 
-                              <span className="relative flex h-[50px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-black text-white/46">
+                              <span className="relative flex h-[50px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-black text-white/50">
                                 {clipCard.thumbnailUrl ? (
                                   <img src={clipCard.thumbnailUrl} alt="" className="h-full w-full object-cover" />
                                 ) : (
@@ -446,11 +448,11 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                               </span>
 
                               <span className="min-w-0 flex-1 pr-[96px]">
-                                <span className="block truncate text-[12px] font-medium leading-4 text-white">
+                                <span className="block truncate text-[12px] font-medium leading-4 text-[var(--sg-matrix-text)]">
                                   {clipCard.title}
                                 </span>
                                 {clipCard.subtitle ? (
-                                  <span className="mt-0.5 block truncate text-[11px] leading-4 text-white/52">
+                                  <span className="mt-0.5 block truncate text-[11px] leading-4 text-[var(--sg-matrix-text-muted)]">
                                     {clipCard.subtitle}
                                   </span>
                                 ) : null}
@@ -459,7 +461,7 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                                     {clipCard.tags.map((tag) => (
                                       <span
                                         key={tag}
-                                        className="max-w-full truncate rounded-[4px] bg-[#338fdc]/12 mr-1.5  text-[10px] text-[#9bd4ff]"
+                                        className="mr-1.5 max-w-full truncate rounded-[4px] bg-[var(--sg-matrix-selected-nav)] px-1.5 py-0.5 text-[10px] text-[var(--sg-matrix-primary-blue)]"
                                       >
                                         {tag}
                                       </span>
@@ -473,7 +475,7 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                       })}
                     </ul>
                   ) : (
-                    <div className="flex h-full items-center justify-center px-4 text-center text-xs leading-5 text-white/46">
+                    <div className="flex h-full items-center justify-center px-4 text-center text-xs leading-5 text-[var(--sg-matrix-text-muted)]">
                       Clip cards will appear after the playlist metadata is available.
                     </div>
                   )}

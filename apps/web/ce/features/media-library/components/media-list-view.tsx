@@ -3,7 +3,17 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, File, FolderOpen, Image, ImageOff, LoaderCircle, Video } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  File,
+  FolderOpen,
+  Image,
+  ImageOff,
+  LoaderCircle,
+  PencilLine,
+  Video,
+} from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@plane/propel/table";
 import type { TMediaItem, TMediaSection } from "../types/media-library.types";
 import { getDisplayMediaTitle } from "../utils/media-detail-utils";
@@ -65,6 +75,7 @@ const MediaListRow = ({
     : null;
   const isCollection = item.mediaType === "collection";
   const isVideoLike = item.mediaType === "video" || item.linkedMediaType === "video";
+  const showAnnotatedIndicator = (isVideoLike || isEventItem) && Boolean(item.isAnnotated);
   const showTranscodeBadge =
     (isVideoLike || isCollection) &&
     (Boolean(item.transcodeStatus) || isCollection) &&
@@ -126,6 +137,15 @@ const MediaListRow = ({
             ) : (
               thumbnailUnavailableFallback
             )}
+            {showAnnotatedIndicator ? (
+              <span
+                className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[#505050] bg-[#303030]/95 text-[#F5A524] shadow-[0_1px_3px_rgba(0,0,0,0.45)]"
+                aria-label="Annotated media"
+                title="Annotated media"
+              >
+                <PencilLine className="h-3.5 w-3.5" strokeWidth={2.5} />
+              </span>
+            ) : null}
             {showLinkedTypeIndicator && LinkedTypeIcon ? (
               <span className="absolute right-2 bottom-2 flex h-6 w-6 items-center justify-center rounded-full bg-custom-background-100/80 text-custom-text-300 backdrop-blur">
                 <span className="sr-only">{linkedTypeLabel}</span>
@@ -154,6 +174,12 @@ const MediaListRow = ({
               {showTranscodeBadge ? (
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${transcodeBadgeClass}`}>
                   {transcodeBadgeLabel}
+                </span>
+              ) : null}
+              {showAnnotatedIndicator ? (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-500">
+                  <PencilLine className="h-3 w-3" strokeWidth={2.5} />
+                  Annotated
                 </span>
               ) : null}
             </div>

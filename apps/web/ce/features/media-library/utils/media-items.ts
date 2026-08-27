@@ -180,6 +180,8 @@ const hasAnnotationsInMediaReferences = (value: unknown): boolean => {
   return value.some((entry) => {
     const reference = getMetaObject(entry);
     return (
+      getMetaBoolean(reference, ["has_annotations", "hasAnnotations", "isAnnotated"], false) ||
+      getMetaNumber(reference, ["annotation_count", "annotationCount"], 0) > 0 ||
       hasAnnotationList(reference.annotations) ||
       hasAnnotationsInMediaReferences(reference.mediaReferences) ||
       hasAnnotationsInMediaReferences(reference.media_references) ||
@@ -193,6 +195,8 @@ const hasSavedVideoAnnotations = (meta: Record<string, unknown>) => {
 
   return sources.some(
     (source) =>
+      getMetaBoolean(source, ["has_annotations", "hasAnnotations", "isAnnotated"], false) ||
+      getMetaNumber(source, ["annotation_count", "annotationCount"], 0) > 0 ||
       hasAnnotationList(source.annotations) ||
       hasAnnotationsInMediaReferences(source.mediaReferences) ||
       hasAnnotationsInMediaReferences(source.media_references) ||
