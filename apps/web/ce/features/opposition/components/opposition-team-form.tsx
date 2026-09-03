@@ -311,59 +311,57 @@ export const EditOppositionTeamModal: React.FC<Props> = ({ isOpen, onClose, team
   };
 
   const handleUpdate = async () => {
-  const block = await getOppositionTeamBlock();
-  if (!block || !team?.id) return;
+    const block = await getOppositionTeamBlock();
+    if (!block || !team?.id) return;
 
-  let logoPath = team.logo; // Default to existing value
+    let logoPath = team.logo; // Default to existing value
 
-  // --- NEW UPLOAD LOGIC START ---
-  if (logo instanceof File) {
-    try {
-      const folderName = "opposition-teams";
-      // Use existing ID to overwrite or maintain consistency
-      const fileName = generateFileOppositionName(teamName, team.id, logo);
+    // --- NEW UPLOAD LOGIC START ---
+    if (logo instanceof File) {
+      try {
+        const folderName = "opposition-teams";
+        // Use existing ID to overwrite or maintain consistency
+        const fileName = generateFileOppositionName(teamName, team.id, logo);
 
-      // 1. Upload new file
-      await uploadImageToServer(logo, folderName, fileName);
+        // 1. Upload new file
+        await uploadImageToServer(logo, folderName, fileName);
 
-      // 2. Update path
-      logoPath = `${folderName}/${fileName}`;
-    } catch (error) {
-      console.error("Upload failed", error);
-      alert("Failed to upload image");
-      return;
+        // 2. Update path
+        logoPath = `${folderName}/${fileName}`;
+      } catch (error) {
+        console.error("Upload failed", error);
+        alert("Failed to upload image");
+        return;
+      }
     }
-  }
-  // --- NEW UPLOAD LOGIC END ---
+    // --- NEW UPLOAD LOGIC END ---
 
-  const updatedTeam: Team = {
-    id: team.id,
-    name: teamName,
-    address,
-    athletic_email: athleticEmail,
-    athletic_phone: athleticPhone,
-    head_coach_name: athleticDirector,
-    asst_coach_name: assistantDirector,
-    asst_athletic_email: assistantEmail,
-    asst_athletic_phone: assistantPhone,
-    logo: logoPath,
+    const updatedTeam: Team = {
+      id: team.id,
+      name: teamName,
+      address,
+      athletic_email: athleticEmail,
+      athletic_phone: athleticPhone,
+      head_coach_name: athleticDirector,
+      asst_coach_name: assistantDirector,
+      asst_athletic_email: assistantEmail,
+      asst_athletic_phone: assistantPhone,
+      logo: logoPath,
+    };
+
+    const updatedValues = block.values.map((t: Team) => (t.id === team.id ? updatedTeam : t));
+
+    const entity = {
+      id: block.id,
+      name: block.name,
+      key: block.key,
+      values: updatedValues,
+    };
+
+    await updateEntity("meta-type", entity);
+    refreshTeams();
+    onClose();
   };
-
-  const updatedValues = block.values.map((t: Team) =>
-    t.id === team.id ? updatedTeam : t
-  );
-
-  const entity = {
-    id: block.id,
-    name: block.name,
-    key: block.key,
-    values: updatedValues,
-  };
-
-  await updateEntity("meta-type", entity);
-  refreshTeams();
-  onClose();
-};
 
   return (
     <ModalCore position={EModalPosition.TOP} isOpen={isOpen}>

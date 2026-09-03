@@ -466,6 +466,16 @@ class IssueListCreateAPIEndpoint(BaseAPIView):
 
         total_issue_queryset = Issue.issue_objects.filter(project_id=project_id, workspace__slug=slug)
 
+        # Keep Service Gateway work items exclusive to the calendar layout:
+        # calendar shows linked events, while other layouts show regular items.
+        layout = request.GET.get("layout")
+        if layout == "calendar":
+            issue_queryset = issue_queryset.filter(sg_event_id__isnull=False)
+            total_issue_queryset = total_issue_queryset.filter(sg_event_id__isnull=False)
+        elif layout:
+            issue_queryset = issue_queryset.filter(sg_event_id__isnull=True)
+            total_issue_queryset = total_issue_queryset.filter(sg_event_id__isnull=True)
+
         # Priority Ordering
         if order_by_param == "priority" or order_by_param == "-priority":
             priority_order = priority_order if order_by_param == "priority" else priority_order[::-1]

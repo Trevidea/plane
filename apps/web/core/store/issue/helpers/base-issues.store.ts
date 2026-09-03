@@ -1362,6 +1362,58 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     });
   }
 
+  /** Keep Service Gateway issues isolated to Calendar at the store boundary. */
+  private filterIssuesByLayout = (issueResponse: TIssuesResponse): TIssuesResponse => {
+    const layout = this.issueFilterStore?.issueFilters?.displayFilters?.layout;
+    if (!layout || !issueResponse?.results) return issueResponse;
+
+    const showServiceGatewayIssues = layout === EIssueLayoutTypes.CALENDAR;
+    const hasServiceGatewayEvent = (issue: TIssue) =>
+      issue.sg_event_id !== null && issue.sg_event_id !== undefined && String(issue.sg_event_id).trim().length > 0;
+    const shouldShowIssue = (issue: TIssue) => hasServiceGatewayEvent(issue) === showServiceGatewayIssues;
+    type GroupResult = { results?: unknown; [key: string]: unknown };
+
+    const countResults = (results: unknown): number => {
+      if (Array.isArray(results)) return results.length;
+      if (!results || typeof results !== "object") return 0;
+
+      return Object.values(results as Record<string, GroupResult>).reduce(
+        (count, group) => count + countResults(group?.results),
+        0
+      );
+    };
+
+    const filterResults = (results: unknown): unknown => {
+      if (Array.isArray(results)) return results.filter((issue) => shouldShowIssue(issue as TIssue));
+      if (!results || typeof results !== "object") return {};
+
+      return Object.fromEntries(
+        Object.entries(results as Record<string, GroupResult>).map(([groupId, group]) => {
+          const filteredGroupResults = filterResults(group?.results);
+          return [
+            groupId,
+            {
+              ...group,
+              results: filteredGroupResults,
+              total_results: countResults(filteredGroupResults),
+            },
+          ];
+        })
+      );
+    };
+
+    const results = filterResults(issueResponse.results) as TIssuesResponse["results"];
+    const totalCount = countResults(results);
+
+    return {
+      ...issueResponse,
+      results,
+      count: totalCount,
+      total_count: totalCount,
+      total_results: totalCount,
+    };
+  };
+
   /**
    * This method processes the issueResponse to provide data that can be used to update the store
    * @param issueResponse
@@ -1374,7 +1426,8 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     groupedIssues: TIssues;
     groupedIssueCount: TGroupedIssueCount;
   } {
-    const issueResult = issueResponse?.results;
+    const filteredIssueResponse = this.filterIssuesByLayout(issueResponse);
+    const issueResult = filteredIssueResponse?.results;
 
     // if undefined return empty objects
     if (!issueResult)
@@ -1392,7 +1445,7 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
           [ALL_ISSUES]: issueResult.map((issue) => issue.id),
         },
         groupedIssueCount: {
-          [ALL_ISSUES]: issueResponse.total_count,
+          [ALL_ISSUES]: filteredIssueResponse.total_count,
         },
       };
     }
@@ -1402,7 +1455,7 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     const groupedIssueCount: TGroupedIssueCount = {};
 
     // update total issue count to ALL_ISSUES
-    set(groupedIssueCount, [ALL_ISSUES], issueResponse.total_count);
+    set(groupedIssueCount, [ALL_ISSUES], filteredIssueResponse.total_count);
 
     // loop through all the groupIds from issue Result
     for (const groupId in issueResult) {

@@ -38,9 +38,7 @@ export async function loadOppositionTeams() {
     }
 
     const block = list[0];
-
-    const values =
-      block?.find((item: any) => item.field === "values")?.value || [];
+    const values = block?.find((item: any) => item.field === "values")?.value || [];
 
     if (!Array.isArray(values)) return [];
 
@@ -56,7 +54,6 @@ export async function loadOppositionTeams() {
       athletic_phone: item.athletic_phone,
       logo: item.logo,
     }));
-
 
     return teams;
   } catch (error) {

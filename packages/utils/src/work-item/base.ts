@@ -324,6 +324,11 @@ export const getComputedDisplayProperties = (
  * @returns
  */
 export const getIssuesShouldFallbackToServer = (queries: any) => {
+  // Layout-specific work item visibility is enforced by the API. The local
+  // database is a cache and may contain rows created before sg_event_id was
+  // populated, so layout-filtered reads must use the server's current data.
+  if (!isEmpty(queries.layout)) return true;
+
   // If there is expand query and is not grouped then fallback to server
   if (!isEmpty(queries.expand as string) && !queries.group_by) return true;
   // If query has mentions then fallback to server
