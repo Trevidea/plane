@@ -218,7 +218,6 @@ from .notification.base import (
     UnreadNotificationEndpoint,
     UserNotificationPreferenceEndpoint,
 )
-from .custom_playlist import CustomPlaylistViewSet
 
 from .exporter.base import ExportIssuesEndpoint
 
