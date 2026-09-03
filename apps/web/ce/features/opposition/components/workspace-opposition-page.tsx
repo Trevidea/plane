@@ -12,10 +12,9 @@ const WorkspaceOppositionPage = () => {
   const { workspaceSlug: routeWorkspaceSlug } = useParams();
   const { search } = useOppositionSearch();
   const pageTitle = "Opposition Teams";
-   const { teams, loading } = useOppositionTeams();
+  const { teams, loading } = useOppositionTeams();
 
   // const [teams, setTeams] = useState([]);
-
 
   // derived values
   const workspaceSlug = (routeWorkspaceSlug as string) || undefined;
@@ -26,7 +25,7 @@ const WorkspaceOppositionPage = () => {
     <>
       <PageHead title={pageTitle} />
       <div className="relative h-full w-full overflow-hidden overflow-y-auto">
-        <OppositionTeamsList teams={teams} workspaceSlug={workspaceSlug} searchQuery={search} />
+        <OppositionTeamsList teams={teams} workspaceSlug={workspaceSlug} searchQuery={search} loading={loading} />
       </div>
     </>
   );

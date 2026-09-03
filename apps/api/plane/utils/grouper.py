@@ -129,6 +129,7 @@ def issue_on_results(
         "program",
         "year",
         "category",
+        "sg_event_id",
     ]
 
     if group_by in FIELD_MAPPER:

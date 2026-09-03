@@ -126,7 +126,8 @@ export const OppositionTeamBlock: FC<Props> = observer(({ workspaceSlug, team })
         title="Delete Opposition Team"
         content={
           <>
-            Are you sure you want to delete <strong className="font-medium text-custom-text-100">{team?.name}</strong> team? This action cannot be undone.
+            Are you sure you want to delete <strong className="font-medium text-custom-text-100">{team?.name}</strong>{" "}
+            team? This action cannot be undone.
           </>
         }
         handleClose={() => setIsDeleteOpen(false)}

@@ -40,6 +40,12 @@ export const translateQueryParams = (queries: any) => {
     otherProps.type_id = issue_type;
   }
 
+  // Service Gateway-backed issues are visible only in the calendar layout.
+  // The local database path must mirror the server-side layout filter.
+  if (layout) {
+    otherProps.sg_event_id = layout === "calendar" ? "__sg_event_present__" : "__sg_event_absent__";
+  }
+
   if (order_by?.includes("priority")) {
     otherProps.order_by = order_by.replace("priority", "priority_proxy");
   }
@@ -259,6 +265,11 @@ export const singleFilterConstructor = (queries: any) => {
   const keys = Object.keys(filters);
 
   keys.forEach((key) => {
+    if (key === "sg_event_id") {
+      sql += filters[key] === "__sg_event_present__" ? " AND sg_event_id IS NOT NULL " : " AND sg_event_id IS NULL ";
+      return;
+    }
+
     const value = filters[key] ? filters[key].split(",") : "";
     if (!ARRAY_FIELDS.includes(key)) {
       if (!value) {
