@@ -41,6 +41,8 @@ export type TMediaLibraryManifest = {
   metadata?: Record<string, Record<string, unknown>>;
 };
 
+export const MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY = "custom_playlists";
+
 export type TMediaArtifactsPaginatedResponse = {
   results: TMediaArtifact[];
   total_results?: number;
@@ -169,6 +171,8 @@ export type TCustomPlaylist = {
   thumbnail: string | null;
   clip: number;
   clips?: TCustomPlaylistClip[];
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type TCustomPlaylistClip = {
@@ -227,29 +231,12 @@ export type TCustomPlaylistAnnotation = {
   y: number;
 };
 
-type TCustomPlaylistPayload = {
-  event_id: number | string;
-  name: string;
-  subtitle?: string | null;
-  url: string;
-  thumbnail?: string | null;
-  clip?: number;
-  clips?: TCustomPlaylistClip[];
-  project_id?: string;
-  workspace_slug?: string;
-};
-
 export type TCustomPlaylistUpdatePayload = {
   name?: string;
   subtitle?: string | null;
   thumbnail?: string | null;
   clip?: number;
   clips?: TCustomPlaylistClip[];
-};
-
-type TCustomPlaylistListParams = {
-  projectId?: string;
-  workspaceSlug?: string;
 };
 
 const sanitizePlaylistFileName = (value: string) => {
@@ -576,44 +563,6 @@ export class MediaLibraryService extends APIService {
       });
   }
 
-  async createCustomPlaylist(payload: TCustomPlaylistPayload): Promise<TCustomPlaylist> {
-    return this.post("/api/custom-playlists/", payload)
-      .then((response) => response?.data as TCustomPlaylist)
-      .catch((error) => {
-        throw error?.response?.data ?? error?.response ?? error;
-      });
-  }
-
-  async getCustomPlaylists(eventId: string, params: TCustomPlaylistListParams = {}): Promise<TCustomPlaylist[]> {
-    return this.get("/api/custom-playlists/", {
-      params: {
-        event_id: eventId,
-        project_id: params.projectId,
-        workspace_slug: params.workspaceSlug,
-      },
-    })
-      .then((response) => (Array.isArray(response?.data) ? (response.data as TCustomPlaylist[]) : []))
-      .catch((error) => {
-        throw error?.response?.data ?? error?.response ?? error;
-      });
-  }
-
-  async updateCustomPlaylist(playlistId: string, payload: TCustomPlaylistUpdatePayload): Promise<TCustomPlaylist> {
-    return this.patch(`/api/custom-playlists/${playlistId}/`, payload)
-      .then((response) => response?.data as TCustomPlaylist)
-      .catch((error) => {
-        throw error?.response?.data ?? error?.response ?? error;
-      });
-  }
-
-  async deleteCustomPlaylist(playlistId: string): Promise<void> {
-    return this.delete(`/api/custom-playlists/${playlistId}/`)
-      .then(() => undefined)
-      .catch((error) => {
-        throw error?.response?.data ?? error?.response ?? error;
-      });
-  }
-
   async deleteArtifact(workspaceSlug: string, projectId: string, packageId: string, artifactId: string): Promise<void> {
     return this.delete(
       `/api/workspaces/${workspaceSlug}/projects/${projectId}/media-library/packages/${packageId}/artifacts/${encodeURIComponent(
@@ -656,6 +605,19 @@ export class MediaLibraryService extends APIService {
       .catch((error) => {
         throw error?.response?.data ?? error?.response ?? error;
       });
+  }
+
+  async updateArtifactMetadata(
+    workspaceSlug: string,
+    projectId: string,
+    packageId: string,
+    artifactId: string,
+    meta: Record<string, unknown>
+  ): Promise<{ updated?: number } | null> {
+    return this.updateManifestArtifacts(workspaceSlug, projectId, packageId, {
+      artifact_id: artifactId,
+      artifact: { meta },
+    });
   }
 
   async updateEventVideoAnnotations(

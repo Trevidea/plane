@@ -130,4 +130,3 @@ from .draft import (
     DraftIssueDetailSerializer,
 )
 from .media_library import MediaLibraryPackageCreateSerializer
-from .custom_playlist import CustomPlaylistSerializer

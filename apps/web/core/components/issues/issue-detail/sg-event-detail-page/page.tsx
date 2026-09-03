@@ -19,7 +19,7 @@ import type {
   TCustomPlaylistClip,
   TCustomPlaylistUpdatePayload,
 } from "@/services/media-library.service";
-import { MediaLibraryService } from "@/services/media-library.service";
+import { MediaLibraryService, MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY } from "@/services/media-library.service";
 import { RosterService } from "@/services/roster.service";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
 import { getEventMediaDetails } from "ce/features/media-library/utils/media-event";
@@ -180,6 +180,40 @@ const buildCustomPlaylistClips = (rows: SgTagRow[]): TCustomPlaylistClip[] =>
     };
   });
 
+const readArtifactCustomPlaylists = (meta: Record<string, unknown>, eventId: string): TCustomPlaylist[] => {
+  const value = meta[MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY];
+  if (!Array.isArray(value)) return [];
+
+  const playlists: TCustomPlaylist[] = [];
+  for (const entry of value) {
+    const playlist = asRecord(entry);
+    const id = toText(playlist.id).trim();
+    const name = toText(playlist.name).trim();
+    const url = toText(playlist.url).trim();
+    if (!id || !name || !url) continue;
+
+    const eventValue = playlist.event_id ?? playlist.eventId ?? eventId;
+    const clipValue = playlist.clip;
+    const clip = typeof clipValue === "number" && Number.isFinite(clipValue) ? clipValue : 0;
+    const thumbnail = toText(playlist.thumbnail).trim();
+
+    playlists.push({
+      id,
+      event_id: eventValue as number | string,
+      name,
+      subtitle: playlist.subtitle === null ? null : toText(playlist.subtitle).trim() || null,
+      url,
+      thumbnail: thumbnail || null,
+      clip,
+      clips: Array.isArray(playlist.clips) ? (playlist.clips as TCustomPlaylistClip[]) : [],
+      ...(typeof playlist.created_at === "string" ? { created_at: playlist.created_at } : {}),
+      ...(typeof playlist.updated_at === "string" ? { updated_at: playlist.updated_at } : {}),
+    });
+  }
+
+  return playlists;
+};
+
 export const SgEventDetailPage = ({
   enableMatrixView = false,
   defaultTagViewMode,
@@ -258,19 +292,9 @@ export const SgEventDetailPage = ({
     pickNumericSgEventId([...payloadSources, sgEventMeta, sgEventItemRecord, mediaMeta, asRecord(mediaItem)]);
   const shouldUseKanavioTagApi = Boolean(resolvedSgEventId && isNumericEventId(resolvedSgEventId));
   const resolvedCustomPlaylistEventId = shouldUseKanavioTagApi ? resolvedSgEventId : null;
-  const { data: customPlaylists = [], mutate: mutateCustomPlaylists } = useSWR(
-    resolvedCustomPlaylistEventId
-      ? `CUSTOM_PLAYLISTS_${workspaceSlug}_${projectId}_${resolvedCustomPlaylistEventId}`
-      : null,
-    () => {
-      if (!resolvedCustomPlaylistEventId) return Promise.resolve([]);
-
-      return mediaLibraryService.getCustomPlaylists(resolvedCustomPlaylistEventId, {
-        projectId,
-        workspaceSlug,
-      });
-    },
-    { revalidateOnFocus: false }
+  const customPlaylists = useMemo(
+    () => readArtifactCustomPlaylists(sgEventMeta, resolvedCustomPlaylistEventId ?? ""),
+    [resolvedCustomPlaylistEventId, sgEventMeta]
   );
   const {
     data: kanavioTagsPayload,
@@ -487,34 +511,27 @@ export const SgEventDetailPage = ({
         }
 
         const thumbnailFileName = normalizeCustomPlaylistFileName(thumbnail);
-        const customPlaylistPayload = {
+        const customPlaylist: TCustomPlaylist = {
+          id: crypto.randomUUID(),
           event_id: customPlaylistEventId,
           name: buildCustomPlaylistName(eventTitle, includedRows.length),
           url: playlistFileName,
-          ...(thumbnailFileName ? { thumbnail: thumbnailFileName } : {}),
+          thumbnail: thumbnailFileName || null,
           clip: includedRows.length,
           clips: buildCustomPlaylistClips(includedRows),
-          project_id: projectId,
-          workspace_slug: workspaceSlug,
         };
-        let customPlaylist: TCustomPlaylist;
-        try {
-          customPlaylist = await mediaLibraryService.createCustomPlaylist(customPlaylistPayload);
-        } catch (error) {
-          const message = getEventVideoErrorMessage(error, "");
-          if (!/payload is not valid/i.test(message)) {
-            throw error;
-          }
-
-          customPlaylist = await mediaLibraryService.createCustomPlaylist({
-            event_id: customPlaylistPayload.event_id,
-            name: customPlaylistPayload.name,
-            url: customPlaylistPayload.url,
-            clip: customPlaylistPayload.clip,
-            project_id: customPlaylistPayload.project_id,
-            workspace_slug: customPlaylistPayload.workspace_slug,
-          });
+        const eventArtifact = sgMediaPayload?.eventItem;
+        if (!eventArtifact?.packageId || !eventArtifact.id) {
+          throw new Error("The event artifact is unavailable for saving the playlist.");
         }
+        const nextPlaylists = [customPlaylist, ...customPlaylists];
+        await mediaLibraryService.updateArtifactMetadata(
+          workspaceSlug,
+          projectId,
+          eventArtifact.packageId,
+          eventArtifact.id,
+          { ...eventArtifact.meta, [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists }
+        );
 
         playPlaybackOverride(
           buildCustomPlaylistItem({
@@ -523,9 +540,24 @@ export const SgEventDetailPage = ({
             workItemId: resolvedWorkItemId || null,
           })
         );
-        void mutateCustomPlaylists((currentPlaylists = []) => [customPlaylist, ...currentPlaylists], {
-          revalidate: false,
-        });
+        void mutateSgMediaPayload(
+          (currentPayload) =>
+            currentPayload
+              ? {
+                  ...currentPayload,
+                  eventItem: currentPayload.eventItem
+                    ? {
+                        ...currentPayload.eventItem,
+                        meta: {
+                          ...currentPayload.eventItem.meta,
+                          [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists,
+                        },
+                      }
+                    : currentPayload.eventItem,
+                }
+              : currentPayload,
+          { revalidate: false }
+        );
         setToast({
           type: TOAST_TYPE.SUCCESS,
           title: "Playlist created",
@@ -550,12 +582,14 @@ export const SgEventDetailPage = ({
       isCreatingCustomPlaylist,
       mediaLibraryService,
       mediaItem?.thumbnail,
-      mutateCustomPlaylists,
+      mutateSgMediaPayload,
       playPlaybackOverride,
       primaryStreamName,
       projectId,
+      customPlaylists,
       resolvedCustomPlaylistEventId,
       resolvedWorkItemId,
+      sgMediaPayload?.eventItem,
       selectedViewDevice?.streamName,
       workspaceSlug,
     ]
@@ -582,28 +616,78 @@ export const SgEventDetailPage = ({
 
   const handleDeleteCustomPlaylist = useCallback(
     async (playlist: TCustomPlaylist) => {
-      await mediaLibraryService.deleteCustomPlaylist(playlist.id);
-      void mutateCustomPlaylists(
-        (currentPlaylists = []) => currentPlaylists.filter((currentPlaylist) => currentPlaylist.id !== playlist.id),
+      const eventArtifact = sgMediaPayload?.eventItem;
+      if (!eventArtifact?.packageId || !eventArtifact.id) {
+        throw new Error("The event artifact is unavailable for deleting the playlist.");
+      }
+      const nextPlaylists = customPlaylists.filter((currentPlaylist) => currentPlaylist.id !== playlist.id);
+      await mediaLibraryService.updateArtifactMetadata(
+        workspaceSlug,
+        projectId,
+        eventArtifact.packageId,
+        eventArtifact.id,
+        { ...eventArtifact.meta, [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists }
+      );
+      void mutateSgMediaPayload(
+        (currentPayload) =>
+          currentPayload
+            ? {
+                ...currentPayload,
+                eventItem: currentPayload.eventItem
+                  ? {
+                      ...currentPayload.eventItem,
+                      meta: {
+                        ...currentPayload.eventItem.meta,
+                        [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists,
+                      },
+                    }
+                  : currentPayload.eventItem,
+              }
+            : currentPayload,
         { revalidate: false }
       );
     },
-    [mediaLibraryService, mutateCustomPlaylists]
+    [customPlaylists, mediaLibraryService, mutateSgMediaPayload, projectId, sgMediaPayload?.eventItem, workspaceSlug]
   );
 
   const handleUpdateCustomPlaylist = useCallback(
     async (playlist: TCustomPlaylist, payload: TCustomPlaylistUpdatePayload) => {
-      const updatedPlaylist = await mediaLibraryService.updateCustomPlaylist(playlist.id, payload);
-      void mutateCustomPlaylists(
-        (currentPlaylists = []) =>
-          currentPlaylists.map((currentPlaylist) =>
-            currentPlaylist.id === updatedPlaylist.id ? updatedPlaylist : currentPlaylist
-          ),
+      const eventArtifact = sgMediaPayload?.eventItem;
+      if (!eventArtifact?.packageId || !eventArtifact.id) {
+        throw new Error("The event artifact is unavailable for updating the playlist.");
+      }
+      const updatedPlaylist = { ...playlist, ...payload };
+      const nextPlaylists = customPlaylists.map((currentPlaylist) =>
+        currentPlaylist.id === updatedPlaylist.id ? updatedPlaylist : currentPlaylist
+      );
+      await mediaLibraryService.updateArtifactMetadata(
+        workspaceSlug,
+        projectId,
+        eventArtifact.packageId,
+        eventArtifact.id,
+        { ...eventArtifact.meta, [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists }
+      );
+      void mutateSgMediaPayload(
+        (currentPayload) =>
+          currentPayload
+            ? {
+                ...currentPayload,
+                eventItem: currentPayload.eventItem
+                  ? {
+                      ...currentPayload.eventItem,
+                      meta: {
+                        ...currentPayload.eventItem.meta,
+                        [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists,
+                      },
+                    }
+                  : currentPayload.eventItem,
+              }
+            : currentPayload,
         { revalidate: false }
       );
       return updatedPlaylist;
     },
-    [mediaLibraryService, mutateCustomPlaylists]
+    [customPlaylists, mediaLibraryService, mutateSgMediaPayload, projectId, sgMediaPayload?.eventItem, workspaceSlug]
   );
   const handleUpdateVideoAnnotations = useCallback(
     async (videoItem: TMediaItem, annotations: TCustomPlaylistAnnotation[]) => {
