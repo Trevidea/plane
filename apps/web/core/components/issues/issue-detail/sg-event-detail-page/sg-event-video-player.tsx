@@ -26,6 +26,7 @@ type SgEventVideoPlayerProps = {
   ) => void;
   onUpdateAnnotations?: (item: TMediaItem, annotations: TCustomPlaylistAnnotation[]) => Promise<TMediaItem | void>;
   onOpenAnnotationPage?: () => void;
+  showAnnotationButton?: boolean;
   seekRequestId?: number;
   seekToSeconds?: number | null;
 };
@@ -57,6 +58,7 @@ export const SgEventVideoPlayer = ({
   onPlaybackTimeChange,
   onUpdateAnnotations,
   onOpenAnnotationPage,
+  showAnnotationButton = true,
   seekRequestId = 0,
   seekToSeconds = null,
 }: SgEventVideoPlayerProps) => {
@@ -86,9 +88,9 @@ export const SgEventVideoPlayer = ({
     normalizedAction,
   });
   const effectiveAnnotationItem = annotationItem ?? item;
-  const canAnnotateVideo = Boolean(
-    effectiveAnnotationItem?.packageId && effectiveAnnotationItem.id && onOpenAnnotationPage
-  );
+  const canAnnotateVideo =
+    showAnnotationButton &&
+    Boolean(effectiveAnnotationItem?.packageId && effectiveAnnotationItem.id && onOpenAnnotationPage);
 
   useEffect(() => {
     setCurrentVideoSeconds(0);
@@ -718,20 +720,21 @@ export const SgEventVideoPlayer = ({
       </div>
     </div>
   ) : null;
-  const videoAnnotationContent = effectiveAnnotationItem && isVideoFrameReady ? (
-    <VideoAnnotationEditor
-      annotationKey={`${effectiveAnnotationItem.packageId ?? "event"}:${effectiveAnnotationItem.id}`}
-      annotations={effectiveAnnotationItem.meta?.annotations}
-      canEdit={false}
-      currentTime={currentVideoSeconds}
-      isPlaying={isPlaying}
-      modeResetKey={`${effectiveAnnotationItem.id}:view`}
-      onModeChange={handleAnnotationModeChange}
-      onRequestPause={handleAnnotationPause}
-      onSave={handleSaveVideoAnnotations}
-      thumbnailUrl={item?.thumbnail || effectiveAnnotationItem.thumbnail}
-    />
-  ) : null;
+  const videoAnnotationContent =
+    effectiveAnnotationItem && isVideoFrameReady ? (
+      <VideoAnnotationEditor
+        annotationKey={`${effectiveAnnotationItem.packageId ?? "event"}:${effectiveAnnotationItem.id}`}
+        annotations={effectiveAnnotationItem.meta?.annotations}
+        canEdit={false}
+        currentTime={currentVideoSeconds}
+        isPlaying={isPlaying}
+        modeResetKey={`${effectiveAnnotationItem.id}:view`}
+        onModeChange={handleAnnotationModeChange}
+        onRequestPause={handleAnnotationPause}
+        onSave={handleSaveVideoAnnotations}
+        thumbnailUrl={item?.thumbnail || effectiveAnnotationItem.thumbnail}
+      />
+    ) : null;
   const playerLayerContent = (
     <>
       {videoAnnotationContent}

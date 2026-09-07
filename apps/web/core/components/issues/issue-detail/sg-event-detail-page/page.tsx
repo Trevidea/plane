@@ -45,6 +45,7 @@ import type { SgEventDetailPageProps, SgEventTagViewMode, SgIssue, SgTagRow } fr
 import {
   asRecord,
   buildBaseEventDateTime,
+  buildCustomPlaylistUrl,
   buildEventTitle,
   firstNonEmptyRecord,
   formatLongDateTime,
@@ -53,6 +54,7 @@ import {
   getSportTableConfig,
   getSgTagRowStreamName,
   normalizeTagRows,
+  parseTimecodeToSeconds,
   pickText,
   toText,
 } from "./utils";
@@ -163,22 +165,66 @@ const buildCustomPlaylistClips = (rows: SgTagRow[]): TCustomPlaylistClip[] =>
     const tags = [row.result, row.primaryDetail, row.secondaryDetail]
       .map((tag) => truncateCustomPlaylistText(tag))
       .filter(Boolean);
+    const clipDurationSeconds =
+      row.clipDurationSeconds ??
+      (row.clipStartSeconds !== null && row.clipEndSeconds !== null
+        ? Math.max(0, row.clipEndSeconds - row.clipStartSeconds)
+        : null);
 
     return {
+      durationSeconds: clipDurationSeconds,
+      endSeconds: row.clipEndSeconds,
+      fallbackTimestamp: row.playlistFallbackTimestamp,
       groupValue: truncateCustomPlaylistText(row.groupValue),
       id: truncateCustomPlaylistText(row.id),
       player: truncateCustomPlaylistText(row.player),
       primaryDetail: truncateCustomPlaylistText(row.primaryDetail),
       result: truncateCustomPlaylistText(row.result),
       sourceTagId: row.sourceTagId,
+      startSeconds: row.clipStartSeconds,
       subtitle,
       tags,
       team: truncateCustomPlaylistText(row.team),
       thumbnail: normalizeCustomPlaylistFileName(row.thumbnailUrl) || null,
       timestamp: row.playlistTimestamp ?? row.playlistFallbackTimestamp,
+      timecode: row.timecode,
       title,
     };
   });
+
+const getCustomPlaylistClipDurationSeconds = (clip: TCustomPlaylistClip) => {
+  const explicitDuration = Number(clip.durationSeconds);
+  if (Number.isFinite(explicitDuration) && explicitDuration > 0) return explicitDuration;
+
+  const startSeconds = Number(clip.startSeconds);
+  const endSeconds = Number(clip.endSeconds);
+  if (Number.isFinite(startSeconds) && Number.isFinite(endSeconds) && endSeconds > startSeconds) {
+    return endSeconds - startSeconds;
+  }
+
+  const [rangeStart = "", rangeEnd = ""] = (clip.timecode ?? "").split(/\s*[-\u2013\u2014]\s*/, 2);
+  const parsedStartSeconds = parseTimecodeToSeconds(rangeStart);
+  const parsedEndSeconds = parseTimecodeToSeconds(rangeEnd);
+  if (parsedStartSeconds !== null && parsedEndSeconds !== null && parsedEndSeconds > parsedStartSeconds) {
+    return parsedEndSeconds - parsedStartSeconds;
+  }
+
+  return null;
+};
+
+const getCustomPlaylistDurationSeconds = (playlist: TCustomPlaylist) => {
+  const clips = Array.isArray(playlist.clips) ? playlist.clips : [];
+  if (clips.length === 0) return null;
+
+  let durationSeconds = 0;
+  for (const clip of clips) {
+    const clipDurationSeconds = getCustomPlaylistClipDurationSeconds(clip);
+    if (clipDurationSeconds === null) return null;
+    durationSeconds += clipDurationSeconds;
+  }
+
+  return durationSeconds > 0 ? durationSeconds : null;
+};
 
 const readArtifactCustomPlaylists = (meta: Record<string, unknown>, eventId: string): TCustomPlaylist[] => {
   const value = meta[MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY];
@@ -711,7 +757,7 @@ export const SgEventDetailPage = ({
         streamId: selectedViewDevice?.streamId ?? metaViewStreamId,
         streamName: selectedViewDevice?.streamName ?? metaViewStreamName,
         viewKey: metaViewKey,
-        videoSrc: selectedViewDevice?.hlsUrl ?? metaVideoSource,
+        videoSrc: videoMeta.customPlaylistId ? metaVideoSource : (selectedViewDevice?.hlsUrl ?? metaVideoSource),
       });
       const updatedEvent = await mediaLibraryService.updateEventVideoAnnotations(
         workspaceSlug,
@@ -793,6 +839,8 @@ export const SgEventDetailPage = ({
       ? timelinePlaylistRows
       : selectedRows;
   const isTagRowsLoading = isMediaLoading || (shouldUseKanavioTagApi && isKanavioTagsLoading);
+  const playbackAnnotationVideoSrc = isPlaybackOverrideActive ? playbackItem?.videoSrc : selectedViewDevice?.hlsUrl;
+  const playbackAnnotationViewLabel = isPlaybackOverrideActive ? playbackItem?.title : selectedViewDevice?.name;
   const playbackAnnotationPageItem = useMemo(
     () =>
       buildSgEventAnnotationVideoItem(playbackAnnotationItem, {
@@ -800,15 +848,15 @@ export const SgEventDetailPage = ({
         eventPayload,
         streamId: selectedViewDevice?.streamId,
         streamName: selectedViewDevice?.streamName,
-        title: selectedViewDevice?.name,
-        videoSrc: selectedViewDevice?.hlsUrl,
+        title: playbackAnnotationViewLabel,
+        videoSrc: playbackAnnotationVideoSrc,
       }),
     [
       eventPayload,
       playbackAnnotationItem,
-      selectedViewDevice?.hlsUrl,
+      playbackAnnotationVideoSrc,
+      playbackAnnotationViewLabel,
       selectedViewDevice?.id,
-      selectedViewDevice?.name,
       selectedViewDevice?.streamId,
       selectedViewDevice?.streamName,
     ]
@@ -818,6 +866,63 @@ export const SgEventDetailPage = ({
     const queryString = searchParams.toString();
     return queryString ? `${pathname}?${queryString}` : pathname;
   }, [pathname, searchParams]);
+  const handlePlayCustomPlaylist = useCallback(
+    (playlist: TCustomPlaylist) => {
+      const sourceItem = sgMediaPayload?.eventItem?.packageId
+        ? sgMediaPayload.eventItem
+        : (playbackAnnotationItem ?? activeVideo ?? mediaItem);
+      const playlistUrl = buildCustomPlaylistUrl(playlist.url);
+
+      if (!playlistUrl) {
+        setToast({
+          type: TOAST_TYPE.ERROR,
+          title: "Playlist unavailable",
+          message: "This custom playlist does not have a playable video source.",
+        });
+        return;
+      }
+      if (!sourceItem?.packageId || !sourceItem.id) {
+        setToast({
+          type: TOAST_TYPE.ERROR,
+          title: "Annotation unavailable",
+          message: "This event does not have a media artifact where annotations can be saved.",
+        });
+        return;
+      }
+
+      const params = new URLSearchParams();
+      params.set("annotation", "open");
+      params.set("from", currentHref);
+      params.set("customPlaylistId", playlist.id);
+      params.set("videoSrc", playlistUrl);
+      params.set("view", playlist.name?.trim() || "Custom playlist");
+
+      const playlistDurationSeconds = getCustomPlaylistDurationSeconds(playlist);
+      if (playlistDurationSeconds !== null) {
+        params.set("playlistDuration", String(playlistDurationSeconds));
+      }
+
+      params.set("viewKey", `custom-playlist:${playlist.id}`);
+      if (selectedViewDevice?.id) params.set("deviceId", String(selectedViewDevice.id));
+      if (selectedViewDevice?.streamId) params.set("streamId", selectedViewDevice.streamId);
+      if (selectedViewDevice?.streamName) params.set("stream", selectedViewDevice.streamName);
+
+      router.push(
+        `/${workspaceSlug}/projects/${projectId}/media-library/${encodeURIComponent(sourceItem.id)}?${params.toString()}`
+      );
+    },
+    [
+      activeVideo,
+      currentHref,
+      mediaItem,
+      playbackAnnotationItem,
+      projectId,
+      router,
+      selectedViewDevice,
+      sgMediaPayload?.eventItem,
+      workspaceSlug,
+    ]
+  );
   const playbackAnnotationHref = useMemo(() => {
     if (!playbackAnnotationPageItem?.packageId || !playbackAnnotationPageItem.id) {
       return null;
@@ -830,7 +935,7 @@ export const SgEventDetailPage = ({
       deviceId: selectedViewDevice?.id,
       streamId: selectedViewDevice?.streamId,
       streamName: selectedViewDevice?.streamName,
-      videoSrc: selectedViewDevice?.hlsUrl,
+      videoSrc: playbackAnnotationVideoSrc,
     });
     if (viewKey) {
       params.set("viewKey", viewKey);
@@ -844,11 +949,11 @@ export const SgEventDetailPage = ({
     if (selectedViewDevice?.streamName) {
       params.set("stream", selectedViewDevice.streamName);
     }
-    if (selectedViewDevice?.hlsUrl) {
-      params.set("videoSrc", selectedViewDevice.hlsUrl);
+    if (playbackAnnotationVideoSrc) {
+      params.set("videoSrc", playbackAnnotationVideoSrc);
     }
-    if (selectedViewDevice?.name) {
-      params.set("view", selectedViewDevice.name);
+    if (playbackAnnotationViewLabel) {
+      params.set("view", playbackAnnotationViewLabel);
     }
 
     return `/${workspaceSlug}/projects/${projectId}/media-library/${encodeURIComponent(playbackAnnotationPageItem.id)}?${params.toString()}`;
@@ -856,10 +961,10 @@ export const SgEventDetailPage = ({
     currentHref,
     playbackAnnotationPageItem?.id,
     playbackAnnotationPageItem?.packageId,
+    playbackAnnotationVideoSrc,
+    playbackAnnotationViewLabel,
     projectId,
-    selectedViewDevice?.hlsUrl,
     selectedViewDevice?.id,
-    selectedViewDevice?.name,
     selectedViewDevice?.streamId,
     selectedViewDevice?.streamName,
     workspaceSlug,
@@ -913,6 +1018,7 @@ export const SgEventDetailPage = ({
                     annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                     compactEmpty={!hasPlayableVideo}
                     onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
+                    showAnnotationButton={false}
                     onPlaybackTimeChange={handlePlaybackTimeChange}
                     onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
                     seekRequestId={pendingSeekRequestId}
@@ -921,8 +1027,13 @@ export const SgEventDetailPage = ({
                 </div>
                 <SgMatrixPlaylistPanel
                   customPlaylists={customPlaylists}
+                  isCreatingPlaylist={isCreatingCustomPlaylist}
+                  onCreateCard={() => handleCreateMatrixCard(activePlaylistRows)}
+                  onCreatePlaylist={() => void handleCreateCustomPlaylist(activePlaylistRows)}
                   onDeletePlaylist={handleDeleteCustomPlaylist}
+                  onPlayPlaylist={handlePlayCustomPlaylist}
                   onUpdatePlaylist={handleUpdateCustomPlaylist}
+                  rows={activePlaylistRows}
                 />
               </div>
 
@@ -975,6 +1086,7 @@ export const SgEventDetailPage = ({
                         annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                         compactEmpty={!hasPlayableVideo}
                         onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
+                        showAnnotationButton={false}
                         onPlaybackTimeChange={handlePlaybackTimeChange}
                         onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
                         seekRequestId={pendingSeekRequestId}
@@ -983,8 +1095,13 @@ export const SgEventDetailPage = ({
                     </div>
                     <SgMatrixPlaylistPanel
                       customPlaylists={customPlaylists}
+                      isCreatingPlaylist={isCreatingCustomPlaylist}
+                      onCreateCard={() => handleCreateMatrixCard(activePlaylistRows)}
+                      onCreatePlaylist={() => void handleCreateCustomPlaylist(activePlaylistRows)}
                       onDeletePlaylist={handleDeleteCustomPlaylist}
+                      onPlayPlaylist={handlePlayCustomPlaylist}
                       onUpdatePlaylist={handleUpdateCustomPlaylist}
+                      rows={activePlaylistRows}
                     />
                   </div>
 

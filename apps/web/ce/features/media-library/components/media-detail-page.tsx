@@ -76,6 +76,10 @@ const MediaDetailPage = () => {
   const annotationViewKeyParam = searchParams.get("viewKey") ?? "";
   const annotationVideoSrcParam = searchParams.get("videoSrc") ?? "";
   const annotationViewParam = searchParams.get("view") ?? "";
+  const customPlaylistIdParam = searchParams.get("customPlaylistId") ?? "";
+  const isCustomPlaylistAnnotation = Boolean(
+    shouldOpenVideoAnnotationWorkspaceFromQuery && customPlaylistIdParam.trim()
+  );
   const backHref = useMemo(() => {
     const defaultHref = `/${workspaceSlug}/projects/${projectId}/media-library`;
     const projectHrefPrefix = `/${workspaceSlug}/projects/${projectId}`;
@@ -358,7 +362,7 @@ const MediaDetailPage = () => {
 
       playerRef.current = videojs(videoElement, {
         controls: true,
-        autoplay: true,
+        autoplay: isCustomPlaylistAnnotation ? "any" : true,
         preload: "auto",
         playsinline: true,
         crossOrigin,
@@ -575,7 +579,7 @@ const MediaDetailPage = () => {
       setPlayerElement(null);
       setIsVideoFrameReady(false);
     };
-  }, [handleTogglePip, isHls, isVideo]);
+  }, [handleTogglePip, isCustomPlaylistAnnotation, isHls, isVideo]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -641,7 +645,16 @@ const MediaDetailPage = () => {
       // View counting should never interrupt playback.
       console.error("Failed to record media playback view:", workspaceSlug, projectId, item?.packageId, item?.id);
     }
-  }, [handleMediaItemUpdated, isVideo, item?.id, item?.meta, item?.packageId, mediaLibraryService, projectId, workspaceSlug]);
+  }, [
+    handleMediaItemUpdated,
+    isVideo,
+    item?.id,
+    item?.meta,
+    item?.packageId,
+    mediaLibraryService,
+    projectId,
+    workspaceSlug,
+  ]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -662,10 +675,22 @@ const MediaDetailPage = () => {
     const updateVideoTime = () => {
       const currentTime = Number(player.currentTime?.() ?? 0);
       const duration = Number(player.duration?.() ?? 0);
-      setCurrentVideoSeconds(Number.isFinite(currentTime) && currentTime > 0 ? currentTime : 0);
+      const mediaSeconds = Number.isFinite(currentTime) && currentTime > 0 ? currentTime : 0;
+
+      setCurrentVideoSeconds(mediaSeconds);
       setCurrentVideoDurationSeconds(Number.isFinite(duration) && duration > 0 ? duration : null);
     };
-    const playerEvents = ["durationchange", "loadedmetadata", "seeked", "seeking", "timeupdate"];
+    const playerEvents = [
+      "durationchange",
+      "ended",
+      "loadedmetadata",
+      "pause",
+      "play",
+      "ratechange",
+      "seeked",
+      "seeking",
+      "timeupdate",
+    ];
 
     playerEvents.forEach((eventName) => player.on(eventName, updateVideoTime));
     updateVideoTime();
@@ -765,11 +790,13 @@ const MediaDetailPage = () => {
     const player = playerRef.current;
     setIsVideoFrameReady(false);
     if (!player || !effectiveVideoSrc) return;
+    setCurrentVideoSeconds(0);
     const type = getVideoMimeType(resolvedVideoFormat);
     const source = type ? { src: effectiveVideoSrc, type } : { src: effectiveVideoSrc };
+    player.autoplay(isCustomPlaylistAnnotation ? "any" : true);
     player.src(source);
     player.poster(item?.thumbnail ?? "");
-  }, [item?.thumbnail, effectiveVideoSrc, resolvedVideoFormat]);
+  }, [item?.thumbnail, effectiveVideoSrc, isCustomPlaylistAnnotation, resolvedVideoFormat]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -974,11 +1001,11 @@ const MediaDetailPage = () => {
   const handleOpenVideoAnnotationWorkspace = useCallback(() => {
     const player = playerRef.current;
 
-    player?.pause?.();
+    if (!isCustomPlaylistAnnotation) player?.pause?.();
     setHasUnsavedVideoAnnotationChanges(false);
     setIsVideoAnnotationWorkspaceOpen(true);
     setVideoAnnotationWorkspaceActivationKey((currentValue) => currentValue + 1);
-  }, []);
+  }, [isCustomPlaylistAnnotation]);
   const handleRegisterVideoAnnotationSaveHandler = useCallback((saveAnnotations: (() => Promise<boolean>) | null) => {
     videoAnnotationSaveBeforeCloseRef.current = saveAnnotations;
   }, []);
