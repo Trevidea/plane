@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { MoreVertical, Pencil, Share2, Trash2, Video, X } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Pencil, Trash2, Video, X } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { AlertModalCore } from "@plane/ui";
-import type { TCustomPlaylist, TCustomPlaylistUpdatePayload } from "@/services/media-library.service";
+import type {
+  TCustomPlaylist,
+  TCustomPlaylistClip,
+  TCustomPlaylistUpdatePayload,
+} from "@/services/media-library.service";
 import { HlsVideo } from "ce/features/media-library/components/hls-video";
 import { PLAYER_FRAME_CLASS } from "../../constants";
 import type { SgTagRow } from "../../types";
-import { buildCustomPlaylistThumbnailUrl, buildCustomPlaylistUrl } from "../../utils";
+import { buildCustomPlaylistThumbnailUrl, buildCustomPlaylistUrl, parseTimecodeToSeconds } from "../../utils";
 
 type SgMatrixPlaylistPanelProps = {
   customPlaylists: TCustomPlaylist[];
@@ -16,6 +20,7 @@ type SgMatrixPlaylistPanelProps = {
   onCreatePlaylist?: () => void;
   onDeletePlaylist: (playlist: TCustomPlaylist) => Promise<void>;
   onUpdatePlaylist: (playlist: TCustomPlaylist, payload: TCustomPlaylistUpdatePayload) => Promise<TCustomPlaylist>;
+  onPlayPlaylist?: (playlist: TCustomPlaylist) => void;
   rows?: SgTagRow[];
 };
 
@@ -95,8 +100,42 @@ const getPlaylistCardClipCount = (playlist: TCustomPlaylist) => {
   return explicitCount > 0 ? explicitCount : savedClips.length;
 };
 
-const formatPlaylistCardClipCount = (count: number) =>
-  `${String(Math.max(count, 0)).padStart(2, "0")} Clip${count === 1 ? "" : "s"}`;
+const getSavedClipDurationSeconds = (clip: TCustomPlaylistClip) => {
+  const explicitDuration = Number(clip.durationSeconds);
+  if (Number.isFinite(explicitDuration) && explicitDuration > 0) return explicitDuration;
+
+  const startSeconds = Number(clip.startSeconds);
+  const endSeconds = Number(clip.endSeconds);
+  if (Number.isFinite(startSeconds) && Number.isFinite(endSeconds) && endSeconds > startSeconds) {
+    return endSeconds - startSeconds;
+  }
+
+  const [rangeStart = "", rangeEnd = ""] = (clip.timecode ?? "").split(/\s*[-\u2013\u2014]\s*/, 2);
+  const parsedStartSeconds = parseTimecodeToSeconds(rangeStart);
+  const parsedEndSeconds = parseTimecodeToSeconds(rangeEnd);
+  if (parsedStartSeconds !== null && parsedEndSeconds !== null && parsedEndSeconds > parsedStartSeconds) {
+    return parsedEndSeconds - parsedStartSeconds;
+  }
+
+  return 0;
+};
+
+const getPlaylistDurationSeconds = (playlist: TCustomPlaylist) =>
+  (Array.isArray(playlist.clips) ? playlist.clips : []).reduce(
+    (durationSeconds, clip) => durationSeconds + getSavedClipDurationSeconds(clip),
+    0
+  );
+
+const formatPlaylistDuration = (seconds: number) => {
+  const totalSeconds = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
+    : `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+};
 
 const getPlaylistCardTitle = (playlist: TCustomPlaylist) => {
   const savedName = normalizeCardText(playlist.name);
@@ -491,16 +530,19 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
 
 export const SgMatrixPlaylistPanel = ({
   customPlaylists,
+  onCreateCard,
+  onPlayPlaylist,
   onDeletePlaylist,
   onUpdatePlaylist,
+  rows,
 }: SgMatrixPlaylistPanelProps) => {
   const [activePlaylist, setActivePlaylist] = useState<TCustomPlaylist | null>(null);
-  const [menuPlaylistId, setMenuPlaylistId] = useState<string | null>(null);
+  const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null);
+  const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<Set<string>>(() => new Set());
   const [editingPlaylistText, setEditingPlaylistText] = useState<PlaylistTextEditState | null>(null);
   const [savingPlaylistText, setSavingPlaylistText] = useState<Pick<PlaylistTextEditState, "playlistId"> | null>(null);
   const [playlistPendingDelete, setPlaylistPendingDelete] = useState<TCustomPlaylist | null>(null);
   const [isDeletingPlaylist, setIsDeletingPlaylist] = useState(false);
-  const activeMenuRef = useRef<HTMLDivElement | null>(null);
   const titleEditInputRef = useRef<HTMLInputElement | null>(null);
   const subtitleEditInputRef = useRef<HTMLInputElement | null>(null);
   const isSubmittingTextEditRef = useRef(false);
@@ -547,26 +589,6 @@ export const SgMatrixPlaylistPanel = ({
 
   useEffect(() => clearPendingPlaylistOpen, [clearPendingPlaylistOpen]);
 
-  useEffect(() => {
-    if (!menuPlaylistId) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (activeMenuRef.current?.contains(event.target as Node)) return;
-      setMenuPlaylistId(null);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuPlaylistId(null);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [menuPlaylistId]);
-
   const getPlaylistTextUpdatePayload = (
     playlist: TCustomPlaylist,
     currentName: string,
@@ -602,7 +624,6 @@ export const SgMatrixPlaylistPanel = ({
     event.preventDefault();
     event.stopPropagation();
     clearPendingPlaylistOpen();
-    setMenuPlaylistId(null);
     setEditingPlaylistText({
       focusField,
       name: currentName,
@@ -671,10 +692,19 @@ export const SgMatrixPlaylistPanel = ({
     }
   };
 
-  const handleToggleMenu = (event: ReactMouseEvent<HTMLButtonElement>, playlistId: string) => {
+  const handleTogglePlaylistClips = (event: ReactMouseEvent<HTMLButtonElement>, playlistId: string) => {
     event.stopPropagation();
     clearPendingPlaylistOpen();
-    setMenuPlaylistId((currentPlaylistId) => (currentPlaylistId === playlistId ? null : playlistId));
+    setExpandedPlaylistId((currentPlaylistId) => (currentPlaylistId === playlistId ? null : playlistId));
+  };
+
+  const handleTogglePlaylistSelection = (playlistId: string) => {
+    setSelectedPlaylistIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      if (nextIds.has(playlistId)) nextIds.delete(playlistId);
+      else nextIds.add(playlistId);
+      return nextIds;
+    });
   };
 
   const handleOpenPlaylist = (playlist: TCustomPlaylist) => {
@@ -685,37 +715,7 @@ export const SgMatrixPlaylistPanel = ({
     }, 260);
   };
 
-  const handleSharePlaylist = async (playlist: TCustomPlaylist) => {
-    setMenuPlaylistId(null);
-
-    const playlistUrl = buildCustomPlaylistUrl(playlist.url);
-    if (!playlistUrl || typeof navigator === "undefined" || !navigator.clipboard) {
-      setToast({
-        type: TOAST_TYPE.ERROR,
-        title: "Share unavailable",
-        message: "Unable to copy this playlist link.",
-      });
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(playlistUrl);
-      setToast({
-        type: TOAST_TYPE.SUCCESS,
-        title: "Playlist link copied",
-        message: "The playlist link is ready to share.",
-      });
-    } catch {
-      setToast({
-        type: TOAST_TYPE.ERROR,
-        title: "Share failed",
-        message: "Unable to copy this playlist link.",
-      });
-    }
-  };
-
   const handleOpenDeleteModal = (playlist: TCustomPlaylist) => {
-    setMenuPlaylistId(null);
     setPlaylistPendingDelete(playlist);
   };
 
@@ -733,6 +733,11 @@ export const SgMatrixPlaylistPanel = ({
       if (activePlaylist?.id === playlistPendingDelete.id) {
         setActivePlaylist(null);
       }
+      setSelectedPlaylistIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.delete(playlistPendingDelete.id);
+        return nextIds;
+      });
       setToast({
         type: TOAST_TYPE.SUCCESS,
         title: "Playlist deleted",
@@ -750,49 +755,70 @@ export const SgMatrixPlaylistPanel = ({
     }
   };
 
+  const isCreateCardDisabled = !onCreateCard || (rows ? rows.length === 0 : false);
+
   return (
     <>
       <aside
-        className={`${PLAYER_FRAME_CLASS} flex min-h-0 flex-col overflow-hidden rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel-secondary)]`}
+        className={`${PLAYER_FRAME_CLASS} flex min-h-0 flex-col overflow-hidden rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-page)]`}
       >
-        <div className="flex h-[34px] items-center justify-between gap-3 border-b border-[var(--sg-matrix-border)] px-2.5">
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-normal text-[var(--sg-matrix-text-secondary)]">
-              Playlist Workspace
-            </div>
+        <div className="flex h-[35px] shrink-0 items-center justify-between gap-2 border-b border-[var(--sg-matrix-border)] px-2.5">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h3 className="truncate text-[10px] font-medium uppercase tracking-[0.09em] text-[var(--sg-matrix-text-muted)]">
+              Staging Area
+            </h3>
+            <span className="shrink-0 text-[10px] font-normal text-[var(--sg-matrix-text-secondary)]">
+              {customPlaylists.length} playlist{customPlaylists.length === 1 ? "" : "s"}
+            </span>
           </div>
         </div>
 
-        <div className="vertical-scrollbar scrollbar-md min-h-0 flex-1 overflow-y-auto p-1.5">
+        <div className="vertical-scrollbar scrollbar-md min-h-0 flex-1 overflow-y-auto p-[7px]">
           {customPlaylists.length > 0 ? (
-            <ul className="space-y-1.5">
+            <ul className="space-y-1">
               {customPlaylists.map((playlist) => {
-                const thumbnailUrl = buildCustomPlaylistThumbnailUrl(playlist.thumbnail);
                 const clipCount = getPlaylistCardClipCount(playlist);
+                const durationLabel = formatPlaylistDuration(getPlaylistDurationSeconds(playlist));
                 const cardTitle = getPlaylistCardTitle(playlist);
                 const cardSubtitle = getPlaylistCardSubtitle(playlist);
                 const activeTextEdit = editingPlaylistText?.playlistId === playlist.id ? editingPlaylistText : null;
                 const isEditing = Boolean(activeTextEdit);
                 const isSavingText = savingPlaylistText?.playlistId === playlist.id;
-                const thumbnailPreview = (
-                  <span className="flex h-10 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-[var(--sg-matrix-cell-empty)] text-[var(--sg-matrix-text-muted)]">
-                    {thumbnailUrl ? (
-                      <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <Video className="h-3.5 w-3.5" />
-                    )}
-                  </span>
-                );
+                const isExpanded = expandedPlaylistId === playlist.id;
+                const isSelected = selectedPlaylistIds.has(playlist.id);
+                const savedClips = Array.isArray(playlist.clips) ? playlist.clips : [];
+                const clipListId = `custom-playlist-${playlist.id}-clips`;
 
                 return (
-                  <li key={playlist.id}>
+                  <li
+                    key={playlist.id}
+                    className="overflow-hidden rounded-[7px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)]"
+                  >
                     <div
-                      className="group relative rounded-[5px]"
-                      ref={menuPlaylistId === playlist.id ? activeMenuRef : null}
+                      className={`group flex h-[32px] min-w-0 items-center px-2 ${isExpanded ? "border-b border-[var(--sg-matrix-grid-border)]" : ""}`}
                     >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleTogglePlaylistSelection(playlist.id)}
+                        className="h-3 w-3 shrink-0 cursor-pointer rounded-[2px] border-white/50 accent-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)]"
+                        aria-label={`Select ${cardTitle}`}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={(event) => handleTogglePlaylistClips(event, playlist.id)}
+                        className="ml-1.5 inline-flex h-5 w-4 shrink-0 items-center justify-center text-[var(--sg-matrix-text-muted)] transition-colors hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:text-[var(--sg-matrix-text)]"
+                        aria-controls={clipListId}
+                        aria-expanded={isExpanded}
+                        aria-label={`${isExpanded ? "Hide" : "Show"} clips in ${cardTitle}`}
+                      >
+                        {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                      </button>
+
                       {isEditing ? (
                         <form
-                          className="flex w-full min-w-0 items-center gap-2 rounded-[5px] bg-[var(--sg-matrix-selected-nav)] px-2 py-1.5 text-left"
+                          className="ml-0.5 flex min-w-0 flex-1 items-center"
                           onSubmit={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
@@ -807,84 +833,41 @@ export const SgMatrixPlaylistPanel = ({
                             void handleSubmitTextEdit(playlist, cardTitle, cardSubtitle);
                           }}
                         >
-                          {thumbnailPreview}
-                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              <input
-                                ref={titleEditInputRef}
-                                type="text"
-                                value={activeTextEdit?.name ?? ""}
-                                disabled={isSavingText}
-                                onChange={(event) =>
-                                  setEditingPlaylistText((currentState) =>
-                                    currentState ? { ...currentState, name: event.target.value } : currentState
-                                  )
-                                }
-                                onKeyDown={(event) => {
-                                  if (event.key !== "Escape") return;
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  handleCancelTextEdit(true);
-                                }}
-                                className="h-[19px] w-full min-w-0 border-0 bg-transparent px-0 text-[11px] font-medium leading-none text-[var(--sg-matrix-text)] outline-none placeholder:text-[var(--sg-matrix-text-muted)] focus:ring-0"
-                                aria-label="Playlist title"
-                              />
-                              <span className="shrink-0 rounded-[4px] border border-[#338fdc]/25 bg-[#338fdc]/10 px-1.5 py-0.5 text-[9px] font-medium leading-none text-[#7cc6ff]">
-                                {formatPlaylistCardClipCount(clipCount)}
-                              </span>
-                            </span>
-                            <input
-                              ref={subtitleEditInputRef}
-                              type="text"
-                              value={activeTextEdit?.subtitle ?? ""}
-                              disabled={isSavingText}
-                              onChange={(event) =>
-                                setEditingPlaylistText((currentState) =>
-                                  currentState ? { ...currentState, subtitle: event.target.value } : currentState
-                                )
-                              }
-                              onKeyDown={(event) => {
-                                if (event.key !== "Escape") return;
-                                event.preventDefault();
-                                event.stopPropagation();
-                                handleCancelTextEdit(true);
-                              }}
-                              className="h-[18px] w-full min-w-0 border-0 bg-transparent px-0 text-[10px] leading-none text-[var(--sg-matrix-text)] outline-none placeholder:text-[var(--sg-matrix-text-muted)] focus:ring-0"
-                              aria-label="Playlist subtitle"
-                            />
-                          </span>
+                          <input
+                            ref={titleEditInputRef}
+                            type="text"
+                            value={activeTextEdit?.name ?? ""}
+                            disabled={isSavingText}
+                            onChange={(event) =>
+                              setEditingPlaylistText((currentState) =>
+                                currentState ? { ...currentState, name: event.target.value } : currentState
+                              )
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key !== "Escape") return;
+                              event.preventDefault();
+                              event.stopPropagation();
+                              handleCancelTextEdit(true);
+                            }}
+                            className="h-6 w-full min-w-0 border-0 bg-transparent px-1 text-[11px] font-medium leading-none text-[var(--sg-matrix-text)] outline-none placeholder:text-[var(--sg-matrix-text-muted)] focus:ring-0"
+                            aria-label="Playlist title"
+                          />
                         </form>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => handleOpenPlaylist(playlist)}
-                          className="flex w-full min-w-0 items-center gap-2 rounded-[5px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-selected-nav)] px-2 py-1.5 pr-7 text-left transition-colors hover:bg-[var(--sg-matrix-hover)]"
+                          onClick={() => {
+                            onPlayPlaylist?.(playlist);
+                            if (!onPlayPlaylist) handleOpenPlaylist(playlist);
+                          }}
+                          className="ml-0.5 flex h-full min-w-0 flex-1 items-center gap-2 px-1 text-left focus-visible:outline-none"
+                          title={`Play ${cardTitle}`}
                         >
-                          {thumbnailPreview}
-                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              <span
-                                className="truncate text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]"
-                                title="Double-click to edit custom playlist"
-                                onDoubleClick={(event) =>
-                                  handleStartTextEdit(event, playlist, "name", cardTitle, cardSubtitle)
-                                }
-                              >
-                                {cardTitle}
-                              </span>
-                              <span className="shrink-0 rounded-[4px] border border-[#338fdc]/25 bg-[#338fdc]/10 px-1.5 py-0.5 text-[9px] font-medium leading-none text-[#7cc6ff]">
-                                {formatPlaylistCardClipCount(clipCount)}
-                              </span>
-                            </span>
-                            <span
-                              className="truncate text-[10px] text-[var(--sg-matrix-text-muted)]"
-                              title="Double-click to edit custom playlist"
-                              onDoubleClick={(event) =>
-                                handleStartTextEdit(event, playlist, "subtitle", cardTitle, cardSubtitle)
-                              }
-                            >
-                              {cardSubtitle}
-                            </span>
+                          <span className="min-w-0 flex-1 truncate text-[11px] font-medium leading-none text-[var(--sg-matrix-text-secondary)] group-hover:text-[var(--sg-matrix-text)]">
+                            {cardTitle}
+                          </span>
+                          <span className="shrink-0 whitespace-nowrap text-[9px] leading-none text-[var(--sg-matrix-text-muted)]">
+                            {clipCount}c&nbsp; · &nbsp;{durationLabel}
                           </span>
                         </button>
                       )}
@@ -892,59 +875,78 @@ export const SgMatrixPlaylistPanel = ({
                       {!isEditing ? (
                         <button
                           type="button"
-                          onClick={(event) => handleToggleMenu(event, playlist.id)}
-                          className="absolute right-1.5 top-1.5 inline-flex h-6 w-6 items-center justify-center rounded text-[var(--sg-matrix-text-muted)] opacity-70 transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] group-hover:opacity-100"
-                          aria-label={`Open ${cardTitle} playlist actions`}
-                          aria-expanded={menuPlaylistId === playlist.id}
+                          onClick={(event) => handleStartTextEdit(event, playlist, "name", cardTitle, cardSubtitle)}
+                          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] text-[var(--sg-matrix-text-muted)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)]"
+                          aria-label={`Edit ${cardTitle}`}
                         >
-                          <MoreVertical className="h-3.5 w-3.5" />
+                          <Pencil className="h-3 w-3" />
                         </button>
                       ) : null}
 
-                      {menuPlaylistId === playlist.id ? (
-                        <div className="absolute right-1.5 top-8 z-30 w-[148px] overflow-hidden rounded-[5px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] py-1 shadow-[0_12px_34px_rgba(0,0,0,0.45)]">
-                          <button
-                            type="button"
-                            onClick={(event) => handleStartTextEdit(event, playlist, "name", cardTitle, cardSubtitle)}
-                            className="flex h-7 w-full items-center gap-2 px-2 text-left text-[11px] text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)]"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleSharePlaylist(playlist);
-                            }}
-                            className="flex h-7 w-full items-center gap-2 px-2 text-left text-[11px] text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)]"
-                          >
-                            <Share2 className="h-3.5 w-3.5" />
-                            <span>Share</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleOpenDeleteModal(playlist);
-                            }}
-                            className="flex h-7 w-full items-center gap-2 px-2 text-left text-[11px] text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDeleteModal(playlist)}
+                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] text-[var(--sg-matrix-text-muted)] transition-colors hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-400/70"
+                        aria-label={`Delete ${cardTitle}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
                     </div>
+
+                    {isExpanded ? (
+                      <div id={clipListId}>
+                        {savedClips.length > 0 ? (
+                          <ul className="py-1" aria-label={`Clips in ${cardTitle}`}>
+                            {savedClips.map((clip, index) => {
+                              const clipTitle = normalizeCardText(clip.title) || `Clip ${index + 1}`;
+                              const clipDurationLabel = formatPlaylistDuration(getSavedClipDurationSeconds(clip));
+
+                              return (
+                                <li
+                                  key={clip.id || `${playlist.id}-clip-${index + 1}`}
+                                  className="mx-2 mb-1 flex h-[27px] min-w-0 items-center gap-1.5 rounded-[5px] border border-emerald-400/15 border-l-[3px] border-l-emerald-400 bg-emerald-400/[0.04] px-1.5 last:mb-0"
+                                >
+                                  <span className="inline-flex h-[17px] shrink-0 items-center gap-1 rounded-[3px] border border-emerald-400/35 bg-emerald-400/10 px-1 text-[8px] font-medium leading-none text-emerald-300">
+                                    <Video className="h-2.5 w-2.5" />
+                                    GAME
+                                  </span>
+                                  <span className="min-w-0 flex-1 truncate text-[9px] font-medium leading-none text-[var(--sg-matrix-text-secondary)]">
+                                    {clipTitle}
+                                  </span>
+                                  <span className="shrink-0 text-[8px] tabular-nums text-[var(--sg-matrix-text-muted)]">
+                                    {clipDurationLabel}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <div className="px-2.5 pb-2.5 pt-1.5 text-[10px] italic leading-4 text-[var(--sg-matrix-text-muted)]">
+                            No clips yet.
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}
             </ul>
           ) : (
-            <div className="px-2 py-2 text-xs leading-5 text-[var(--sg-matrix-text-muted)]">
-              Select tags or populated matrix cells, then click Create Playlist to show it here.
+            <div className="px-2.5 py-2 text-[10px] italic leading-4 text-[var(--sg-matrix-text-muted)]">
+              No playlists yet.
             </div>
           )}
+        </div>
+        <div className="shrink-0 border-t border-[var(--sg-matrix-border)] p-2">
+          <button
+            type="button"
+            onClick={onCreateCard}
+            disabled={isCreateCardDisabled}
+            className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[6px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel)] text-[10px] font-medium text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:text-[var(--sg-matrix-text-disabled)] disabled:opacity-45"
+          >
+            <FileText className="h-3 w-3" />
+            Create card
+          </button>
         </div>
       </aside>
       <AlertModalCore

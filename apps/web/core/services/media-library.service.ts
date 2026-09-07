@@ -176,17 +176,22 @@ export type TCustomPlaylist = {
 };
 
 export type TCustomPlaylistClip = {
+  durationSeconds?: number | null;
+  endSeconds?: number | null;
+  fallbackTimestamp?: string | null;
   groupValue?: string;
   id: string;
   player?: string;
   primaryDetail?: string;
   result?: string;
   sourceTagId?: string | null;
+  startSeconds?: number | null;
   subtitle?: string;
   tags?: string[];
   team?: string;
   thumbnail?: string | null;
   timestamp?: string | null;
+  timecode?: string | null;
   title: string;
 };
 
