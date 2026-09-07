@@ -20,11 +20,17 @@ import { SgEventDetailPage } from "@/components/issues/issue-detail/sg-event-det
 import { useMember } from "@/hooks/store/use-member";
 import { useAppRouter } from "@/hooks/use-app-router";
 import type { TCustomPlaylistAnnotation } from "@/services/media-library.service";
-import { MediaLibraryService } from "@/services/media-library.service";
+import { MediaLibraryService, MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY } from "@/services/media-library.service";
 import { PLAYER_STYLE } from "../constants/player-styles";
 import { useDocumentPreview, useResolvedMediaSources } from "../hooks/media-detail-hooks";
 import { useMediaLibraryItem } from "../hooks/use-media-library-item";
 import type { TMediaItem } from "../types/media-library.types";
+import {
+  createCustomPlaylistClockState,
+  mapCustomPlaylistTimelineTimeToMedia,
+  updateCustomPlaylistClock,
+} from "../utils/custom-playlist-timeline";
+import type { TCustomPlaylistSourceRange } from "../utils/custom-playlist-timeline";
 import {
   getCaptionTracks,
   getMetaString,
@@ -58,6 +64,118 @@ const getMediaViewerSessionId = () => {
 };
 const VIDEO_READY_STATE_HAVE_CURRENT_DATA = 2;
 
+const getPositiveSeconds = (value: string) => {
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+};
+
+const parseCustomPlaylistSourceRanges = (value: string): TCustomPlaylistSourceRange[] =>
+  value
+    .split(",")
+    .map((range) => range.split(":", 2).map(Number))
+    .filter(
+      (range): range is [number, number] =>
+        range.length === 2 &&
+        Number.isFinite(range[0]) &&
+        Number.isFinite(range[1]) &&
+        range[0] >= 0 &&
+        range[1] > range[0]
+    );
+
+const getSavedCustomPlaylist = (
+  meta: Record<string, unknown> | null | undefined,
+  playlistId: string
+): Record<string, unknown> | null => {
+  const playlists = meta?.[MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY];
+  if (!Array.isArray(playlists) || !playlistId) return null;
+
+  const playlist = playlists.find(
+    (entry) =>
+      typeof entry === "object" && entry !== null && String((entry as Record<string, unknown>).id ?? "") === playlistId
+  );
+  return typeof playlist === "object" && playlist !== null ? (playlist as Record<string, unknown>) : null;
+};
+
+const getSavedCustomPlaylistSourceRanges = (
+  meta: Record<string, unknown> | null | undefined,
+  playlistId: string
+): TCustomPlaylistSourceRange[] => {
+  const clips = getSavedCustomPlaylist(meta, playlistId)?.clips;
+  if (!Array.isArray(clips)) return [];
+
+  const ranges = clips.map((entry) => {
+    if (typeof entry !== "object" || entry === null) return null;
+    const clip = entry as Record<string, unknown>;
+    const startSeconds = Number(clip.startSeconds);
+    const endSeconds = Number(clip.endSeconds);
+    return Number.isFinite(startSeconds) &&
+      Number.isFinite(endSeconds) &&
+      startSeconds >= 0 &&
+      endSeconds > startSeconds
+      ? ([startSeconds, endSeconds] as const)
+      : null;
+  });
+
+  return ranges.every((range): range is TCustomPlaylistSourceRange => range !== null) ? ranges : [];
+};
+
+const getSavedCustomPlaylistAnnotations = (
+  meta: Record<string, unknown> | null | undefined,
+  playlistId: string
+): TCustomPlaylistAnnotation[] | null => {
+  const annotations = getSavedCustomPlaylist(meta, playlistId)?.annotations;
+  return Array.isArray(annotations) ? (annotations as TCustomPlaylistAnnotation[]) : null;
+};
+
+type TVideoJsComponent = {
+  getChild?: (componentName: string) => TVideoJsComponent | undefined;
+  getCurrentTime_?: () => number;
+  getPercent?: () => number;
+  stepBack?: () => void;
+  stepForward?: () => void;
+  update?: () => unknown;
+  updateTextNode_?: (displaySeconds: number) => void;
+  userSeek_?: (mediaSeconds: number) => void;
+};
+type TVideoJsPlayerWithControlBar = ReturnType<typeof videojs> & {
+  controlBar?: TVideoJsComponent;
+};
+
+const getVideoJsSeekBar = (player: ReturnType<typeof videojs>) =>
+  (player as TVideoJsPlayerWithControlBar).controlBar?.getChild?.("ProgressControl")?.getChild?.("SeekBar");
+
+const updateCustomPlaylistPlayerTimeDisplays = (
+  player: ReturnType<typeof videojs>,
+  currentTimeSeconds: number,
+  durationSeconds: number
+) => {
+  const controlBar = (player as TVideoJsPlayerWithControlBar).controlBar;
+  controlBar?.getChild?.("CurrentTimeDisplay")?.updateTextNode_?.(currentTimeSeconds);
+  controlBar?.getChild?.("DurationDisplay")?.updateTextNode_?.(durationSeconds);
+  getVideoJsSeekBar(player)?.update?.();
+};
+
+const getCustomPlaylistMediaRange = (player: ReturnType<typeof videojs>) => {
+  const reportedDuration = Number(player.duration?.() ?? 0);
+  const reportedDurationSeconds = Number.isFinite(reportedDuration) && reportedDuration > 0 ? reportedDuration : null;
+  const seekable = player.seekable?.();
+
+  if (!seekable?.length) return { durationSeconds: reportedDurationSeconds, startSeconds: 0 };
+
+  try {
+    const startSeconds = Math.max(0, Number(seekable.start(0)) || 0);
+    const endSeconds = Number(seekable.end(seekable.length - 1));
+    const seekableDurationSeconds =
+      Number.isFinite(endSeconds) && endSeconds > startSeconds ? endSeconds - startSeconds : null;
+    return {
+      durationSeconds: startSeconds > 0 && seekableDurationSeconds ? seekableDurationSeconds : reportedDurationSeconds,
+      startSeconds,
+    };
+  } catch {
+    return { durationSeconds: reportedDurationSeconds, startSeconds: 0 };
+  }
+};
+
 const MediaDetailPage = () => {
   const { mediaId, workspaceSlug, projectId } = useParams() as {
     mediaId: string;
@@ -70,6 +188,7 @@ const MediaDetailPage = () => {
   const fromParam = searchParams.get("from") ?? "";
   const annotationParam = (searchParams.get("annotation") ?? searchParams.get("annotate") ?? "").toLowerCase();
   const shouldOpenVideoAnnotationWorkspaceFromQuery = ["1", "true", "open", "video"].includes(annotationParam);
+  const annotationSessionParam = searchParams.get("annotationSession") ?? "";
   const annotationStreamParam = searchParams.get("stream") ?? "";
   const annotationStreamIdParam = searchParams.get("streamId") ?? "";
   const annotationDeviceIdParam = searchParams.get("deviceId") ?? "";
@@ -77,6 +196,12 @@ const MediaDetailPage = () => {
   const annotationVideoSrcParam = searchParams.get("videoSrc") ?? "";
   const annotationViewParam = searchParams.get("view") ?? "";
   const customPlaylistIdParam = searchParams.get("customPlaylistId") ?? "";
+  const customPlaylistDurationParam = searchParams.get("playlistDuration") ?? "";
+  const customPlaylistRangesParam = searchParams.get("playlistRanges") ?? "";
+  const customPlaylistDurationSeconds = useMemo(
+    () => getPositiveSeconds(customPlaylistDurationParam),
+    [customPlaylistDurationParam]
+  );
   const isCustomPlaylistAnnotation = Boolean(
     shouldOpenVideoAnnotationWorkspaceFromQuery && customPlaylistIdParam.trim()
   );
@@ -87,32 +212,53 @@ const MediaDetailPage = () => {
     if (fromParam !== projectHrefPrefix && !fromParam.startsWith(`${projectHrefPrefix}/`)) return defaultHref;
     return fromParam;
   }, [fromParam, projectId, workspaceSlug]);
-  const { item: rawItem, isLoading } = useMediaLibraryItem(workspaceSlug, projectId, mediaId);
+  const { item: rawItem, isLoading } = useMediaLibraryItem(workspaceSlug, projectId, mediaId, annotationSessionParam);
+  const customPlaylistSourceRanges = useMemo(() => {
+    const queryRanges = parseCustomPlaylistSourceRanges(customPlaylistRangesParam);
+    return queryRanges.length > 0
+      ? queryRanges
+      : getSavedCustomPlaylistSourceRanges(rawItem?.meta, customPlaylistIdParam.trim());
+  }, [customPlaylistIdParam, customPlaylistRangesParam, rawItem?.meta]);
+  const savedCustomPlaylistAnnotations = useMemo(
+    () => getSavedCustomPlaylistAnnotations(rawItem?.meta, customPlaylistIdParam.trim()),
+    [customPlaylistIdParam, rawItem?.meta]
+  );
   const [mediaItemOverrides, setMediaItemOverrides] = useState<Partial<TMediaItem> | null>(null);
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
-  const annotationVideoItem = useMemo(
-    () =>
-      shouldOpenVideoAnnotationWorkspaceFromQuery
-        ? buildSgEventAnnotationVideoItem(rawItem, {
-            deviceId: annotationDeviceIdParam,
-            streamId: annotationStreamIdParam,
-            streamName: annotationStreamParam,
-            title: annotationViewParam,
-            viewKey: annotationViewKeyParam,
-            videoSrc: annotationVideoSrcParam,
-          })
-        : null,
-    [
-      annotationDeviceIdParam,
-      annotationStreamParam,
-      annotationStreamIdParam,
-      annotationVideoSrcParam,
-      annotationViewKeyParam,
-      annotationViewParam,
-      rawItem,
-      shouldOpenVideoAnnotationWorkspaceFromQuery,
-    ]
-  );
+  const annotationVideoItem = useMemo(() => {
+    if (!shouldOpenVideoAnnotationWorkspaceFromQuery) return null;
+
+    const annotationItem = buildSgEventAnnotationVideoItem(rawItem, {
+      deviceId: annotationDeviceIdParam,
+      streamId: annotationStreamIdParam,
+      streamName: annotationStreamParam,
+      title: annotationViewParam,
+      viewKey: annotationViewKeyParam,
+      videoSrc: annotationVideoSrcParam,
+    });
+    if (!annotationItem || !isCustomPlaylistAnnotation || savedCustomPlaylistAnnotations === null) {
+      return annotationItem;
+    }
+
+    return {
+      ...annotationItem,
+      meta: {
+        ...annotationItem.meta,
+        annotations: savedCustomPlaylistAnnotations,
+      },
+    };
+  }, [
+    annotationDeviceIdParam,
+    annotationStreamParam,
+    annotationStreamIdParam,
+    annotationVideoSrcParam,
+    annotationViewKeyParam,
+    annotationViewParam,
+    isCustomPlaylistAnnotation,
+    rawItem,
+    savedCustomPlaylistAnnotations,
+    shouldOpenVideoAnnotationWorkspaceFromQuery,
+  ]);
   const baseItem = annotationVideoItem ?? rawItem;
   const item = useMemo(
     () => (baseItem ? { ...baseItem, ...(mediaItemOverrides ?? {}) } : baseItem),
@@ -145,6 +291,8 @@ const MediaDetailPage = () => {
   const [qualitySelection, setQualitySelection] = useState<string | null>(null);
   const [playerElement, setPlayerElement] = useState<HTMLElement | null>(null);
   const videoAnnotationSaveBeforeCloseRef = useRef<(() => Promise<boolean>) | null>(null);
+  const customPlaylistClockRef = useRef(createCustomPlaylistClockState());
+  const customPlaylistTimelineSecondsRef = useRef(0);
   const settingsPanelRef = useRef<HTMLDivElement | null>(null);
   const pipCaptionModesRef = useRef<Array<{ track: TextTrack; mode: TPipCaptionMode }>>([]);
   const inactivityTimeoutRef = useRef<number | null>(null);
@@ -152,7 +300,7 @@ const MediaDetailPage = () => {
   useEffect(() => {
     setMediaItemOverrides(null);
     viewRecordedRef.current = false;
-  }, [rawItem?.id]);
+  }, [annotationSessionParam, annotationViewKeyParam, customPlaylistIdParam, rawItem?.id]);
 
   useEffect(() => {
     setCurrentVideoSeconds(0);
@@ -160,17 +308,27 @@ const MediaDetailPage = () => {
     setIsVideoFrameReady(false);
     setIsVideoAnnotationMode(false);
     setIsVideoAnnotationWorkspaceOpen(false);
-  }, [item?.id]);
+  }, [annotationSessionParam, annotationViewKeyParam, customPlaylistIdParam, item?.id]);
 
   useEffect(() => {
     const sourceItem = rawItem;
-    if (!shouldOpenVideoAnnotationWorkspaceFromQuery || !annotationEventJsonSource || !sourceItem) return;
+    // Staging-playlist annotations live in the artifact metadata. Loading the
+    // original event JSON here would replace that playlist-specific list with
+    // the event view's annotations (usually an empty list) after the editor
+    // has already rendered the saved playlist annotations.
+    if (
+      isCustomPlaylistAnnotation ||
+      !shouldOpenVideoAnnotationWorkspaceFromQuery ||
+      !annotationEventJsonSource ||
+      !sourceItem
+    )
+      return;
 
     let isCancelled = false;
     const loadEventViewAnnotations = async () => {
       for (const credentials of ["include", "omit"] as const) {
         try {
-          const response = await fetch(annotationEventJsonSource, { credentials });
+          const response = await fetch(annotationEventJsonSource, { cache: "no-store", credentials });
           if (!response.ok) continue;
 
           const payload = await response.json().catch(() => null);
@@ -223,6 +381,7 @@ const MediaDetailPage = () => {
     annotationVideoItem?.videoSrc,
     annotationEventJsonSource,
     handleMediaItemUpdated,
+    isCustomPlaylistAnnotation,
     rawItem,
     shouldOpenVideoAnnotationWorkspaceFromQuery,
   ]);
@@ -672,17 +831,125 @@ const MediaDetailPage = () => {
     const player = playerRef.current;
     if (!player || !isVideo) return;
 
+    customPlaylistClockRef.current = createCustomPlaylistClockState();
+    customPlaylistTimelineSecondsRef.current = 0;
+  }, [customPlaylistDurationSeconds, effectiveVideoSrc, isCustomPlaylistAnnotation, isVideo]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || !isVideo || !isCustomPlaylistAnnotation || !customPlaylistDurationSeconds) return;
+
+    const seekBar = getVideoJsSeekBar(player);
+    if (!seekBar?.getPercent || !seekBar.getCurrentTime_ || !seekBar.userSeek_) return;
+
+    const originalGetPercent = seekBar.getPercent;
+    const originalGetCurrentTime = seekBar.getCurrentTime_;
+    const originalUserSeek = seekBar.userSeek_;
+    const originalStepBack = seekBar.stepBack;
+    const originalStepForward = seekBar.stepForward;
+
+    const getLogicalCurrentTime = () => {
+      const clockState = customPlaylistClockRef.current;
+      if (!clockState.initialized || player.paused?.() || player.ended?.()) {
+        return customPlaylistTimelineSecondsRef.current;
+      }
+
+      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const elapsedSeconds = Math.max(0, (now - clockState.wallTimeMs) / 1000);
+      const playbackRate = Number(player.playbackRate?.() ?? 1);
+      const safePlaybackRate = Number.isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
+      return Math.min(customPlaylistDurationSeconds, clockState.timelineSeconds + elapsedSeconds * safePlaybackRate);
+    };
+
+    const seekToTimelineSeconds = (seconds: number) => {
+      const timelineTargetSeconds = Math.min(customPlaylistDurationSeconds, Math.max(0, seconds));
+      const mediaRange = getCustomPlaylistMediaRange(player);
+      const mediaTargetSeconds = mapCustomPlaylistTimelineTimeToMedia(
+        timelineTargetSeconds,
+        customPlaylistDurationSeconds,
+        mediaRange.durationSeconds,
+        mediaRange.startSeconds,
+        customPlaylistSourceRanges
+      );
+
+      customPlaylistClockRef.current = {
+        initialized: true,
+        mediaSeconds: mediaTargetSeconds,
+        timelineSeconds: timelineTargetSeconds,
+        wallTimeMs: typeof performance !== "undefined" ? performance.now() : Date.now(),
+      };
+      customPlaylistTimelineSecondsRef.current = timelineTargetSeconds;
+      player.currentTime(mediaTargetSeconds);
+      setCurrentVideoSeconds(timelineTargetSeconds);
+      updateCustomPlaylistPlayerTimeDisplays(player, timelineTargetSeconds, customPlaylistDurationSeconds);
+    };
+
+    seekBar.getPercent = () => Math.min(1, Math.max(0, getLogicalCurrentTime() / customPlaylistDurationSeconds));
+    seekBar.getCurrentTime_ = getLogicalCurrentTime;
+    seekBar.userSeek_ = (mediaSeconds: number) => {
+      const mediaDurationSeconds = Number(player.duration?.() ?? 0);
+      const seekRatio =
+        Number.isFinite(mediaDurationSeconds) && mediaDurationSeconds > 0
+          ? Math.min(1, Math.max(0, mediaSeconds / mediaDurationSeconds))
+          : 0;
+      seekToTimelineSeconds(seekRatio * customPlaylistDurationSeconds);
+    };
+    seekBar.stepBack = () => seekToTimelineSeconds(getLogicalCurrentTime() - 5);
+    seekBar.stepForward = () => seekToTimelineSeconds(getLogicalCurrentTime() + 5);
+    seekBar.update?.();
+
+    return () => {
+      seekBar.getPercent = originalGetPercent;
+      seekBar.getCurrentTime_ = originalGetCurrentTime;
+      seekBar.userSeek_ = originalUserSeek;
+      seekBar.stepBack = originalStepBack;
+      seekBar.stepForward = originalStepForward;
+    };
+  }, [
+    customPlaylistDurationSeconds,
+    customPlaylistSourceRanges,
+    effectiveVideoSrc,
+    isCustomPlaylistAnnotation,
+    isVideo,
+  ]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || !isVideo) return;
+
     const updateVideoTime = () => {
       const currentTime = Number(player.currentTime?.() ?? 0);
       const duration = Number(player.duration?.() ?? 0);
       const mediaSeconds = Number.isFinite(currentTime) && currentTime > 0 ? currentTime : 0;
+      const reportedDurationSeconds = Number.isFinite(duration) && duration > 0 ? duration : null;
+
+      if (isCustomPlaylistAnnotation && customPlaylistDurationSeconds) {
+        const mediaRange = getCustomPlaylistMediaRange(player);
+        const clockResult = updateCustomPlaylistClock({
+          durationSeconds: customPlaylistDurationSeconds,
+          hasEnded: Boolean(player.ended?.()),
+          isPlaying: !player.paused?.() && !player.ended?.(),
+          mediaStartSeconds: mediaRange.startSeconds,
+          mediaSeconds,
+          playbackRate: Number(player.playbackRate?.() ?? 1),
+          state: customPlaylistClockRef.current,
+          wallTimeMs: typeof performance !== "undefined" ? performance.now() : Date.now(),
+        });
+        customPlaylistClockRef.current = clockResult.state;
+        customPlaylistTimelineSecondsRef.current = clockResult.timelineSeconds;
+        setCurrentVideoSeconds(clockResult.timelineSeconds);
+        setCurrentVideoDurationSeconds(customPlaylistDurationSeconds);
+        updateCustomPlaylistPlayerTimeDisplays(player, clockResult.timelineSeconds, customPlaylistDurationSeconds);
+        return;
+      }
 
       setCurrentVideoSeconds(mediaSeconds);
-      setCurrentVideoDurationSeconds(Number.isFinite(duration) && duration > 0 ? duration : null);
+      setCurrentVideoDurationSeconds(reportedDurationSeconds);
     };
     const playerEvents = [
       "durationchange",
       "ended",
+      "loadstart",
       "loadedmetadata",
       "pause",
       "play",
@@ -698,7 +965,7 @@ const MediaDetailPage = () => {
     return () => {
       playerEvents.forEach((eventName) => player.off(eventName, updateVideoTime));
     };
-  }, [effectiveVideoSrc, isVideo, item?.id]);
+  }, [customPlaylistDurationSeconds, effectiveVideoSrc, isCustomPlaylistAnnotation, isVideo, item?.id]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -791,6 +1058,9 @@ const MediaDetailPage = () => {
     setIsVideoFrameReady(false);
     if (!player || !effectiveVideoSrc) return;
     setCurrentVideoSeconds(0);
+    setCurrentVideoDurationSeconds(null);
+    customPlaylistClockRef.current = createCustomPlaylistClockState();
+    customPlaylistTimelineSecondsRef.current = 0;
     const type = getVideoMimeType(resolvedVideoFormat);
     const source = type ? { src: effectiveVideoSrc, type } : { src: effectiveVideoSrc };
     player.autoplay(isCustomPlaylistAnnotation ? "any" : true);
@@ -872,24 +1142,51 @@ const MediaDetailPage = () => {
     }
   }, []);
 
-  const handleOverlaySeek = useCallback((delta: number) => {
-    const player = playerRef.current;
-    if (!player) return;
-    const current = player.currentTime() ?? 0;
-    const seekable = player.seekable && player.seekable();
-    let target = current + delta;
-    const duration = player.duration?.();
-    if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
-      target = Math.min(duration, Math.max(0, target));
-    } else if (seekable && seekable.length) {
-      const start = seekable.start(0);
-      const end = seekable.end(0);
-      target = Math.min(end, Math.max(start, target));
-    } else {
-      target = Math.max(0, target);
-    }
-    player.currentTime(target);
-  }, []);
+  const handleOverlaySeek = useCallback(
+    (delta: number) => {
+      const player = playerRef.current;
+      if (!player) return;
+
+      if (isCustomPlaylistAnnotation && customPlaylistDurationSeconds) {
+        const mediaRange = getCustomPlaylistMediaRange(player);
+        const timelineTargetSeconds = Math.min(customPlaylistDurationSeconds, Math.max(0, currentVideoSeconds + delta));
+        const mediaTargetSeconds = mapCustomPlaylistTimelineTimeToMedia(
+          timelineTargetSeconds,
+          customPlaylistDurationSeconds,
+          mediaRange.durationSeconds,
+          mediaRange.startSeconds,
+          customPlaylistSourceRanges
+        );
+        customPlaylistClockRef.current = {
+          initialized: true,
+          mediaSeconds: mediaTargetSeconds,
+          timelineSeconds: timelineTargetSeconds,
+          wallTimeMs: typeof performance !== "undefined" ? performance.now() : Date.now(),
+        };
+        customPlaylistTimelineSecondsRef.current = timelineTargetSeconds;
+        player.currentTime(mediaTargetSeconds);
+        setCurrentVideoSeconds(timelineTargetSeconds);
+        updateCustomPlaylistPlayerTimeDisplays(player, timelineTargetSeconds, customPlaylistDurationSeconds);
+        return;
+      }
+
+      const current = player.currentTime() ?? 0;
+      const seekable = player.seekable && player.seekable();
+      let target = current + delta;
+      const duration = player.duration?.();
+      if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) {
+        target = Math.min(duration, Math.max(0, target));
+      } else if (seekable && seekable.length) {
+        const start = seekable.start(0);
+        const end = seekable.end(0);
+        target = Math.min(end, Math.max(start, target));
+      } else {
+        target = Math.max(0, target);
+      }
+      player.currentTime(target);
+    },
+    [currentVideoSeconds, customPlaylistDurationSeconds, customPlaylistSourceRanges, isCustomPlaylistAnnotation]
+  );
 
   const qualityOptions = useMemo(() => {
     const player = playerRef.current as any;
@@ -983,17 +1280,44 @@ const MediaDetailPage = () => {
     player.playbackRate(rate);
     setPlayerTick((value) => value + 1);
   }, []);
-  const handleVideoTimelineSeek = useCallback((seconds: number) => {
-    const player = playerRef.current;
-    if (!player || !Number.isFinite(seconds)) return;
+  const handleVideoTimelineSeek = useCallback(
+    (seconds: number) => {
+      const player = playerRef.current;
+      if (!player || !Number.isFinite(seconds)) return;
 
-    const duration = Number(player.duration?.() ?? 0);
-    const targetSeconds =
-      Number.isFinite(duration) && duration > 0 ? Math.min(duration, Math.max(0, seconds)) : Math.max(0, seconds);
+      const mediaDurationSeconds = Number(player.duration?.() ?? 0);
+      const timelineTargetSeconds =
+        isCustomPlaylistAnnotation && customPlaylistDurationSeconds
+          ? Math.min(customPlaylistDurationSeconds, Math.max(0, seconds))
+          : Math.max(0, seconds);
+      let mediaTargetSeconds = timelineTargetSeconds;
 
-    player.currentTime(targetSeconds);
-    setCurrentVideoSeconds(targetSeconds);
-  }, []);
+      if (isCustomPlaylistAnnotation && customPlaylistDurationSeconds) {
+        const mediaRange = getCustomPlaylistMediaRange(player);
+        mediaTargetSeconds = mapCustomPlaylistTimelineTimeToMedia(
+          timelineTargetSeconds,
+          customPlaylistDurationSeconds,
+          mediaRange.durationSeconds,
+          mediaRange.startSeconds,
+          customPlaylistSourceRanges
+        );
+        customPlaylistClockRef.current = {
+          initialized: true,
+          mediaSeconds: mediaTargetSeconds,
+          timelineSeconds: timelineTargetSeconds,
+          wallTimeMs: typeof performance !== "undefined" ? performance.now() : Date.now(),
+        };
+        customPlaylistTimelineSecondsRef.current = timelineTargetSeconds;
+        updateCustomPlaylistPlayerTimeDisplays(player, timelineTargetSeconds, customPlaylistDurationSeconds);
+      } else if (Number.isFinite(mediaDurationSeconds) && mediaDurationSeconds > 0) {
+        mediaTargetSeconds = Math.min(mediaDurationSeconds, timelineTargetSeconds);
+      }
+
+      player.currentTime(mediaTargetSeconds);
+      setCurrentVideoSeconds(timelineTargetSeconds);
+    },
+    [customPlaylistDurationSeconds, customPlaylistSourceRanges, isCustomPlaylistAnnotation]
+  );
   const handleAnnotationPause = useCallback(() => {
     const player = playerRef.current;
     player?.pause?.();
@@ -1052,6 +1376,73 @@ const MediaDetailPage = () => {
     async (annotations: TCustomPlaylistAnnotation[]) => {
       if (!item?.packageId || !item.id) {
         throw new Error("Uploaded video annotations can only be saved on media library videos.");
+      }
+
+      if (isCustomPlaylistAnnotation && customPlaylistIdParam.trim()) {
+        const playlistId = customPlaylistIdParam.trim();
+        let latestArtifactMeta: Record<string, unknown> | null = null;
+        try {
+          const latestArtifacts = await mediaLibraryService.getArtifactDetail(
+            workspaceSlug,
+            projectId,
+            item.packageId,
+            item.id
+          );
+          latestArtifactMeta = latestArtifacts.find((artifact) => artifact.name === item.id)?.meta ?? null;
+        } catch {
+          // The already loaded metadata remains a safe fallback if refreshing fails.
+        }
+
+        const sourceMeta = [latestArtifactMeta, rawItem?.meta, item.meta].find(
+          (meta): meta is Record<string, unknown> => Boolean(getSavedCustomPlaylist(meta, playlistId))
+        );
+        if (!sourceMeta) {
+          throw new Error("The latest staging playlist metadata could not be loaded.");
+        }
+        const savedPlaylists = sourceMeta[MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY];
+        if (!Array.isArray(savedPlaylists)) {
+          throw new Error("The staging playlist metadata is unavailable.");
+        }
+
+        let playlistWasUpdated = false;
+        const nextPlaylists = savedPlaylists.map((entry) => {
+          if (typeof entry !== "object" || entry === null) return entry;
+          const playlist = entry as Record<string, unknown>;
+          if (String(playlist.id ?? "") !== playlistId) return entry;
+
+          playlistWasUpdated = true;
+          return { ...playlist, annotations };
+        });
+        if (!playlistWasUpdated) {
+          throw new Error("The staging playlist could not be found.");
+        }
+
+        const nextMeta = {
+          ...sourceMeta,
+          [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists,
+        };
+        const updateResult = await mediaLibraryService.updateArtifactMetadata(
+          workspaceSlug,
+          projectId,
+          item.packageId,
+          item.id,
+          nextMeta
+        );
+        if (updateResult?.updated === 0) {
+          throw new Error("The staging playlist artifact was not updated.");
+        }
+        handleMediaItemUpdated({
+          isAnnotated: annotations.length > 0,
+          meta: {
+            ...nextMeta,
+            annotations,
+            annotation_count: annotations.length,
+            annotationViewKey: annotationViewKeyParam,
+            has_annotations: annotations.length > 0,
+          },
+        });
+
+        return annotations;
       }
 
       const annotationViewKey = buildSgEventAnnotationViewKey({
@@ -1124,12 +1515,15 @@ const MediaDetailPage = () => {
       annotationVideoSrcParam,
       annotationViewKeyParam,
       annotationViewParam,
+      customPlaylistIdParam,
       handleMediaItemUpdated,
+      isCustomPlaylistAnnotation,
       item?.id,
       item?.meta,
       item?.packageId,
       mediaLibraryService,
       projectId,
+      rawItem?.meta,
       shouldOpenVideoAnnotationWorkspaceFromQuery,
       workspaceSlug,
     ]
@@ -1309,7 +1703,8 @@ const MediaDetailPage = () => {
               videoAnnotationContent={
                 isVideo && isVideoFrameReady ? (
                   <VideoAnnotationEditor
-                    annotationKey={`${item.packageId ?? ""}:${item.id}`}
+                    key={`${item.packageId ?? ""}:${item.id}:${annotationViewKeyParam}:${customPlaylistIdParam}:${annotationSessionParam}`}
+                    annotationKey={`${item.packageId ?? ""}:${item.id}:${annotationViewKeyParam}:${customPlaylistIdParam}:${annotationSessionParam}`}
                     annotations={item.meta?.annotations}
                     autoEnableAnnotationModeKey={
                       isFocusedVideoAnnotationWorkspace ? videoAnnotationWorkspaceActivationKey : undefined
@@ -1321,7 +1716,9 @@ const MediaDetailPage = () => {
                     enableTextTool
                     fitToVideoBounds
                     isPlaying={isPlaying}
-                    modeResetKey={`${item.id}:${isFocusedVideoAnnotationWorkspace ? "open" : "closed"}`}
+                    modeResetKey={`${item.id}:${annotationViewKeyParam}:${customPlaylistIdParam}:${annotationSessionParam}:${
+                      isFocusedVideoAnnotationWorkspace ? "open" : "closed"
+                    }`}
                     onModeChange={handleAnnotationModeChange}
                     onRegisterSaveHandler={handleRegisterVideoAnnotationSaveHandler}
                     onUnsavedChangesChange={setHasUnsavedVideoAnnotationChanges}

@@ -154,6 +154,7 @@ const getMediaReferenceSources = (meta: Record<string, unknown>, options: TSgEve
 
 const getMediaReferenceScore = (reference: Record<string, unknown>, options: TSgEventAnnotationVideoOptions = {}) => {
   let score = 0;
+  const explicitViewKey = toText(options.viewKey).trim();
   const streamId = toText(options.streamId).trim();
   const streamName = toText(options.streamName).trim();
   const deviceId = toText(options.deviceId).trim();
@@ -175,15 +176,23 @@ const getMediaReferenceScore = (reference: Record<string, unknown>, options: TSg
   )
     .trim()
     .replace(/\/+$/, "");
-  const referenceViewKeys = [
-    buildSgEventAnnotationViewKey({
-      deviceId: referenceDeviceId,
-      streamId: referenceStreamId,
-      streamName: referenceStreamName,
-      videoSrc: referenceVideoSrc,
-    }),
-    toText(reference.annotationViewKey).trim(),
-  ].filter(Boolean);
+  const derivedReferenceViewKey = buildSgEventAnnotationViewKey({
+    deviceId: referenceDeviceId,
+    streamId: referenceStreamId,
+    streamName: referenceStreamName,
+    videoSrc: referenceVideoSrc,
+  });
+  const storedReferenceViewKey = toText(
+    reference.annotationViewKey ?? reference.annotation_view_key ?? reference.viewKey ?? reference.view_key
+  ).trim();
+  const referenceViewKeys = [derivedReferenceViewKey, storedReferenceViewKey].filter(Boolean);
+
+  // An explicit key identifies an isolated annotation view (for example, one
+  // staging playlist). Never fall back to a different view on the same stream.
+  if (explicitViewKey) {
+    const exactReferenceViewKey = storedReferenceViewKey || derivedReferenceViewKey;
+    return exactReferenceViewKey === explicitViewKey ? 100 : 0;
+  }
 
   if (viewKey && referenceViewKeys.includes(viewKey)) score += 16;
   if (streamId && referenceStreamId === streamId) score += 8;
