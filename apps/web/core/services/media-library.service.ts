@@ -166,6 +166,7 @@ export type TCustomPlaylist = {
   id: string;
   event_id: number | string;
   name: string;
+  annotations?: TCustomPlaylistAnnotation[];
   subtitle?: string | null;
   url: string;
   thumbnail: string | null;
@@ -237,6 +238,7 @@ export type TCustomPlaylistAnnotation = {
 };
 
 export type TCustomPlaylistUpdatePayload = {
+  annotations?: TCustomPlaylistAnnotation[];
   name?: string;
   subtitle?: string | null;
   thumbnail?: string | null;
@@ -396,7 +398,10 @@ export class MediaLibraryService extends APIService {
     return this.get(
       `/api/workspaces/${workspaceSlug}/projects/${projectId}/media-library/packages/${packageId}/artifacts/${encodeURIComponent(
         artifactId
-      )}/`
+      )}/`,
+      {
+        params: { _fresh: Date.now() },
+      }
     )
       .then((response) => response?.data ?? [])
       .catch((error) => {

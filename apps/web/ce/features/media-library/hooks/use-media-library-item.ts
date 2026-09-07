@@ -11,7 +11,7 @@ export const useMediaLibraryItem = (
   workspaceSlug?: string,
   projectId?: string,
   mediaId?: string,
-  refreshKey?: number
+  refreshKey?: string | number
 ) => {
   const [item, setItem] = useState<TMediaItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);

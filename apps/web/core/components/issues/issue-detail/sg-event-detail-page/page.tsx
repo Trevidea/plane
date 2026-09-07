@@ -212,6 +212,29 @@ const getCustomPlaylistClipDurationSeconds = (clip: TCustomPlaylistClip) => {
   return null;
 };
 
+const getCustomPlaylistClipSourceRange = (clip: TCustomPlaylistClip): [number, number] | null => {
+  const startSeconds = Number(clip.startSeconds);
+  const endSeconds = Number(clip.endSeconds);
+  if (Number.isFinite(startSeconds) && Number.isFinite(endSeconds) && endSeconds > startSeconds) {
+    return [startSeconds, endSeconds];
+  }
+
+  const [rangeStart = "", rangeEnd = ""] = (clip.timecode ?? "").split(/\s*[-\u2013\u2014]\s*/, 2);
+  const parsedStartSeconds = parseTimecodeToSeconds(rangeStart);
+  const parsedEndSeconds = parseTimecodeToSeconds(rangeEnd);
+  return parsedStartSeconds !== null && parsedEndSeconds !== null && parsedEndSeconds > parsedStartSeconds
+    ? [parsedStartSeconds, parsedEndSeconds]
+    : null;
+};
+
+const getCustomPlaylistSourceRanges = (playlist: TCustomPlaylist) => {
+  const clips = Array.isArray(playlist.clips) ? playlist.clips : [];
+  if (clips.length === 0) return null;
+
+  const ranges = clips.map(getCustomPlaylistClipSourceRange);
+  return ranges.every((range): range is [number, number] => range !== null) ? ranges : null;
+};
+
 const getCustomPlaylistDurationSeconds = (playlist: TCustomPlaylist) => {
   const clips = Array.isArray(playlist.clips) ? playlist.clips : [];
   if (clips.length === 0) return null;
@@ -247,6 +270,7 @@ const readArtifactCustomPlaylists = (meta: Record<string, unknown>, eventId: str
       id,
       event_id: eventValue as number | string,
       name,
+      annotations: Array.isArray(playlist.annotations) ? (playlist.annotations as TCustomPlaylistAnnotation[]) : [],
       subtitle: playlist.subtitle === null ? null : toText(playlist.subtitle).trim() || null,
       url,
       thumbnail: thumbnail || null,
@@ -561,6 +585,7 @@ export const SgEventDetailPage = ({
           id: crypto.randomUUID(),
           event_id: customPlaylistEventId,
           name: buildCustomPlaylistName(eventTitle, includedRows.length),
+          annotations: [],
           url: playlistFileName,
           thumbnail: thumbnailFileName || null,
           clip: includedRows.length,
@@ -892,6 +917,7 @@ export const SgEventDetailPage = ({
 
       const params = new URLSearchParams();
       params.set("annotation", "open");
+      params.set("annotationSession", String(Date.now()));
       params.set("from", currentHref);
       params.set("customPlaylistId", playlist.id);
       params.set("videoSrc", playlistUrl);
@@ -900,6 +926,13 @@ export const SgEventDetailPage = ({
       const playlistDurationSeconds = getCustomPlaylistDurationSeconds(playlist);
       if (playlistDurationSeconds !== null) {
         params.set("playlistDuration", String(playlistDurationSeconds));
+      }
+      const playlistSourceRanges = getCustomPlaylistSourceRanges(playlist);
+      if (playlistSourceRanges) {
+        params.set(
+          "playlistRanges",
+          playlistSourceRanges.map(([startSeconds, endSeconds]) => `${startSeconds}:${endSeconds}`).join(",")
+        );
       }
 
       params.set("viewKey", `custom-playlist:${playlist.id}`);
@@ -1019,6 +1052,7 @@ export const SgEventDetailPage = ({
                     compactEmpty={!hasPlayableVideo}
                     onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
                     showAnnotationButton={false}
+                    showAnnotations={false}
                     onPlaybackTimeChange={handlePlaybackTimeChange}
                     onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
                     seekRequestId={pendingSeekRequestId}
@@ -1087,6 +1121,7 @@ export const SgEventDetailPage = ({
                         compactEmpty={!hasPlayableVideo}
                         onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
                         showAnnotationButton={false}
+                        showAnnotations={false}
                         onPlaybackTimeChange={handlePlaybackTimeChange}
                         onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
                         seekRequestId={pendingSeekRequestId}

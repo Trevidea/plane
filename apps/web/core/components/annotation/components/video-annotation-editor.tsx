@@ -133,6 +133,18 @@ const getAnnotationTextFontWeight = (annotation: TCustomPlaylistAnnotation | nul
   return Number.isFinite(value) ? value : fallback;
 };
 
+const getAnnotationSaveErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (!error || typeof error !== "object") return "Unable to save video annotations. Please try again.";
+
+  const record = error as Record<string, unknown>;
+  for (const value of [record.message, record.error, record.detail]) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+
+  return "Unable to save video annotations. Please try again.";
+};
+
 export const VideoAnnotationEditor = ({
   annotationKey,
   annotations: savedAnnotationValue,
@@ -784,11 +796,11 @@ export const VideoAnnotationEditor = ({
         message: "The video annotations were updated.",
       });
       return true;
-    } catch {
+    } catch (error) {
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Save annotations failed",
-        message: "Unable to save video annotations. Please try again.",
+        message: getAnnotationSaveErrorMessage(error),
       });
       return false;
     } finally {

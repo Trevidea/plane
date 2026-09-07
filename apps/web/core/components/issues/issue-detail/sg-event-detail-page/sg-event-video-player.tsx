@@ -27,6 +27,7 @@ type SgEventVideoPlayerProps = {
   onUpdateAnnotations?: (item: TMediaItem, annotations: TCustomPlaylistAnnotation[]) => Promise<TMediaItem | void>;
   onOpenAnnotationPage?: () => void;
   showAnnotationButton?: boolean;
+  showAnnotations?: boolean;
   seekRequestId?: number;
   seekToSeconds?: number | null;
 };
@@ -59,6 +60,7 @@ export const SgEventVideoPlayer = ({
   onUpdateAnnotations,
   onOpenAnnotationPage,
   showAnnotationButton = true,
+  showAnnotations = true,
   seekRequestId = 0,
   seekToSeconds = null,
 }: SgEventVideoPlayerProps) => {
@@ -721,7 +723,7 @@ export const SgEventVideoPlayer = ({
     </div>
   ) : null;
   const videoAnnotationContent =
-    effectiveAnnotationItem && isVideoFrameReady ? (
+    showAnnotations && effectiveAnnotationItem && isVideoFrameReady ? (
       <VideoAnnotationEditor
         annotationKey={`${effectiveAnnotationItem.packageId ?? "event"}:${effectiveAnnotationItem.id}`}
         annotations={effectiveAnnotationItem.meta?.annotations}
