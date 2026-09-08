@@ -630,6 +630,7 @@ export const SgEventDetailPage = ({
               : currentPayload,
           { revalidate: false }
         );
+        clearSelectedTagIds();
         setToast({
           type: TOAST_TYPE.SUCCESS,
           title: "Playlist created",
@@ -650,6 +651,7 @@ export const SgEventDetailPage = ({
     },
     [
       activeVideo?.thumbnail,
+      clearSelectedTagIds,
       eventTitle,
       isCreatingCustomPlaylist,
       mediaLibraryService,
@@ -675,9 +677,8 @@ export const SgEventDetailPage = ({
     const wasCreated = await handleCreateCustomPlaylist(timelinePlaylistRows);
     if (!wasCreated) return;
 
-    clearSelectedTagIds();
     setIsTimelinePlaylistSelectionMode(false);
-  }, [clearSelectedTagIds, handleCreateCustomPlaylist, timelinePlaylistRows]);
+  }, [handleCreateCustomPlaylist, timelinePlaylistRows]);
 
   const handleCreateMatrixPlaylist = useCallback(
     async (rows: SgTagRow[]) => {
