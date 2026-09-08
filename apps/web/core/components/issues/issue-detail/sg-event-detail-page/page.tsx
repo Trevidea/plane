@@ -4,6 +4,7 @@ import type { UIEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import useSWR from "swr";
+import { v4 as uuidv4 } from "uuid";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TIssue } from "@plane/types";
 import {
@@ -582,7 +583,7 @@ export const SgEventDetailPage = ({
 
         const thumbnailFileName = normalizeCustomPlaylistFileName(thumbnail);
         const customPlaylist: TCustomPlaylist = {
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           event_id: customPlaylistEventId,
           name: buildCustomPlaylistName(eventTitle, includedRows.length),
           annotations: [],
