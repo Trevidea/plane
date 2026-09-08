@@ -43,6 +43,7 @@ const EVENT_DEVICE_COLLECTION_KEYS = ["devices", "mediaReferences", "media_refer
 const GENERIC_VIDEO_SOURCE_KEYS = new Set(["url"]);
 const VIDEO_SOURCE_PATTERN = /\.(m3u8|mp4|m4v|mov|webm|avi|mkv|mpeg|mpg)(?:[?#]|$)|mpegurl|\/llhls\.m3u8(?:[?#]|$)/i;
 const MEDIA_REFERENCE_COLLECTION_KEYS = ["mediaReferences", "media_references", "devices"];
+const CUSTOM_PLAYLIST_ANNOTATION_COLLECTION_KEYS = ["customPlaylistAnnotations", "custom_playlist_annotations"];
 
 const getFirstTextValue = (record: Record<string, unknown>, keys: string[]) => {
   for (const key of keys) {
@@ -144,6 +145,23 @@ const getMediaReferenceCollections = (source: Record<string, unknown>) =>
     return Array.isArray(value) ? value.map((entry) => asRecord(entry)) : [];
   }).filter((entry) => Object.keys(entry).length > 0);
 
+const getCustomPlaylistAnnotationEntries = (source: Record<string, unknown>) =>
+  CUSTOM_PLAYLIST_ANNOTATION_COLLECTION_KEYS.flatMap((key) => {
+    const value = source[key];
+    if (Array.isArray(value)) return value.map((entry) => asRecord(entry));
+    if (!value || typeof value !== "object") return [];
+
+    return Object.entries(value as Record<string, unknown>).map(([playlistId, entry]) => {
+      const annotationEntry = asRecord(entry);
+      return {
+        ...annotationEntry,
+        annotationViewKey:
+          toText(annotationEntry.annotationViewKey ?? annotationEntry.annotation_view_key).trim() ||
+          `custom-playlist:${playlistId}`,
+      };
+    });
+  }).filter((entry) => Object.keys(entry).length > 0);
+
 const getMediaReferenceSources = (meta: Record<string, unknown>, options: TSgEventAnnotationVideoOptions = {}) => {
   const eventPayload = asRecord(options.eventPayload);
   const event = asRecord(meta.event);
@@ -207,7 +225,10 @@ export const findSgEventMediaReference = (
   meta: Record<string, unknown>,
   options: TSgEventAnnotationVideoOptions = {}
 ): Record<string, unknown> | null => {
-  const references = getMediaReferenceSources(meta, options).flatMap(getMediaReferenceCollections);
+  const references = getMediaReferenceSources(meta, options).flatMap((source) => [
+    ...getCustomPlaylistAnnotationEntries(source),
+    ...getMediaReferenceCollections(source),
+  ]);
   let bestMatch: Record<string, unknown> | null = null;
   let bestScore = 0;
 

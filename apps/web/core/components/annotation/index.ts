@@ -16,5 +16,6 @@ export {
   buildSgEventAnnotationDisplayMeta,
   buildSgEventAnnotationVideoItem,
   buildSgEventAnnotationViewKey,
+  findSgEventMediaReference,
   getSgEventMediaReferenceAnnotations,
 } from "./utils/event-video-annotation";

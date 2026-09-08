@@ -12,6 +12,7 @@ import {
   buildSgEventAnnotationDisplayMeta,
   buildSgEventAnnotationVideoItem,
   buildSgEventAnnotationViewKey,
+  findSgEventMediaReference,
   getSgEventMediaReferenceAnnotations,
   VideoAnnotationEditor,
 } from "@/components/annotation";
@@ -119,7 +120,7 @@ const getSavedCustomPlaylistSourceRanges = (
   return ranges.every((range): range is TCustomPlaylistSourceRange => range !== null) ? ranges : [];
 };
 
-const getSavedCustomPlaylistAnnotations = (
+const getLegacyCustomPlaylistAnnotations = (
   meta: Record<string, unknown> | null | undefined,
   playlistId: string
 ): TCustomPlaylistAnnotation[] | null => {
@@ -219,8 +220,8 @@ const MediaDetailPage = () => {
       ? queryRanges
       : getSavedCustomPlaylistSourceRanges(rawItem?.meta, customPlaylistIdParam.trim());
   }, [customPlaylistIdParam, customPlaylistRangesParam, rawItem?.meta]);
-  const savedCustomPlaylistAnnotations = useMemo(
-    () => getSavedCustomPlaylistAnnotations(rawItem?.meta, customPlaylistIdParam.trim()),
+  const legacyCustomPlaylistAnnotations = useMemo(
+    () => getLegacyCustomPlaylistAnnotations(rawItem?.meta, customPlaylistIdParam.trim()),
     [customPlaylistIdParam, rawItem?.meta]
   );
   const [mediaItemOverrides, setMediaItemOverrides] = useState<Partial<TMediaItem> | null>(null);
@@ -236,7 +237,7 @@ const MediaDetailPage = () => {
       viewKey: annotationViewKeyParam,
       videoSrc: annotationVideoSrcParam,
     });
-    if (!annotationItem || !isCustomPlaylistAnnotation || savedCustomPlaylistAnnotations === null) {
+    if (!annotationItem || !isCustomPlaylistAnnotation || legacyCustomPlaylistAnnotations === null) {
       return annotationItem;
     }
 
@@ -244,7 +245,7 @@ const MediaDetailPage = () => {
       ...annotationItem,
       meta: {
         ...annotationItem.meta,
-        annotations: savedCustomPlaylistAnnotations,
+        annotations: legacyCustomPlaylistAnnotations,
       },
     };
   }, [
@@ -255,8 +256,8 @@ const MediaDetailPage = () => {
     annotationViewKeyParam,
     annotationViewParam,
     isCustomPlaylistAnnotation,
+    legacyCustomPlaylistAnnotations,
     rawItem,
-    savedCustomPlaylistAnnotations,
     shouldOpenVideoAnnotationWorkspaceFromQuery,
   ]);
   const baseItem = annotationVideoItem ?? rawItem;
@@ -312,17 +313,7 @@ const MediaDetailPage = () => {
 
   useEffect(() => {
     const sourceItem = rawItem;
-    // Staging-playlist annotations live in the artifact metadata. Loading the
-    // original event JSON here would replace that playlist-specific list with
-    // the event view's annotations (usually an empty list) after the editor
-    // has already rendered the saved playlist annotations.
-    if (
-      isCustomPlaylistAnnotation ||
-      !shouldOpenVideoAnnotationWorkspaceFromQuery ||
-      !annotationEventJsonSource ||
-      !sourceItem
-    )
-      return;
+    if (!shouldOpenVideoAnnotationWorkspaceFromQuery || !annotationEventJsonSource || !sourceItem) return;
 
     let isCancelled = false;
     const loadEventViewAnnotations = async () => {
@@ -342,7 +333,7 @@ const MediaDetailPage = () => {
             annotationVideoSrcParam ||
             (typeof annotationVideoItem?.videoSrc === "string" ? annotationVideoItem.videoSrc : "") ||
             (typeof annotationVideoItem?.fileSrc === "string" ? annotationVideoItem.fileSrc : "");
-          const nextMeta = buildSgEventAnnotationDisplayMeta(sourceItem.meta ?? {}, {
+          const annotationOptions = {
             deviceId: annotationDeviceIdParam,
             eventPayload,
             streamId: annotationStreamIdParam,
@@ -350,7 +341,14 @@ const MediaDetailPage = () => {
             title: annotationViewParam,
             viewKey: annotationViewKeyParam,
             videoSrc: annotationVideoSource,
-          });
+          };
+          const eventAnnotationReference = isCustomPlaylistAnnotation
+            ? findSgEventMediaReference(sourceItem.meta ?? {}, annotationOptions)
+            : null;
+          const nextMeta = buildSgEventAnnotationDisplayMeta(sourceItem.meta ?? {}, annotationOptions);
+          if (isCustomPlaylistAnnotation && !eventAnnotationReference && legacyCustomPlaylistAnnotations !== null) {
+            nextMeta.annotations = legacyCustomPlaylistAnnotations;
+          }
           handleMediaItemUpdated({
             meta: {
               ...(annotationVideoItem?.meta ?? {}),
@@ -382,6 +380,7 @@ const MediaDetailPage = () => {
     annotationEventJsonSource,
     handleMediaItemUpdated,
     isCustomPlaylistAnnotation,
+    legacyCustomPlaylistAnnotations,
     rawItem,
     shouldOpenVideoAnnotationWorkspaceFromQuery,
   ]);
@@ -1380,69 +1379,37 @@ const MediaDetailPage = () => {
 
       if (isCustomPlaylistAnnotation && customPlaylistIdParam.trim()) {
         const playlistId = customPlaylistIdParam.trim();
-        let latestArtifactMeta: Record<string, unknown> | null = null;
-        try {
-          const latestArtifacts = await mediaLibraryService.getArtifactDetail(
-            workspaceSlug,
-            projectId,
-            item.packageId,
-            item.id
-          );
-          latestArtifactMeta = latestArtifacts.find((artifact) => artifact.name === item.id)?.meta ?? null;
-        } catch {
-          // The already loaded metadata remains a safe fallback if refreshing fails.
-        }
-
-        const sourceMeta = [latestArtifactMeta, rawItem?.meta, item.meta].find(
-          (meta): meta is Record<string, unknown> => Boolean(getSavedCustomPlaylist(meta, playlistId))
-        );
-        if (!sourceMeta) {
-          throw new Error("The latest staging playlist metadata could not be loaded.");
-        }
-        const savedPlaylists = sourceMeta[MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY];
-        if (!Array.isArray(savedPlaylists)) {
-          throw new Error("The staging playlist metadata is unavailable.");
-        }
-
-        let playlistWasUpdated = false;
-        const nextPlaylists = savedPlaylists.map((entry) => {
-          if (typeof entry !== "object" || entry === null) return entry;
-          const playlist = entry as Record<string, unknown>;
-          if (String(playlist.id ?? "") !== playlistId) return entry;
-
-          playlistWasUpdated = true;
-          return { ...playlist, annotations };
-        });
-        if (!playlistWasUpdated) {
-          throw new Error("The staging playlist could not be found.");
-        }
-
-        const nextMeta = {
-          ...sourceMeta,
-          [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists,
-        };
-        const updateResult = await mediaLibraryService.updateArtifactMetadata(
+        const annotationViewKey = annotationViewKeyParam.trim() || `custom-playlist:${playlistId}`;
+        const updatedEvent = await mediaLibraryService.updateEventVideoAnnotations(
           workspaceSlug,
           projectId,
           item.packageId,
           item.id,
-          nextMeta
-        );
-        if (updateResult?.updated === 0) {
-          throw new Error("The staging playlist artifact was not updated.");
-        }
-        handleMediaItemUpdated({
-          isAnnotated: annotations.length > 0,
-          meta: {
-            ...nextMeta,
+          {
             annotations,
-            annotation_count: annotations.length,
-            annotationViewKey: annotationViewKeyParam,
-            has_annotations: annotations.length > 0,
+            device_id: annotationDeviceIdParam,
+            stream_id: annotationStreamIdParam,
+            stream_name: annotationStreamParam,
+            view_key: annotationViewKey,
+          }
+        );
+        const updatedAnnotations = getSgEventMediaReferenceAnnotations(item.meta ?? {}, {
+          eventPayload: updatedEvent.eventPayload,
+          viewKey: annotationViewKey,
+        });
+        const nextAnnotations = updatedAnnotations.length > 0 ? updatedAnnotations : annotations;
+        handleMediaItemUpdated({
+          isAnnotated: nextAnnotations.length > 0,
+          meta: {
+            ...(item.meta ?? {}),
+            annotations: nextAnnotations,
+            annotation_count: nextAnnotations.length,
+            annotationViewKey,
+            has_annotations: nextAnnotations.length > 0,
           },
         });
 
-        return annotations;
+        return nextAnnotations;
       }
 
       const annotationViewKey = buildSgEventAnnotationViewKey({
@@ -1523,7 +1490,6 @@ const MediaDetailPage = () => {
       item?.packageId,
       mediaLibraryService,
       projectId,
-      rawItem?.meta,
       shouldOpenVideoAnnotationWorkspaceFromQuery,
       workspaceSlug,
     ]
