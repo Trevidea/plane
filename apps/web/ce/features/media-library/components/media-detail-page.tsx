@@ -1321,6 +1321,10 @@ const MediaDetailPage = () => {
     const player = playerRef.current;
     player?.pause?.();
   }, []);
+  const handleAnnotationPlay = useCallback(() => {
+    const player = playerRef.current;
+    return player?.play?.();
+  }, []);
   const handleOpenVideoAnnotationWorkspace = useCallback(() => {
     const player = playerRef.current;
 
@@ -1689,6 +1693,7 @@ const MediaDetailPage = () => {
                     onRegisterSaveHandler={handleRegisterVideoAnnotationSaveHandler}
                     onUnsavedChangesChange={setHasUnsavedVideoAnnotationChanges}
                     onRequestPause={handleAnnotationPause}
+                    onRequestPlay={handleAnnotationPlay}
                     onSave={handleSaveVideoAnnotations}
                     onSeek={handleVideoTimelineSeek}
                     playbackRate={currentPlaybackRate}

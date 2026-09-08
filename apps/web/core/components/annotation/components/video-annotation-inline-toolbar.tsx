@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PaintBucket, Save, Trash2, Undo2 } from "lucide-react";
+import { Mic, PaintBucket, Save, Square, Trash2, Undo2 } from "lucide-react";
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import type { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
 import {
@@ -28,14 +28,19 @@ type VideoAnnotationInlineToolbarProps = {
   hasAnnotationChanges: boolean;
   isAnnotationMode: boolean;
   isSavingAnnotations: boolean;
+  isVoiceNarrationRecording: boolean;
+  isVoiceNarrationSupported: boolean;
   onClearVisibleAnnotations: () => void;
   onDurationChange: (durationSeconds: number) => void;
   onSaveAnnotations: () => void;
   onSelectAnnotationTool: (tool: TCustomPlaylistAnnotationTool) => void;
   onShapeBackgroundToggle: (enabled: boolean) => void;
+  onStartVoiceNarration: () => void;
   onStrokeStyleChange: (strokeStyle: TCustomPlaylistAnnotationStrokeStyle) => void;
   onStrokeWidthChange: (strokeWidth: number) => void;
+  onStopVoiceNarration: () => void;
   onUndoVisibleAnnotation: () => void;
+  recordingElapsedSeconds: number;
 };
 
 export const VideoAnnotationInlineToolbar = ({
@@ -52,14 +57,19 @@ export const VideoAnnotationInlineToolbar = ({
   hasAnnotationChanges,
   isAnnotationMode,
   isSavingAnnotations,
+  isVoiceNarrationRecording,
+  isVoiceNarrationSupported,
   onClearVisibleAnnotations,
   onDurationChange,
   onSaveAnnotations,
   onSelectAnnotationTool,
   onShapeBackgroundToggle,
+  onStartVoiceNarration,
   onStrokeStyleChange,
   onStrokeWidthChange,
+  onStopVoiceNarration,
   onUndoVisibleAnnotation,
+  recordingElapsedSeconds,
 }: VideoAnnotationInlineToolbarProps) => {
   const annotationButtonClass = VIDEO_ANNOTATION_TOOL_BUTTON_CLASS;
   const shouldShowShapeBackgroundControl = annotationTool === "rectangle" || annotationTool === "ellipse";
@@ -188,6 +198,34 @@ export const VideoAnnotationInlineToolbar = ({
           <span className="mx-0.5 h-6 w-px bg-custom-border-200" />
           <button
             type="button"
+            onClick={isVoiceNarrationRecording ? onStopVoiceNarration : onStartVoiceNarration}
+            className={[
+              annotationButtonClass,
+              isVoiceNarrationRecording ? "border-red-500/60 bg-red-500/15 text-red-500" : "",
+            ].join(" ")}
+            disabled={!isVoiceNarrationSupported || isSavingAnnotations}
+            aria-label={isVoiceNarrationRecording ? "Stop voice narration" : "Record voice narration"}
+            aria-pressed={isVoiceNarrationRecording}
+            title={
+              isVoiceNarrationRecording
+                ? "Stop narration"
+                : isVoiceNarrationSupported
+                  ? "Record narration"
+                  : "Voice narration requires HTTPS or localhost and microphone access"
+            }
+          >
+            {isVoiceNarrationRecording ? <Square className="h-3.5 w-3.5 fill-current" /> : <Mic className="h-4 w-4" />}
+          </button>
+          {isVoiceNarrationRecording ? (
+            <span className="min-w-10 font-mono text-[10px] font-semibold tabular-nums text-red-500">
+              {Math.floor(recordingElapsedSeconds / 60)}:
+              {String(Math.floor(recordingElapsedSeconds % 60)).padStart(2, "0")}
+            </span>
+          ) : null}
+
+          <span className="mx-0.5 h-6 w-px bg-custom-border-200" />
+          <button
+            type="button"
             onClick={onUndoVisibleAnnotation}
             className={annotationButtonClass}
             disabled={!hasActiveAnnotations || isSavingAnnotations}
@@ -213,7 +251,7 @@ export const VideoAnnotationInlineToolbar = ({
               annotationButtonClass,
               hasAnnotationChanges ? "border-green-500/45 bg-green-500/10 text-green-600" : "",
             ].join(" ")}
-            disabled={!hasAnnotationChanges || isSavingAnnotations}
+            disabled={!hasAnnotationChanges || isSavingAnnotations || isVoiceNarrationRecording}
             aria-label="Save annotations"
             title="Save"
           >

@@ -1,6 +1,7 @@
 from plane.app.views.media_library import (
     _count_saved_annotations,
     _delete_custom_playlist_annotations,
+    _externalize_annotation_audio_content,
     _externalize_annotation_image_content,
     _store_custom_playlist_annotations,
     _sync_event_annotation_manifest_summary,
@@ -9,6 +10,7 @@ from plane.app.views.media_library import (
 PNG_DATA_URL = (
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 )
+AUDIO_DATA_URL = "data:audio/webm;codecs=opus;base64,T2dnUw=="
 
 
 def test_externalize_annotation_image_content_writes_transcode_blob(settings, tmp_path):
@@ -63,6 +65,41 @@ def test_externalize_annotation_image_content_writes_transcode_blob(settings, tm
     image_path = tmp_path / "transcoded" / image_url.removeprefix("/sports/api/blobs/media/")
     assert image_path.exists()
     assert image_path.read_bytes()
+
+
+def test_externalize_annotation_audio_content_writes_transcode_blob(settings, tmp_path):
+    settings.MEDIA_LIBRARY_ROOT = str(tmp_path)
+    settings.MEDIA_TRANSCODE_OUTPUT_BASE_URL = "/sports/api/blobs/media"
+    settings.MEDIA_TRANSCODE_OUTPUT_ROOT = str(tmp_path / "transcoded")
+    payload = {
+        "annotations": [
+            {
+                "id": "voice-1",
+                "type": "audio",
+                "title": "Voice narration",
+                "content": AUDIO_DATA_URL,
+                "startTime": 4,
+                "endTime": 7,
+            }
+        ]
+    }
+
+    externalized, created_count = _externalize_annotation_audio_content(
+        payload,
+        "project-1",
+        "package-1",
+        source_artifact_id="clip-1",
+    )
+
+    assert created_count == 1
+    annotation = externalized["annotations"][0]
+    assert annotation["content"].startswith("/sports/api/blobs/media/media-annotation-audio-")
+    assert annotation["content"].endswith(".webm")
+    assert annotation["fileSize"] == 4
+    assert annotation["mimeType"] == "audio/webm"
+
+    audio_path = tmp_path / "transcoded" / annotation["content"].removeprefix("/sports/api/blobs/media/")
+    assert audio_path.read_bytes() == b"OggS"
 
 
 def test_count_saved_annotations_counts_nested_event_media_references():

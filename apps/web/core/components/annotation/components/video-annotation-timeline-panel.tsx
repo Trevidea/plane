@@ -6,7 +6,7 @@ import type {
   Ref,
   UIEvent as ReactUIEvent,
 } from "react";
-import { ChevronRight, FastForward, Minus, Plus, Rewind, SkipBack, SkipForward } from "lucide-react";
+import { ChevronRight, FastForward, Minus, Plus, Rewind, SkipBack, SkipForward, Trash2 } from "lucide-react";
 import type { TCustomPlaylistAnnotation } from "../types/annotation.types";
 import { getAnnotationColor, getTimelineColorWithAlpha } from "../utils/video-annotation-colors";
 import {
@@ -35,6 +35,7 @@ type VideoAnnotationTimelinePanelProps = {
   isPlaying: boolean;
   onBeginEditingTimelineMoment: (moment: AnnotationTimelineMoment) => void;
   onCommitTimelineMomentTitle: (moment: AnnotationTimelineMoment, value: string) => void;
+  onDeleteAnnotation: (annotationId: string) => void;
   onEditingTimelineMomentChange: (value: { id: string; value: string }) => void;
   onTimelineBodyScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
   onTimelineHeaderScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
@@ -75,6 +76,7 @@ export const VideoAnnotationTimelinePanel = ({
   isPlaying,
   onBeginEditingTimelineMoment,
   onCommitTimelineMomentTitle,
+  onDeleteAnnotation,
   onEditingTimelineMomentChange,
   onJumpToNearestAnnotation,
   onJumpToRelativeTimelineTime,
@@ -438,7 +440,8 @@ export const VideoAnnotationTimelinePanel = ({
                             }}
                             onPointerDown={(event) => event.stopPropagation()}
                             className={[
-                              "relative inline-flex h-6 w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-[5px] border px-3 pl-3 pr-5 text-left text-[11px] font-semibold text-custom-text-100 shadow-sm transition-[filter,box-shadow] hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100/40",
+                              "relative inline-flex h-6 w-full cursor-pointer items-center gap-1.5 overflow-hidden rounded-[5px] border px-3 pl-3 text-left text-[11px] font-semibold text-custom-text-100 shadow-sm transition-[filter,box-shadow] hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100/40",
+                              annotation.type === "audio" ? "pr-10" : "pr-5",
                               isResizing ? "shadow-[0_0_0_1px_rgba(37,99,235,0.24)]" : "",
                             ].join(" ")}
                             style={{
@@ -459,6 +462,22 @@ export const VideoAnnotationTimelinePanel = ({
                             />
                             <span className="min-w-0 truncate">{annotationLabel}</span>
                           </button>
+                          {annotation.type === "audio" ? (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onDeleteAnnotation(annotation.id);
+                              }}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              className="absolute inset-y-0 right-4 z-20 grid w-6 place-items-center text-custom-text-300 transition-colors hover:bg-red-500/10 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+                              aria-label={`Delete ${annotationLabel}`}
+                              title="Delete narration"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={(event) => {
