@@ -87,7 +87,9 @@ type TMediaManifestArtifactUpdatePayload = {
 
 export type TEventVideoAnnotationUpdatePayload = {
   annotations: TCustomPlaylistAnnotation[];
+  delete_custom_playlist?: boolean;
   device_id?: string | number | null;
+  playlist_id?: string | null;
   stream_id?: string | number | null;
   stream_name?: string | null;
   view_key?: string | null;
@@ -95,6 +97,7 @@ export type TEventVideoAnnotationUpdatePayload = {
 
 export type TEventVideoAnnotationUpdateResponse = {
   annotations?: TCustomPlaylistAnnotation[];
+  deleted?: boolean;
   eventPayload?: Record<string, unknown>;
   mediaReference?: Record<string, unknown>;
   updated?: number;

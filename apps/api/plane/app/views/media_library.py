@@ -592,6 +592,70 @@ def _externalize_annotation_image_content(
     return walk(value), created_count
 
 
+def _store_custom_playlist_annotations(
+    event_payload: dict,
+    playlist_id: str,
+    view_key: str,
+    annotations: list,
+    updated_at: str,
+    *,
+    device_id: str = "",
+    stream_id: str = "",
+    stream_name: str = "",
+) -> dict:
+    custom_playlist_annotations = event_payload.get("customPlaylistAnnotations")
+    if not isinstance(custom_playlist_annotations, dict):
+        custom_playlist_annotations = {}
+    annotation_entry = custom_playlist_annotations.get(playlist_id)
+    if not isinstance(annotation_entry, dict):
+        annotation_entry = {}
+    annotation_entry = {
+        **annotation_entry,
+        "playlistId": playlist_id,
+        "annotationViewKey": view_key,
+        "annotations": annotations,
+        "annotationsUpdatedAt": updated_at,
+    }
+    if device_id:
+        annotation_entry["deviceId"] = device_id
+    if stream_id:
+        annotation_entry["streamId"] = stream_id
+    if stream_name:
+        annotation_entry["streamName"] = stream_name
+    custom_playlist_annotations[playlist_id] = annotation_entry
+    event_payload["customPlaylistAnnotations"] = custom_playlist_annotations
+    return annotation_entry
+
+
+def _delete_custom_playlist_annotations(event_payload: dict, playlist_id: str, view_key: str) -> bool:
+    changed = False
+    custom_playlist_annotations = event_payload.get("customPlaylistAnnotations")
+    if isinstance(custom_playlist_annotations, dict) and playlist_id in custom_playlist_annotations:
+        custom_playlist_annotations = dict(custom_playlist_annotations)
+        custom_playlist_annotations.pop(playlist_id, None)
+        if custom_playlist_annotations:
+            event_payload["customPlaylistAnnotations"] = custom_playlist_annotations
+        else:
+            event_payload.pop("customPlaylistAnnotations", None)
+        changed = True
+
+    for collection_key in ("mediaReferences", "media_references", "devices"):
+        references = event_payload.get(collection_key)
+        if not isinstance(references, list):
+            continue
+        for index, reference in enumerate(references):
+            if not isinstance(reference, dict) or str(reference.get("annotationViewKey") or "") != view_key:
+                continue
+            reference = dict(reference)
+            reference.pop("annotationViewKey", None)
+            reference.pop("annotations", None)
+            reference.pop("annotationsUpdatedAt", None)
+            references[index] = reference
+            changed = True
+
+    return changed
+
+
 def _count_saved_annotations(value) -> int:
     if isinstance(value, list):
         return sum(_count_saved_annotations(item) for item in value)
@@ -1535,8 +1599,13 @@ class MediaArtifactFileAPIView(BaseAPIView):
             )
 
         payload = request.data if isinstance(request.data, dict) else {}
+        delete_custom_playlist = (
+            payload.get("delete_custom_playlist") is True or payload.get("deleteCustomPlaylist") is True
+        )
         annotations = payload.get("annotations")
-        if not isinstance(annotations, list):
+        if delete_custom_playlist:
+            annotations = []
+        elif not isinstance(annotations, list):
             return Response({"error": "annotations must be an array."}, status=status.HTTP_400_BAD_REQUEST)
 
         def text_value(value):
@@ -1546,6 +1615,16 @@ class MediaArtifactFileAPIView(BaseAPIView):
         stream_id = text_value(payload.get("stream_id") or payload.get("streamId"))
         stream_name = text_value(payload.get("stream_name") or payload.get("streamName") or payload.get("stream"))
         view_key = text_value(payload.get("view_key") or payload.get("viewKey"))
+        custom_playlist_prefix = "custom-playlist:"
+        custom_playlist_id = text_value(payload.get("playlist_id") or payload.get("playlistId"))
+        if not custom_playlist_id and view_key.startswith(custom_playlist_prefix):
+            custom_playlist_id = view_key.removeprefix(custom_playlist_prefix)
+
+        if delete_custom_playlist and not custom_playlist_id:
+            return Response(
+                {"error": "playlist_id or a custom-playlist view_key is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not any([device_id, stream_id, stream_name, view_key]):
             return Response(
@@ -1644,32 +1723,83 @@ class MediaArtifactFileAPIView(BaseAPIView):
                         best_index = index
                         best_score = score
 
-            if best_key is None or best_index < 0:
+            if not custom_playlist_id and (best_key is None or best_index < 0):
                 raise NotFound("Matching media reference view not found.")
 
-            try:
-                annotations, _ = _externalize_annotation_image_content(
-                    annotations,
-                    project_id_str,
-                    package_id,
-                    source_artifact_id=artifact_id,
-                )
-            except MediaAnnotationImageError as exc:
-                return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            if not delete_custom_playlist:
+                try:
+                    annotations, _ = _externalize_annotation_image_content(
+                        annotations,
+                        project_id_str,
+                        package_id,
+                        source_artifact_id=artifact_id,
+                    )
+                except MediaAnnotationImageError as exc:
+                    return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-            references = event_payload[best_key]
-            media_reference = dict(references[best_index])
             annotations_updated_at = _now_iso()
-            media_reference["annotations"] = annotations
-            media_reference["annotationsUpdatedAt"] = annotations_updated_at
-            if view_key:
-                media_reference["annotationViewKey"] = view_key
-            references[best_index] = media_reference
+            if custom_playlist_id:
+                if delete_custom_playlist:
+                    annotations_deleted = _delete_custom_playlist_annotations(
+                        event_payload, custom_playlist_id, view_key or f"{custom_playlist_prefix}{custom_playlist_id}"
+                    )
+                    media_reference = {}
+                else:
+                    annotations_deleted = False
+                    media_reference = _store_custom_playlist_annotations(
+                        event_payload,
+                        custom_playlist_id,
+                        view_key,
+                        annotations,
+                        annotations_updated_at,
+                        device_id=device_id,
+                        stream_id=stream_id,
+                        stream_name=stream_name,
+                    )
+            else:
+                annotations_deleted = False
+                references = event_payload[best_key]
+                media_reference = dict(references[best_index])
+                media_reference["annotations"] = annotations
+                media_reference["annotationsUpdatedAt"] = annotations_updated_at
+                if view_key:
+                    media_reference["annotationViewKey"] = view_key
+                references[best_index] = media_reference
+
+            manifest_playlist_changed = False
+            if custom_playlist_id:
+                metadata_ref = normalize_metadata_ref(artifact.get("metadata_ref")) or normalize_metadata_ref(
+                    artifact.get("name")
+                )
+                metadata = ensure_manifest_metadata(manifest)
+                artifact_meta = metadata.get(metadata_ref) if metadata_ref else None
+                custom_playlists = artifact_meta.get("custom_playlists") if isinstance(artifact_meta, dict) else None
+                if isinstance(custom_playlists, list):
+                    next_playlists = []
+                    for playlist in custom_playlists:
+                        is_target_playlist = (
+                            isinstance(playlist, dict) and str(playlist.get("id") or "") == custom_playlist_id
+                        )
+                        if is_target_playlist and delete_custom_playlist:
+                            manifest_playlist_changed = True
+                            continue
+                        if is_target_playlist and "annotations" in playlist:
+                            playlist = dict(playlist)
+                            playlist.pop("annotations", None)
+                            manifest_playlist_changed = True
+                        next_playlists.append(playlist)
+                    if manifest_playlist_changed:
+                        artifact_meta = dict(artifact_meta)
+                        artifact_meta["custom_playlists"] = next_playlists
+                        metadata[metadata_ref] = artifact_meta
 
             temporary_path = file_path.with_name(f".{file_path.name}.{uuid4().hex}.tmp")
             temporary_path.write_text(json.dumps(event_payload, indent=2), encoding="utf-8")
             os.replace(temporary_path, file_path)
+            manifest_changed = manifest_playlist_changed
             if _sync_event_annotation_manifest_summary(manifest, artifact, event_payload, annotations_updated_at):
+                manifest_changed = True
+            if manifest_changed:
                 manifest["updatedAt"] = _now_iso()
                 normalize_manifest_metadata(manifest)
                 write_manifest_atomic(manifest_file, manifest)
@@ -1680,6 +1810,7 @@ class MediaArtifactFileAPIView(BaseAPIView):
                 "eventPayload": event_payload,
                 "mediaReference": media_reference,
                 "updated": 1,
+                "deleted": annotations_deleted,
             },
             status=status.HTTP_200_OK,
         )

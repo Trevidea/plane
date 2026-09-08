@@ -692,12 +692,17 @@ export const SgEventDetailPage = ({
         throw new Error("The event artifact is unavailable for deleting the playlist.");
       }
       const nextPlaylists = customPlaylists.filter((currentPlaylist) => currentPlaylist.id !== playlist.id);
-      await mediaLibraryService.updateArtifactMetadata(
+      await mediaLibraryService.updateEventVideoAnnotations(
         workspaceSlug,
         projectId,
         eventArtifact.packageId,
         eventArtifact.id,
-        { ...eventArtifact.meta, [MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY]: nextPlaylists }
+        {
+          annotations: [],
+          delete_custom_playlist: true,
+          playlist_id: playlist.id,
+          view_key: `custom-playlist:${playlist.id}`,
+        }
       );
       void mutateSgMediaPayload(
         (currentPayload) =>

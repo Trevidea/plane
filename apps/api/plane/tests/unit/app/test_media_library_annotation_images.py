@@ -1,12 +1,13 @@
 from plane.app.views.media_library import (
     _count_saved_annotations,
+    _delete_custom_playlist_annotations,
     _externalize_annotation_image_content,
+    _store_custom_playlist_annotations,
     _sync_event_annotation_manifest_summary,
 )
 
 PNG_DATA_URL = (
-    "data:image/png;base64,"
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 )
 
 
@@ -80,6 +81,59 @@ def test_count_saved_annotations_counts_nested_event_media_references():
     }
 
     assert _count_saved_annotations(payload) == 4
+
+
+def test_store_custom_playlist_annotations_keeps_playlists_isolated_in_event_json():
+    payload = {"mediaReferences": [{"streamName": "sideline", "annotations": []}]}
+
+    first_entry = _store_custom_playlist_annotations(
+        payload,
+        "playlist-1",
+        "custom-playlist:playlist-1",
+        [{"id": "a1"}],
+        "2026-09-07T10:00:00Z",
+        stream_name="sideline",
+    )
+    _store_custom_playlist_annotations(
+        payload,
+        "playlist-2",
+        "custom-playlist:playlist-2",
+        [{"id": "a2"}, {"id": "a3"}],
+        "2026-09-07T10:01:00Z",
+        stream_name="sideline",
+    )
+
+    assert first_entry["annotations"] == [{"id": "a1"}]
+    assert payload["customPlaylistAnnotations"]["playlist-1"]["annotations"] == [{"id": "a1"}]
+    assert payload["customPlaylistAnnotations"]["playlist-2"]["annotations"] == [{"id": "a2"}, {"id": "a3"}]
+    assert payload["mediaReferences"][0]["annotations"] == []
+    assert _count_saved_annotations(payload) == 3
+
+    deleted = _delete_custom_playlist_annotations(payload, "playlist-1", "custom-playlist:playlist-1")
+
+    assert deleted is True
+    assert "playlist-1" not in payload["customPlaylistAnnotations"]
+    assert payload["customPlaylistAnnotations"]["playlist-2"]["annotations"] == [{"id": "a2"}, {"id": "a3"}]
+    assert _count_saved_annotations(payload) == 2
+
+
+def test_delete_custom_playlist_annotations_removes_legacy_media_reference_annotations():
+    payload = {
+        "mediaReferences": [
+            {
+                "streamName": "sideline",
+                "annotationViewKey": "custom-playlist:playlist-1",
+                "annotations": [{"id": "a1"}],
+                "annotationsUpdatedAt": "2026-09-07T10:00:00Z",
+            }
+        ]
+    }
+
+    deleted = _delete_custom_playlist_annotations(payload, "playlist-1", "custom-playlist:playlist-1")
+
+    assert deleted is True
+    assert payload["mediaReferences"] == [{"streamName": "sideline"}]
+    assert _count_saved_annotations(payload) == 0
 
 
 def test_sync_event_annotation_manifest_summary_updates_metadata_ref_entry():
