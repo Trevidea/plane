@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import type {
   TCustomPlaylistAnnotation,
   TCustomPlaylistAnnotationPoint,
@@ -164,10 +165,7 @@ const isAnnotationValid = (annotation: TCustomPlaylistAnnotation) => {
   return Math.hypot(width, height) >= MIN_SHAPE_DISTANCE;
 };
 
-export const createPlaylistAnnotationId = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `annotation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+export const createPlaylistAnnotationId = () => uuidv4();
 
 export const normalizePlaylistAnnotations = (value: unknown): TCustomPlaylistAnnotation[] => {
   if (!Array.isArray(value)) return [];
