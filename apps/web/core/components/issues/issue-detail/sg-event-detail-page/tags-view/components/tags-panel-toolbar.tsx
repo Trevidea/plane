@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Check, Columns3, ListPlus, Plus, Search } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
 import { CustomMenu, CustomSelect } from "@plane/ui";
@@ -42,6 +43,7 @@ type TagsPanelToolbarProps = {
   selectedAvailableColumnCount: number;
   showCreateActions: boolean;
   totalColumnCount: number;
+  viewToggle?: ReactNode;
 };
 
 export const TagsPanelToolbar = ({
@@ -65,6 +67,7 @@ export const TagsPanelToolbar = ({
   selectedAvailableColumnCount,
   showCreateActions,
   totalColumnCount,
+  viewToggle,
 }: TagsPanelToolbarProps) => (
   <div className="flex flex-col gap-3 border-b border-custom-border-200 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
     <div className="flex flex-wrap items-center gap-3">
@@ -96,6 +99,7 @@ export const TagsPanelToolbar = ({
           <span>Create Card</span>
         </button>
       )}
+      {viewToggle}
       {isSearchOpen && (
         <label className="flex h-9 items-center gap-2 rounded-md border border-custom-border-200 bg-custom-background-100 px-3 text-sm text-custom-text-300">
           <Search className="h-4 w-4" />

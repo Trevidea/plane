@@ -59,6 +59,7 @@ import {
   pickText,
   toText,
 } from "./utils";
+import { SgEventViewModeToggle } from "./view-mode-toggle";
 
 const normalizeNumericEventId = (value: unknown) => {
   const normalizedValue = toText(value).trim();
@@ -1028,6 +1029,10 @@ export const SgEventDetailPage = ({
     [tagViewMode]
   );
 
+  const viewToggle = (
+    <SgEventViewModeToggle isMatrixViewEnabled={enableMatrixView} onChange={setTagViewMode} value={tagViewMode} />
+  );
+
   return (
     <div className="sg-matrix-workspace h-full bg-[var(--sg-matrix-page)] text-[var(--sg-matrix-text)]">
       <div className={TIMELINE_PAGE_SCROLL_CLASS} onScroll={handlePageScroll}>
@@ -1038,14 +1043,11 @@ export const SgEventDetailPage = ({
             fullStreamPlaybackItem={fullStreamPlaybackItem}
             handleBack={handleBack}
             handleSwitchToFullStream={handleSwitchToFullStream}
-            isMatrixViewEnabled={enableMatrixView}
             isLoadingViews={isLoadingViews}
             isTagClipActive={isPlaybackOverrideActive}
             selectedViewId={selectedViewId}
             selectedViewLabel={selectedViewLabel}
             setSelectedViewId={setSelectedViewId}
-            setTagViewMode={setTagViewMode}
-            tagViewMode={tagViewMode}
             viewDevices={viewDevices}
           />
 
@@ -1113,6 +1115,7 @@ export const SgEventDetailPage = ({
                   preferenceKey={matrixPreferenceKey}
                   sport={resolvedSport || ""}
                   tagRows={matrixRows}
+                  viewToggle={viewToggle}
                 />
               </div>
             </>
@@ -1189,6 +1192,7 @@ export const SgEventDetailPage = ({
                     sport={sportTableConfig.sport}
                     tagTypeRows={tagTypeRows}
                     playerLabelByNumber={timelinePlayerLabelByNumber}
+                    viewToggle={viewToggle}
                   />
                 ) : (
                   <SgEventTagsPanel
@@ -1226,6 +1230,7 @@ export const SgEventDetailPage = ({
                     selectedTagIds={selectedTagIds}
                     showCreateActions={showTagListActions}
                     sportTableConfig={sportTableConfig}
+                    viewToggle={viewToggle}
                   />
                 )}
               </div>

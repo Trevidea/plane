@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent, PointerEvent, UIEvent, WheelEvent } from "react";
+import type { MouseEvent, PointerEvent, ReactNode, UIEvent, WheelEvent } from "react";
 import {
   Check,
   Eye,
@@ -92,6 +92,7 @@ type SgEventTimelinePanelProps = {
   selectedTagIds: string[];
   sport: SportTableKind;
   tagTypeRows?: SgTagRow[];
+  viewToggle?: ReactNode;
 };
 
 type TimelineZoomAnchor = {
@@ -134,6 +135,7 @@ export const SgEventTimelinePanel = ({
   selectedTagIds,
   sport,
   tagTypeRows,
+  viewToggle,
 }: SgEventTimelinePanelProps) => {
   const [isTagTypesPanelOpen, setIsTagTypesPanelOpen] = useState(false);
   const [visibleTagTypeKeys, setVisibleTagTypeKeys] = useState<string[] | null>(null);
@@ -348,15 +350,12 @@ export const SgEventTimelinePanel = ({
     [seekableDurationSeconds, timelineContentWidth, totalSeconds]
   );
 
-  const isTimelineHorizontalScrollbarPointer = useCallback(
-    (event: { clientY: number }, element: HTMLDivElement) => {
-      const scrollbarHeight = Math.max(0, element.offsetHeight - element.clientHeight);
-      if (scrollbarHeight <= 0) return false;
+  const isTimelineHorizontalScrollbarPointer = useCallback((event: { clientY: number }, element: HTMLDivElement) => {
+    const scrollbarHeight = Math.max(0, element.offsetHeight - element.clientHeight);
+    if (scrollbarHeight <= 0) return false;
 
-      return event.clientY >= element.getBoundingClientRect().bottom - scrollbarHeight;
-    },
-    []
-  );
+    return event.clientY >= element.getBoundingClientRect().bottom - scrollbarHeight;
+  }, []);
 
   const refreshTimelineSkimmerFromLastPointer = useCallback(() => {
     const lastClientX = lastTimelinePointerClientXRef.current;
@@ -777,6 +776,7 @@ export const SgEventTimelinePanel = ({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {viewToggle}
           <button
             type="button"
             disabled={!onPlaylistSelectionModeChange || !hasTimelineRows}
@@ -896,10 +896,7 @@ export const SgEventTimelinePanel = ({
             onWheel={handleTimelineHorizontalWheel}
             className={TIMELINE_HORIZONTAL_SCROLL_CLASS}
           >
-            <div
-              className={TIMELINE_CANVAS_CONTENT_CLASS}
-              style={{ width: timelineContentWidth }}
-            >
+            <div className={TIMELINE_CANVAS_CONTENT_CLASS} style={{ width: timelineContentWidth }}>
               <div
                 ref={playheadTrackElementRef}
                 className="pointer-events-none absolute left-0 top-0 z-[4] h-full w-0 border-l-2 border-red-500 will-change-transform"
@@ -1052,7 +1049,9 @@ export const SgEventTimelinePanel = ({
             >
               <span>{timelineZoomLabel.displayLabel}</span>
               {timelineVisibleDurationLabel && (
-                <span className="mt-0.5 text-[9px] text-custom-text-400">{timelineVisibleDurationLabel.compactLabel}</span>
+                <span className="mt-0.5 text-[9px] text-custom-text-400">
+                  {timelineVisibleDurationLabel.compactLabel}
+                </span>
               )}
             </span>
           </span>
@@ -1066,10 +1065,7 @@ export const SgEventTimelinePanel = ({
           onWheel={handleTimelineHorizontalWheel}
           className={TIMELINE_RULER_SCROLL_CLASS}
         >
-          <div
-            className={TIMELINE_RULER_CONTENT_CLASS}
-            style={{ width: timelineContentWidth }}
-          >
+          <div className={TIMELINE_RULER_CONTENT_CLASS} style={{ width: timelineContentWidth }}>
             <div
               ref={playheadRulerElementRef}
               className="pointer-events-none absolute left-0 top-0 z-[5] h-full w-0 border-l-2 border-red-500 will-change-transform"

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@plane/utils";
 import type { SportTableKind, SgTagRow } from "../../types";
@@ -29,6 +30,7 @@ export type MatrixViewProps = {
   preferenceKey?: string;
   sport: SportTableKind | string;
   tagRows: readonly SgTagRow[];
+  viewToggle?: ReactNode;
 };
 
 export const MatrixView = ({
@@ -47,6 +49,7 @@ export const MatrixView = ({
   preferenceKey,
   sport,
   tagRows,
+  viewToggle,
 }: MatrixViewProps) => {
   const [isSwitched, setIsSwitched] = useState(false);
   const [activeCellId, setActiveCellId] = useState<string | null>(null);
@@ -214,6 +217,7 @@ export const MatrixView = ({
         selectedPlayableRowCount={selectedPlayableRows.length}
         showFilters={showFilters}
         visibleColumnIds={activeVisibleColumnIds}
+        viewToggle={viewToggle}
       />
       {isLoading ? (
         <MatrixLoadingState />
@@ -232,9 +236,7 @@ export const MatrixView = ({
         <MatrixEmptyState kind="no-filter-results" />
       ) : displayedMatrix && displayedMatrix.rows.length > 0 ? (
         <>
-          <div
-            className="relative isolate min-h-52 overflow-hidden rounded-[5px]"
-          >
+          <div className="relative isolate min-h-52 overflow-hidden rounded-[5px]">
             <div className="min-w-0">
               <MatrixTable
                 activeRowId={activeRowId}

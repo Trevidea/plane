@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Star, Trash2 } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
@@ -53,6 +54,7 @@ type SgEventTagsPanelProps = {
   selectedTagIds: string[];
   showCreateActions?: boolean;
   sportTableConfig: SportTableConfig;
+  viewToggle?: ReactNode;
 };
 
 export const SgEventTagsPanel = ({
@@ -84,6 +86,7 @@ export const SgEventTagsPanel = ({
   selectedTagIds,
   showCreateActions = true,
   sportTableConfig,
+  viewToggle,
 }: SgEventTagsPanelProps) => {
   const isCompactFootballTable = Boolean(sportTableConfig.isCompactFootballTable);
   const groupSelectLabel = effectiveGroupValue === "All tags" ? "Select group" : effectiveGroupValue;
@@ -333,6 +336,7 @@ export const SgEventTagsPanel = ({
         selectedAvailableColumnCount={selectedAvailableColumnCount}
         showCreateActions={showCreateActions}
         totalColumnCount={totalColumnCount}
+        viewToggle={viewToggle}
       />
 
       <div
