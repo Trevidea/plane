@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { cn } from "@plane/utils";
+import { writePlaylistTagDragData } from "../../playlist-draft";
 import type { MatrixCell as MatrixCellData } from "../types/matrix.types";
 
 type MatrixCellProps = {
@@ -72,6 +73,11 @@ export const MatrixCell = memo(function MatrixCell({
               "text-[var(--sg-matrix-selected-cell-text)] ring-2 ring-inset ring-[var(--sg-matrix-selected-cell)] after:absolute after:inset-[2px] after:border after:border-[var(--sg-matrix-selected-cell-inner)] after:content-['']"
           )}
           data-matrix-cell-id={cell.id}
+          draggable
+          onDragStart={(event) => {
+            event.stopPropagation();
+            writePlaylistTagDragData(event.dataTransfer, cell.sourceRowIds);
+          }}
           onClick={(event) =>
             onActivate(cell, event.currentTarget, {
               additive: event.ctrlKey || event.metaKey,
