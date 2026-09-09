@@ -18,6 +18,7 @@ import {
 import { Tooltip } from "@plane/propel/tooltip";
 import { cn } from "@plane/utils";
 import { SURFACE_CLASS } from "../../constants";
+import { getDraggedPlaylistTagIds, writePlaylistTagDragData } from "../../playlist-draft";
 import type { SgTagRow, SportTableKind } from "../../types";
 import {
   TIMELINE_CANVAS_CONTENT_CLASS,
@@ -941,6 +942,14 @@ export const SgEventTimelinePanel = ({
                         >
                           <button
                             type="button"
+                            draggable
+                            onDragStart={(event) => {
+                              event.stopPropagation();
+                              writePlaylistTagDragData(
+                                event.dataTransfer,
+                                getDraggedPlaylistTagIds(row.id, rows, selectedTagIds)
+                              );
+                            }}
                             onClick={(event) => {
                               event.stopPropagation();
 

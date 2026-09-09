@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { ChevronDown, ChevronRight, FileText, Pencil, Trash2, Video, X } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Pencil, Plus, Trash2, Video, X } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { AlertModalCore } from "@plane/ui";
 import type {
@@ -10,14 +10,19 @@ import type {
 } from "@/services/media-library.service";
 import { HlsVideo } from "ce/features/media-library/components/hls-video";
 import { PLAYER_FRAME_CLASS } from "../../constants";
+import type { PlaylistDraft } from "../../playlist-draft";
 import type { SgTagRow } from "../../types";
 import { buildCustomPlaylistThumbnailUrl, buildCustomPlaylistUrl, parseTimecodeToSeconds } from "../../utils";
+import { PlaylistDraftEditor } from "./playlist-draft-editor";
 
 type SgMatrixPlaylistPanelProps = {
+  availableRows: SgTagRow[];
+  draft: PlaylistDraft | null;
+  onDraftChange: (draft: PlaylistDraft | null) => void;
   customPlaylists: TCustomPlaylist[];
   isCreatingPlaylist?: boolean;
   onCreateCard?: () => void;
-  onCreatePlaylist?: () => void;
+  onCreatePlaylist: (rows: SgTagRow[], name?: string) => Promise<boolean>;
   onDeletePlaylist: (playlist: TCustomPlaylist) => Promise<void>;
   onUpdatePlaylist: (playlist: TCustomPlaylist, payload: TCustomPlaylistUpdatePayload) => Promise<TCustomPlaylist>;
   onPlayPlaylist?: (playlist: TCustomPlaylist) => void;
@@ -529,6 +534,11 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
 };
 
 export const SgMatrixPlaylistPanel = ({
+  availableRows,
+  draft,
+  onDraftChange,
+  isCreatingPlaylist = false,
+  onCreatePlaylist,
   customPlaylists,
   onCreateCard,
   onPlayPlaylist,
@@ -771,9 +781,29 @@ export const SgMatrixPlaylistPanel = ({
               {customPlaylists.length} playlist{customPlaylists.length === 1 ? "" : "s"}
             </span>
           </div>
+          <button
+            type="button"
+            aria-label="Add playlist"
+            title={draft ? "Finish the current playlist first" : "Add playlist"}
+            disabled={isCreatingPlaylist || Boolean(draft)}
+            onClick={() => onDraftChange({ name: "New playlist", rowIds: [] })}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="vertical-scrollbar scrollbar-md min-h-0 flex-1 overflow-y-auto p-[7px]">
+          {draft && (
+            <PlaylistDraftEditor
+              availableRows={availableRows}
+              draft={draft}
+              isSaving={isCreatingPlaylist}
+              onChange={onDraftChange}
+              onSave={onCreatePlaylist}
+              selectedRows={rows ?? []}
+            />
+          )}
           {customPlaylists.length > 0 ? (
             <ul className="space-y-1">
               {customPlaylists.map((playlist) => {
