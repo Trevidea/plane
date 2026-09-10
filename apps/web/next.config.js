@@ -94,7 +94,20 @@ const nextConfig = {
   },
   async rewrites() {
     const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com";
+    const apiProxyUrl = process.env.NEXT_INTERNAL_API_BASE_URL || "";
     const rewrites = [
+      ...(apiProxyUrl
+        ? [
+            {
+              source: "/api/:path*",
+              destination: `${apiProxyUrl}/api/:path*/`,
+            },
+            {
+              source: "/auth/:path*",
+              destination: `${apiProxyUrl}/auth/:path*/`,
+            },
+          ]
+        : []),
       {
         source: "/ingest/static/:path*",
         destination: `${posthogHost}/static/:path*`,

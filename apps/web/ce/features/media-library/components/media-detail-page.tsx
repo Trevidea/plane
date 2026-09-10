@@ -273,6 +273,9 @@ const MediaDetailPage = () => {
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<ReturnType<typeof videojs> | null>(null);
+  const narrationLockRef = useRef(false);
+  const previousPlayerControlsRef = useRef<boolean | null>(null);
+  const [isNarrationRecordingLocked, setIsNarrationRecordingLocked] = useState(false);
   const viewRecordedRef = useRef(false);
   const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1317,9 +1320,44 @@ const MediaDetailPage = () => {
     },
     [customPlaylistDurationSeconds, customPlaylistSourceRanges, isCustomPlaylistAnnotation]
   );
+  const handleNarrationLockChange = useCallback((locked: boolean) => {
+    narrationLockRef.current = locked;
+    setIsNarrationRecordingLocked(locked);
+    const player = playerRef.current;
+    if (!player || player.isDisposed()) return;
+    if (locked) {
+      if (previousPlayerControlsRef.current === null) previousPlayerControlsRef.current = Boolean(player.controls());
+      player.controls(false);
+    } else if (previousPlayerControlsRef.current !== null) {
+      player.controls(previousPlayerControlsRef.current);
+      previousPlayerControlsRef.current = null;
+    }
+  }, []);
+  const getNarrationCurrentTime = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || player.isDisposed()) return 0;
+    if (isCustomPlaylistAnnotation && customPlaylistDurationSeconds) {
+      const mediaRange = getCustomPlaylistMediaRange(player);
+      return updateCustomPlaylistClock({
+        durationSeconds: customPlaylistDurationSeconds,
+        hasEnded: Boolean(player.ended()),
+        isPlaying: !player.paused() && !player.ended(),
+        mediaStartSeconds: mediaRange.startSeconds,
+        mediaSeconds: Number(player.currentTime() ?? 0),
+        playbackRate: Number(player.playbackRate() ?? 1),
+        state: customPlaylistClockRef.current,
+        wallTimeMs: performance.now(),
+      }).timelineSeconds;
+    }
+    return Number(player.currentTime() ?? 0);
+  }, [customPlaylistDurationSeconds, isCustomPlaylistAnnotation]);
   const handleAnnotationPause = useCallback(() => {
     const player = playerRef.current;
     player?.pause?.();
+  }, []);
+  const handleAnnotationPlay = useCallback(() => {
+    const player = playerRef.current;
+    return player?.play?.();
   }, []);
   const handleOpenVideoAnnotationWorkspace = useCallback(() => {
     const player = playerRef.current;
@@ -1353,6 +1391,14 @@ const MediaDetailPage = () => {
     return true;
   }, [backHref, router, shouldOpenVideoAnnotationWorkspaceFromQuery]);
   const handleDiscardVideoAnnotationWorkspace = useCallback(() => {
+    if (narrationLockRef.current) {
+      setToast({
+        type: TOAST_TYPE.ERROR,
+        title: "Recording in progress",
+        message: "Stop recording before leaving the editor.",
+      });
+      return;
+    }
     const player = playerRef.current;
 
     setIsVideoAnnotationMode(false);
@@ -1646,6 +1692,7 @@ const MediaDetailPage = () => {
               isVideoAnnotationMode={isVideoAnnotationMode}
               isVideoAnnotationWorkspaceOpen={isFocusedVideoAnnotationWorkspace}
               hasUnsavedVideoAnnotationChanges={hasUnsavedVideoAnnotationChanges}
+              isNarrationRecordingLocked={isNarrationRecordingLocked}
               onOverlayToggle={handleOverlayToggle}
               onOverlaySeek={handleOverlaySeek}
               onOpenVideoAnnotationWorkspace={handleOpenVideoAnnotationWorkspace}
@@ -1677,6 +1724,9 @@ const MediaDetailPage = () => {
                     }
                     canEdit={isFocusedVideoAnnotationWorkspace && Boolean(item.packageId && item.id)}
                     currentTime={currentVideoSeconds}
+                    getCurrentTime={getNarrationCurrentTime}
+                    videoElement={playerElement?.querySelector("video") ?? videoRef.current}
+                    onRecordingLockChange={handleNarrationLockChange}
                     durationSeconds={currentVideoDurationSeconds}
                     enableAnnotationTransforms
                     enableTextTool
@@ -1689,6 +1739,7 @@ const MediaDetailPage = () => {
                     onRegisterSaveHandler={handleRegisterVideoAnnotationSaveHandler}
                     onUnsavedChangesChange={setHasUnsavedVideoAnnotationChanges}
                     onRequestPause={handleAnnotationPause}
+                    onRequestPlay={handleAnnotationPlay}
                     onSave={handleSaveVideoAnnotations}
                     onSeek={handleVideoTimelineSeek}
                     playbackRate={currentPlaybackRate}

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PaintBucket, Save, Trash2, Undo2 } from "lucide-react";
+import { Mic, PaintBucket, Save, Trash2, Undo2 } from "lucide-react";
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import type { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
 import {
@@ -28,11 +28,14 @@ type VideoAnnotationInlineToolbarProps = {
   hasAnnotationChanges: boolean;
   isAnnotationMode: boolean;
   isSavingAnnotations: boolean;
+  isVoiceNarrationRecording: boolean;
+  isVoiceNarrationSupported: boolean;
   onClearVisibleAnnotations: () => void;
   onDurationChange: (durationSeconds: number) => void;
   onSaveAnnotations: () => void;
   onSelectAnnotationTool: (tool: TCustomPlaylistAnnotationTool) => void;
   onShapeBackgroundToggle: (enabled: boolean) => void;
+  onStartVoiceNarration: () => void;
   onStrokeStyleChange: (strokeStyle: TCustomPlaylistAnnotationStrokeStyle) => void;
   onStrokeWidthChange: (strokeWidth: number) => void;
   onUndoVisibleAnnotation: () => void;
@@ -52,11 +55,14 @@ export const VideoAnnotationInlineToolbar = ({
   hasAnnotationChanges,
   isAnnotationMode,
   isSavingAnnotations,
+  isVoiceNarrationRecording,
+  isVoiceNarrationSupported,
   onClearVisibleAnnotations,
   onDurationChange,
   onSaveAnnotations,
   onSelectAnnotationTool,
   onShapeBackgroundToggle,
+  onStartVoiceNarration,
   onStrokeStyleChange,
   onStrokeWidthChange,
   onUndoVisibleAnnotation,
@@ -65,7 +71,10 @@ export const VideoAnnotationInlineToolbar = ({
   const shouldShowShapeBackgroundControl = annotationTool === "rectangle" || annotationTool === "ellipse";
 
   return (
-    <div className="absolute left-2 top-2 z-20 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-1 rounded-[6px] border border-custom-border-200 bg-custom-background-100/95 p-1 shadow-lg backdrop-blur">
+    <fieldset
+      disabled={isVoiceNarrationRecording}
+      className="absolute left-2 top-2 z-20 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-1 rounded-[6px] border border-custom-border-200 bg-custom-background-100/95 p-1 shadow-lg backdrop-blur"
+    >
       {isAnnotationMode ? (
         <>
           <span className="inline-flex h-8 shrink-0 items-center rounded-[5px] border border-custom-border-200 bg-custom-background-90 px-2 text-[11px] font-medium text-custom-text-200">
@@ -188,6 +197,30 @@ export const VideoAnnotationInlineToolbar = ({
           <span className="mx-0.5 h-6 w-px bg-custom-border-200" />
           <button
             type="button"
+            onClick={onStartVoiceNarration}
+            className={[
+              annotationButtonClass,
+              annotationTool === "audio"
+                ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100"
+                : "",
+            ].join(" ")}
+            disabled={isSavingAnnotations}
+            aria-label="Voice narration (Shift + R)"
+            aria-pressed={annotationTool === "audio"}
+            title={
+              isVoiceNarrationRecording
+                ? "Stop narration"
+                : isVoiceNarrationSupported
+                  ? "Voice narration (Shift + R)"
+                  : "Voice narration requires HTTPS or localhost and microphone access"
+            }
+          >
+            <Mic className="h-4 w-4" />
+          </button>
+
+          <span className="mx-0.5 h-6 w-px bg-custom-border-200" />
+          <button
+            type="button"
             onClick={onUndoVisibleAnnotation}
             className={annotationButtonClass}
             disabled={!hasActiveAnnotations || isSavingAnnotations}
@@ -213,7 +246,7 @@ export const VideoAnnotationInlineToolbar = ({
               annotationButtonClass,
               hasAnnotationChanges ? "border-green-500/45 bg-green-500/10 text-green-600" : "",
             ].join(" ")}
-            disabled={!hasAnnotationChanges || isSavingAnnotations}
+            disabled={!hasAnnotationChanges || isSavingAnnotations || isVoiceNarrationRecording}
             aria-label="Save annotations"
             title="Save"
           >
@@ -221,6 +254,6 @@ export const VideoAnnotationInlineToolbar = ({
           </button>
         </>
       ) : null}
-    </div>
+    </fieldset>
   );
 };

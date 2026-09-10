@@ -49,7 +49,7 @@ export const useVideoAnnotationTimeline = ({
   const timelineScrollableElementRef = useRef<HTMLDivElement | null>(null);
   const timelineResizeStateRef = useRef<AnnotationTimelineResizeState | null>(null);
   const annotationTimelineMoments = useMemo(
-    () => buildAnnotationTimelineMoments(sortedAnnotations),
+    () => buildAnnotationTimelineMoments(sortedAnnotations.filter((annotation) => annotation.type !== "audio")),
     [sortedAnnotations]
   );
   const timelineDurationSeconds = useMemo(
@@ -99,11 +99,11 @@ export const useVideoAnnotationTimeline = ({
 
   const handleTimelineSeek = useCallback(
     (seconds: number) => {
-      if (!onSeek) return;
+      if (!onSeek || isSavingAnnotations) return;
 
       onSeek(clampTimelineValue(seconds, 0, timelineDurationSeconds));
     },
-    [onSeek, timelineDurationSeconds]
+    [isSavingAnnotations, onSeek, timelineDurationSeconds]
   );
 
   const handleTimelinePointerDown = useCallback(

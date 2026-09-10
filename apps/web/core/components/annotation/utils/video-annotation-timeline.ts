@@ -1,4 +1,4 @@
-import { ArrowUpRight, Circle, Image as ImageIcon, Minus, Pencil, Square, Type } from "lucide-react";
+import { ArrowUpRight, Circle, Image as ImageIcon, Mic2, Minus, Pencil, Square, Type } from "lucide-react";
 import type { TCustomPlaylistAnnotation, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 
 const formatAnnotationTime = (seconds: number) => {
@@ -43,6 +43,7 @@ const getAnnotationTimelineToolLabel = (type: TCustomPlaylistAnnotationTool) => 
   if (type === "arrow") return "Arrow";
   if (type === "ellipse") return "Oval";
   if (type === "image") return "Image";
+  if (type === "audio") return "Voice";
   if (type === "line") return "Line";
   if (type === "pen") return "Draw";
   if (type === "rectangle") return "Rect";
@@ -52,6 +53,7 @@ const getAnnotationTimelineToolLabel = (type: TCustomPlaylistAnnotationTool) => 
 };
 
 const getAnnotationTimelineLabel = (annotation: TCustomPlaylistAnnotation, index: number) => {
+  if (annotation.type === "audio") return annotation.title?.trim() || `Narration ${index + 1}`;
   if (annotation.type === "image") return annotation.title?.trim() || `Image ${index + 1}`;
   if (annotation.content?.trim()) return annotation.content.trim();
 
@@ -68,6 +70,7 @@ const getAnnotationTimelineIcon = (annotation: TCustomPlaylistAnnotation) => {
   if (annotation.type === "arrow") return ArrowUpRight;
   if (annotation.type === "ellipse") return Circle;
   if (annotation.type === "image") return ImageIcon;
+  if (annotation.type === "audio") return Mic2;
   if (annotation.type === "line") return Minus;
   if (annotation.type === "pen") return Pencil;
   if (annotation.type === "rectangle") return Square;
@@ -77,7 +80,12 @@ const getAnnotationTimelineIcon = (annotation: TCustomPlaylistAnnotation) => {
 };
 
 const getAnnotationTimelineMomentTitle = (annotation: TCustomPlaylistAnnotation) =>
-  annotation.title?.trim() || (annotation.type === "image" ? "Image moment" : annotation.content?.trim());
+  annotation.title?.trim() ||
+  (annotation.type === "image"
+    ? "Image moment"
+    : annotation.type === "audio"
+      ? "Voice narration"
+      : annotation.content?.trim());
 
 type AnnotationTimelineMomentItem = {
   annotation: TCustomPlaylistAnnotation;
