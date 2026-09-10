@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Mic, PaintBucket, Save, Square, Trash2, Undo2 } from "lucide-react";
+import { Mic, PaintBucket, Save, Trash2, Undo2 } from "lucide-react";
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import type { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
 import {
@@ -38,9 +38,7 @@ type VideoAnnotationInlineToolbarProps = {
   onStartVoiceNarration: () => void;
   onStrokeStyleChange: (strokeStyle: TCustomPlaylistAnnotationStrokeStyle) => void;
   onStrokeWidthChange: (strokeWidth: number) => void;
-  onStopVoiceNarration: () => void;
   onUndoVisibleAnnotation: () => void;
-  recordingElapsedSeconds: number;
 };
 
 export const VideoAnnotationInlineToolbar = ({
@@ -67,15 +65,16 @@ export const VideoAnnotationInlineToolbar = ({
   onStartVoiceNarration,
   onStrokeStyleChange,
   onStrokeWidthChange,
-  onStopVoiceNarration,
   onUndoVisibleAnnotation,
-  recordingElapsedSeconds,
 }: VideoAnnotationInlineToolbarProps) => {
   const annotationButtonClass = VIDEO_ANNOTATION_TOOL_BUTTON_CLASS;
   const shouldShowShapeBackgroundControl = annotationTool === "rectangle" || annotationTool === "ellipse";
 
   return (
-    <div className="absolute left-2 top-2 z-20 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-1 rounded-[6px] border border-custom-border-200 bg-custom-background-100/95 p-1 shadow-lg backdrop-blur">
+    <fieldset
+      disabled={isVoiceNarrationRecording}
+      className="absolute left-2 top-2 z-20 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-1 rounded-[6px] border border-custom-border-200 bg-custom-background-100/95 p-1 shadow-lg backdrop-blur"
+    >
       {isAnnotationMode ? (
         <>
           <span className="inline-flex h-8 shrink-0 items-center rounded-[5px] border border-custom-border-200 bg-custom-background-90 px-2 text-[11px] font-medium text-custom-text-200">
@@ -198,30 +197,26 @@ export const VideoAnnotationInlineToolbar = ({
           <span className="mx-0.5 h-6 w-px bg-custom-border-200" />
           <button
             type="button"
-            onClick={isVoiceNarrationRecording ? onStopVoiceNarration : onStartVoiceNarration}
+            onClick={onStartVoiceNarration}
             className={[
               annotationButtonClass,
-              isVoiceNarrationRecording ? "border-red-500/60 bg-red-500/15 text-red-500" : "",
+              annotationTool === "audio"
+                ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100"
+                : "",
             ].join(" ")}
-            disabled={!isVoiceNarrationSupported || isSavingAnnotations}
-            aria-label={isVoiceNarrationRecording ? "Stop voice narration" : "Record voice narration"}
-            aria-pressed={isVoiceNarrationRecording}
+            disabled={isSavingAnnotations}
+            aria-label="Voice narration (Shift + R)"
+            aria-pressed={annotationTool === "audio"}
             title={
               isVoiceNarrationRecording
                 ? "Stop narration"
                 : isVoiceNarrationSupported
-                  ? "Record narration"
+                  ? "Voice narration (Shift + R)"
                   : "Voice narration requires HTTPS or localhost and microphone access"
             }
           >
-            {isVoiceNarrationRecording ? <Square className="h-3.5 w-3.5 fill-current" /> : <Mic className="h-4 w-4" />}
+            <Mic className="h-4 w-4" />
           </button>
-          {isVoiceNarrationRecording ? (
-            <span className="min-w-10 font-mono text-[10px] font-semibold tabular-nums text-red-500">
-              {Math.floor(recordingElapsedSeconds / 60)}:
-              {String(Math.floor(recordingElapsedSeconds % 60)).padStart(2, "0")}
-            </span>
-          ) : null}
 
           <span className="mx-0.5 h-6 w-px bg-custom-border-200" />
           <button
@@ -259,6 +254,6 @@ export const VideoAnnotationInlineToolbar = ({
           </button>
         </>
       ) : null}
-    </div>
+    </fieldset>
   );
 };

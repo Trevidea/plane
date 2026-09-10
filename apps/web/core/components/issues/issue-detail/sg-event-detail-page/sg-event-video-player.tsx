@@ -729,6 +729,8 @@ export const SgEventVideoPlayer = ({
         annotations={effectiveAnnotationItem.meta?.annotations}
         canEdit={false}
         currentTime={currentVideoSeconds}
+        getCurrentTime={() => Number(playerRef.current?.currentTime() ?? videoRef.current?.currentTime ?? 0)}
+        videoElement={playerElement?.querySelector("video") ?? videoRef.current}
         isPlaying={isPlaying}
         modeResetKey={`${effectiveAnnotationItem.id}:view`}
         onModeChange={handleAnnotationModeChange}

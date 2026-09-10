@@ -12,6 +12,7 @@ import type {
   AnnotationResizeHandle,
 } from "../types/playlist-annotation-overlay.types";
 import { OPPOSITE_RESIZE_HANDLE, isBoxResizeHandle } from "./playlist-annotation-transform";
+import { normalizeNarrationAudio } from "./voice-narration";
 
 const CANVAS_SIZE = 1000;
 const MIN_POINT_DISTANCE = 3;
@@ -207,6 +208,7 @@ export const normalizePlaylistAnnotations = (value: unknown): TCustomPlaylistAnn
           : (pointBounds?.height ?? (legacyStart && legacyEnd ? legacyEnd.y - legacyStart.y : 0));
 
       const normalizedAnnotation = normalizeAnnotationBox({
+        ...(type === "audio" ? { audio: normalizeNarrationAudio(record.audio, endTime - startTime) } : {}),
         content: typeof record.content === "string" ? record.content : undefined,
         createdAt: typeof record.createdAt === "string" ? record.createdAt : undefined,
         endTime,

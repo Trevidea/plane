@@ -1,9 +1,11 @@
 "use client";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import { useNarrationDucking } from "../hooks/use-narration-ducking";
+import { useNarrationWorkflow } from "../hooks/use-narration-workflow";
 import { useVideoAnnotationClock } from "../hooks/use-video-annotation-clock";
 import { useVideoAnnotationColorControls } from "../hooks/use-video-annotation-color-controls";
 import { useVideoAnnotationImageControls } from "../hooks/use-video-annotation-image-controls";
@@ -45,8 +47,10 @@ import { VideoAnnotationAudioPlayback } from "./video-annotation-audio-playback"
 import { VideoAnnotationColorPickerButton } from "./video-annotation-color-picker-button";
 import { VideoAnnotationInlineToolbar } from "./video-annotation-inline-toolbar";
 import { VideoAnnotationPropertiesPanel } from "./video-annotation-properties-panel";
+import { VideoAnnotationRecordingIndicator } from "./video-annotation-recording-indicator";
 import { VideoAnnotationTimelinePanel } from "./video-annotation-timeline-panel";
 import { VideoAnnotationToolbar } from "./video-annotation-toolbar";
+import { VoiceNarrationPanel } from "./voice-narration-panel";
 
 const getImageAnnotationAspectRatio = (width: number, height: number) =>
   Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 ? width / height : 1;
@@ -154,6 +158,9 @@ export const VideoAnnotationEditor = ({
   canEdit,
   className,
   currentTime,
+  getCurrentTime,
+  videoElement,
+  onRecordingLockChange,
   durationSeconds = null,
   enableAnnotationTransforms = false,
   enableTextTool = false,
@@ -193,7 +200,12 @@ export const VideoAnnotationEditor = ({
   const [annotationTextFontFamily, setAnnotationTextFontFamily] = useState("sans-serif");
   const [isSavingAnnotations, setIsSavingAnnotations] = useState(false);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
-  const hasAnnotationChanges = !arePlaylistAnnotationsEqual(annotations, baselineAnnotations);
+  const hasAnnotationChanges = useMemo(
+    () => !arePlaylistAnnotationsEqual(annotations, baselineAnnotations),
+    [annotations, baselineAnnotations]
+  );
+  const annotationSessionRef = useRef(annotationKey);
+  const preserveEditsRef = useRef(false);
   const availableAnnotationTools = useMemo(
     () => VIDEO_ANNOTATION_TOOLS.filter((toolOption) => enableTextTool || toolOption.type !== "text"),
     [enableTextTool]
@@ -317,12 +329,67 @@ export const VideoAnnotationEditor = ({
     setAnnotationShapeBackgroundOpacity(getShapeBackgroundOpacity(selectedShapeAnnotation.style?.backgroundOpacity));
   }, [selectedShapeAnnotation]);
 
+  const handleVoiceNarrationError = useCallback((message: string) => {
+    setToast({ type: TOAST_TYPE.ERROR, title: "Voice narration", message });
+  }, []);
+  const narration = useVideoAnnotationVoiceNarration({
+    currentTime,
+    durationSeconds,
+    getCurrentTime,
+    videoElement,
+    onRequestPause,
+    onRequestPlay,
+    onSeek,
+    playbackRate,
+  });
+  const isVoiceNarrationRecording = narration.locked;
+  const isVoiceNarrationSupported = narration.supported;
+  const { recorder: voiceRecorder, setReplacement: setNarrationReplacement } = narration;
+  const workflow = useNarrationWorkflow({
+    controls: narration,
+    annotations,
+    setAnnotations,
+    setSelectedId: setSelectedAnnotationId,
+    setTool: setAnnotationTool,
+    tool: annotationTool,
+    duration: durationSeconds ?? 0,
+    canEdit,
+    saving: isSavingAnnotations,
+    dirty: hasAnnotationChanges,
+    onPause: onRequestPause,
+    onSeek,
+    isPlaying,
+    onError: handleVoiceNarrationError,
+  });
+  const { stop: stopNarrationPreview } = workflow.preview;
+  const { clearConflict: clearNarrationConflict } = workflow;
+  preserveEditsRef.current = hasAnnotationChanges || narration.locked || workflow.needsReview || isSavingAnnotations;
+  const narrationClips = useMemo(() => sortedAnnotations.filter((clip) => clip.type === "audio"), [sortedAnnotations]);
+  const playingNarrationsRef = useRef(new Set<string>());
+  const handleNarrationPlaybackChange = useCallback((id: string, playing: boolean) => {
+    if (playing) playingNarrationsRef.current.add(id);
+    else playingNarrationsRef.current.delete(id);
+  }, []);
+  const isNarrationPlaying = useCallback((id: string) => playingNarrationsRef.current.has(id), []);
+  useNarrationDucking(
+    videoElement,
+    narrationClips,
+    narration.readTime,
+    narration.state.stage === "recording" ? narration.ducking : null,
+    isNarrationPlaying
+  );
+  useEffect(() => {
+    onRecordingLockChange?.(narration.locked);
+    return () => onRecordingLockChange?.(false);
+  }, [narration.locked, onRecordingLockChange]);
+
   const activeAnnotationIds = useMemo(
     () => new Set(activeAnnotations.map((annotation) => annotation.id)),
     [activeAnnotations]
   );
   const hasActiveAnnotations = activeAnnotations.length > 0;
-  const annotationInputEnabled = canEdit && isAnnotationMode && !isPlaying;
+  const annotationInputEnabled =
+    canEdit && isAnnotationMode && !isPlaying && annotationTool !== "audio" && !narration.locked;
   const {
     annotationTimelineMoments,
     beginEditingTimelineMoment,
@@ -356,13 +423,23 @@ export const VideoAnnotationEditor = ({
   } = useVideoAnnotationTimeline({
     durationSeconds,
     effectiveCurrentTime,
-    isSavingAnnotations,
-    onSeek,
+    isSavingAnnotations: isSavingAnnotations || narration.locked,
+    onSeek: narration.locked ? undefined : onSeek,
     setAnnotations,
     sortedAnnotations,
   });
 
   useEffect(() => {
+    const changedSession = annotationSessionRef.current !== annotationKey;
+    if (!changedSession && preserveEditsRef.current) return;
+    annotationSessionRef.current = annotationKey;
+    if (changedSession) {
+      clearNarrationConflict();
+      voiceRecorder.cancel();
+      setNarrationReplacement(null);
+      stopNarrationPreview();
+      setAnnotationTool("pen");
+    }
     const shouldOpenAnnotationMode = canEdit;
     setAnnotations(savedAnnotations);
     setBaselineAnnotations(savedAnnotations);
@@ -372,7 +449,16 @@ export const VideoAnnotationEditor = ({
     setAnnotationShapeBackgroundEnabled(false);
     setAnnotationShapeBackgroundOpacity(DEFAULT_VIDEO_ANNOTATION_SHAPE_BACKGROUND_OPACITY);
     onModeChange?.(shouldOpenAnnotationMode);
-  }, [annotationKey, canEdit, onModeChange, savedAnnotations]);
+  }, [
+    annotationKey,
+    clearNarrationConflict,
+    canEdit,
+    voiceRecorder,
+    setNarrationReplacement,
+    onModeChange,
+    savedAnnotations,
+    stopNarrationPreview,
+  ]);
 
   useEffect(() => {
     if (enableTextTool || annotationTool !== "text") return;
@@ -401,13 +487,22 @@ export const VideoAnnotationEditor = ({
   }, [autoEnableAnnotationModeKey, canEdit, onModeChange]);
 
   useEffect(() => {
-    if (!selectedAnnotationId || annotations.some((annotation) => annotation.id === selectedAnnotationId)) return;
+    if (
+      !selectedAnnotationId ||
+      workflow.draft?.id === selectedAnnotationId ||
+      annotations.some((annotation) => annotation.id === selectedAnnotationId)
+    )
+      return;
 
     setSelectedAnnotationId(null);
-  }, [annotations, selectedAnnotationId]);
+  }, [annotations, selectedAnnotationId, workflow.draft?.id]);
 
   const handleSelectAnnotationTool = useCallback(
     (tool: TCustomPlaylistAnnotationTool) => {
+      if (narration.locked || workflow.needsReview) {
+        handleVoiceNarrationError("Finish or cancel the current narration before switching tools.");
+        return;
+      }
       onRequestPause?.();
       setSelectedAnnotationId(null);
       setAnnotationTool(tool);
@@ -419,31 +514,48 @@ export const VideoAnnotationEditor = ({
       setIsAnnotationMode(true);
       onModeChange?.(true);
     },
-    [annotationImageInputRef, isAnnotationMode, onModeChange, onRequestPause]
+    [
+      annotationImageInputRef,
+      handleVoiceNarrationError,
+      isAnnotationMode,
+      narration.locked,
+      onModeChange,
+      onRequestPause,
+      workflow.needsReview,
+    ]
   );
 
   const handleUndoVisibleAnnotation = useCallback(() => {
+    if (narration.locked || workflow.needsReview || isSavingAnnotations) return;
+    stopNarrationPreview();
     setAnnotations((currentAnnotations) => {
       const annotationToRemove = activeAnnotations[activeAnnotations.length - 1];
       if (!annotationToRemove) return currentAnnotations;
 
       return currentAnnotations.filter((annotation) => annotation.id !== annotationToRemove.id);
     });
-  }, [activeAnnotations]);
+  }, [activeAnnotations, isSavingAnnotations, narration.locked, stopNarrationPreview, workflow.needsReview]);
 
   const handleClearVisibleAnnotations = useCallback(() => {
+    if (narration.locked || workflow.needsReview || isSavingAnnotations) return;
+    stopNarrationPreview();
     const activeAnnotationIds = new Set(activeAnnotations.map((annotation) => annotation.id));
     setAnnotations((currentAnnotations) =>
       currentAnnotations.filter((annotation) => !activeAnnotationIds.has(annotation.id))
     );
-  }, [activeAnnotations]);
+  }, [activeAnnotations, isSavingAnnotations, narration.locked, stopNarrationPreview, workflow.needsReview]);
 
-  const handleDeleteAnnotation = useCallback((annotationId: string) => {
-    setAnnotations((currentAnnotations) => currentAnnotations.filter((annotation) => annotation.id !== annotationId));
-    setSelectedAnnotationId((currentAnnotationId) =>
-      currentAnnotationId === annotationId ? null : currentAnnotationId
-    );
-  }, []);
+  const handleDeleteAnnotation = useCallback(
+    (annotationId: string) => {
+      if (narration.locked || isSavingAnnotations) return;
+      stopNarrationPreview();
+      setAnnotations((currentAnnotations) => currentAnnotations.filter((annotation) => annotation.id !== annotationId));
+      setSelectedAnnotationId((currentAnnotationId) =>
+        currentAnnotationId === annotationId ? null : currentAnnotationId
+      );
+    },
+    [isSavingAnnotations, narration.locked, stopNarrationPreview]
+  );
 
   const handleCreateAnnotation = useCallback(
     (annotation: TCustomPlaylistAnnotation) => {
@@ -460,30 +572,6 @@ export const VideoAnnotationEditor = ({
     },
     [minimumVisibleAnnotationDurationSeconds]
   );
-
-  const handleVoiceNarrationError = useCallback((message: string) => {
-    setToast({
-      type: TOAST_TYPE.ERROR,
-      title: "Voice narration unavailable",
-      message,
-    });
-  }, []);
-
-  const {
-    isVoiceNarrationRecording,
-    isVoiceNarrationSupported,
-    recordingElapsedSeconds,
-    startVoiceNarration,
-    stopVoiceNarration,
-  } = useVideoAnnotationVoiceNarration({
-    currentTime: effectiveCurrentTime,
-    durationSeconds,
-    onCreateAnnotation: handleCreateAnnotation,
-    onError: handleVoiceNarrationError,
-    onRequestPause,
-    onRequestPlay,
-    playbackRate,
-  });
 
   const handleUpdateAnnotation = useCallback(
     (updatedAnnotation: TCustomPlaylistAnnotation) => {
@@ -806,11 +894,11 @@ export const VideoAnnotationEditor = ({
 
   const handleSaveAnnotations = useCallback(async () => {
     if (isSavingAnnotations) return false;
-    if (isVoiceNarrationRecording) {
+    if (isVoiceNarrationRecording || workflow.needsReview || workflow.conflict) {
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Recording in progress",
-        message: "Stop the voice narration before saving annotations.",
+        message: "Stop recording and finish the narration review before saving annotations.",
       });
       return false;
     }
@@ -851,6 +939,8 @@ export const VideoAnnotationEditor = ({
     hasAnnotationChanges,
     isSavingAnnotations,
     isVoiceNarrationRecording,
+    workflow.needsReview,
+    workflow.conflict,
     minimumVisibleAnnotationDurationSeconds,
     onSave,
   ]);
@@ -866,8 +956,8 @@ export const VideoAnnotationEditor = ({
   }, [canEdit, handleSaveAnnotations, onRegisterSaveHandler]);
 
   useEffect(() => {
-    onUnsavedChangesChange?.(canEdit && (hasAnnotationChanges || isVoiceNarrationRecording));
-  }, [canEdit, hasAnnotationChanges, isVoiceNarrationRecording, onUnsavedChangesChange]);
+    onUnsavedChangesChange?.(canEdit && (hasAnnotationChanges || isVoiceNarrationRecording || workflow.needsReview));
+  }, [canEdit, hasAnnotationChanges, isVoiceNarrationRecording, onUnsavedChangesChange, workflow.needsReview]);
 
   useEffect(
     () => () => {
@@ -878,43 +968,55 @@ export const VideoAnnotationEditor = ({
 
   const timelineContent =
     showTimeline && timelineHostElement ? (
-      <VideoAnnotationTimelinePanel
-        activeAnnotationIds={activeAnnotationIds}
-        annotationTimelineMoments={annotationTimelineMoments}
-        canZoomTimelineIn={canZoomTimelineIn}
-        canZoomTimelineOut={canZoomTimelineOut}
-        editingTimelineMoment={editingTimelineMoment}
-        effectiveCurrentTime={effectiveCurrentTime}
-        isPlaying={isPlaying}
-        onBeginEditingTimelineMoment={beginEditingTimelineMoment}
-        onCommitTimelineMomentTitle={commitTimelineMomentTitle}
-        onDeleteAnnotation={handleDeleteAnnotation}
-        onEditingTimelineMomentChange={setEditingTimelineMoment}
-        onJumpToNearestAnnotation={jumpToNearestAnnotation}
-        onJumpToRelativeTimelineTime={jumpToRelativeTimelineTime}
-        onSeek={onSeek}
-        onStepTimelineZoom={stepTimelineZoom}
-        onTimelineBodyScroll={handleTimelineBodyScroll}
-        onTimelineHeaderScroll={handleTimelineHeaderScroll}
-        onTimelineKeyDown={handleTimelineKeyDown}
-        onTimelinePointerDown={handleTimelinePointerDown}
-        onTimelineResizePointerEnd={handleAnnotationTimelineResizePointerEnd}
-        onTimelineResizePointerDown={handleAnnotationTimelineResizePointerDown}
-        onTimelineResizePointerMove={handleAnnotationTimelineResizePointerMove}
-        onTimelineSeek={handleTimelineSeek}
-        onToggleTimelineMoment={toggleTimelineMoment}
-        openTimelineMomentIds={openTimelineMomentIds}
-        playbackRate={playbackRate}
-        sortedAnnotations={sortedAnnotations}
-        timelineContentWidthPx={timelineContentWidthPx}
-        timelineDurationSeconds={timelineDurationSeconds}
-        timelineHeaderScrollableElementRef={timelineHeaderScrollableElementRef}
-        timelineProgressPercent={timelineProgressPercent}
-        timelineResizeId={timelineResizeId}
-        timelineScrollableElementRef={timelineScrollableElementRef}
-        timelineTicks={timelineTicks}
-        timelineZoomPercent={timelineZoomPercent}
-      />
+      <fieldset disabled={narration.locked || isSavingAnnotations}>
+        <VideoAnnotationTimelinePanel
+          narrationActions={{
+            selectedId: selectedAnnotationId,
+            previewId: workflow.preview.previewId,
+            disabled: narration.locked || isSavingAnnotations || workflow.needsReview,
+            onSelect: workflow.select,
+            onChange: workflow.change,
+            onPreview: workflow.preview.play,
+            onReplace: workflow.replace,
+            onDuplicate: workflow.duplicate,
+          }}
+          activeAnnotationIds={activeAnnotationIds}
+          annotationTimelineMoments={annotationTimelineMoments}
+          canZoomTimelineIn={canZoomTimelineIn}
+          canZoomTimelineOut={canZoomTimelineOut}
+          editingTimelineMoment={editingTimelineMoment}
+          effectiveCurrentTime={effectiveCurrentTime}
+          isPlaying={isPlaying}
+          onBeginEditingTimelineMoment={beginEditingTimelineMoment}
+          onCommitTimelineMomentTitle={commitTimelineMomentTitle}
+          onDeleteAnnotation={handleDeleteAnnotation}
+          onEditingTimelineMomentChange={setEditingTimelineMoment}
+          onJumpToNearestAnnotation={jumpToNearestAnnotation}
+          onJumpToRelativeTimelineTime={jumpToRelativeTimelineTime}
+          onSeek={narration.locked ? undefined : onSeek}
+          onStepTimelineZoom={stepTimelineZoom}
+          onTimelineBodyScroll={handleTimelineBodyScroll}
+          onTimelineHeaderScroll={handleTimelineHeaderScroll}
+          onTimelineKeyDown={handleTimelineKeyDown}
+          onTimelinePointerDown={handleTimelinePointerDown}
+          onTimelineResizePointerEnd={handleAnnotationTimelineResizePointerEnd}
+          onTimelineResizePointerDown={handleAnnotationTimelineResizePointerDown}
+          onTimelineResizePointerMove={handleAnnotationTimelineResizePointerMove}
+          onTimelineSeek={handleTimelineSeek}
+          onToggleTimelineMoment={toggleTimelineMoment}
+          openTimelineMomentIds={openTimelineMomentIds}
+          playbackRate={playbackRate}
+          sortedAnnotations={workflow.draft ? [...sortedAnnotations, workflow.draft] : sortedAnnotations}
+          timelineContentWidthPx={timelineContentWidthPx}
+          timelineDurationSeconds={timelineDurationSeconds}
+          timelineHeaderScrollableElementRef={timelineHeaderScrollableElementRef}
+          timelineProgressPercent={timelineProgressPercent}
+          timelineResizeId={timelineResizeId}
+          timelineScrollableElementRef={timelineScrollableElementRef}
+          timelineTicks={timelineTicks}
+          timelineZoomPercent={timelineZoomPercent}
+        />
+      </fieldset>
     ) : null;
 
   const annotationColorPicker = (
@@ -934,49 +1036,73 @@ export const VideoAnnotationEditor = ({
     ) ?? availableAnnotationTools[0];
   const annotationPreviewStartTime = getAnnotationStartTimeWithCreationOffset(effectiveCurrentTime);
   const annotationPreviewEndTime = annotationPreviewStartTime + effectiveAnnotationDurationSeconds;
-  const annotationPropertyPanelContent = canEdit ? (
-    <VideoAnnotationPropertiesPanel
-      annotationColor={effectiveAnnotationColor}
-      annotationColorHsv={effectiveAnnotationColorHsv}
-      annotationColorInputValue={effectiveAnnotationColorInputValue}
-      annotationColorRgb={effectiveAnnotationColorRgb}
-      annotationDurationSeconds={effectiveAnnotationDurationSeconds}
-      annotationImageContent={selectedImageAnnotation?.content ?? annotationImageContent}
-      annotationImageHeight={selectedImageAnnotationHeight}
-      annotationImageOpacity={selectedImageAnnotationOpacity}
-      annotationImageWidth={selectedImageAnnotationWidth}
-      annotationShapeBackgroundEnabled={effectiveShapeBackgroundEnabled}
-      annotationShapeBackgroundOpacity={effectiveShapeBackgroundOpacity}
-      annotationStrokeStyle={effectiveAnnotationStrokeStyle}
-      annotationStrokeWidth={effectiveAnnotationStrokeWidth}
-      annotationTextFontFamily={effectiveAnnotationTextFontFamily}
-      annotationTextFontSize={effectiveAnnotationTextFontSize}
-      annotationTextFontWeight={effectiveAnnotationTextFontWeight}
-      annotationTool={propertiesPanelTool}
-      isAnnotationColorPickerOpen={isAnnotationColorPickerOpen}
-      isAnnotationMode={isAnnotationMode}
-      isImageAnnotationSelected={Boolean(selectedImageAnnotation)}
-      onAnnotationColorChange={handlePanelAnnotationColorChange}
-      onAnnotationColorChannelChange={handlePanelAnnotationColorChannelChange}
-      onAnnotationColorHueChange={handlePanelAnnotationColorHueChange}
-      onAnnotationColorInputBlur={handlePanelAnnotationColorInputBlur}
-      onAnnotationColorInputChange={handlePanelAnnotationColorInputChange}
-      onAnnotationColorPickerPointerDown={handlePanelAnnotationColorPickerPointerDown}
-      onAnnotationColorPickerPointerMove={handlePanelAnnotationColorPickerPointerMove}
-      onAnnotationImageOpacityChange={handleAnnotationImageOpacityChange}
-      onAnnotationImageSizeChange={handleAnnotationImageSizeChange}
-      onDurationChange={handleAnnotationDurationChange}
-      onShapeBackgroundOpacityChange={handleShapeBackgroundOpacityChange}
-      onShapeBackgroundToggle={handleShapeBackgroundToggle}
-      onStrokeStyleChange={handleAnnotationStrokeStyleChange}
-      onStrokeWidthChange={handleAnnotationStrokeWidthChange}
-      onTextFontFamilyChange={handleTextFontFamilyChange}
-      onTextFontSizeChange={handleTextFontSizeChange}
-      onTextFontWeightChange={handleTextFontWeightChange}
-      selectedAnnotationToolOption={selectedAnnotationToolOption}
-      setIsAnnotationColorPickerOpen={setIsAnnotationColorPickerOpen}
+  const narrationPanel = (
+    <VoiceNarrationPanel
+      controls={narration}
+      selected={selectedAnnotation?.type === "audio" ? selectedAnnotation : null}
+      draft={workflow.draft}
+      currentTime={effectiveCurrentTime}
+      duration={timelineDurationSeconds}
+      previewId={workflow.preview.previewId}
+      previewError={workflow.preview.error}
+      dirty={hasAnnotationChanges || workflow.needsReview}
+      disabled={isSavingAnnotations}
+      conflict={workflow.conflict}
+      onResolveConflict={workflow.resolveConflict}
+      onChange={workflow.change}
+      onReplace={workflow.replace}
+      onDelete={handleDeleteAnnotation}
+      onPreview={workflow.preview.play}
+      onAccept={workflow.accept}
+      onNew={workflow.open}
     />
-  ) : null;
+  );
+  const annotationPropertyPanelContent =
+    canEdit && annotationTool === "audio" ? (
+      narrationPanel
+    ) : canEdit ? (
+      <VideoAnnotationPropertiesPanel
+        annotationColor={effectiveAnnotationColor}
+        annotationColorHsv={effectiveAnnotationColorHsv}
+        annotationColorInputValue={effectiveAnnotationColorInputValue}
+        annotationColorRgb={effectiveAnnotationColorRgb}
+        annotationDurationSeconds={effectiveAnnotationDurationSeconds}
+        annotationImageContent={selectedImageAnnotation?.content ?? annotationImageContent}
+        annotationImageHeight={selectedImageAnnotationHeight}
+        annotationImageOpacity={selectedImageAnnotationOpacity}
+        annotationImageWidth={selectedImageAnnotationWidth}
+        annotationShapeBackgroundEnabled={effectiveShapeBackgroundEnabled}
+        annotationShapeBackgroundOpacity={effectiveShapeBackgroundOpacity}
+        annotationStrokeStyle={effectiveAnnotationStrokeStyle}
+        annotationStrokeWidth={effectiveAnnotationStrokeWidth}
+        annotationTextFontFamily={effectiveAnnotationTextFontFamily}
+        annotationTextFontSize={effectiveAnnotationTextFontSize}
+        annotationTextFontWeight={effectiveAnnotationTextFontWeight}
+        annotationTool={propertiesPanelTool}
+        isAnnotationColorPickerOpen={isAnnotationColorPickerOpen}
+        isAnnotationMode={isAnnotationMode}
+        isImageAnnotationSelected={Boolean(selectedImageAnnotation)}
+        onAnnotationColorChange={handlePanelAnnotationColorChange}
+        onAnnotationColorChannelChange={handlePanelAnnotationColorChannelChange}
+        onAnnotationColorHueChange={handlePanelAnnotationColorHueChange}
+        onAnnotationColorInputBlur={handlePanelAnnotationColorInputBlur}
+        onAnnotationColorInputChange={handlePanelAnnotationColorInputChange}
+        onAnnotationColorPickerPointerDown={handlePanelAnnotationColorPickerPointerDown}
+        onAnnotationColorPickerPointerMove={handlePanelAnnotationColorPickerPointerMove}
+        onAnnotationImageOpacityChange={handleAnnotationImageOpacityChange}
+        onAnnotationImageSizeChange={handleAnnotationImageSizeChange}
+        onDurationChange={handleAnnotationDurationChange}
+        onShapeBackgroundOpacityChange={handleShapeBackgroundOpacityChange}
+        onShapeBackgroundToggle={handleShapeBackgroundToggle}
+        onStrokeStyleChange={handleAnnotationStrokeStyleChange}
+        onStrokeWidthChange={handleAnnotationStrokeWidthChange}
+        onTextFontFamilyChange={handleTextFontFamilyChange}
+        onTextFontSizeChange={handleTextFontSizeChange}
+        onTextFontWeightChange={handleTextFontWeightChange}
+        selectedAnnotationToolOption={selectedAnnotationToolOption}
+        setIsAnnotationColorPickerOpen={setIsAnnotationColorPickerOpen}
+      />
+    ) : null;
 
   const annotationToolbarContent = canEdit ? (
     <VideoAnnotationToolbar
@@ -998,12 +1124,10 @@ export const VideoAnnotationEditor = ({
       onSaveAnnotations={handleSaveAnnotations}
       onSelectAnnotationTool={handleSelectAnnotationTool}
       onShapeBackgroundToggle={handleShapeBackgroundToggle}
-      onStartVoiceNarration={() => void startVoiceNarration()}
+      onStartVoiceNarration={workflow.open}
       onStrokeStyleChange={handleAnnotationStrokeStyleChange}
       onStrokeWidthChange={handleAnnotationStrokeWidthChange}
-      onStopVoiceNarration={stopVoiceNarration}
       onUndoVisibleAnnotation={handleUndoVisibleAnnotation}
-      recordingElapsedSeconds={recordingElapsedSeconds}
       shouldRenderSeparateAnnotationProperties={shouldRenderSeparateAnnotationProperties}
     />
   ) : null;
@@ -1039,7 +1163,7 @@ export const VideoAnnotationEditor = ({
         onDeleteAnnotation={handleDeleteAnnotation}
         onSelectedAnnotationIdChange={setSelectedAnnotationId}
         onUpdateAnnotation={handleUpdateAnnotation}
-        selectedAnnotationId={selectedAnnotationId}
+        selectedAnnotationId={annotationTool === "audio" ? null : selectedAnnotationId}
         shapeBackgroundEnabled={annotationShapeBackgroundEnabled}
         shapeBackgroundOpacity={annotationShapeBackgroundOpacity}
         startTime={effectiveCurrentTime}
@@ -1051,6 +1175,10 @@ export const VideoAnnotationEditor = ({
         tool={annotationTool}
       />
 
+      {isVoiceNarrationRecording ? (
+        <VideoAnnotationRecordingIndicator recorder={narration.recorder} state={narration.state} />
+      ) : null}
+
       {sortedAnnotations
         .filter((annotation) => annotation.type === "audio" && Boolean(annotation.content))
         .map((annotation) => (
@@ -1058,8 +1186,12 @@ export const VideoAnnotationEditor = ({
             key={annotation.id}
             annotation={annotation}
             currentTime={effectiveCurrentTime}
-            isPlaying={isPlaying}
+            isPlaying={isPlaying && !narration.locked && !workflow.preview.previewId}
             playbackRate={playbackRate}
+            getCurrentTime={getCurrentTime}
+            videoElement={videoElement}
+            onError={handleVoiceNarrationError}
+            onPlaybackChange={handleNarrationPlaybackChange}
           />
         ))}
 
@@ -1085,17 +1217,20 @@ export const VideoAnnotationEditor = ({
           onSaveAnnotations={handleSaveAnnotations}
           onSelectAnnotationTool={handleSelectAnnotationTool}
           onShapeBackgroundToggle={handleShapeBackgroundToggle}
-          onStartVoiceNarration={() => void startVoiceNarration()}
+          onStartVoiceNarration={workflow.open}
           onStrokeStyleChange={handleAnnotationStrokeStyleChange}
           onStrokeWidthChange={handleAnnotationStrokeWidthChange}
-          onStopVoiceNarration={stopVoiceNarration}
           onUndoVisibleAnnotation={handleUndoVisibleAnnotation}
-          recordingElapsedSeconds={recordingElapsedSeconds}
         />
       ) : null}
       {annotationToolbarContent && toolbarHostElement
         ? createPortal(annotationToolbarContent, toolbarHostElement)
         : null}
+      {canEdit && annotationTool === "audio" && !propertyHostElement ? (
+        <div className="absolute bottom-12 right-2 z-20 max-h-[70%] w-64 max-w-[calc(100%-1rem)] overflow-auto rounded-md border border-custom-border-200 bg-custom-background-100">
+          {narrationPanel}
+        </div>
+      ) : null}
       {annotationPropertyPanelContent && propertyHostElement
         ? createPortal(annotationPropertyPanelContent, propertyHostElement)
         : null}

@@ -7,6 +7,9 @@ export type VideoAnnotationEditorProps = {
   canEdit: boolean;
   className?: string;
   currentTime: number;
+  getCurrentTime?: () => number;
+  videoElement?: HTMLVideoElement | null;
+  onRecordingLockChange?: (locked: boolean) => void;
   durationSeconds?: number | null;
   enableAnnotationTransforms?: boolean;
   enableTextTool?: boolean;

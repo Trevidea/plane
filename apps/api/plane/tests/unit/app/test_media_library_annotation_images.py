@@ -71,6 +71,16 @@ def test_externalize_annotation_audio_content_writes_transcode_blob(settings, tm
     settings.MEDIA_LIBRARY_ROOT = str(tmp_path)
     settings.MEDIA_TRANSCODE_OUTPUT_BASE_URL = "/sports/api/blobs/media"
     settings.MEDIA_TRANSCODE_OUTPUT_ROOT = str(tmp_path / "transcoded")
+    audio_metadata = {
+        "sourceDuration": 5,
+        "trimStart": 0.5,
+        "trimEnd": 1.5,
+        "volume": 0.8,
+        "ducking": 0.35,
+        "fadeIn": 0.2,
+        "fadeOut": 0.2,
+        "peaks": [0.1, 0.5, 0.8, 0.2],
+    }
     payload = {
         "annotations": [
             {
@@ -80,6 +90,7 @@ def test_externalize_annotation_audio_content_writes_transcode_blob(settings, tm
                 "content": AUDIO_DATA_URL,
                 "startTime": 4,
                 "endTime": 7,
+                "audio": audio_metadata,
             }
         ]
     }
@@ -97,6 +108,13 @@ def test_externalize_annotation_audio_content_writes_transcode_blob(settings, tm
     assert annotation["content"].endswith(".webm")
     assert annotation["fileSize"] == 4
     assert annotation["mimeType"] == "audio/webm"
+    assert annotation["audio"] == audio_metadata
+    assert payload["annotations"][0]["content"] == AUDIO_DATA_URL
+    repeated, repeated_count = _externalize_annotation_audio_content(
+        externalized, "project-1", "package-1", source_artifact_id="clip-1"
+    )
+    assert repeated == externalized
+    assert repeated_count == 0
 
     audio_path = tmp_path / "transcoded" / annotation["content"].removeprefix("/sports/api/blobs/media/")
     assert audio_path.read_bytes() == b"OggS"
