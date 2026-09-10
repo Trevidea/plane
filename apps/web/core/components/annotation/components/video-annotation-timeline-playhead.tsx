@@ -72,7 +72,7 @@ export const VideoAnnotationTimelinePlayhead = ({
 
   return (
     <span
-      className="pointer-events-none absolute bottom-0 top-0 z-20 w-0 -translate-x-1/2 border-l-2 border-[#ef4444] drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+      className="pointer-events-none absolute bottom-0 top-0 z-50 w-0 -translate-x-1/2 border-l-2 border-[#ef4444] drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]"
       style={{ left: `${smoothProgressPercent}%`, willChange: "left" }}
     >
       <span className="absolute -top-px left-1/2 h-2 w-2.5 -translate-x-1/2 rounded-[2px] bg-[#ef4444]" />

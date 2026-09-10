@@ -7,6 +7,9 @@ export type VideoAnnotationEditorProps = {
   canEdit: boolean;
   className?: string;
   currentTime: number;
+  getCurrentTime?: () => number;
+  videoElement?: HTMLVideoElement | null;
+  onRecordingLockChange?: (locked: boolean) => void;
   durationSeconds?: number | null;
   enableAnnotationTransforms?: boolean;
   enableTextTool?: boolean;
@@ -17,6 +20,7 @@ export type VideoAnnotationEditorProps = {
   onRegisterSaveHandler?: (saveAnnotations: (() => Promise<boolean>) | null) => void;
   onUnsavedChangesChange?: (hasUnsavedChanges: boolean) => void;
   onRequestPause?: () => void;
+  onRequestPlay?: () => void | Promise<void>;
   onSave: (annotations: TCustomPlaylistAnnotation[]) => Promise<TCustomPlaylistAnnotation[] | void>;
   onSeek?: (seconds: number) => void;
   playbackRate?: number;

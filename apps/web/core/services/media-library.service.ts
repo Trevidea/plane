@@ -199,7 +199,15 @@ export type TCustomPlaylistClip = {
   title: string;
 };
 
-export type TCustomPlaylistAnnotationTool = "text" | "rectangle" | "ellipse" | "line" | "arrow" | "image" | "pen";
+export type TCustomPlaylistAnnotationTool =
+  | "text"
+  | "rectangle"
+  | "ellipse"
+  | "line"
+  | "arrow"
+  | "image"
+  | "audio"
+  | "pen";
 
 export type TCustomPlaylistAnnotationPoint = {
   x: number;
@@ -223,11 +231,23 @@ export type TCustomPlaylistAnnotationStyle = {
 };
 
 export type TCustomPlaylistAnnotation = {
+  audio?: {
+    sourceDuration: number;
+    trimStart: number;
+    trimEnd: number;
+    volume: number;
+    ducking: number | null;
+    fadeIn: number;
+    fadeOut: number;
+    peaks?: number[];
+  };
   content?: string;
   createdAt?: string;
   endTime: number;
+  fileSize?: number;
   height?: number;
   id: string;
+  mimeType?: string;
   points?: TCustomPlaylistAnnotationPoint[];
   rotation?: number;
   startTime: number;

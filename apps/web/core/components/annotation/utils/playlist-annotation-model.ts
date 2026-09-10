@@ -12,6 +12,7 @@ import type {
   AnnotationResizeHandle,
 } from "../types/playlist-annotation-overlay.types";
 import { OPPOSITE_RESIZE_HANDLE, isBoxResizeHandle } from "./playlist-annotation-transform";
+import { normalizeNarrationAudio } from "./voice-narration";
 
 const CANVAS_SIZE = 1000;
 const MIN_POINT_DISTANCE = 3;
@@ -30,6 +31,7 @@ const VALID_ANNOTATION_TYPES = new Set<TCustomPlaylistAnnotationTool>([
   "line",
   "arrow",
   "image",
+  "audio",
   "pen",
 ]);
 
@@ -159,6 +161,7 @@ const isAnnotationValid = (annotation: TCustomPlaylistAnnotation) => {
 
   if (annotation.type === "text") return Boolean(annotation.content?.trim());
   if (annotation.type === "image") return Boolean(annotation.content?.trim()) && (annotation.width ?? 0) > 0;
+  if (annotation.type === "audio") return Boolean(annotation.content?.trim());
 
   const width = annotation.width ?? 0;
   const height = annotation.height ?? 0;
@@ -205,11 +208,14 @@ export const normalizePlaylistAnnotations = (value: unknown): TCustomPlaylistAnn
           : (pointBounds?.height ?? (legacyStart && legacyEnd ? legacyEnd.y - legacyStart.y : 0));
 
       const normalizedAnnotation = normalizeAnnotationBox({
+        ...(type === "audio" ? { audio: normalizeNarrationAudio(record.audio, endTime - startTime) } : {}),
         content: typeof record.content === "string" ? record.content : undefined,
         createdAt: typeof record.createdAt === "string" ? record.createdAt : undefined,
         endTime,
+        fileSize: normalizeNumber(record.fileSize) ?? undefined,
         height,
         id: typeof record.id === "string" && record.id.trim() ? record.id : createPlaylistAnnotationId(),
+        mimeType: typeof record.mimeType === "string" ? record.mimeType : undefined,
         points: points.slice(0, MAX_POINT_COUNT),
         rotation: normalizeRotation(record.rotation),
         startTime,

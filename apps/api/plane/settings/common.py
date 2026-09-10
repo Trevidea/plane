@@ -368,6 +368,12 @@ LIVE_URL = urljoin(LIVE_BASE_URL, LIVE_BASE_PATH) if LIVE_BASE_URL else None
 
 # WEB URL
 WEB_URL = os.environ.get("WEB_URL")
+DYNAMIC_APP_BASE_URL_FROM_REQUEST = os.environ.get("DYNAMIC_APP_BASE_URL_FROM_REQUEST", "0").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 
 HARD_DELETE_AFTER_DAYS = int(os.environ.get("HARD_DELETE_AFTER_DAYS", 60))
 

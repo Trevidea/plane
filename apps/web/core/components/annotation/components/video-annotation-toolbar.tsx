@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PaintBucket, Save, Trash2, Undo2 } from "lucide-react";
+import { Mic, PaintBucket, Save, Trash2, Undo2 } from "lucide-react";
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import type { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
 import {
@@ -25,11 +25,14 @@ type VideoAnnotationToolbarProps = {
   hasAnnotationChanges: boolean;
   isAnnotationMode: boolean;
   isSavingAnnotations: boolean;
+  isVoiceNarrationRecording: boolean;
+  isVoiceNarrationSupported: boolean;
   onClearVisibleAnnotations: () => void;
   onDurationChange: (durationSeconds: number) => void;
   onSaveAnnotations: () => void;
   onSelectAnnotationTool: (tool: TCustomPlaylistAnnotationTool) => void;
   onShapeBackgroundToggle: (enabled: boolean) => void;
+  onStartVoiceNarration: () => void;
   onStrokeStyleChange: (strokeStyle: TCustomPlaylistAnnotationStrokeStyle) => void;
   onStrokeWidthChange: (strokeWidth: number) => void;
   onUndoVisibleAnnotation: () => void;
@@ -48,11 +51,14 @@ export const VideoAnnotationToolbar = ({
   hasAnnotationChanges,
   isAnnotationMode,
   isSavingAnnotations,
+  isVoiceNarrationRecording,
+  isVoiceNarrationSupported,
   onClearVisibleAnnotations,
   onDurationChange,
   onSaveAnnotations,
   onSelectAnnotationTool,
   onShapeBackgroundToggle,
+  onStartVoiceNarration,
   onStrokeStyleChange,
   onStrokeWidthChange,
   onUndoVisibleAnnotation,
@@ -62,7 +68,10 @@ export const VideoAnnotationToolbar = ({
   const shouldShowShapeBackgroundControl = annotationTool === "rectangle" || annotationTool === "ellipse";
 
   return (
-    <div className="flex flex-col items-center gap-1 rounded-[7px] border border-custom-border-200 bg-custom-background-100 p-1 shadow-sm">
+    <fieldset
+      disabled={isVoiceNarrationRecording}
+      className="flex flex-col items-center gap-1 rounded-[7px] border border-custom-border-200 bg-custom-background-100 p-1 shadow-sm"
+    >
       {isAnnotationMode ? (
         <>
           {availableAnnotationTools.map((toolOption) => {
@@ -185,6 +194,30 @@ export const VideoAnnotationToolbar = ({
           <span className="my-0.5 h-px w-6 bg-custom-border-200" />
           <button
             type="button"
+            onClick={onStartVoiceNarration}
+            className={[
+              annotationButtonClass,
+              annotationTool === "audio"
+                ? "border-custom-primary-100 bg-custom-primary-100/15 text-custom-primary-100"
+                : "",
+            ].join(" ")}
+            disabled={isSavingAnnotations}
+            aria-label="Voice narration (Shift + R)"
+            aria-pressed={annotationTool === "audio"}
+            title={
+              isVoiceNarrationRecording
+                ? "Stop narration"
+                : isVoiceNarrationSupported
+                  ? "Voice narration (Shift + R)"
+                  : "Voice narration requires HTTPS or localhost and microphone access"
+            }
+          >
+            <Mic className="h-4 w-4" />
+          </button>
+
+          <span className="my-0.5 h-px w-6 bg-custom-border-200" />
+          <button
+            type="button"
             onClick={onUndoVisibleAnnotation}
             className={annotationButtonClass}
             disabled={!hasActiveAnnotations || isSavingAnnotations}
@@ -210,7 +243,7 @@ export const VideoAnnotationToolbar = ({
               annotationButtonClass,
               hasAnnotationChanges ? "border-green-500/45 bg-green-500/10 text-green-600" : "",
             ].join(" ")}
-            disabled={!hasAnnotationChanges || isSavingAnnotations}
+            disabled={!hasAnnotationChanges || isSavingAnnotations || isVoiceNarrationRecording}
             aria-label="Save annotations"
             title="Save"
           >
@@ -218,6 +251,6 @@ export const VideoAnnotationToolbar = ({
           </button>
         </>
       ) : null}
-    </div>
+    </fieldset>
   );
 };

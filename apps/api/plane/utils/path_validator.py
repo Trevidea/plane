@@ -5,6 +5,8 @@ from django.conf import settings
 # Python imports
 from urllib.parse import urlparse
 
+from plane.utils.request_origin import dynamic_app_base_url_enabled, trusted_request_origin_hosts
+
 
 def _contains_suspicious_patterns(path: str) -> bool:
     """
@@ -59,6 +61,8 @@ def get_allowed_hosts() -> list[str]:
         # Get only the host
         host = urlparse(settings.SPACE_BASE_URL).netloc
         allowed_hosts.append(host)
+    if dynamic_app_base_url_enabled():
+        allowed_hosts.extend(trusted_request_origin_hosts())
     return allowed_hosts
 
 

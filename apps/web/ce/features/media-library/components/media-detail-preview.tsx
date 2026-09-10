@@ -29,6 +29,7 @@ type TMediaDetailPreviewProps = {
   isVideoAnnotationMode?: boolean;
   isVideoAnnotationWorkspaceOpen?: boolean;
   hasUnsavedVideoAnnotationChanges?: boolean;
+  isNarrationRecordingLocked?: boolean;
   onOverlayToggle: () => void;
   onOverlaySeek: (delta: number) => void;
   onOpenVideoAnnotationWorkspace?: () => void;
@@ -87,6 +88,7 @@ export const MediaDetailPreview = ({
   canAnnotateVideo = false,
   isVideoAnnotationWorkspaceOpen = false,
   hasUnsavedVideoAnnotationChanges = false,
+  isNarrationRecordingLocked = false,
   onOverlayToggle,
   onOverlaySeek,
   onOpenVideoAnnotationWorkspace,
@@ -230,9 +232,11 @@ export const MediaDetailPreview = ({
 
   const overlayContent = (
     <>
-      <PlayerOverlay isPlaying={isPlaying} onToggle={onOverlayToggle} onSeek={onOverlaySeek} />
+      {!isNarrationRecordingLocked ? (
+        <PlayerOverlay isPlaying={isPlaying} onToggle={onOverlayToggle} onSeek={onOverlaySeek} />
+      ) : null}
       <PlayerSettingsPanel
-        isOpen={isSettingsOpen}
+        isOpen={isSettingsOpen && !isNarrationRecordingLocked}
         onClose={onCloseSettings}
         qualityOptions={qualityOptions}
         playbackRates={playbackRates}
@@ -262,6 +266,13 @@ export const MediaDetailPreview = ({
   const playerLayerContent = (
     <>
       {overlayContent}
+      {isNarrationRecordingLocked ? (
+        <div
+          className="absolute inset-0 z-20"
+          aria-label="Player controls locked during narration"
+          onClick={(event) => event.stopPropagation()}
+        />
+      ) : null}
       {videoAnnotationContent}
       {annotationWorkspaceToggleContent}
     </>
@@ -407,7 +418,7 @@ export const MediaDetailPreview = ({
                   type="button"
                   onClick={handleRequestDiscardVideoAnnotationWorkspace}
                   className={VIDEO_ANNOTATION_HEADER_BACK_ACTION_CLASS}
-                  disabled={isCompletingVideoAnnotation}
+                  disabled={isCompletingVideoAnnotation || isNarrationRecordingLocked}
                   aria-label={
                     hasUnsavedVideoAnnotationChanges ? "Back without saving annotations" : "Back from annotation editor"
                   }
@@ -420,6 +431,7 @@ export const MediaDetailPreview = ({
                   type="button"
                   onClick={handleRequestCloseVideoAnnotationWorkspace}
                   className={VIDEO_ANNOTATION_HEADER_ACTION_CLASS}
+                  disabled={isNarrationRecordingLocked}
                   aria-label="Close annotation editor"
                   title="Close annotation editor"
                 >
@@ -428,7 +440,7 @@ export const MediaDetailPreview = ({
                 </button>
               </div>
             ) : null}
-            <div className="flex w-full max-w-full items-start gap-2">
+            <div className="flex w-full max-w-full flex-wrap items-start gap-2">
               {showVideoTimeline ? (
                 <div
                   ref={handleVideoAnnotationToolbarElement}
@@ -465,8 +477,8 @@ export const MediaDetailPreview = ({
               {showVideoTimeline ? (
                 <div
                   ref={handleVideoAnnotationPropertiesElement}
-                  className="flex w-[154px] shrink-0 overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90 p-2"
-                  style={videoPreviewHeightStyle}
+                  className="flex max-h-[520px] w-full shrink-0 overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90 p-2 lg:w-[250px] xl:w-[280px]"
+                  style={{ maxHeight: videoPreviewHeight }}
                   aria-label="Annotation properties"
                 />
               ) : null}
