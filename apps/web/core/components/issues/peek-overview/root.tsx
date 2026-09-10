@@ -61,6 +61,13 @@ export const IssuePeekOverview: FC<IWorkItemPeekOverview> = observer((props) => 
     if (embedIssue) embedRemoveCurrentNotification?.();
   }, [embedIssue, embedRemoveCurrentNotification, setPeekIssue]);
 
+  useEffect(
+    () => () => {
+      setPeekIssue(undefined);
+    },
+    [pathname, setPeekIssue]
+  );
+
   const issueOperations: TIssueOperations = useMemo(
     () => ({
       fetch: async (workspaceSlug: string, projectId: string, issueId: string) => {
