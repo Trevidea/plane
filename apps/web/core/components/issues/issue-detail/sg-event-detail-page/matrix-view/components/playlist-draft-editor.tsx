@@ -35,6 +35,7 @@ export const PlaylistDraftEditor = ({
 
   const addClips = (rowIds: string[]) => {
     if (isSaving || isSubmittingRef.current) return;
+    const duplicateCount = [...new Set(rowIds)].filter((id) => draft.rowIds.includes(id)).length;
     const addedRows = getPlaylistDraftRows(availableRows, rowIds);
     if (addedRows.length === 0) {
       setError("These clips do not have playable timestamps.");
@@ -42,7 +43,16 @@ export const PlaylistDraftEditor = ({
     }
     const nextRows = getPlaylistDraftRows(availableRows, [...draft.rowIds, ...addedRows.map((row) => row.id)]);
     onChange({ ...draft, rowIds: nextRows.map((row) => row.id) });
-    setError(addedRows.length < new Set(rowIds).size ? "Clips without playable timestamps were skipped." : "");
+    const messages: string[] = [];
+    if (duplicateCount > 0) {
+      messages.push(
+        duplicateCount === 1
+          ? "This clip is already selected in this playlist."
+          : `${duplicateCount} clips are already selected in this playlist.`
+      );
+    }
+    if (addedRows.length < new Set(rowIds).size) messages.push("Clips without playable timestamps were skipped.");
+    setError(messages.join(" "));
   };
 
   return (
@@ -126,7 +136,10 @@ export const PlaylistDraftEditor = ({
                 type="button"
                 aria-label={`Remove clip ${index + 1} from new playlist`}
                 disabled={isSaving}
-                onClick={() => onChange({ ...draft, rowIds: draft.rowIds.filter((id) => id !== row.id) })}
+                onClick={() => {
+                  onChange({ ...draft, rowIds: draft.rowIds.filter((id) => id !== row.id) });
+                  setError("");
+                }}
                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--sg-matrix-text-muted)] hover:bg-[var(--sg-matrix-hover)] disabled:opacity-40"
               >
                 <X className="h-3 w-3" />

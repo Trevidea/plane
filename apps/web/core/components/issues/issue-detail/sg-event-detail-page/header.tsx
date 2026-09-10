@@ -115,11 +115,15 @@ export const SgEventTitleBar = ({
       </Pill>
     </div>
     <Pill
-      variant={eventStatus.toLowerCase().includes("complete") ? EPillVariant.SUCCESS : EPillVariant.PRIMARY}
+      variant={eventStatus.toLowerCase().includes("cancel") ? EPillVariant.ERROR : EPillVariant.SUCCESS}
       size={EPillSize.SM}
-      className={cn("w-fit border border-[#178c4d] bg-[#062f1d] px-3 py-1 text-[#22c55e]", {
-        "border-red-700 bg-red-950/40 text-red-500": eventStatus.toLowerCase().includes("cancel"),
-      })}
+      className={cn(
+        "w-fit border border-[var(--sg-matrix-status-success-border)] bg-[var(--sg-matrix-status-success-bg)] px-3 py-1 text-[var(--sg-matrix-status-success-text)]",
+        {
+          "border-[var(--sg-matrix-status-cancelled-border)] bg-[var(--sg-matrix-status-cancelled-bg)] text-[var(--sg-matrix-status-cancelled-text)]":
+            eventStatus.toLowerCase().includes("cancel"),
+        }
+      )}
     >
       Status: {formatLooseLabel(eventStatus)}
     </Pill>

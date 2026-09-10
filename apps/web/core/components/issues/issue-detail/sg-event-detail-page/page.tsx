@@ -24,6 +24,7 @@ import { MediaLibraryService, MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY } from "@/service
 import { RosterService } from "@/services/roster.service";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
 import { getEventMediaDetails } from "ce/features/media-library/utils/media-event";
+import { CreateCardModal } from "./create-card-modal";
 import { buildEventPayloadDevices, fetchSgEventDevices, loadSgMediaPayload } from "./data";
 import { SgEventDetailsCard } from "./details-card";
 import { SgEventHeader, SgEventTitleBar } from "./header";
@@ -336,7 +337,12 @@ export const SgEventDetailPage = ({
     () => loadSgMediaPayload(workspaceSlug, projectId, resolvedWorkItemId, mediaItem, mediaLibraryService),
     { revalidateOnFocus: false }
   );
-  const { data: rosterPlayers } = useSWR(
+  const {
+    data: rosterPlayers,
+    isLoading: isRosterLoading,
+    error: rosterError,
+    mutate: mutateRoster,
+  } = useSWR(
     workspaceSlug && projectId ? `PROJECT_ROSTER_${workspaceSlug}_${projectId}` : null,
     () => rosterService.getRoster(workspaceSlug, projectId),
     { revalidateOnFocus: false }
@@ -462,7 +468,6 @@ export const SgEventDetailPage = ({
     effectiveGroupValue,
     favoriteTagIds,
     filteredRows,
-    handleCreateMatrixCard,
     handleRemoveTag,
     handleSelectAll,
     handleToggleFavorite,
@@ -547,6 +552,39 @@ export const SgEventDetailPage = ({
 
     router.push(fallbackBackHref || `/${workspaceSlug}/projects/${projectId}/issues`);
   };
+
+  const [createCardContext, setCreateCardContext] = useState<{
+    playlists: TCustomPlaylist[];
+    rows: SgTagRow[];
+  } | null>(null);
+
+  const handleCreatePlaylistCard = useCallback(
+    (playlists: TCustomPlaylist[]) => {
+      if (playlists.length > 0) setCreateCardContext({ playlists, rows: tagTypeRows });
+    },
+    [tagTypeRows]
+  );
+
+  const handleCreateMatrixCard = useCallback(
+    (rows: SgTagRow[]) => {
+      if (rows.length === 0) return;
+      setCreateCardContext({
+        rows,
+        playlists: [
+          {
+            id: "selected-clips",
+            event_id: resolvedCustomPlaylistEventId ?? "",
+            name: "Selected clips",
+            url: "",
+            thumbnail: null,
+            clip: rows.length,
+            clips: buildCustomPlaylistClips(rows),
+          },
+        ],
+      });
+    },
+    [resolvedCustomPlaylistEventId]
+  );
 
   const handleCreateCustomPlaylist = useCallback(
     async (rows: SgTagRow[], name?: string) => {
@@ -1083,7 +1121,7 @@ export const SgEventDetailPage = ({
                   onDraftChange={setPlaylistDraft}
                   customPlaylists={customPlaylists}
                   isCreatingPlaylist={isCreatingCustomPlaylist}
-                  onCreateCard={() => handleCreateMatrixCard(activePlaylistRows)}
+                  onCreateCard={handleCreatePlaylistCard}
                   onCreatePlaylist={handleCreateCustomPlaylist}
                   onDeletePlaylist={handleDeleteCustomPlaylist}
                   onPlayPlaylist={handlePlayCustomPlaylist}
@@ -1156,7 +1194,7 @@ export const SgEventDetailPage = ({
                       onDraftChange={setPlaylistDraft}
                       customPlaylists={customPlaylists}
                       isCreatingPlaylist={isCreatingCustomPlaylist}
-                      onCreateCard={() => handleCreateMatrixCard(activePlaylistRows)}
+                      onCreateCard={handleCreatePlaylistCard}
                       onCreatePlaylist={handleCreateCustomPlaylist}
                       onDeletePlaylist={handleDeleteCustomPlaylist}
                       onPlayPlaylist={handlePlayCustomPlaylist}
@@ -1253,6 +1291,18 @@ export const SgEventDetailPage = ({
           )}
         </div>
       </div>
+      {createCardContext && (
+        <CreateCardModal
+          playlists={createCardContext.playlists}
+          rows={createCardContext.rows}
+          rosterPlayers={rosterPlayers ?? []}
+          isRosterLoading={isRosterLoading}
+          hasRosterError={Boolean(rosterError)}
+          onRetryRoster={() => void mutateRoster().catch(() => undefined)}
+          onClose={() => setCreateCardContext(null)}
+          sportLabel={resolvedSport}
+        />
+      )}
     </div>
   );
 };
