@@ -31,6 +31,23 @@ export type RecorderSnapshot = {
   error?: string;
   take?: NarrationTake;
   warning?: string;
+  stopReason?: "manual" | "video-ended";
+};
+export const narrationRecordingLabel = (state: RecorderSnapshot) => {
+  switch (state.stage) {
+    case "countdown":
+      return `Get ready... ${state.countdown}`;
+    case "starting":
+      return "Starting narration...";
+    case "recording":
+      return "Recording narration";
+    case "paused":
+      return "Narration paused";
+    case "processing":
+      return "Preparing narration...";
+    default:
+      return "Voice narration";
+  }
 };
 export const isNarrationLocked = (stage: NarrationStage) =>
   ["countdown", "starting", "recording", "paused", "processing"].includes(stage);
@@ -218,7 +235,7 @@ export class VoiceRecorder {
         if (generation !== this.generation) return;
         this.freezeClock();
         options.pause();
-        this.publish({ stage: "processing" });
+        this.publish({ stage: "processing", stopReason: this.snapshot.stopReason });
         void this.process(chunks, recorder.mimeType, startTime, generation);
       });
       this.segmentStart = this.context.currentTime;
@@ -251,15 +268,18 @@ export class VoiceRecorder {
       if (generation === this.generation) this.fail("The video could not resume. Try recording again.");
     }
   };
-  stop = () => {
+  stop = () => this.finish("manual");
+  stopAtVideoEnd = () => this.finish("video-ended");
+  private finish(stopReason: "manual" | "video-ended") {
     if (!["recording", "paused"].includes(this.snapshot.stage) || !this.recorder || this.recorder.state === "inactive")
       return;
     this.freezeClock();
-    this.publish({ stage: "processing" });
+    this.publish({ stage: "processing", stopReason });
     this.options?.pause();
     this.recorder.stop();
-  };
+  }
   private async process(chunks: Blob[], mimeType: string, startTime: number, generation: number) {
+    const stopReason = this.snapshot.stopReason;
     this.stopInput();
     try {
       const blob = new Blob(chunks, { type: mimeType || chunks[0]?.type });
@@ -292,6 +312,7 @@ export class VoiceRecorder {
         stage: "review",
         take: { content, mimeType: blob.type, fileSize: blob.size, sourceDuration, startTime, peaks },
         warning,
+        stopReason,
       });
     } catch (error) {
       if (generation === this.generation) this.fail(narrationMicrophoneError(error));

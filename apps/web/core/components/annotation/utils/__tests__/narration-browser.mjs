@@ -119,19 +119,32 @@ try {
   assert.equal(await page.getByText("Recording narration", { exact: true }).count(), 0);
   await page.screenshot({ path: `${screenshots}/01-prepare-desktop.png`, fullPage: true });
   await page.getByRole("button", { name: "Start recording", exact: true }).click();
-  await page.getByText("Get ready... 3", { exact: true }).waitFor();
+  await page.getByText("Get ready... 3", { exact: true }).first().waitFor();
   assert.equal(await page.evaluate(() => document.querySelector("video").paused), true);
   assert.ok(Math.abs((await page.evaluate(() => document.querySelector("video").currentTime)) - 4) < 0.1);
-  await page.getByText("Recording narration", { exact: true }).waitFor();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
+  // Routine player events must not pause capture or resurrect the Start button.
+  await page.evaluate(() => {
+    const video = document.querySelector("video");
+    for (const type of ["waiting", "stalled", "pause", "ratechange", "error", "ended"])
+      video.dispatchEvent(new Event(type));
+  });
+  await page.getByLabel("Logical timeline at end", { exact: true }).check();
   await page.waitForTimeout(2000);
+  assert.equal(await page.getByText("Recording narration", { exact: true }).count(), 2);
+  assert.equal(await page.getByRole("button", { name: "Start recording", exact: true }).count(), 0);
+  assert.notEqual(await page.getByRole("timer").innerText(), "00:00");
+  assert.equal(await page.evaluate(() => document.querySelector("video").paused), false);
+  await page.getByLabel("Logical timeline at end", { exact: true }).uncheck();
   await page.screenshot({ path: `${screenshots}/02-recording-desktop.png`, fullPage: true });
   await page.getByRole("button", { name: "Pause", exact: true }).click();
-  await page.getByText("Narration paused", { exact: true }).waitFor();
+  await page.getByText("Narration paused", { exact: true }).first().waitFor();
+  assert.equal(await page.getByText("Narration paused", { exact: true }).count(), 2);
   const pausedTime = await page.evaluate(() => document.querySelector("video").currentTime);
   await page.waitForTimeout(400);
   assert.equal(await page.evaluate(() => document.querySelector("video").currentTime), pausedTime);
   await page.getByRole("button", { name: "Resume", exact: true }).click();
-  await page.getByText("Recording narration", { exact: true }).waitFor();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
   await page.waitForTimeout(1800);
   await page.getByRole("button", { name: "Stop voice narration recording" }).click();
   await page.getByRole("button", { name: "Done", exact: true }).waitFor();
@@ -223,7 +236,7 @@ try {
   await page.getByRole("button", { name: "New narration", exact: true }).click();
   await page.getByRole("checkbox", { name: "3-second countdown", exact: true }).uncheck();
   await page.getByRole("button", { name: "Start recording", exact: true }).click();
-  await page.getByText("Recording narration", { exact: true }).waitFor();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
   const stopBounds = await page.getByRole("button", { name: "Stop voice narration recording" }).boundingBox();
   assert.ok(stopBounds.y >= 0 && stopBounds.y + stopBounds.height <= 844);
   await page.screenshot({ path: `${screenshots}/06-recording-mobile.png`, fullPage: true });
@@ -249,12 +262,12 @@ try {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "Check microphone", exact: true }).click();
   await page.getByRole("button", { name: "Start recording", exact: true }).click();
-  await page.getByText("Recording narration", { exact: true }).waitFor();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
   await page.evaluate(() => document.activeElement.blur());
   await page.keyboard.press("Space");
-  await page.getByText("Narration paused", { exact: true }).waitFor();
+  await page.getByText("Narration paused", { exact: true }).first().waitFor();
   await page.keyboard.press("Space");
-  await page.getByText("Recording narration", { exact: true }).waitFor();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
   await page.evaluate(() => {
     document.querySelector("video").currentTime = 25;
   });
@@ -269,6 +282,7 @@ try {
   await page.getByRole("button", { name: "Check microphone", exact: true }).click();
   await page.getByRole("button", { name: "Start recording", exact: true }).click();
   await page.getByRole("button", { name: "Done", exact: true }).waitFor();
+  await page.getByText("Recording stopped because the video ended.", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: "Save editor", exact: true }).click();
   await page.waitForFunction(
@@ -285,7 +299,7 @@ try {
   assert.ok(Number(/duration ([\d.]+)/.exec(lastClipLabel)[1]) <= 2.01);
   await page.getByRole("button", { name: "Replace", exact: true }).click();
   await page.getByRole("button", { name: "Start recording", exact: true }).click();
-  await page.getByText("Recording narration", { exact: true }).waitFor();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
   await page.evaluate(() => window.narrationTestStreams.at(-1).getAudioTracks()[0].dispatchEvent(new Event("ended")));
   await page.getByRole("alert").filter({ hasText: "microphone disconnected" }).waitFor();
   assert.equal(
@@ -316,6 +330,39 @@ try {
   await page.getByRole("button", { name: "Freehand draw", exact: true }).click();
   await page.waitForFunction(() =>
     window.narrationTestStreams.every((stream) => stream.getTracks().every((track) => track.readyState === "ended"))
+  );
+  // A take can pass 22 seconds; deleting it prepares the next take without Check microphone.
+  await page.evaluate(() => {
+    document.querySelector("video").currentTime = 0;
+  });
+  await page.waitForFunction(() => !document.querySelector("video").seeking);
+  await page.getByRole("button", { name: "Voice narration (Shift + R)", exact: true }).click();
+  await page.getByRole("button", { name: "Start recording", exact: true }).click();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
+  await page.waitForTimeout(25000);
+  assert.equal(await page.getByText("Recording narration", { exact: true }).count(), 2);
+  await page.getByRole("button", { name: "Stop voice narration recording" }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("button", { name: "Delete narration", exact: true }).click();
+  await page.getByRole("button", { name: "Start recording", exact: true }).click();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
+  await page.getByRole("button", { name: "Cancel recording", exact: true }).click();
+  // Ignoring transient player events must not mask a genuine media failure.
+  await page.getByRole("button", { name: "Voice narration (Shift + R)", exact: true }).click();
+  await page.getByRole("button", { name: "Start recording", exact: true }).click();
+  await page.getByText("Recording narration", { exact: true }).first().waitFor();
+  await page.evaluate(() => {
+    const video = document.querySelector("video");
+    video.src = "/missing-video.mp4";
+    video.load();
+  });
+  await page.getByRole("alert").filter({ hasText: "Video playback failed" }).waitFor();
+  assert.equal(await page.getByText("Recording narration", { exact: true }).count(), 0);
+  assert.equal(
+    await page.evaluate(() =>
+      window.narrationTestStreams.every((stream) => stream.getTracks().every((track) => track.readyState === "ended"))
+    ),
+    true
   );
   assert.deepEqual(errors, []);
   console.log(

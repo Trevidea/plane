@@ -362,6 +362,7 @@ export const VideoAnnotationEditor = ({
     onError: handleVoiceNarrationError,
   });
   const { stop: stopNarrationPreview } = workflow.preview;
+  const { open: openNarration } = workflow;
   const { clearConflict: clearNarrationConflict } = workflow;
   preserveEditsRef.current = hasAnnotationChanges || narration.locked || workflow.needsReview || isSavingAnnotations;
   const narrationClips = useMemo(() => sortedAnnotations.filter((clip) => clip.type === "audio"), [sortedAnnotations]);
@@ -547,14 +548,22 @@ export const VideoAnnotationEditor = ({
 
   const handleDeleteAnnotation = useCallback(
     (annotationId: string) => {
-      if (narration.locked || isSavingAnnotations) return;
+      if (narration.locked || workflow.needsReview || isSavingAnnotations) return;
       stopNarrationPreview();
       setAnnotations((currentAnnotations) => currentAnnotations.filter((annotation) => annotation.id !== annotationId));
       setSelectedAnnotationId((currentAnnotationId) =>
         currentAnnotationId === annotationId ? null : currentAnnotationId
       );
+      if (selectedAnnotation?.id === annotationId && selectedAnnotation.type === "audio") openNarration();
     },
-    [isSavingAnnotations, narration.locked, stopNarrationPreview]
+    [
+      isSavingAnnotations,
+      narration.locked,
+      openNarration,
+      selectedAnnotation,
+      stopNarrationPreview,
+      workflow.needsReview,
+    ]
   );
 
   const handleCreateAnnotation = useCallback(

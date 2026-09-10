@@ -89,13 +89,16 @@ export const useVideoAnnotationVoiceNarration = (params: Params) => {
   useEffect(() => {
     const video = params.videoElement;
     if (!locked || !video) return;
-    const pause = () => {
-      if (recorder.getSnapshot().stage === "recording" && playVideo) recorder.pause();
+    // Player buffering and queued pause events are not user recorder commands.
+    // Only the narration controls/shortcut explicitly pause microphone capture.
+    const ended = () => {
+      if (video.ended) recorder.stopAtVideoEnd();
     };
-    const ended = () => recorder.stop();
+    const failed = () => {
+      if (video.error) recorder.fail("Video playback failed. Check the video and try recording again.");
+    };
     const rateChanged = () => {
       if (Math.abs(video.playbackRate - 1) > 0.001) {
-        recorder.pause();
         video.playbackRate = 1;
       }
     };
@@ -109,23 +112,23 @@ export const useVideoAnnotationVoiceNarration = (params: Params) => {
           "Recording was interrupted by a seek. Your previous narration is unchanged. Move the playhead and record again."
         );
     };
-    video.addEventListener("pause", pause);
-    video.addEventListener("waiting", pause);
     video.addEventListener("ended", ended);
+    video.addEventListener("error", failed);
     video.addEventListener("seeking", seeking);
     video.addEventListener("ratechange", rateChanged);
     return () => {
-      video.removeEventListener("pause", pause);
-      video.removeEventListener("waiting", pause);
       video.removeEventListener("ended", ended);
+      video.removeEventListener("error", failed);
       video.removeEventListener("seeking", seeking);
       video.removeEventListener("ratechange", rateChanged);
     };
   }, [locked, params.videoElement, playVideo, readTime, recorder]);
   useEffect(() => {
-    if (!locked || !params.durationSeconds) return;
-    if (params.currentTime >= params.durationSeconds - 0.05) recorder.stop();
-  }, [locked, params.currentTime, params.durationSeconds, recorder]);
+    // A custom playlist's logical clock can jump across source discontinuities.
+    // When available, the media element is authoritative about playback ending.
+    if (!locked || params.videoElement || !params.durationSeconds) return;
+    if (params.currentTime >= params.durationSeconds) recorder.stopAtVideoEnd();
+  }, [locked, params.currentTime, params.durationSeconds, params.videoElement, recorder]);
   return {
     recorder,
     state,

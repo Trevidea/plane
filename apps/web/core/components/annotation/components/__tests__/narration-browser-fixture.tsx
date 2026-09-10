@@ -18,6 +18,7 @@ function NarrationFixture() {
   const [saveFails, setSaveFails] = useState(false);
   const [saved, setSaved] = useState(initialAnnotations);
   const [session, setSession] = useState(0);
+  const [logicalEnd, setLogicalEnd] = useState(false);
   const save = useRef<(() => Promise<boolean>) | null>(null);
   const registerSave = useCallback((handler: (() => Promise<boolean>) | null) => {
     save.current = handler;
@@ -34,6 +35,10 @@ function NarrationFixture() {
           Fail save
         </label>
         <button onClick={() => setSaved((clips) => [...clips])}>Refresh annotations</button>
+        <label>
+          <input type="checkbox" checked={logicalEnd} onChange={(event) => setLogicalEnd(event.target.checked)} />
+          Logical timeline at end
+        </label>
         <button
           onClick={() => {
             setSaved([]);
@@ -63,7 +68,7 @@ function NarrationFixture() {
             annotationKey={`browser-test-${session}`}
             annotations={saved}
             canEdit
-            currentTime={currentTime}
+            currentTime={logicalEnd ? 30 : currentTime}
             durationSeconds={30}
             videoElement={video}
             getCurrentTime={() => video?.currentTime ?? 0}

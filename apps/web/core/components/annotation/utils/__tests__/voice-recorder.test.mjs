@@ -102,6 +102,20 @@ test("prepare never records; start/stop processes a take into review", async () 
   f.recorder.finishReview();
   assert.equal(f.recorder.getSnapshot().stage, "idle");
 });
+test("video-end stop reason survives processing and resets before the next take", async () => {
+  const f = setup();
+  await f.recorder.prepare();
+  await f.start();
+  f.context.currentTime = 2;
+  f.recorder.stopAtVideoEnd();
+  f.recorder.stop();
+  await flush();
+  assert.equal(f.recorder.getSnapshot().stage, "review");
+  assert.equal(f.recorder.getSnapshot().stopReason, "video-ended");
+  f.recorder.finishReview();
+  assert.equal(f.recorder.getSnapshot().stopReason, undefined);
+  f.recorder.dispose();
+});
 test("pause/resume excludes paused time and pauses the video", async () => {
   const f = setup();
   await f.recorder.prepare();

@@ -6,6 +6,7 @@ import { Checkbox, CustomSelect } from "@plane/ui";
 import type { VoiceNarrationControls } from "../hooks/use-video-annotation-voice-narration";
 import type { TCustomPlaylistAnnotation } from "../types/annotation.types";
 import { narrationAudio, narrationTime, trimNarration, moveNarration } from "../utils/voice-narration";
+import { narrationRecordingLabel } from "../utils/voice-recorder";
 import { MicrophoneInputMeter } from "./microphone-input-meter";
 import { VoiceNarrationWaveform } from "./voice-narration-waveform";
 
@@ -103,6 +104,11 @@ export const VoiceNarrationPanel = ({
           {state.warning ? (
             <p role="status" className="text-custom-text-300">
               {state.warning}
+            </p>
+          ) : null}
+          {draft && state.stopReason === "video-ended" ? (
+            <p role="status" className="text-custom-text-300">
+              Recording stopped because the video ended.
             </p>
           ) : null}
           <label className="space-y-1.5">
@@ -355,14 +361,20 @@ export const VoiceNarrationPanel = ({
               <span>3-second countdown</span>
             </label>
           </fieldset>
-          <Button
-            size="sm"
-            disabled={state.stage !== "ready" || disabled}
-            onClick={controls.start}
-            prependIcon={<Mic />}
-          >
-            Start recording
-          </Button>
+          {locked ? (
+            <p role="status" className="font-medium text-custom-text-100">
+              {narrationRecordingLabel(state)}
+            </p>
+          ) : (
+            <Button
+              size="sm"
+              disabled={state.stage !== "ready" || disabled}
+              onClick={controls.start}
+              prependIcon={<Mic />}
+            >
+              Start recording
+            </Button>
+          )}
           <p className="text-custom-text-400">Up to 30 minutes per take</p>
           {controls.replacement && !locked ? (
             <Button

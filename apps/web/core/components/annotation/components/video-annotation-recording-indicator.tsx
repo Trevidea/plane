@@ -4,6 +4,7 @@ import { Pause, Play, Square, X, Loader2 } from "lucide-react";
 import { Button } from "@plane/propel/button";
 import { narrationTime } from "../utils/voice-narration";
 import type { VoiceRecorder, RecorderSnapshot } from "../utils/voice-recorder";
+import { narrationRecordingLabel } from "../utils/voice-recorder";
 import { MicrophoneInputMeter } from "./microphone-input-meter";
 
 export const VideoAnnotationRecordingIndicator = ({
@@ -38,15 +39,7 @@ export const VideoAnnotationRecordingIndicator = ({
           ) : state.stage === "processing" || state.stage === "starting" ? (
             <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
           ) : null}
-          {state.stage === "countdown"
-            ? `Get ready... ${state.countdown}`
-            : state.stage === "processing"
-              ? "Preparing narration..."
-              : state.stage === "starting"
-                ? "Starting narration..."
-                : state.stage === "paused"
-                  ? "Narration paused"
-                  : "Recording narration"}
+          {narrationRecordingLabel(state)}
         </span>
         {active ? (
           <>
