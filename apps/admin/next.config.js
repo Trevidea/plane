@@ -23,6 +23,21 @@ const nextConfig = {
       "@plane/utils",
     ],
   },
+  async rewrites() {
+    const apiProxyUrl = process.env.NEXT_INTERNAL_API_BASE_URL || "";
+    if (!apiProxyUrl) return [];
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiProxyUrl}/api/:path*/`,
+      },
+      {
+        source: "/auth/:path*",
+        destination: `${apiProxyUrl}/auth/:path*/`,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

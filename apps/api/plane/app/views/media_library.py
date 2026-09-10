@@ -93,6 +93,17 @@ _ANNOTATION_IMAGE_FORMATS_BY_CONTENT_TYPE = {
     "image/tiff": "tiff",
     "image/webp": "webp",
 }
+_ANNOTATION_AUDIO_FORMATS_BY_CONTENT_TYPE = {
+    "audio/aac": "aac",
+    "audio/flac": "flac",
+    "audio/mp4": "m4a",
+    "audio/mpeg": "mp3",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/webm": "webm",
+    "audio/x-wav": "wav",
+}
+_MAX_ANNOTATION_AUDIO_BYTES = 100 * 1024 * 1024
 _MP4_FASTSTART_FORMATS = {".mp4", ".m4v"}
 _TRANSCODE_SOURCE_FORMATS = {"mp4", "mov"}
 _TRANSCODE_TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED"}
@@ -105,6 +116,10 @@ logger = logging.getLogger(__name__)
 
 
 class MediaAnnotationImageError(ValueError):
+    pass
+
+
+class MediaAnnotationAudioError(ValueError):
     pass
 
 
@@ -504,6 +519,35 @@ def _decode_annotation_image_data_url(value: object) -> tuple[str, str, bytes] |
     return content_type, image_format, image_bytes
 
 
+def _decode_annotation_audio_data_url(value: object) -> tuple[str, str, bytes] | None:
+    if not isinstance(value, str) or not value.strip().lower().startswith("data:audio/"):
+        return None
+
+    raw_value = value.strip()
+    header, separator, encoded_payload = raw_value.partition(",")
+    if not separator or ";base64" not in header.lower():
+        raise MediaAnnotationAudioError("Voice narration content must be a base64 audio data URL.")
+
+    content_type = header[5:].split(";", 1)[0].strip().lower()
+    audio_format = _ANNOTATION_AUDIO_FORMATS_BY_CONTENT_TYPE.get(content_type)
+    if not audio_format:
+        raise MediaAnnotationAudioError("Unsupported voice narration audio content type.")
+    if len(encoded_payload) > ((_MAX_ANNOTATION_AUDIO_BYTES + 2) // 3) * 4 + 4:
+        raise MediaAnnotationAudioError("Voice narration exceeds the 100 MB size limit.")
+
+    try:
+        audio_bytes = base64.b64decode(encoded_payload, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise MediaAnnotationAudioError("Voice narration content must be valid base64.") from exc
+
+    if not audio_bytes:
+        raise MediaAnnotationAudioError("Voice narration content is empty.")
+    if len(audio_bytes) > _MAX_ANNOTATION_AUDIO_BYTES:
+        raise MediaAnnotationAudioError("Voice narration exceeds the 100 MB size limit.")
+
+    return content_type, audio_format, audio_bytes
+
+
 def _sanitize_annotation_image_segment(value: object) -> str:
     normalized = re.sub(r"[^A-Za-z0-9_-]+", "-", str(value or "")).strip("-_")
     return normalized[:72]
@@ -586,6 +630,84 @@ def _externalize_annotation_image_content(
             image_bytes,
         )
         next_item["content"] = image_url
+        created_count += 1
+        return next_item
+
+    return walk(value), created_count
+
+
+def _write_annotation_audio_blob(
+    project_id: str,
+    package_id: str,
+    source_artifact_id: str | None,
+    annotation: dict,
+    audio_format: str,
+    audio_bytes: bytes,
+) -> str:
+    output_root = _transcode_output_root()
+    annotation_id = _sanitize_annotation_image_segment(annotation.get("id")) or uuid4().hex[:12]
+    audio_digest = sha1(audio_bytes).hexdigest()
+    asset_seed = f"{project_id}:{package_id}:{source_artifact_id or ''}:{annotation_id}:{audio_digest}"
+    asset_id = f"media-annotation-audio-{sha1(asset_seed.encode('utf-8')).hexdigest()}"
+    file_name = f"{annotation_id}-{audio_digest[:12]}.{audio_format}"
+    file_path = (output_root / asset_id / file_name).resolve(strict=False)
+
+    try:
+        if os.path.commonpath([str(output_root), str(file_path)]) != str(output_root):
+            raise MediaAnnotationAudioError("Voice narration output path is invalid.")
+    except ValueError as exc:
+        raise MediaAnnotationAudioError("Voice narration output path is invalid.") from exc
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = file_path.with_name(f".{file_path.name}.{uuid4().hex}.tmp")
+    try:
+        temporary_path.write_bytes(audio_bytes)
+        os.replace(temporary_path, file_path)
+    finally:
+        try:
+            temporary_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    return _normalize_transcode_output_url(f"transcoded/{asset_id}/{file_name}")
+
+
+def _externalize_annotation_audio_content(
+    value,
+    project_id: str,
+    package_id: str,
+    source_artifact_id: str | None = None,
+) -> tuple[object, int]:
+    created_count = 0
+
+    def walk(item):
+        nonlocal created_count
+        if isinstance(item, list):
+            return [walk(child) for child in item]
+        if not isinstance(item, dict):
+            return item
+
+        next_item = {key: walk(child) for key, child in item.items()}
+        annotation_type = str(next_item.get("type") or "").strip().lower()
+        if annotation_type != "audio":
+            return next_item
+
+        decoded = _decode_annotation_audio_data_url(next_item.get("content"))
+        if not decoded:
+            return next_item
+
+        content_type, audio_format, audio_bytes = decoded
+        audio_url = _write_annotation_audio_blob(
+            project_id,
+            package_id,
+            source_artifact_id,
+            next_item,
+            audio_format,
+            audio_bytes,
+        )
+        next_item["content"] = audio_url
+        next_item["fileSize"] = len(audio_bytes)
+        next_item["mimeType"] = content_type
         created_count += 1
         return next_item
 
@@ -1442,7 +1564,13 @@ class MediaManifestDetailAPIView(BaseAPIView):
                         package_id,
                         source_artifact_id=artifact_id,
                     )
-                except MediaAnnotationImageError as exc:
+                    artifact_fields, _ = _externalize_annotation_audio_content(
+                        artifact_fields,
+                        project_id_str,
+                        package_id,
+                        source_artifact_id=artifact_id,
+                    )
+                except (MediaAnnotationImageError, MediaAnnotationAudioError) as exc:
                     return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             if meta is not None:
                 updated_count += update_manifest_event_meta(manifest, work_item_id, meta)
@@ -1734,7 +1862,13 @@ class MediaArtifactFileAPIView(BaseAPIView):
                         package_id,
                         source_artifact_id=artifact_id,
                     )
-                except MediaAnnotationImageError as exc:
+                    annotations, _ = _externalize_annotation_audio_content(
+                        annotations,
+                        project_id_str,
+                        package_id,
+                        source_artifact_id=artifact_id,
+                    )
+                except (MediaAnnotationImageError, MediaAnnotationAudioError) as exc:
                     return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
             annotations_updated_at = _now_iso()
