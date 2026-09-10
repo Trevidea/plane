@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Columns3, ListPlus, Plus, X } from "lucide-react";
 import { cn } from "@plane/utils";
@@ -30,6 +31,7 @@ type MatrixToolbarProps = {
   selectedPlayableRowCount: number;
   showFilters: boolean;
   visibleColumnIds: readonly string[];
+  viewToggle?: ReactNode;
 };
 
 export const MatrixToolbar = ({
@@ -54,6 +56,7 @@ export const MatrixToolbar = ({
   selectedPlayableRowCount,
   showFilters,
   visibleColumnIds,
+  viewToggle,
 }: MatrixToolbarProps) => {
   const [isColumnsPanelOpen, setIsColumnsPanelOpen] = useState(false);
   const visibleColumnIdSet = new Set(visibleColumnIds);
@@ -63,7 +66,8 @@ export const MatrixToolbar = ({
     <div className="flex min-h-11 flex-col justify-center rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel-secondary)] px-3 py-1.5">
       <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
         <AxisViewToggle disabled={disabled} isSwitched={isSwitched} onChange={onAxisChange} />
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {viewToggle}
           {selectedCellCount > 0 ? (
             <>
               <span aria-live="polite" className="whitespace-nowrap text-[11px] text-[var(--sg-matrix-text-muted)]">

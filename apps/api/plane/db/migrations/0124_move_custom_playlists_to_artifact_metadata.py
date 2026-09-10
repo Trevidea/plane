@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import tempfile
@@ -12,6 +13,7 @@ from django.utils import timezone
 CUSTOM_PLAYLISTS_METADATA_KEY = "custom_playlists"
 METADATA_REF_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 EVENT_ID_KEYS = ("sg_event_id", "sgEventId", "event_id", "eventId", "plane_event_id", "planeEventId")
+logger = logging.getLogger("plane.db.migrations")
 
 
 def _metadata_ref(artifact):
@@ -145,8 +147,7 @@ def move_custom_playlists_to_artifact_metadata(apps, schema_editor):
     database_alias = schema_editor.connection.alias
 
     # ``deleted_at`` is the soft-delete marker from the legacy model.  Do not
-    # resurrect playlists that users had already deleted when the table is
-    # removed.
+    # resurrect playlists that users had already deleted.
     playlists = list(
         CustomPlaylist.objects.using(database_alias)
         .filter(deleted_at__isnull=True)
@@ -179,10 +180,14 @@ def move_custom_playlists_to_artifact_metadata(apps, schema_editor):
     if unresolved_playlist_ids:
         unresolved = ", ".join(unresolved_playlist_ids)
         media_library_root = str(Path(settings.MEDIA_LIBRARY_ROOT))
-        raise RuntimeError(
-            "Could not map custom playlists to event artifact metadata. "
-            "Ensure the migrator can read the shared media-library volume and create or repair the "
-            f"matching artifacts before migrating (MEDIA_LIBRARY_ROOT={media_library_root}): {unresolved}"
+        logger.warning(
+            "Could not map %s custom playlists to event artifact metadata. "
+            "Their data is preserved in the legacy custom_playlists table for recovery. "
+            "Check the shared media-library volume and restore the matching event artifacts "
+            "to recover these playlists (MEDIA_LIBRARY_ROOT=%s): %s",
+            len(unresolved_playlist_ids),
+            media_library_root,
+            unresolved,
         )
 
     manifests_by_path = {path: manifest for path, manifest in manifests}
@@ -216,7 +221,12 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(move_custom_playlists_to_artifact_metadata, migrations.RunPython.noop),
-        migrations.DeleteModel(
-            name="CustomPlaylist",
+        # Event artifacts may never have been created, or may have been deleted.
+        # Retain the legacy rows (including ownership and soft-delete fields) so
+        # unmatched playlists remain recoverable after removing the model from
+        # the application. A later cleanup can drop the table after recovery.
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[migrations.DeleteModel(name="CustomPlaylist")],
         ),
     ]

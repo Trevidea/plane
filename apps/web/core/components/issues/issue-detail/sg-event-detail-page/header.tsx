@@ -1,10 +1,10 @@
-import { Aperture, ArrowLeft, ChevronDown, Grid3x3, List, SlidersHorizontal } from "lucide-react";
+import { Aperture, ArrowLeft, ChevronDown } from "lucide-react";
 import { EPillSize, EPillVariant, Pill } from "@plane/propel/pill";
 import { Tooltip } from "@plane/propel/tooltip";
 import { CustomSelect } from "@plane/ui";
 import { cn } from "@plane/utils";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
-import type { SgEventDevice, SgEventTagViewMode } from "./types";
+import type { SgEventDevice } from "./types";
 import { formatLooseLabel } from "./utils";
 
 type SgEventHeaderProps = {
@@ -13,39 +13,24 @@ type SgEventHeaderProps = {
   fullStreamPlaybackItem: TMediaItem | null;
   handleBack: () => void;
   handleSwitchToFullStream: () => void;
-  isMatrixViewEnabled?: boolean;
   isLoadingViews: boolean;
   isTagClipActive: boolean;
   selectedViewId: string;
   selectedViewLabel: string;
   setSelectedViewId: (value: string) => void;
-  setTagViewMode: (value: SgEventTagViewMode) => void;
-  tagViewMode: SgEventTagViewMode;
   viewDevices: SgEventDevice[];
 };
-
-const getViewModeButtonClass = (isActive: boolean, hasBorder = true) =>
-  cn(
-    "inline-flex h-8 w-8 items-center justify-center transition-colors",
-    hasBorder && "border-l border-[var(--sg-matrix-border)]",
-    isActive
-      ? "bg-[var(--sg-matrix-selected-nav)] text-[var(--sg-matrix-text)]"
-      : "text-[var(--sg-matrix-text-muted)] hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)]"
-  );
 
 export const SgEventHeader = ({
   eventTitle,
   fullStreamPlaybackItem,
   handleBack,
   handleSwitchToFullStream,
-  isMatrixViewEnabled = false,
   isLoadingViews,
   isTagClipActive,
   selectedViewId,
   selectedViewLabel,
   setSelectedViewId,
-  setTagViewMode,
-  tagViewMode,
   viewDevices,
 }: SgEventHeaderProps) => (
   <div className="flex min-h-11 flex-wrap items-center justify-between gap-3">
@@ -101,37 +86,6 @@ export const SgEventHeader = ({
             </button>
           </Tooltip>
         )}
-        <div className="inline-flex h-8 overflow-hidden rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel)]">
-          <Tooltip tooltipContent="List view" isMobile={false}>
-            <button
-              type="button"
-              onClick={() => setTagViewMode("list")}
-              className={getViewModeButtonClass(tagViewMode === "list", false)}
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </Tooltip>
-          <Tooltip tooltipContent="Timeline view" isMobile={false}>
-            <button
-              type="button"
-              onClick={() => setTagViewMode("timeline")}
-              className={getViewModeButtonClass(tagViewMode === "timeline")}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-            </button>
-          </Tooltip>
-          {isMatrixViewEnabled && (
-            <Tooltip tooltipContent="Matrix view" isMobile={false}>
-              <button
-                type="button"
-                onClick={() => setTagViewMode("matrix")}
-                className={getViewModeButtonClass(tagViewMode === "matrix")}
-              >
-                <Grid3x3 className="h-3.5 w-3.5" />
-              </button>
-            </Tooltip>
-          )}
-        </div>
       </div>
     </div>
   </div>
