@@ -18,7 +18,9 @@ export const useVideoAnnotationVoiceNarration = (params: Params) => {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [deviceId, setDeviceId] = useState("");
   const [playVideo, setPlayVideo] = useState(true);
-  const [countdown, setCountdown] = useState(true);
+  // Coaches usually position the playhead precisely, so narration begins on click.
+  // The optional countdown remains available for users who prefer a speaking cue.
+  const [countdown, setCountdown] = useState(false);
   const [ducking, setDucking] = useState<number | null>(0.35);
   const [supported, setSupported] = useState(false);
   const [replacement, setReplacement] = useState<{ id: string; startTime: number } | null>(null);

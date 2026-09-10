@@ -117,12 +117,13 @@ try {
       [...document.querySelectorAll("button")].some((b) => b.textContent === "Start recording" && !b.disabled)
   );
   assert.equal(await page.getByText("Recording narration", { exact: true }).count(), 0);
+  assert.equal(await page.getByRole("checkbox", { name: "3-second countdown", exact: true }).isChecked(), false);
   await page.screenshot({ path: `${screenshots}/01-prepare-desktop.png`, fullPage: true });
   await page.getByRole("button", { name: "Start recording", exact: true }).click();
-  await page.getByText("Get ready... 3", { exact: true }).first().waitFor();
-  assert.equal(await page.evaluate(() => document.querySelector("video").paused), true);
-  assert.ok(Math.abs((await page.evaluate(() => document.querySelector("video").currentTime)) - 4) < 0.1);
   await page.getByText("Recording narration", { exact: true }).first().waitFor();
+  assert.equal(await page.getByText("Get ready... 3", { exact: true }).count(), 0);
+  assert.equal(await page.evaluate(() => document.querySelector("video").paused), false);
+  assert.ok((await page.evaluate(() => document.querySelector("video").currentTime)) >= 4);
   // Routine player events must not pause capture or resurrect the Start button.
   await page.evaluate(() => {
     const video = document.querySelector("video");
@@ -234,7 +235,6 @@ try {
   await page.screenshot({ path: `${screenshots}/05-inspector-mobile.png`, fullPage: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.getByRole("button", { name: "New narration", exact: true }).click();
-  await page.getByRole("checkbox", { name: "3-second countdown", exact: true }).uncheck();
   await page.getByRole("button", { name: "Start recording", exact: true }).click();
   await page.getByText("Recording narration", { exact: true }).first().waitFor();
   const stopBounds = await page.getByRole("button", { name: "Stop voice narration recording" }).boundingBox();
