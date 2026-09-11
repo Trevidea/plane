@@ -112,7 +112,7 @@ export const BulkDeleteIssuesModal: React.FC<Props> = observer((props) => {
       .catch((error) =>
         setToast({
           type: TOAST_TYPE.ERROR,
-          title: "Error!",
+          title: error?.title ?? "Error!",
           message: error?.error ?? error?.detail ?? "Something went wrong. Please try again.",
         })
       );

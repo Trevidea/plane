@@ -16,14 +16,14 @@ from plane.bgtasks.service_gateway_webhook_task import (
 
 @pytest.mark.unit
 class TestServiceGatewayWebhookTask:
-    def test_expired_ssl_error_has_user_safe_message(self):
+    def test_expired_ssl_error_has_user_friendly_message(self):
         error = requests.exceptions.SSLError(
             "certificate verify failed: certificate has expired"
         )
 
         assert _sync_error_message(error) == (
-            "Service gateway sync failed because its SSL certificate has expired. "
-            "Please renew the certificate and try again."
+            "We couldn't reach the event service. Please try again in a few minutes. "
+            "If the problem continues, contact your administrator."
         )
 
     @override_settings(
@@ -49,7 +49,11 @@ class TestServiceGatewayWebhookTask:
 
         assert exc_info.value.status_code == 502
         assert str(exc_info.value.detail["code"]) == "service_gateway_sync_failed"
-        assert "SSL certificate has expired" in str(exc_info.value.detail["error"])
+        assert str(exc_info.value.detail["title"]) == "Event service unavailable"
+        assert str(exc_info.value.detail["error"]) == (
+            "We couldn't reach the event service. Please try again in a few minutes. "
+            "If the problem continues, contact your administrator."
+        )
 
     def test_trigger_event_send_uses_derived_send_url(self):
         session = MagicMock()

@@ -69,6 +69,13 @@ const getIssueOperationErrorMessage = (error: unknown): string | null => {
   return null;
 };
 
+const getIssueOperationErrorTitle = (error: unknown): string | null => {
+  if (!error || typeof error !== "object") return null;
+
+  const title = (error as { title?: unknown }).title;
+  return typeof title === "string" && title.trim() ? title : null;
+};
+
 export const IssueDetailRoot: FC<TIssueDetailRoot> = observer((props) => {
   const { t } = useTranslation();
   const { workspaceSlug, projectId, issueId, is_archived = false } = props;
@@ -117,7 +124,7 @@ export const IssueDetailRoot: FC<TIssueDetailRoot> = observer((props) => {
             error: error as Error,
           });
           setToast({
-            title: t("common.error.label"),
+            title: getIssueOperationErrorTitle(error) ?? t("common.error.label"),
             type: TOAST_TYPE.ERROR,
             message: getIssueOperationErrorMessage(error) ?? t("entity.update.failed", { entity: t("issue.label") }),
           });

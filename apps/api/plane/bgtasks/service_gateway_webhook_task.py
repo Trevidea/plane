@@ -28,34 +28,28 @@ class ServiceGatewaySyncError(APIException):
             detail={
                 "code": self.default_code,
                 "error": message,
+                "title": "Event service unavailable",
             }
         )
 
 
 def _sync_error_message(exc: Exception) -> str:
     if isinstance(exc, requests.exceptions.SSLError):
-        if "certificate has expired" in str(exc).lower():
-            return (
-                "Service gateway sync failed because its SSL certificate has expired. "
-                "Please renew the certificate and try again."
-            )
         return (
-            "Service gateway sync failed because its secure connection could not be verified. "
-            "Please check its SSL certificate and try again."
+            "We couldn't reach the event service. Please try again in a few minutes. "
+            "If the problem continues, contact your administrator."
         )
 
     if isinstance(exc, requests.exceptions.Timeout):
-        return "Service gateway sync timed out. Please try again."
+        return "The event service took too long to respond. Please try again."
 
     if isinstance(exc, requests.exceptions.ConnectionError):
-        return "Service gateway is unavailable. Please try again."
+        return "The event service is temporarily unavailable. Please try again in a few minutes."
 
     if isinstance(exc, requests.exceptions.HTTPError):
-        response = getattr(exc, "response", None)
-        if response is not None:
-            return f"Service gateway rejected the request (HTTP {response.status_code}). Please try again."
+        return "The event service couldn't complete your request. Please try again."
 
-    return "Service gateway sync failed. Please try again or contact an administrator."
+    return "We couldn't complete your request with the event service. Please try again."
 
 
 @dataclass(frozen=True)
