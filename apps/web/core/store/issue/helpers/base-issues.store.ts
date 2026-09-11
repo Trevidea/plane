@@ -42,6 +42,7 @@ import {
   getSubGroupIssueKeyActions,
 } from "./base-issues-utils";
 import type { IBaseIssueFilterStore } from "./issue-filter-helper.store";
+import { isIssueVisibleInLayout } from "./issue-layout-visibility";
 
 export type TIssueDisplayFilterOptions = Exclude<TIssueGroupByOptions, null> | "target_date" | "start_date";
 
@@ -1258,8 +1259,11 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
       this.rootIssueStore.issues.addIssue([issue]);
     });
 
-    // if true, add issue id to the list
-    if (shouldUpdateList) this.updateIssueList(issue, undefined, EIssueGroupedAction.ADD);
+    // A create response can gain sg_event_id during Service Gateway sync. Do
+    // not insert that response into a layout where it does not belong.
+    const layout = this.issueFilterStore?.issueFilters?.displayFilters?.layout;
+    if (shouldUpdateList && isIssueVisibleInLayout(issue, layout))
+      this.updateIssueList(issue, undefined, EIssueGroupedAction.ADD);
   }
 
   /**
@@ -1367,10 +1371,7 @@ export abstract class BaseIssuesStore implements IBaseIssuesStore {
     const layout = this.issueFilterStore?.issueFilters?.displayFilters?.layout;
     if (!layout || !issueResponse?.results) return issueResponse;
 
-    const showServiceGatewayIssues = layout === EIssueLayoutTypes.CALENDAR;
-    const hasServiceGatewayEvent = (issue: TIssue) =>
-      issue.sg_event_id !== null && issue.sg_event_id !== undefined && String(issue.sg_event_id).trim().length > 0;
-    const shouldShowIssue = (issue: TIssue) => hasServiceGatewayEvent(issue) === showServiceGatewayIssues;
+    const shouldShowIssue = (issue: TIssue) => isIssueVisibleInLayout(issue, layout);
     type GroupResult = { results?: unknown; [key: string]: unknown };
 
     const countResults = (results: unknown): number => {
