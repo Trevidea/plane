@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 import requests
 from celery import shared_task
 from django.conf import settings
+from rest_framework.exceptions import APIException
 
 from plane.bgtasks import service_gateway_sync_helpers as sg
 from plane.db.models import Issue
@@ -14,6 +15,47 @@ logger = logging.getLogger("plane.worker")
 
 SUPPORTED_EVENTS = {"issue"}
 SUPPORTED_VERBS = {"created", "updated", "deleted"}
+
+
+class ServiceGatewaySyncError(APIException):
+    """A user-safe error returned when a synchronous gateway sync fails."""
+
+    status_code = 502
+    default_code = "service_gateway_sync_failed"
+
+    def __init__(self, message: str):
+        super().__init__(
+            detail={
+                "code": self.default_code,
+                "error": message,
+            }
+        )
+
+
+def _sync_error_message(exc: Exception) -> str:
+    if isinstance(exc, requests.exceptions.SSLError):
+        if "certificate has expired" in str(exc).lower():
+            return (
+                "Service gateway sync failed because its SSL certificate has expired. "
+                "Please renew the certificate and try again."
+            )
+        return (
+            "Service gateway sync failed because its secure connection could not be verified. "
+            "Please check its SSL certificate and try again."
+        )
+
+    if isinstance(exc, requests.exceptions.Timeout):
+        return "Service gateway sync timed out. Please try again."
+
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return "Service gateway is unavailable. Please try again."
+
+    if isinstance(exc, requests.exceptions.HTTPError):
+        response = getattr(exc, "response", None)
+        if response is not None:
+            return f"Service gateway rejected the request (HTTP {response.status_code}). Please try again."
+
+    return "Service gateway sync failed. Please try again or contact an administrator."
 
 
 @dataclass(frozen=True)
@@ -699,6 +741,8 @@ def service_gateway_event_sync(event: str, verb: str, event_data: Optional[Dict[
             }
             handlers[verb]()
 
+    except ServiceGatewaySyncError:
+        raise
     except requests.HTTPError as http_error:
         response = getattr(http_error, "response", None)
         if response is not None:
@@ -710,6 +754,8 @@ def service_gateway_event_sync(event: str, verb: str, event_data: Optional[Dict[
         else:
             logger.error("Service-gateway webhook sync failed with HTTP error: %s", http_error)
         log_exception(http_error)
+        raise ServiceGatewaySyncError(_sync_error_message(http_error)) from http_error
     except Exception as exc:
         log_exception(exc)
         logger.error("Service-gateway webhook sync failed: %s", exc)
+        raise ServiceGatewaySyncError(_sync_error_message(exc)) from exc

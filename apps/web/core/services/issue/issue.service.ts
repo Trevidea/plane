@@ -243,15 +243,20 @@ export class IssueService extends APIService {
   }
 
   async deleteIssue(workspaceSlug: string, projectId: string, issuesId: string): Promise<any> {
-    if (this.serviceType === EIssueServiceType.ISSUES) {
-      const { deleteIssueFromLocal } = await import("@/local-db/utils/load-issues");
-      deleteIssueFromLocal(issuesId);
-    }
-    return this.delete(`/api/workspaces/${workspaceSlug}/projects/${projectId}/${this.serviceType}/${issuesId}/`)
+    const response = await this.delete(
+      `/api/workspaces/${workspaceSlug}/projects/${projectId}/${this.serviceType}/${issuesId}/`
+    )
       .then((response) => response?.data)
       .catch((error) => {
         throw error?.response?.data;
       });
+
+    if (this.serviceType === EIssueServiceType.ISSUES) {
+      const { deleteIssueFromLocal } = await import("@/local-db/utils/load-issues");
+      deleteIssueFromLocal(issuesId);
+    }
+
+    return response;
   }
 
   async updateIssueDates(

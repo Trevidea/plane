@@ -100,7 +100,7 @@ export const DeleteIssueModal: React.FC<Props> = observer((props) => {
           setToast({
             title: t(currentError.i18n_title),
             type: TOAST_TYPE.ERROR,
-            message: currentError.i18n_message && t(currentError.i18n_message),
+            message: errors?.error ?? (currentError.i18n_message && t(currentError.i18n_message)),
           });
         })
         .finally(() => onClose());

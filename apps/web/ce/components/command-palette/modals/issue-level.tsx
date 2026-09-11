@@ -58,6 +58,7 @@ export const IssueLevelModals: FC<TIssueLevelModalsProps> = observer((props) => 
       router.push(redirectPath);
     } catch (error) {
       console.error("Failed to delete issue:", error);
+      throw error;
     }
   };
 
