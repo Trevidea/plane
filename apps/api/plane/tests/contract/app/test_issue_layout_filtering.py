@@ -1,0 +1,57 @@
+from unittest.mock import patch
+
+import pytest
+from rest_framework import status
+
+from plane.db.models import Issue, Project, ProjectMember, State
+
+
+@pytest.mark.contract
+class TestIssueLayoutFiltering:
+    @pytest.mark.django_db
+    def test_service_gateway_issues_are_exclusive_to_calendar_layout(
+        self, session_client, workspace, create_user
+    ):
+        project = Project.objects.create(
+            name="Calendar filtering",
+            identifier="CAL",
+            workspace=workspace,
+            created_by=create_user,
+            updated_by=create_user,
+        )
+        ProjectMember.objects.create(project=project, member=create_user, role=20)
+        state = State.objects.create(
+            name="Todo",
+            color="#000000",
+            group="unstarted",
+            default=True,
+            project=project,
+        )
+
+        regular_issue = Issue.objects.create(
+            name="Regular work item",
+            workspace=workspace,
+            project=project,
+            state=state,
+        )
+        event_issue = Issue.objects.create(
+            name="Service Gateway event",
+            workspace=workspace,
+            project=project,
+            state=state,
+            sg_event_id=1234,
+        )
+
+        url = f"/api/workspaces/{workspace.slug}/projects/{project.id}/issues/"
+
+        with patch("plane.app.views.issue.base.recent_visited_task.delay"):
+            calendar_response = session_client.get(url, {"layout": "calendar", "cursor": "100:0:0"})
+            list_response = session_client.get(url, {"layout": "list", "cursor": "100:0:0"})
+
+        assert calendar_response.status_code == status.HTTP_200_OK
+        assert {str(issue["id"]) for issue in calendar_response.data["results"]} == {str(event_issue.id)}
+        assert calendar_response.data["total_count"] == 1
+
+        assert list_response.status_code == status.HTTP_200_OK
+        assert {str(issue["id"]) for issue in list_response.data["results"]} == {str(regular_issue.id)}
+        assert list_response.data["total_count"] == 1

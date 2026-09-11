@@ -273,6 +273,15 @@ class IssueViewSet(BaseViewSet):
         # Apply legacy filters
         issue_queryset = issue_queryset.filter(**filters, **extra_filters)
 
+        # Keep Service Gateway work items exclusive to the calendar layout.
+        # Apply this before grouping and pagination so a page cannot be filled
+        # with work items that the client will subsequently discard.
+        layout = request.GET.get("layout")
+        if layout == "calendar":
+            issue_queryset = issue_queryset.filter(sg_event_id__isnull=False)
+        elif layout:
+            issue_queryset = issue_queryset.filter(sg_event_id__isnull=True)
+
         # Keeping a copy of the queryset before applying annotations
         filtered_issue_queryset = copy.deepcopy(issue_queryset)
 
