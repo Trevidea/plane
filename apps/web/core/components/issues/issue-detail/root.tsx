@@ -59,6 +59,23 @@ export type TIssueDetailRoot = {
 
 type SgIssue = TIssue & { sg_event_id?: string | number | null };
 
+const getIssueOperationErrorMessage = (error: unknown): string | null => {
+  if (!error || typeof error !== "object") return null;
+
+  const errorData = error as { detail?: unknown; error?: unknown };
+  if (typeof errorData.error === "string" && errorData.error.trim()) return errorData.error;
+  if (typeof errorData.detail === "string" && errorData.detail.trim()) return errorData.detail;
+
+  return null;
+};
+
+const getIssueOperationErrorTitle = (error: unknown): string | null => {
+  if (!error || typeof error !== "object") return null;
+
+  const title = (error as { title?: unknown }).title;
+  return typeof title === "string" && title.trim() ? title : null;
+};
+
 export const IssueDetailRoot: FC<TIssueDetailRoot> = observer((props) => {
   const { t } = useTranslation();
   const { workspaceSlug, projectId, issueId, is_archived = false } = props;
@@ -107,9 +124,9 @@ export const IssueDetailRoot: FC<TIssueDetailRoot> = observer((props) => {
             error: error as Error,
           });
           setToast({
-            title: t("common.error.label"),
+            title: getIssueOperationErrorTitle(error) ?? t("common.error.label"),
             type: TOAST_TYPE.ERROR,
-            message: t("entity.update.failed", { entity: t("issue.label") }),
+            message: getIssueOperationErrorMessage(error) ?? t("entity.update.failed", { entity: t("issue.label") }),
           });
         }
       },
@@ -128,16 +145,12 @@ export const IssueDetailRoot: FC<TIssueDetailRoot> = observer((props) => {
           });
         } catch (error) {
           console.log("Error in deleting issue:", error);
-          setToast({
-            title: t("common.error.label"),
-            type: TOAST_TYPE.ERROR,
-            message: t("entity.delete.failed", { entity: t("issue.label") }),
-          });
           captureError({
             eventName: WORK_ITEM_TRACKER_EVENTS.delete,
             payload: { id: issueId },
             error: error as Error,
           });
+          throw error;
         }
       },
       archive: async (workspaceSlug: string, projectId: string, issueId: string) => {

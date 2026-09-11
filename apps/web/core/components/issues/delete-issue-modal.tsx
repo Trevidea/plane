@@ -98,9 +98,9 @@ export const DeleteIssueModal: React.FC<Props> = observer((props) => {
             ? PROJECT_ERROR_MESSAGES.permissionError
             : PROJECT_ERROR_MESSAGES.issueDeleteError;
           setToast({
-            title: t(currentError.i18n_title),
+            title: errors?.title ?? t(currentError.i18n_title),
             type: TOAST_TYPE.ERROR,
-            message: currentError.i18n_message && t(currentError.i18n_message),
+            message: errors?.error ?? (currentError.i18n_message && t(currentError.i18n_message)),
           });
         })
         .finally(() => onClose());

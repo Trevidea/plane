@@ -2,16 +2,59 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from django.test import override_settings
 
 from plane.bgtasks.service_gateway_webhook_task import (
+    ServiceGatewaySyncError,
+    _sync_error_message,
     _sync_deleted_event,
     _trigger_event_send,
     _trigger_event_send_for_ids,
+    service_gateway_event_sync,
 )
 
 
 @pytest.mark.unit
 class TestServiceGatewayWebhookTask:
+    def test_expired_ssl_error_has_user_friendly_message(self):
+        error = requests.exceptions.SSLError(
+            "certificate verify failed: certificate has expired"
+        )
+
+        assert _sync_error_message(error) == (
+            "We couldn't reach the event service. Please try again in a few minutes. "
+            "If the problem continues, contact your administrator."
+        )
+
+    @override_settings(
+        SERVICE_GATEWAY_WEBHOOK_ENABLED=True,
+        SERVICE_GATEWAY_EVENT_API="https://sports.kanavio.com/sports/api/event",
+        SERVICE_GATEWAY_SCHEDULED_EVENT_API="https://sports.kanavio.com/sports/api/scheduled-event",
+        SERVICE_GATEWAY_WEBHOOK_TIMEOUT=30,
+    )
+    def test_sync_raises_api_error_for_expired_certificate(self):
+        error = requests.exceptions.SSLError(
+            "certificate verify failed: certificate has expired"
+        )
+
+        with patch(
+            "plane.bgtasks.service_gateway_webhook_task._sync_deleted_event",
+            side_effect=error,
+        ), pytest.raises(ServiceGatewaySyncError) as exc_info:
+            service_gateway_event_sync(
+                event="issue",
+                verb="deleted",
+                event_data={"id": "issue-123", "sg_event_id": 777},
+            )
+
+        assert exc_info.value.status_code == 502
+        assert str(exc_info.value.detail["code"]) == "service_gateway_sync_failed"
+        assert str(exc_info.value.detail["title"]) == "Event service unavailable"
+        assert str(exc_info.value.detail["error"]) == (
+            "We couldn't reach the event service. Please try again in a few minutes. "
+            "If the problem continues, contact your administrator."
+        )
+
     def test_trigger_event_send_uses_derived_send_url(self):
         session = MagicMock()
 
