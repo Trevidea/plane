@@ -7,7 +7,7 @@ import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-d
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 // plane helpers
-import { Clock, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useOutsideClickDetector } from "@plane/hooks";
 // types
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
@@ -34,6 +34,7 @@ import { IssueStats } from "@/plane-web/components/issues/issue-layouts/issue-st
 import type { TRenderQuickActions } from "../list/list-view-types";
 import { IssueProperties } from "../properties/all-properties";
 import { WithDisplayPropertiesHOC } from "../properties/with-display-properties-HOC";
+import { CoachingCardKanbanDetails, isCoachingCardIssue } from "./coaching-card-details";
 
 interface IssueBlockProps {
   issueId: string;
@@ -55,6 +56,7 @@ interface IssueBlockProps {
 interface IssueDetailsBlockProps {
   cardRef: React.RefObject<HTMLElement>;
   issue: TIssue;
+  projectIdentifier?: string;
   displayProperties: IIssueDisplayProperties | undefined;
   updateIssue: ((projectId: string | null, issueId: string, data: Partial<TIssue>) => Promise<void>) | undefined;
   quickActions: TRenderQuickActions;
@@ -63,7 +65,16 @@ interface IssueDetailsBlockProps {
 }
 
 const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((props) => {
-  const { cardRef, issue, updateIssue, quickActions, isReadOnly, displayProperties, isEpic = false } = props;
+  const {
+    cardRef,
+    issue,
+    projectIdentifier,
+    updateIssue,
+    quickActions,
+    isReadOnly,
+    displayProperties,
+    isEpic = false,
+  } = props;
   // refs
   const menuActionRef = useRef<HTMLDivElement | null>(null);
   // states
@@ -85,6 +96,7 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
 
   // derived values
   const subIssueCount = issue?.sub_issues_count ?? 0;
+  const isCoachingCard = isCoachingCardIssue(issue);
 
   const handleEventPropagation = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -119,29 +131,29 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
         </div>
       </div>
 
-      <Tooltip tooltipContent={issue.name} isMobile={isMobile} renderByDefault={false}>
-        <div className="w-full line-clamp-1 text-sm text-custom-text-100">
-          <span>{issue.name}</span>
-        </div>
-      </Tooltip>
+      {isCoachingCard ? (
+        <CoachingCardKanbanDetails issue={issue} projectIdentifier={projectIdentifier} />
+      ) : (
+        <>
+          <Tooltip tooltipContent={issue.name} isMobile={isMobile} renderByDefault={false}>
+            <div className="w-full line-clamp-1 text-sm text-custom-text-100">
+              <span>{issue.name}</span>
+            </div>
+          </Tooltip>
 
-     <div className="flex items-center gap-2 ">
-  <IssueProperties
-    className="flex flex-wrap items-center gap-2 whitespace-nowrap text-custom-text-300 pt-1.5"
-    issue={issue}
-    displayProperties={displayProperties}
-    activeLayout="Kanban"
-    updateIssue={updateIssue}
-    isReadOnly={isReadOnly}
-    isEpic={isEpic}
-  />
-
-  {/* Show only the logo */}
-  {/* <div className="mt-2   gap-2 flex items-center">
-  <OppositionTeamProperty onlyLogo={true}
-  />
-</div> */}
-</div>
+          <div className="flex items-center gap-2">
+            <IssueProperties
+              className="flex flex-wrap items-center gap-2 whitespace-nowrap pt-1.5 text-custom-text-300"
+              issue={issue}
+              displayProperties={displayProperties}
+              activeLayout="Kanban"
+              updateIssue={updateIssue}
+              isReadOnly={isReadOnly}
+              isEpic={isEpic}
+            />
+          </div>
+        </>
+      )}
       {isEpic && displayProperties && (
         <WithDisplayPropertiesHOC
           displayProperties={displayProperties}
@@ -287,9 +299,9 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
           disabled={!!issue?.tempId}
         >
           <RenderIfVisible
-            classNames="space-y-2 px-3 py-2"
+            classNames={cn("space-y-2 px-3 py-2", isCoachingCardIssue(issue) && "py-3")}
             root={scrollableContainerRef}
-            defaultHeight="100px"
+            defaultHeight={isCoachingCardIssue(issue) ? "300px" : "100px"}
             horizontalOffset={100}
             verticalOffset={200}
             defaultValue={shouldRenderByDefault}
@@ -297,6 +309,7 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
             <KanbanIssueDetailsBlock
               cardRef={cardRef}
               issue={issue}
+              projectIdentifier={projectIdentifier}
               displayProperties={displayProperties}
               updateIssue={updateIssue}
               quickActions={quickActions}

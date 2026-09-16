@@ -5,6 +5,7 @@ import React, { useCallback, useMemo } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
+import { Users2Icon, VideoIcon } from "lucide-react";
 import { EUserPermissionsLevel, EUserPermissions } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { CycleIcon, IntakeIcon, ModuleIcon, PageIcon, ViewsIcon, WorkItemsIcon } from "@plane/propel/icons";
@@ -17,7 +18,6 @@ import { useAppTheme } from "@/hooks/store/use-app-theme";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useProject } from "@/hooks/store/use-project";
 import { useUserPermissions } from "@/hooks/store/user";
-import { Users2Icon, VideoIcon } from "lucide-react";
 
 export type TNavigationItem = {
   name: string;

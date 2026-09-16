@@ -23,7 +23,7 @@ The original narration hook began recording from the microphone button, added au
 
 - `VoiceRecorder` owns browser recording resources and explicit lifecycle transitions. Its injected environment makes MediaRecorder and Web Audio testable without hardware.
 - `useVideoAnnotationVoiceNarration` connects the recorder to the actual player clock, microphone devices, permissions, and recording preferences.
-- `useNarrationWorkflow` owns draft review, safe replacement, overlap resolution, selection, shortcuts, and commit into the existing annotation array.
+- `useNarrationWorkflow` owns processed-take commit, safe replacement, overlap resolution, selection, and shortcuts within the existing annotation array.
 - `VoiceNarrationPanel`, `VideoAnnotationRecordingIndicator`, `VoiceNarrationClip`, the waveform, and the input meter provide isolated UI surfaces.
 - `useNarrationPreview`, `VideoAnnotationAudioPlayback`, and `useNarrationDucking` handle trimmed preview, synchronized playback, and restoring video volume.
 
@@ -34,7 +34,7 @@ Buttons and inputs reuse `@plane/propel`; menus, microphone selection, and check
 ```text
 idle -> preparing -> ready -> countdown -> starting -> recording
 recording -> paused -> starting -> recording
-recording/paused -> processing -> review -> idle (Done)
+recording/paused -> processing -> review -> idle (automatic commit)
 active states -> idle (Cancel) or error -> preparing (Check microphone)
 ```
 
@@ -44,11 +44,11 @@ Start records immediately by default, which preserves a coach's precisely positi
 
 The floating bar and side panel use the same recorder snapshot and shared status-label function. The preparation-only Start recording button is hidden during countdown, starting, recording, pause, and processing. With a media element present, only its confirmed `ended` state automatically finalizes capture; logical playlist timestamps alone cannot stop it. Timeline-end fallback is reserved for integrations without a media element.
 
-Stop or video-end finalizes the audio, releases microphone tracks, decodes duration/peaks, and opens review. Done commits the draft. Re-recording keeps the original clip until a new take is processed and accepted; cancel/error leaves the original untouched.
+Stop or video-end finalizes the audio, releases microphone tracks, decodes duration/peaks, and automatically commits and selects the processed clip. The recorder's internal review state is now a short handoff between processing and commit rather than a user confirmation screen. Re-recording keeps the original clip until a new take processes successfully; cancel/error leaves the original untouched.
 
-Review explicitly identifies a video-end stop. Deleting the selected narration reopens microphone preparation through the existing workflow, so another take can start without a separate Check microphone click. Permission/device errors still require recovery; deletion never bypasses browser permissions.
+Deleting the selected narration reopens microphone preparation through the existing workflow, so another take can start without a separate Check microphone click. Permission/device errors still require recovery; deletion never bypasses browser permissions.
 
-Toolbar, timeline seek/zoom, native player controls, save, and editor-close controls are locked during countdown/recording/pause/processing. Unexpected significant seeks abort the take rather than retain misaligned audio. Session changes cancel recording/preview and clear pending overlap decisions. Refreshes of saved annotations do not overwrite local dirty edits or a review draft.
+Toolbar, timeline seek/zoom, native player controls, save, and editor-close controls are locked during countdown/recording/pause/processing. Unexpected significant seeks abort the take rather than retain misaligned audio. Session changes cancel recording/preview. Refreshes of saved annotations do not overwrite local dirty edits or a processed take awaiting commit.
 
 ## Data and Saving
 
@@ -75,15 +75,21 @@ New audio stays in memory as a data URL until the existing Save workflow externa
 
 ## Timeline and Playback
 
-Narrations are removed from generic annotation moments and placed in a dedicated horizontal Voice narration track. Non-overlapping clips share a lane; explicitly accepted overlaps use additional lanes. Coordinates, snapping candidates, duration, scrolling, ruler, and zoom reuse the current timeline implementation.
+Narrations are removed from generic drawing moments and placed in collapsible Voice narration moments, using the same Moment builder as drawing annotations. Start times rounded to the same 0.1-second bucket share a moment; different buckets create separate moments, even if their durations overlap. Empty narration moments are omitted. Each 44px summary header shows a timestamp and clip count; when expanded, every narration has an indented label and its own aligned 34px timeline layer. Compact audio clips retain waveform, preview, menu, move, and non-destructive trim controls. Selecting a new narration expands only its moment; collapse/expand is UI state only and never marks edits dirty. Coordinates, snapping candidates, duration, scrolling, ruler, and zoom reuse the current timeline implementation.
 
-Clips expose selection, waveform, name, duration, trim handles, preview, rename, replace, duplicate, original-audio download, and deletion. Dragging commits once on release. Keyboard trim changes use 0.1 seconds, or 1 second with Shift. The inspector supplies numeric controls when a clip is too narrow to manipulate comfortably.
+Narration moments participate in the same chronological order as drawing moments. One sorted group list drives both sidebar labels and timeline tracks. Moving, trimming, adding, or deleting clips recalculates moment membership; moving a selected clip expands its destination moment while unrelated accordions retain their state. Narration grouping does not change stored audio or playback.
 
-Overlap comparison uses half-open intervals rounded to milliseconds. Touching endpoints are not overlaps. A conflicting create/move/trim/duplicate requires Replace existing, Add another narration, or Cancel. Concurrent playback is supported; overlap decisions never silently remove another clip.
+Clips expose selection, waveform, name, duration, and trim handles. Preview and the rename/replace/duplicate/download/delete menu live in the sidebar label row so controls never cover short clips. Dragging commits once on release. Keyboard trim changes use 0.1 seconds, or 1 second with Shift. The inspector supplies numeric controls when a clip is too narrow to manipulate comfortably.
+
+Original-audio downloads route cross-origin HTTP(S) sources through the existing `/api/hls/` media proxy, retaining its configured host checks. These requests omit credentials so session cookies are not forwarded to static storage. Same-origin sources retain same-origin credentials; local audio data/blob URLs remain direct. Additional production media hosts must be allowed through the existing `HLS_PROXY_ALLOWED_HOSTS` configuration. No CORS wildcard or browser security bypass is introduced.
+
+Overlapping narrations are retained automatically, without a confirmation dialog, for recording, moving, trimming, and duplication. Concurrent playback is supported. Only an explicit Replace recording action updates the chosen clip, retaining its ID and title after the replacement succeeds; other overlapping clips are never removed. Interval utilities still use half-open intervals rounded to milliseconds for diagnostics and tests, but do not gate editing or Save.
 
 Playback uses the supplied logical playlist clock rather than raw HLS source timestamps. Each audio element applies source trim, narration volume, fades, and playback rate. It corrects drift greater than 80 ms. A single ducking controller uses the strongest requested reduction among audible, actually playing clips, ramps over 150 ms, and restores the user's video volume on pause, seek, failure, or cleanup. Manual volume changes update the restoration baseline. Manual audio preview pauses the video.
 
 ## Performance and Resource Ownership
+
+New WebM takes finalize their Duration field after duration/waveform decoding and before preparing the saved payload, using `@fix-webm-duration/fix` and its parser. Existing saved WebM sources are repaired on download using full `audio.sourceDuration`, not video end time or trimmed clip length. Encoded packets, Opus headers, existing tags, and editing metadata are unchanged; there is no re-encoding. Previously finalized WebM, Ogg, and MP4 containers remain unchanged. Unfinalized WebM with unsupported timecode scales is rejected rather than silently changing its timestamps. Download requests retain the existing media proxy/CORS behavior and show a preparation indicator. Downloading never marks the editor dirty or mutates stored audio.
 
 - Recorder state publishes lifecycle changes, not amplitude or animation frames.
 - The input meter draws on an isolated canvas at up to 20 Hz. Silence/clipping labels update only when their status changes.
@@ -95,13 +101,21 @@ Playback uses the supplied logical playlist clock rather than raw HLS source tim
 
 ## Verification
 
+Audio container finalization verified on 2026-09-16: 41 narration unit tests and the Chrome browser suite pass. Coverage includes finalization before saved-payload preparation, cancellation/failure cleanup, preserved codec/tags/packet bytes, full source duration after trimming, finite browser audio duration, idempotent new downloads, and legacy downloads with generic storage MIME headers without dirty-state changes. The user's downloaded `Narration 03 (2).webm` had valid Opus headers but no duration. The finalized sample probes as 6.48 seconds, Opus, 48 kHz, mono; its encoded audio SHA-256 is unchanged, and playback/seek decoding succeeds. Targeted ESLint and Prettier pass. Full-web typechecking reports only the existing unrelated Kanban TS2367 error.
+
+Download CORS fix verified on 2026-09-16: 31 narration unit tests and the Chrome browser suite pass, including filename, nonempty downloaded bytes, and no download failure alert. The screenshot's saved audio returns HTTP 200 without CORS headers directly from the local gateway; fetching it through the existing Plane media proxy returns identical bytes. Targeted ESLint and Prettier pass. Full-web TypeScript checking still reports only the unrelated Kanban TS2367 error described below.
+
+Timeline moment grouping verified on 2026-09-16: 29 narration unit tests, 3 annotation creation-time regression tests, and the Chrome browser integration suite pass. Coverage includes rounded start-time grouping, split/merge edits, independent narration accordions, selected destination expansion, chronological drawing/narration order, and mobile screenshots. Targeted ESLint and Prettier checks pass. The current full-web TypeScript check is blocked by an unrelated TS2367 comparison in `core/components/issues/issue-layouts/kanban/headers/group-by-card.tsx:77`; no narration TypeScript errors were reported. The broader checks below describe the earlier feature verification.
+
+Overlap auto-add update verified on 2026-09-16: 29 narration unit tests and the Chrome browser suite pass. Browser coverage confirms automatic overlapping duplication/movement/recording without a dialog, successful Save retaining existing source audio and editing metadata, session isolation, and explicit replacement changing only the selected source audio. The existing Save layer allocator may rebalance `trackIndex` when overlapping clips are added. Targeted ESLint and Prettier checks pass; the same unrelated Kanban TypeScript error remains.
+
 Verified locally on 2026-09-10 using Node 25.8.1, Chrome, and the existing local Plane API container. No production deployment or production media upload was performed.
 
 - 27 narration unit tests pass: transitions, start/stop, stop-reason retention, pause/resume, cancel, countdown, errors, delayed callbacks, limits, waveforms, overlap, trims, moves, placement, metadata/dirty comparison, fades, and ducking restoration.
 - 10 existing annotation-creation and custom-playlist-clock regression tests pass.
 - 7 API media annotation storage tests pass. Ruff lint and format checks pass for the affected Python test.
-- The browser integration suite mounts the real editor in React StrictMode and uses actual Chrome MediaRecorder/Web Audio with a synthetic microphone. It verifies countdown timing, pause/resume, processing/review, microphone cleanup, waveform canvas pixels, selection/inspector, failed/successful save, dirty-edit preservation on refresh, trim controls, playback/ducking restoration, replacement cancel/failure, overlaps/lanes/zoom, mobile bounds, permission failure, seek interruption, video-end, and session isolation.
-- Regression coverage includes recording beyond 25 seconds, deleting a selected take and starting another without Check microphone, ignoring unconfirmed `ended` events/logical timeline-end jumps, and identifying a genuine video-end stop in review.
+- The browser integration suite mounts the real editor in React StrictMode and uses actual Chrome MediaRecorder/Web Audio with a synthetic microphone. It verifies hidden empty narration tracks, countdown timing, pause/resume, automatic post-processing commit, microphone cleanup, waveform canvas pixels, selection/inspector, failed/successful save, dirty-edit preservation on refresh, trim controls, playback/ducking restoration, replacement cancel/failure, overlaps/layers/zoom, mobile bounds, permission failure, seek interruption, video-end, and session isolation. Layer checks cover aligned 34px rows, keyboard accordion controls, selection-driven expansion, and independent drawing/narration groups without dirty-state changes.
+- Regression coverage includes recording beyond 25 seconds, deleting a selected take and starting another without Check microphone, ignoring unconfirmed `ended` events/logical timeline-end jumps, and automatically committing a genuine video-end stop.
 - Read-only playback diagnostics of `efb90b2e.m3u8` found 16 two-second segments without discontinuity markers between non-contiguous source ranges. Video.js played/replayed for approximately 31.7 seconds while its media duration grew from 32 to 48.066 seconds and it skipped three timestamp gaps. The screencast's exact 23.76-second stop was not reproduced in that isolated player test; playlist generation and authenticated editor playback still need investigation if it recurs. No production playlist was modified.
 - Desktop 1440x1000 and mobile 390x844 screenshots are written under `/tmp/kanavio-narration-browser`. A representative recorded take started at 4.000 seconds, lasted 4.2 seconds excluding pauses, and produced 512 peaks. These are fixture measurements, not a production latency benchmark.
 - Web TypeScript checking passes. Annotation-directory ESLint passes with zero warnings. Prettier is run on changed frontend files.
@@ -148,6 +162,7 @@ Created:
 - `utils/voice-recorder.ts`, `utils/voice-narration.ts`, `utils/narration-ducking.ts`
 - `hooks/use-narration-workflow.ts`, `hooks/use-narration-preview.ts`, `hooks/use-narration-ducking.ts`
 - `components/voice-narration-panel.tsx`, `components/voice-narration-clip.tsx`, `components/voice-narration-waveform.tsx`
+- `components/voice-narration-actions.tsx`
 - `components/microphone-input-meter.tsx`, `components/video-annotation-recording-indicator.tsx`
 - `components/__tests__/narration-browser-fixture.tsx`
 - `utils/__tests__/voice-narration.test.mjs`, `utils/__tests__/voice-recorder.test.mjs`, `utils/__tests__/register-types.mjs`, `utils/__tests__/narration-browser.mjs`

@@ -1,7 +1,7 @@
 // plane imports
+import { Users2Icon } from "lucide-react";
 import { EUserPermissions, EProjectFeatureKey } from "@plane/constants";
 import { CycleIcon, IntakeIcon, ModuleIcon, PageIcon, ViewsIcon, WorkItemsIcon } from "@plane/propel/icons";
-import { Users2Icon } from "lucide-react";
 // components
 import type { TNavigationItem } from "@/components/workspace/sidebar/project-navigation";
 
