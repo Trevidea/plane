@@ -74,7 +74,7 @@ export const HeaderGroupByCard: FC<IHeaderGroupByCard> = observer((props) => {
 
   const project = projectId ? getProjectById(projectId.toString()) : undefined;
   const isCoachingBoard =
-    storeType === EIssuesStoreType.PROJECT && Boolean(project?.sport?.trim()) && group_by === "state_id";
+    storeType === EIssuesStoreType.PROJECT && Boolean(project?.sport?.trim()) && group_by === "state";
   const displayTitle = isCoachingBoard ? (COACHING_BOARD_COLUMN_TITLES[title] ?? title) : title;
 
   const renderExistingIssueModal = moduleId || cycleId;
