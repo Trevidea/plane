@@ -1022,7 +1022,7 @@ export const VideoAnnotationEditor = ({
 
   const timelineContent =
     showTimeline && timelineHostElement ? (
-      <fieldset disabled={narration.locked || isSavingAnnotations}>
+      <fieldset className="flex h-full min-h-0 min-w-0 flex-col" disabled={narration.locked || isSavingAnnotations}>
         <VideoAnnotationTimelinePanel
           key={annotationKey}
           narrationActions={{

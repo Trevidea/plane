@@ -1624,7 +1624,9 @@ const MediaDetailPage = () => {
   }
 
   return (
-    <div className="vertical-scrollbar scrollbar-md relative h-full w-full overflow-x-hidden overflow-y-auto lg:overflow-hidden">
+    <div
+      className={`vertical-scrollbar scrollbar-md relative h-full w-full overflow-x-hidden overflow-y-auto ${isFocusedVideoAnnotationWorkspace ? "" : "lg:overflow-hidden"}`}
+    >
       <div
         className={[
           "flex min-h-full flex-col lg:h-full lg:min-h-0",
