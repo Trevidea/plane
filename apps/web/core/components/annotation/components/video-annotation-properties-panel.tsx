@@ -133,7 +133,7 @@ export const VideoAnnotationPropertiesPanel = ({
   const shouldShowShapeBackgroundProperties = annotationTool === "rectangle" || annotationTool === "ellipse";
 
   return (
-    <div className="vertical-scrollbar scrollbar-md flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-x-hidden overflow-y-auto overscroll-contain rounded-[7px] border border-custom-border-200 bg-custom-background-100 p-2 shadow-sm [scrollbar-gutter:stable]">
+    <div className="vertical-scrollbar scrollbar-md annotation-workspace-scrollbar flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-x-hidden overflow-y-auto overscroll-contain rounded-[7px] border border-custom-border-200 bg-custom-background-100 p-2 shadow-sm [scrollbar-gutter:stable]">
       <div className="min-w-0">
         <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Properties</div>
         <div className="flex min-w-0 items-center gap-1.5 text-[12px] font-semibold text-custom-text-100">

@@ -926,6 +926,28 @@ div.web-view-spinner div.bar12 {
   background-color: transparent;
 }
 
+.annotation-workspace-scrollbar {
+  scrollbar-color: rgba(96, 100, 108, 0.1) transparent;
+}
+.annotation-workspace-scrollbar:hover {
+  scrollbar-color: rgba(96, 100, 108, 0.32) transparent;
+}
+.annotation-workspace-scrollbar:active {
+  scrollbar-color: rgba(96, 100, 108, 0.7) transparent;
+}
+.annotation-workspace-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(96, 100, 108, 0.1);
+}
+.annotation-workspace-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(96, 100, 108, 0.32);
+}
+.annotation-workspace-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(96, 100, 108, 0.5);
+}
+.annotation-workspace-scrollbar::-webkit-scrollbar-thumb:active {
+  background-color: rgba(96, 100, 108, 0.7);
+}
+
 .sg-event-tags-list-scrollbar {
   scrollbar-color: #1780d5 transparent;
   scrollbar-width: thin;

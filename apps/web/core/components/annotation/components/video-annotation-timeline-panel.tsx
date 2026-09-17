@@ -294,7 +294,7 @@ export const VideoAnnotationTimelinePanel = ({
       </div>
 
       <div
-        className="vertical-scrollbar scrollbar-md grid max-h-[308px] overflow-y-auto overflow-x-hidden bg-custom-background-100"
+        className="vertical-scrollbar scrollbar-md annotation-workspace-scrollbar grid max-h-[308px] overflow-y-auto overflow-x-hidden bg-custom-background-100"
         style={{
           gridTemplateColumns: `min(${VIDEO_ANNOTATION_TIMELINE_MOMENT_COLUMN_WIDTH_PX}px, 40%) minmax(0, 1fr)`,
         }}
@@ -446,7 +446,7 @@ export const VideoAnnotationTimelinePanel = ({
           ref={timelineScrollableElementRef}
           aria-label="Annotation tracks"
           className={[
-            "horizontal-scrollbar scrollbar-md min-w-0 cursor-pointer overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sg-matrix-active-border)]",
+            "horizontal-scrollbar scrollbar-md annotation-workspace-scrollbar min-w-0 cursor-pointer overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sg-matrix-active-border)]",
             onSeek ? "" : "cursor-default",
           ].join(" ")}
           onKeyDown={onTimelineKeyDown}
