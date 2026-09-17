@@ -406,14 +406,14 @@ export const MediaDetailPreview = ({
       <div
         className={
           isVideoAnnotationWorkspaceOpen && isVideo
-            ? "h-full min-h-0 bg-transparent p-0"
+            ? "flex h-full min-h-0 flex-col bg-transparent p-0"
             : "rounded-lg bg-custom-background-100 p-3 sm:p-4"
         }
       >
         {isVideo ? (
           <>
             {isVideoAnnotationWorkspaceOpen ? (
-              <div className="mb-2 flex h-11 w-full items-center justify-between rounded-lg border border-custom-border-200 bg-custom-background-100 px-3">
+              <div className="mb-2 flex h-11 w-full shrink-0 items-center justify-between rounded-lg border border-custom-border-200 bg-custom-background-100 px-3">
                 <button
                   type="button"
                   onClick={handleRequestDiscardVideoAnnotationWorkspace}
@@ -440,7 +440,7 @@ export const MediaDetailPreview = ({
                 </button>
               </div>
             ) : null}
-            <div className="flex w-full max-w-full flex-wrap items-start gap-2">
+            <div className="flex w-full max-w-full shrink-0 flex-wrap items-start gap-2">
               {showVideoTimeline ? (
                 <div
                   ref={handleVideoAnnotationToolbarElement}
@@ -483,7 +483,9 @@ export const MediaDetailPreview = ({
                 />
               ) : null}
             </div>
-            {showVideoTimeline ? <div ref={handleVideoTimelineElement} className="mt-3" /> : null}
+            {showVideoTimeline ? (
+              <div ref={handleVideoTimelineElement} className="mt-3 flex min-h-40 min-w-0 flex-1 flex-col" />
+            ) : null}
           </>
         ) : item.mediaType === "image" ? (
           <div

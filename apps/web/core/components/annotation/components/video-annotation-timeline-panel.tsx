@@ -162,8 +162,8 @@ export const VideoAnnotationTimelinePanel = ({
     [effectiveCurrentTime, sortedAnnotations]
   );
   return (
-    <div className="overflow-hidden rounded-[6px] border border-custom-border-200 bg-custom-background-100 shadow-sm">
-      <div className="flex min-h-[52px] flex-wrap items-center gap-2 border-b border-custom-border-200 bg-custom-background-100 px-3 py-2">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[6px] border border-custom-border-200 bg-custom-background-100 shadow-sm">
+      <div className="flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-custom-border-200 bg-custom-background-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -245,7 +245,7 @@ export const VideoAnnotationTimelinePanel = ({
       </div>
 
       <div
-        className="grid bg-custom-background-100"
+        className="grid shrink-0 bg-custom-background-100"
         style={{
           gridTemplateColumns: `min(${VIDEO_ANNOTATION_TIMELINE_MOMENT_COLUMN_WIDTH_PX}px, 40%) minmax(0, 1fr)`,
         }}
@@ -294,7 +294,7 @@ export const VideoAnnotationTimelinePanel = ({
       </div>
 
       <div
-        className="vertical-scrollbar scrollbar-md annotation-workspace-scrollbar grid max-h-[308px] overflow-y-auto overflow-x-hidden bg-custom-background-100"
+        className="vertical-scrollbar scrollbar-md annotation-workspace-scrollbar grid min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-custom-background-100"
         style={{
           gridTemplateColumns: `min(${VIDEO_ANNOTATION_TIMELINE_MOMENT_COLUMN_WIDTH_PX}px, 40%) minmax(0, 1fr)`,
         }}
@@ -697,7 +697,7 @@ export const VideoAnnotationTimelinePanel = ({
           </div>
         </div>
       </div>
-      <div className="flex h-11 items-center gap-3 border-t border-custom-border-200 bg-custom-background-100 px-3">
+      <div className="flex h-11 shrink-0 items-center gap-3 border-t border-custom-border-200 bg-custom-background-100 px-3">
         <span className="shrink-0 text-[12px] font-medium text-custom-text-200">Scale Size</span>
         <div className="flex h-[28px] items-center overflow-hidden rounded-[8px] border border-custom-border-200 bg-custom-background-90">
           <button
