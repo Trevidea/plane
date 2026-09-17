@@ -446,7 +446,7 @@ export const VideoAnnotationTimelinePanel = ({
           ref={timelineScrollableElementRef}
           aria-label="Annotation tracks"
           className={[
-            "horizontal-scrollbar scrollbar-md annotation-workspace-scrollbar min-w-0 cursor-pointer overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sg-matrix-active-border)]",
+            "horizontal-scrollbar scrollbar-md annotation-workspace-scrollbar min-h-max min-w-0 cursor-pointer overflow-x-auto overflow-y-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--sg-matrix-active-border)]",
             onSeek ? "" : "cursor-default",
           ].join(" ")}
           onKeyDown={onTimelineKeyDown}
