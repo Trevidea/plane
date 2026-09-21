@@ -28,6 +28,7 @@ import { IssueIdentifier } from "@/plane-web/components/issues/issue-details/iss
 import type { TRenderQuickActions } from "../list/list-view-types";
 import type { CalendarStoreType } from "./base-calendar-root";
 import { formatCalendarIssueDateTime } from "./calendar-time";
+import { getCalendarCardTextLayout } from "./card-layout";
 
 type Props = {
   issue: TIssue;
@@ -89,6 +90,7 @@ export const CalendarIssueBlock = observer(
       isArchived: !!issue?.archived_at,
     });
     const scheduleLabel = formatCalendarIssueDateTime(issue.start_date, issue.start_time);
+    const textLayout = getCalendarCardTextLayout();
 
     return (
       <ControlLink
@@ -125,15 +127,19 @@ export const CalendarIssueBlock = observer(
               <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex min-w-0 items-center gap-1.5">
                   {issue.project_id && (
-                    <IssueIdentifier
-                      issueId={issue.id}
-                      projectId={issue.project_id}
-                      textContainerClassName="text-sm md:text-xs text-custom-text-300"
-                      displayProperties={issuesFilter?.issueFilters?.displayProperties}
-                    />
+                    <div className={textLayout.identifier}>
+                      <IssueIdentifier
+                        issueId={issue.id}
+                        projectId={issue.project_id}
+                        textContainerClassName="text-sm md:text-xs text-custom-text-300"
+                        displayProperties={issuesFilter?.issueFilters?.displayProperties}
+                      />
+                    </div>
                   )}
                   <Tooltip tooltipContent={issue.name} isMobile={isMobile}>
-                    <div className="truncate text-sm font-medium md:font-normal md:text-xs">{issue.name}</div>
+                    <div className={cn(textLayout.title, "text-sm font-medium md:font-normal md:text-xs")}>
+                      {issue.name}
+                    </div>
                   </Tooltip>
                 </div>
                 {scheduleLabel && (
