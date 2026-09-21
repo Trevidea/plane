@@ -1099,7 +1099,7 @@ export const SgEventDetailPage = ({
 
           {isMatrixWorkspaceMode ? (
             <>
-              <div className="grid min-w-0 gap-[10px] xl:grid-cols-[minmax(0,76fr)_minmax(260px,24fr)]">
+              <div className="grid min-w-0 gap-[10px] lg:grid-cols-[minmax(0,76fr)_minmax(260px,24fr)]">
                 <div className="min-w-0 rounded-[5px] bg-[var(--sg-matrix-video-bg)]">
                   <SgEventVideoPlayer
                     item={playbackItem}
@@ -1161,7 +1161,7 @@ export const SgEventDetailPage = ({
             <div className="min-w-0">
               <div className="flex min-h-0 flex-col gap-3">
                 <div className="flex min-w-0 flex-col gap-3">
-                  <div className="grid min-w-0 gap-[10px] xl:grid-cols-[minmax(0,76fr)_minmax(260px,24fr)]">
+                  <div className="grid min-w-0 gap-[10px] lg:grid-cols-[minmax(0,76fr)_minmax(260px,24fr)]">
                     <div className="min-w-0 rounded-[5px] bg-[var(--sg-matrix-video-bg)]">
                       <SgEventVideoPlayer
                         item={playbackItem}

@@ -554,6 +554,7 @@ export const SgMatrixPlaylistPanel = ({
   const titleEditInputRef = useRef<HTMLInputElement | null>(null);
   const subtitleEditInputRef = useRef<HTMLInputElement | null>(null);
   const isSubmittingTextEditRef = useRef(false);
+  const hasInitializedExpandedPlaylistRef = useRef(false);
   const playlistOpenTimeoutRef = useRef<number | null>(null);
   const skipNextTextEditBlurRef = useRef(false);
   const editingPlaylistTextFocusField = editingPlaylistText?.focusField ?? null;
@@ -578,6 +579,13 @@ export const SgMatrixPlaylistPanel = ({
       setActivePlaylist(updatedActivePlaylist);
     }
   }, [activePlaylist, customPlaylists]);
+
+  useEffect(() => {
+    if (hasInitializedExpandedPlaylistRef.current || customPlaylists.length === 0) return;
+
+    hasInitializedExpandedPlaylistRef.current = true;
+    setExpandedPlaylistId(customPlaylists[0].id);
+  }, [customPlaylists]);
 
   useEffect(() => {
     if (!editingPlaylistTextFocusField || !editingPlaylistTextPlaylistId) return;
@@ -777,13 +785,13 @@ export const SgMatrixPlaylistPanel = ({
     <>
       <aside
         aria-label="Staging Area"
-        className={`${PLAYER_FRAME_CLASS} flex min-h-0 flex-col overflow-hidden rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel-secondary)]`}
+        className={`${PLAYER_FRAME_CLASS} flex min-h-0 flex-col overflow-hidden rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel)]`}
       >
-        <div className="flex h-9 shrink-0 items-center justify-between gap-2 px-2">
+        <div className="flex h-9 shrink-0 items-center justify-between gap-2 px-1.5">
           <div className="flex min-w-0 items-baseline gap-2">
-            <h3 className="truncate text-sm font-normal text-[var(--sg-matrix-text-secondary)]">Staging Area</h3>
-            <span className="shrink-0 text-[10px] font-normal text-[var(--sg-matrix-primary-blue)]">
-              {customPlaylists.length} Playlist{customPlaylists.length === 1 ? "" : "s"}
+            <h3 className="truncate text-[13px] font-normal text-[var(--sg-matrix-text-secondary)]">Staging Area</h3>
+            <span className="shrink-0 text-[8px] font-normal text-[var(--sg-matrix-primary-blue)]">
+              {customPlaylists.length} Playlist
             </span>
           </div>
           <button
@@ -830,7 +838,7 @@ export const SgMatrixPlaylistPanel = ({
                     className="overflow-hidden rounded-[4px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-selected-nav)]"
                   >
                     <div
-                      className={`group flex h-11 min-w-0 items-center px-2 ${isExpanded ? "border-b border-[var(--sg-matrix-grid-border)]" : ""}`}
+                      className={`group flex h-9 min-w-0 items-center px-2 ${isExpanded ? "border-b border-[var(--sg-matrix-grid-border)]" : ""}`}
                     >
                       <Checkbox
                         checked={isSelected}
@@ -907,7 +915,7 @@ export const SgMatrixPlaylistPanel = ({
                               {cardTitle}
                             </span>
                             <span className="shrink-0 whitespace-nowrap rounded-[3px] bg-[var(--sg-matrix-panel)] px-1 py-0.5 text-[9px] leading-none text-[var(--sg-matrix-primary-blue)]">
-                              {String(clipCount).padStart(2, "0")} Clip{clipCount === 1 ? "" : "s"}
+                              {String(clipCount).padStart(2, "0")} Clip
                             </span>
                             <span className="shrink-0 rounded-[3px] bg-[var(--sg-matrix-panel)] px-1 py-0.5 text-[9px] leading-none tabular-nums text-[var(--sg-matrix-primary-blue)]">
                               {durationLabel}
@@ -954,18 +962,15 @@ export const SgMatrixPlaylistPanel = ({
                               return (
                                 <li
                                   key={clip.id || `${playlist.id}-clip-${index + 1}`}
-                                  className="mx-2 mb-1 flex min-h-[58px] min-w-0 items-center gap-2 rounded-[5px] border border-gray-400/15 border-l-2 border-l-[#A3A39F] bg-gray-400/[0.04] px-1.5 py-1.5 last:mb-0"
+                                  className="mx-2 mb-1 flex h-10 min-w-0 items-center gap-2 rounded-[6px] border border-gray-400/20 border-l-[5px] border-l-[#858581] bg-[var(--sg-matrix-panel)] px-1.5 py-0.5 last:mb-0"
                                 >
                                   <PlaylistClipThumbnail
                                     thumbnail={clip.thumbnail || playlist.thumbnail}
-                                    className="h-11 w-[72px]"
+                                    className="h-9 w-14"
                                   />
                                   <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-[10px] font-medium uppercase leading-4 text-[var(--sg-matrix-text)]">
+                                    <span className="block truncate text-[11px] font-medium leading-4 text-[var(--sg-matrix-text)]">
                                       {clipTitle}
-                                    </span>
-                                    <span className="block truncate text-[9px] leading-3 text-[var(--sg-matrix-text-muted)]">
-                                      {normalizeCardText(clip.subtitle) || normalizeCardText(clip.groupValue)}
                                     </span>
                                   </span>
                                   <span className="shrink-0 text-[8px] tabular-nums text-[var(--sg-matrix-text-muted)]">
@@ -992,23 +997,21 @@ export const SgMatrixPlaylistPanel = ({
             </div>
           )}
         </div>
-        {selectedPlaylists.length > 0 && (
-          <div className="shrink-0 px-1.5 pb-1.5 pt-2">
-            <button
-              type="button"
-              onClick={() =>
-                onCreateCard?.(
-                  selectedPlaylists.map((playlist) => ({ ...playlist, name: getPlaylistCardTitle(playlist) }))
-                )
-              }
-              disabled={isCreateCardDisabled}
-              className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[4px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel)] text-[11px] font-normal text-[var(--sg-matrix-primary-blue)] transition-colors hover:border-[var(--sg-matrix-active-border)] hover:bg-[var(--sg-matrix-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <ClipboardList className="h-3.5 w-3.5" />
-              Create Card
-            </button>
-          </div>
-        )}
+        <div className="shrink-0 px-1.5 pb-1.5 pt-2">
+          <button
+            type="button"
+            onClick={() =>
+              onCreateCard?.(
+                selectedPlaylists.map((playlist) => ({ ...playlist, name: getPlaylistCardTitle(playlist) }))
+              )
+            }
+            disabled={isCreateCardDisabled}
+            className="inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-[4px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-selected-nav)] text-[10px] font-normal text-[var(--sg-matrix-primary-blue)] transition-colors hover:border-[var(--sg-matrix-active-border)] hover:bg-[var(--sg-matrix-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:text-[var(--sg-matrix-text-secondary)] disabled:opacity-60"
+          >
+            <ClipboardList className="h-3.5 w-3.5" />
+            Create Card
+          </button>
+        </div>
       </aside>
       <AlertModalCore
         isOpen={Boolean(playlistPendingDelete)}
