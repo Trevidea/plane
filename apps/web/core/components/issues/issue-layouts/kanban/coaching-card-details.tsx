@@ -71,7 +71,6 @@ export const CoachingCardKanbanDetails = ({
   const firstClip = clips[0];
   const secondClip = clips.find((clip, index) => index > 0 && clip.thumbnail !== firstClip?.thumbnail) ?? clips[1];
   const jersey = card.player.jersey_number.trim().replace(/^#/, "");
-  const playerLabel = `${card.player.name}${jersey ? ` #${jersey}` : ""}`;
   const rawPrimaryContext = firstClip?.title || card.summary.primary_clip_title;
   const primaryContext = rawPrimaryContext ? formatLooseLabel(rawPrimaryContext) : "";
   const sourceIdentifier = projectIdentifier
@@ -80,7 +79,8 @@ export const CoachingCardKanbanDetails = ({
   const clipStartTime = getClipStartTime(firstClip?.timecode);
   const clipDuration = formatClipDuration(firstClip?.duration_seconds);
   const metadata = [
-    card.progress_status,
+    card.card_type || card.progress_status,
+    card.priority,
     firstClip?.group,
     firstClip?.detail,
     firstClip?.result,
@@ -101,9 +101,7 @@ export const CoachingCardKanbanDetails = ({
       </div>
 
       <p className="line-clamp-2 text-[13px] leading-5 text-custom-text-100" title={issue.name}>
-        <span className="font-semibold">Coaching card</span>
-        <span className="text-custom-text-300"> · </span>
-        {playerLabel}
+        <span className="font-semibold">{card.title || issue.name}</span>
         {primaryContext && (
           <>
             <span className="text-custom-text-300"> — </span>
@@ -156,7 +154,7 @@ export const CoachingCardKanbanDetails = ({
             className={cn(
               "inline-flex h-5 max-w-full items-center truncate rounded border border-custom-border-300 px-1.5 text-[10px] text-custom-text-200",
               index === 0 && "border-custom-primary-100/40 bg-custom-primary-100/10 text-custom-primary-100",
-              index === 3 && "text-custom-primary-100"
+              index === 4 && "text-custom-primary-100"
             )}
             title={value}
           >

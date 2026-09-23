@@ -61,9 +61,10 @@ export type TCoachingCardPlaylist = {
 };
 
 export type TCoachingCardData = {
-  schema_version: 1;
+  schema_version: 1 | 2;
   kind: "coaching_card";
   request_id: string;
+  title?: string;
   source_issue: {
     id: string;
     name: string;
@@ -78,8 +79,20 @@ export type TCoachingCardData = {
   };
   sport: string;
   feedback: string;
-  progress_status: string;
+  card_type?: string;
+  priority?: string;
+  progress_status?: string;
   playlists: TCoachingCardPlaylist[];
+  metadata?: {
+    serial_number: string;
+    sport: string;
+    season: string;
+    program: string;
+    level: string;
+    created_at: string;
+    author: { id: string; name: string; email: string };
+    project: { id: string; name: string; identifier: string };
+  };
   summary: {
     playlist_count: number;
     clip_count: number;
@@ -92,8 +105,10 @@ export type TCreateCoachingCardsPayload = {
   request_id: string;
   source_issue_id: string;
   player_ids: string[];
+  title: string;
   feedback: string;
-  progress_status: string;
+  card_type: string;
+  priority: string;
   sport_label: string;
   playlists: TCoachingCardPlaylist[];
 };
