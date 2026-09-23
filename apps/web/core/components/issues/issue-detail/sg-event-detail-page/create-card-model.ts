@@ -2,8 +2,17 @@ import type { IRosterPlayer, TCoachingCardPlaylist } from "@plane/types";
 import type { TCustomPlaylist } from "@/services/media-library.service";
 import type { SgTagRow } from "./types";
 
-export const CARD_PROGRESS_OPTIONS = ["New Player", "Practice Player", "In-Progress", "Improvement"] as const;
-export type CardProgressStatus = (typeof CARD_PROGRESS_OPTIONS)[number];
+export const CARD_TYPE_OPTIONS = [
+  "Correction",
+  "Positive Reinforcement",
+  "Opponent Scout",
+  "S&C Connection",
+  "Multi-Week Development",
+] as const;
+export type CardType = (typeof CARD_TYPE_OPTIONS)[number];
+
+export const CARD_PRIORITY_OPTIONS = ["Game Plan Critical", "Standard", "Developmental"] as const;
+export type CardPriority = (typeof CARD_PRIORITY_OPTIONS)[number];
 
 export type CardClip = {
   key: string;
@@ -23,8 +32,10 @@ export type CardPlaylist = { id: string; name: string; clips: CardClip[] };
 
 export type CardFormValues = {
   playerIds: string[];
+  title: string;
   feedback: string;
-  progressStatus: CardProgressStatus;
+  cardType: CardType;
+  priority: CardPriority;
   playlists: { id: string; clipIds: string[] }[];
 };
 

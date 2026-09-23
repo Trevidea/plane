@@ -47,6 +47,9 @@ class TestCoachingCardIssues:
             project=project,
             state=event_state,
             sg_event_id=441,
+            level="Varsity",
+            program="Men's Basketball",
+            year="2026-27",
         )
         players = [
             RosterPlayer.objects.create(
@@ -67,8 +70,10 @@ class TestCoachingCardIssues:
             "request_id": request_id,
             "source_issue_id": str(source_issue.id),
             "player_ids": [str(player.id) for player in players],
+            "title": "Improve closeout footwork",
             "feedback": "Keep the shooting elbow aligned.",
-            "progress_status": "Practice Player",
+            "card_type": "Correction",
+            "priority": "Game Plan Critical",
             "sport_label": "Basketball",
             "playlists": [{"id": "playlist-1", "name": "Shot selection", "clips": [_clip()]}],
         }
@@ -84,8 +89,16 @@ class TestCoachingCardIssues:
         assert all(card.state.name == "New" for card in cards)
         assert all(card.parent_id == source_issue.id for card in cards)
         assert all(card.sg_event_id is None for card in cards)
+        assert all(card.name == "Improve closeout footwork" for card in cards)
         assert cards[0].coaching_card_data["request_id"] == request_id
         assert cards[0].coaching_card_data["playlists"][0]["clips"][0]["result"] == "Made"
+        assert cards[0].coaching_card_data["card_type"] == "Correction"
+        assert cards[0].coaching_card_data["priority"] == "Game Plan Critical"
+        assert cards[0].coaching_card_data["metadata"]["season"] == "2026-27"
+        assert cards[0].coaching_card_data["metadata"]["author"]["id"] == str(create_user.id)
+        assert cards[0].coaching_card_data["metadata"]["serial_number"] != cards[1].coaching_card_data["metadata"][
+            "serial_number"
+        ]
 
         replay = session_client.post(url, payload, format="json")
 
@@ -117,8 +130,10 @@ class TestCoachingCardIssues:
             "request_id": str(uuid4()),
             "source_issue_id": str(source_issue.id),
             "player_ids": [str(other_player.id)],
+            "title": "Game review",
             "feedback": "Feedback",
-            "progress_status": "New Player",
+            "card_type": "Positive Reinforcement",
+            "priority": "Standard",
             "sport_label": "Basketball",
             "playlists": [{"id": "playlist-1", "name": "Plays", "clips": [_clip()]}],
         }

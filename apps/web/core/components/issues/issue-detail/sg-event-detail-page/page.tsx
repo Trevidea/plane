@@ -583,8 +583,10 @@ export const SgEventDetailPage = ({
         request_id: createCardContext.requestId,
         source_issue_id: resolvedWorkItemId,
         player_ids: values.playerIds,
+        title: values.title,
         feedback: values.feedback,
-        progress_status: values.progressStatus,
+        card_type: values.cardType,
+        priority: values.priority,
         sport_label: resolvedSport,
         playlists,
       });

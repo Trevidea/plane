@@ -1,7 +1,9 @@
 from html import escape
+from uuid import uuid4
 
 from django.db import transaction
 from django.db.models import Min
+from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.response import Response
 
@@ -40,8 +42,18 @@ class CoachingCardBulkCreateSerializer(serializers.Serializer):
         allow_empty=False,
         max_length=50,
     )
+    title = serializers.CharField(max_length=255, trim_whitespace=True)
     feedback = serializers.CharField(max_length=5000, allow_blank=True, required=False, default="")
-    progress_status = serializers.ChoiceField(choices=("New Player", "Practice Player", "In-Progress", "Improvement"))
+    card_type = serializers.ChoiceField(
+        choices=(
+            "Correction",
+            "Positive Reinforcement",
+            "Opponent Scout",
+            "S&C Connection",
+            "Multi-Week Development",
+        )
+    )
+    priority = serializers.ChoiceField(choices=("Game Plan Critical", "Standard", "Developmental"))
     sport_label = serializers.CharField(max_length=100, allow_blank=True, required=False, default="")
     playlists = CoachingCardPlaylistSerializer(many=True, allow_empty=False, max_length=25)
 
@@ -135,13 +147,12 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
         clip_count = sum(len(playlist["clips"]) for playlist in playlists)
         feedback = payload["feedback"].strip()
         description_html = f"<p>{escape(feedback)}</p>" if feedback else "<p></p>"
+        created_at = timezone.now().isoformat()
+        sport = payload["sport_label"] or project.sport or source_issue.sport or ""
         cards = []
 
         for player_id in payload["player_ids"]:
             player = players_by_id[player_id]
-            jersey_number = (player.jersey_number or "").strip().lstrip("#")
-            player_label = f"#{jersey_number} {player.player_name}" if jersey_number else player.player_name
-            card_name = f"Coaching card - {player_label} - {first_clip['title']}"[:255]
             player_snapshot = {
                 "id": str(player.id),
                 "name": player.player_name,
@@ -149,9 +160,10 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
                 "position": player.position or "",
             }
             card_data = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "kind": COACHING_CARD_KIND,
                 "request_id": request_id,
+                "title": payload["title"],
                 "source_issue": {
                     "id": str(source_issue.id),
                     "name": source_issue.name,
@@ -159,10 +171,29 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
                     "sg_event_id": source_issue.sg_event_id,
                 },
                 "player": player_snapshot,
-                "sport": payload["sport_label"] or project.sport or source_issue.sport or "",
+                "sport": sport,
                 "feedback": feedback,
-                "progress_status": payload["progress_status"],
+                "card_type": payload["card_type"],
+                "priority": payload["priority"],
                 "playlists": playlists,
+                "metadata": {
+                    "serial_number": f"CC-{uuid4()}",
+                    "sport": sport,
+                    "season": source_issue.year or "",
+                    "program": source_issue.program or project.name,
+                    "level": source_issue.level or "",
+                    "created_at": created_at,
+                    "author": {
+                        "id": str(request.user.id),
+                        "name": request.user.display_name or request.user.email,
+                        "email": request.user.email or "",
+                    },
+                    "project": {
+                        "id": str(project.id),
+                        "name": project.name,
+                        "identifier": project.identifier,
+                    },
+                },
                 "summary": {
                     "playlist_count": len(playlists),
                     "clip_count": clip_count,
@@ -175,8 +206,11 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
                     project=project,
                     parent=source_issue,
                     state=state,
-                    name=card_name,
+                    name=payload["title"],
                     description_html=description_html,
+                    level=source_issue.level,
+                    program=source_issue.program or project.name,
+                    year=source_issue.year,
                     category=COACHING_CARD_CATEGORY,
                     roster_player=player,
                     coaching_card_data=card_data,

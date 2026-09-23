@@ -5,8 +5,14 @@ import type { IRosterPlayer } from "@plane/types";
 import { EModalWidth, ModalCore } from "@plane/ui";
 import { cn } from "@plane/utils";
 import type { TCustomPlaylist } from "@/services/media-library.service";
-import { buildCardPlaylists, CARD_PROGRESS_OPTIONS, formatCardDuration, formatCardPlayer } from "./create-card-model";
-import type { CardFormValues, CardProgressStatus } from "./create-card-model";
+import {
+  buildCardPlaylists,
+  CARD_PRIORITY_OPTIONS,
+  CARD_TYPE_OPTIONS,
+  formatCardDuration,
+  formatCardPlayer,
+} from "./create-card-model";
+import type { CardFormValues, CardPriority, CardType } from "./create-card-model";
 import { CardClipThumbnail, CreateCardPreview } from "./create-card-preview";
 import { CreateCardRosterPicker } from "./create-card-roster-picker";
 import { CreateCardScrollArea } from "./create-card-scroll-area";
@@ -38,8 +44,10 @@ export const CreateCardModal = ({
   const groups = useMemo(() => buildCardPlaylists(playlists, rows), [playlists, rows]);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(() => groups[0]?.id ?? null);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [title, setTitle] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [progressStatus, setProgressStatus] = useState<CardProgressStatus>("New Player");
+  const [cardType, setCardType] = useState<CardType>("Correction");
+  const [priority, setPriority] = useState<CardPriority>("Standard");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const selectedPlayers = useMemo(
@@ -51,6 +59,7 @@ export const CreateCardModal = ({
   const canSubmit =
     Boolean(onSubmit) &&
     selectedPlayers.length > 0 &&
+    title.trim().length > 0 &&
     totalTags > 0 &&
     !isRosterLoading &&
     !hasRosterError &&
@@ -71,8 +80,10 @@ export const CreateCardModal = ({
           try {
             await onSubmit({
               playerIds: selectedPlayers.map((player) => player.id),
+              title: title.trim(),
               feedback: feedback.trim(),
-              progressStatus,
+              cardType,
+              priority,
               playlists: includedPlaylists.map((group) => ({
                 id: group.id,
                 clipIds: group.clips.map((clip) => clip.id),
@@ -105,8 +116,10 @@ export const CreateCardModal = ({
             <CreateCardPreview
               players={selectedPlayers}
               playlists={includedPlaylists}
+              title={title}
               feedback={feedback}
-              progressStatus={progressStatus}
+              cardType={cardType}
+              priority={priority}
               sportLabel={sportLabel}
             />
             <div className="min-w-0 space-y-4">
@@ -118,6 +131,22 @@ export const CreateCardModal = ({
                 hasError={hasRosterError}
                 onRetry={onRetryRoster}
               />
+              <section>
+                <label htmlFor="create-card-title" className="text-sm text-custom-text-200">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="create-card-title"
+                  type="text"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="e.g. Red-zone footwork review"
+                  maxLength={255}
+                  required
+                  autoFocus
+                  className="mt-2 h-10 w-full rounded-lg border border-custom-border-300 bg-custom-background-90 px-3 text-sm text-custom-text-100 outline-none placeholder:text-custom-text-300 focus:border-custom-primary-100"
+                />
+              </section>
               <section>
                 <label htmlFor="create-card-feedback" className="text-sm text-custom-text-200">
                   Feedback
@@ -131,21 +160,36 @@ export const CreateCardModal = ({
                 />
               </section>
               <fieldset>
-                <legend className="text-sm text-custom-text-200">Player Progress Status</legend>
+                <legend className="text-sm text-custom-text-200">Card Type</legend>
                 <div className="mt-2 flex flex-wrap gap-2 rounded-lg border border-custom-border-300 bg-custom-background-90 p-2">
-                  {CARD_PROGRESS_OPTIONS.map((option) => (
-                    <label
-                      key={option}
-                      className={cn("cursor-pointer", option !== "New Player" && "cursor-not-allowed opacity-45")}
-                      title={option === "New Player" ? undefined : "This progress status is not available yet"}
-                    >
+                  {CARD_TYPE_OPTIONS.map((option) => (
+                    <label key={option} className="cursor-pointer">
                       <input
                         type="radio"
-                        name="card-progress"
+                        name="card-type"
                         value={option}
-                        checked={progressStatus === option}
-                        disabled={option !== "New Player"}
-                        onChange={() => setProgressStatus(option)}
+                        checked={cardType === option}
+                        onChange={() => setCardType(option)}
+                        className="peer sr-only"
+                      />
+                      <span className="inline-flex rounded-md border border-custom-border-300 px-3 py-1.5 text-xs text-custom-text-300 transition-colors peer-checked:border-custom-primary-100 peer-checked:bg-custom-primary-10 peer-checked:text-custom-primary-100 peer-focus-visible:ring-2 peer-focus-visible:ring-custom-primary-100">
+                        {option}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend className="text-sm text-custom-text-200">Priority</legend>
+                <div className="mt-2 flex flex-wrap gap-2 rounded-lg border border-custom-border-300 bg-custom-background-90 p-2">
+                  {CARD_PRIORITY_OPTIONS.map((option) => (
+                    <label key={option} className="cursor-pointer">
+                      <input
+                        type="radio"
+                        name="card-priority"
+                        value={option}
+                        checked={priority === option}
+                        onChange={() => setPriority(option)}
                         className="peer sr-only"
                       />
                       <span className="inline-flex rounded-md border border-custom-border-300 px-3 py-1.5 text-xs text-custom-text-300 transition-colors peer-checked:border-custom-primary-100 peer-checked:bg-custom-primary-10 peer-checked:text-custom-primary-100 peer-focus-visible:ring-2 peer-focus-visible:ring-custom-primary-100">

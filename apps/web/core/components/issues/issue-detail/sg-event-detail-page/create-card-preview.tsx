@@ -3,7 +3,7 @@ import { Video } from "lucide-react";
 import type { IRosterPlayer } from "@plane/types";
 import { cn } from "@plane/utils";
 import { formatCardDuration, formatCardPlayer } from "./create-card-model";
-import type { CardClip, CardPlaylist, CardProgressStatus } from "./create-card-model";
+import type { CardClip, CardPlaylist, CardPriority, CardType } from "./create-card-model";
 import { CreateCardScrollArea } from "./create-card-scroll-area";
 import { buildCustomPlaylistThumbnailUrl } from "./utils";
 
@@ -44,12 +44,14 @@ export const CardClipThumbnail = ({
 type Props = {
   players: IRosterPlayer[];
   playlists: CardPlaylist[];
+  title: string;
   feedback: string;
-  progressStatus: CardProgressStatus;
+  cardType: CardType;
+  priority: CardPriority;
   sportLabel: string;
 };
 
-export const CreateCardPreview = ({ players, playlists, feedback, progressStatus, sportLabel }: Props) => {
+export const CreateCardPreview = ({ players, playlists, title, feedback, cardType, priority, sportLabel }: Props) => {
   const player = players[0];
   const clip = playlists[0]?.clips[0];
   const clipCount = playlists.reduce((count, playlist) => count + playlist.clips.length, 0);
@@ -68,10 +70,18 @@ export const CreateCardPreview = ({ players, playlists, feedback, progressStatus
               Coaching card
             </span>
             <span className="rounded-md border border-custom-primary-100 bg-custom-primary-10 px-2 py-0.5 text-[10px] text-custom-primary-100">
-              {progressStatus}
+              {cardType}
             </span>
           </div>
           <p className="text-[11px] text-custom-text-200">{[sportLabel, clip?.group].filter(Boolean).join(" · ")}</p>
+          <p
+            className={cn(
+              "mt-1 line-clamp-2 text-sm font-semibold leading-5 text-custom-text-100",
+              !title.trim() && "font-normal italic text-custom-text-300"
+            )}
+          >
+            {title.trim() || "Card title"}
+          </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-2 text-custom-text-100">
             {jersey && <span className="text-2xl font-semibold">#{jersey}</span>}
             <span className="text-sm font-medium uppercase">{player?.player_name || "Select a player"}</span>
@@ -150,6 +160,19 @@ export const CreateCardPreview = ({ players, playlists, feedback, progressStatus
                 ))}
               </div>
             )}
+            <div className="flex flex-wrap gap-1.5">
+              {[cardType, priority].map((label, index) => (
+                <span
+                  key={label}
+                  className={cn(
+                    "rounded border border-custom-border-300 px-1.5 py-0.5 text-[10px] text-custom-text-200",
+                    index === 0 && "border-custom-primary-100/40 bg-custom-primary-100/10 text-custom-primary-100"
+                  )}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
             <p className="text-[11px] leading-4 text-custom-text-200">
               {players.length
                 ? `Selected for ${players.length} player${players.length === 1 ? "" : "s"} · ${recipients}`
