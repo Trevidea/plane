@@ -30,6 +30,13 @@ export type CardClip = {
 
 export type CardPlaylist = { id: string; name: string; clips: CardClip[] };
 
+export type CardContextValues = {
+  sport: string | null;
+  level: string | null;
+  program: string | null;
+  season: string | null;
+};
+
 export type CardFormValues = {
   playerIds: string[];
   title: string;
