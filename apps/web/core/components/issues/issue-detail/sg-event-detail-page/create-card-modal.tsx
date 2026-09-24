@@ -5,6 +5,7 @@ import type { IRosterPlayer } from "@plane/types";
 import { EModalWidth, ModalCore } from "@plane/ui";
 import { cn } from "@plane/utils";
 import type { TCustomPlaylist } from "@/services/media-library.service";
+import { CreateCardContextFields } from "./create-card-context-fields";
 import {
   buildCardPlaylists,
   CARD_PRIORITY_OPTIONS,
@@ -12,7 +13,7 @@ import {
   formatCardDuration,
   formatCardPlayer,
 } from "./create-card-model";
-import type { CardFormValues, CardPriority, CardType } from "./create-card-model";
+import type { CardContextValues, CardFormValues, CardPriority, CardType } from "./create-card-model";
 import { CardClipThumbnail, CreateCardPreview } from "./create-card-preview";
 import { CreateCardRosterPicker } from "./create-card-roster-picker";
 import { CreateCardScrollArea } from "./create-card-scroll-area";
@@ -27,7 +28,7 @@ type Props = {
   onRetryRoster: () => void;
   onClose: () => void;
   onSubmit?: (values: CardFormValues) => Promise<void>;
-  sportLabel: string;
+  initialContext: CardContextValues;
 };
 
 export const CreateCardModal = ({
@@ -39,7 +40,7 @@ export const CreateCardModal = ({
   onRetryRoster,
   onClose,
   onSubmit,
-  sportLabel,
+  initialContext,
 }: Props) => {
   const groups = useMemo(() => buildCardPlaylists(playlists, rows), [playlists, rows]);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(() => groups[0]?.id ?? null);
@@ -48,6 +49,8 @@ export const CreateCardModal = ({
   const [feedback, setFeedback] = useState("");
   const [cardType, setCardType] = useState<CardType>("Correction");
   const [priority, setPriority] = useState<CardPriority>("Standard");
+  const [contextOverrides, setContextOverrides] = useState<Partial<CardContextValues>>({});
+  const context = { ...initialContext, ...contextOverrides };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const selectedPlayers = useMemo(
@@ -120,7 +123,7 @@ export const CreateCardModal = ({
               feedback={feedback}
               cardType={cardType}
               priority={priority}
-              sportLabel={sportLabel}
+              context={context}
             />
             <div className="min-w-0 space-y-4">
               <CreateCardRosterPicker
@@ -130,6 +133,11 @@ export const CreateCardModal = ({
                 isLoading={isRosterLoading}
                 hasError={hasRosterError}
                 onRetry={onRetryRoster}
+              />
+              <CreateCardContextFields
+                value={context}
+                onChange={(field, value) => setContextOverrides((current) => ({ ...current, [field]: value }))}
+                disabled={isSubmitting}
               />
               <section>
                 <label htmlFor="create-card-title" className="text-sm text-custom-text-200">
