@@ -1,17 +1,22 @@
 import { useState } from "react";
+import { useParams } from "next/navigation";
 import { CalendarDays, Layers3, Play, Video } from "lucide-react";
+import { API_BASE_URL } from "@plane/constants";
 import type { TCoachingCardClip, TIssue } from "@plane/types";
 import { cn, renderFormattedDate } from "@plane/utils";
 import {
   buildCustomPlaylistThumbnailUrl,
   formatLooseLabel,
 } from "@/components/issues/issue-detail/sg-event-detail-page/utils";
+import { useAppRouter } from "@/hooks/use-app-router";
+import { getCoachingCardSource } from "./coaching-card-source";
 
 export const isCoachingCardIssue = (issue: TIssue) =>
   issue.category === "Coaching Card" && issue.coaching_card_data?.kind === "coaching_card";
 
 const getThumbnailUrl = (thumbnail?: string | null) => {
   if (!thumbnail) return "";
+  if (thumbnail.startsWith("/api/")) return `${API_BASE_URL.replace(/\/$/, "")}${thumbnail}`;
   return thumbnail.startsWith("/") ? thumbnail : buildCustomPlaylistThumbnailUrl(thumbnail);
 };
 
@@ -64,6 +69,8 @@ export const CoachingCardKanbanDetails = ({
   issue: TIssue;
   projectIdentifier?: string;
 }) => {
+  const { workspaceSlug } = useParams() as { workspaceSlug: string };
+  const router = useAppRouter();
   const card = issue.coaching_card_data;
   if (!card) return null;
 
@@ -73,11 +80,23 @@ export const CoachingCardKanbanDetails = ({
   const jersey = card.player.jersey_number.trim().replace(/^#/, "");
   const rawPrimaryContext = firstClip?.title || card.summary.primary_clip_title;
   const primaryContext = rawPrimaryContext ? formatLooseLabel(rawPrimaryContext) : "";
-  const sourceIdentifier = projectIdentifier
-    ? `${projectIdentifier}-${card.source_issue.sequence_id}`
-    : `#${card.source_issue.sequence_id}`;
+  const source = getCoachingCardSource(card, workspaceSlug, issue.project_id, projectIdentifier);
   const clipStartTime = getClipStartTime(firstClip?.timecode);
   const clipDuration = formatClipDuration(firstClip?.duration_seconds);
+
+  const cardContext = [
+    card.metadata?.sport,
+    card.metadata?.level,
+    card.metadata?.program,
+    card.metadata?.season,
+    card.metadata?.category,
+    card.metadata?.location,
+    card.metadata?.start_date,
+    card.metadata?.start_time,
+    ...(card.metadata?.tags ?? []),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
   const metadata = [
     card.card_type || card.progress_status,
     card.priority,
@@ -93,11 +112,26 @@ export const CoachingCardKanbanDetails = ({
     <div className="space-y-2.5">
       <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-custom-text-300">
         <Layers3 className="h-3 w-3 shrink-0" aria-hidden="true" />
-        <span className="shrink-0">Source {sourceIdentifier}</span>
+        <span className="shrink-0">{source.label}</span>
         <span aria-hidden="true">·</span>
-        <span className="truncate" title={card.source_issue.name}>
-          {card.source_issue.name}
-        </span>
+        {source.href ? (
+          <button
+            type="button"
+            className="truncate text-left hover:underline"
+            title={source.title}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (source.href) router.push(source.href);
+            }}
+          >
+            {source.title}
+          </button>
+        ) : (
+          <span className="truncate" title={source.title}>
+            {source.title}
+          </span>
+        )}
       </div>
 
       <p className="line-clamp-2 text-[13px] leading-5 text-custom-text-100" title={issue.name}>
@@ -109,6 +143,11 @@ export const CoachingCardKanbanDetails = ({
           </>
         )}
       </p>
+      {cardContext && (
+        <p className="line-clamp-2 text-[11px] text-custom-text-300" title={cardContext}>
+          {cardContext}
+        </p>
+      )}
 
       <div className="grid h-[82px] grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-[3px] overflow-hidden rounded-md border border-custom-border-200">
         <CoachingCardThumbnail clip={firstClip} fallbackThumbnail={card.summary.primary_thumbnail}>

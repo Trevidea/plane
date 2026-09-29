@@ -2,10 +2,12 @@ import { LevelDropdown } from "@/components/dropdowns/level-property";
 import { ProgramDropdown } from "@/components/dropdowns/program-property";
 import SportDropdown from "@/components/dropdowns/sport-property";
 import { YearRangeDropdown } from "@/components/dropdowns/year-property";
+import { hasCardContextMetadata } from "./create-card-model";
 import type { CardContextValues } from "./create-card-model";
 
 type Props = {
   value: CardContextValues;
+  initialValue: CardContextValues;
   onChange: (field: keyof CardContextValues, value: string | null) => void;
   disabled: boolean;
 };
@@ -17,7 +19,7 @@ const CONTEXT_FIELDS = [
   { key: "season", label: "Season", Dropdown: YearRangeDropdown },
 ] as const;
 
-export const CreateCardContextFields = ({ value, onChange, disabled }: Props) => (
+export const CreateCardContextFields = ({ value, initialValue, onChange, disabled }: Props) => (
   <fieldset>
     <legend className="text-sm text-custom-text-200">Card Context</legend>
     <div className="mt-2 grid grid-cols-1 gap-3 rounded-lg border border-custom-border-300 bg-custom-background-90 p-3 sm:grid-cols-2">
@@ -26,18 +28,24 @@ export const CreateCardContextFields = ({ value, onChange, disabled }: Props) =>
           <span id={`create-card-${key}-label`} className="block text-xs text-custom-text-200">
             {label}
           </span>
-          <Dropdown
-            value={value[key]}
-            onChange={(selection) => onChange(key, selection)}
-            placeholder={`Select ${label.toLowerCase()}`}
-            buttonVariant="border-with-text"
-            className="h-10"
-            buttonContainerClassName="w-full text-left focus-visible:ring-2 focus-visible:ring-custom-primary-100 rounded-lg"
-            buttonClassName="rounded-lg border border-custom-border-300 bg-custom-background-100 px-3 text-sm text-custom-text-100"
-            clearIconClassName="h-3 w-3 shrink-0 text-custom-text-300"
-            dropdownClassName="z-[70]"
-            disabled={disabled}
-          />
+          {hasCardContextMetadata(initialValue[key]) ? (
+            <div className="flex h-10 items-center rounded-lg border border-custom-border-300 bg-custom-background-100 px-3 text-sm text-custom-text-100">
+              {initialValue[key]}
+            </div>
+          ) : (
+            <Dropdown
+              value={value[key]}
+              onChange={(selection) => onChange(key, selection)}
+              placeholder={`Select ${label.toLowerCase()}`}
+              buttonVariant="border-with-text"
+              className="h-10"
+              buttonContainerClassName="w-full text-left focus-visible:ring-2 focus-visible:ring-custom-primary-100 rounded-lg"
+              buttonClassName="rounded-lg border border-custom-border-300 bg-custom-background-100 px-3 text-sm text-custom-text-100"
+              clearIconClassName="h-3 w-3 shrink-0 text-custom-text-300"
+              dropdownClassName="z-[70]"
+              disabled={disabled}
+            />
+          )}
         </div>
       ))}
     </div>

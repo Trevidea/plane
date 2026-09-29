@@ -61,7 +61,7 @@ export type TCoachingCardPlaylist = {
 };
 
 export type TCoachingCardData = {
-  schema_version: 1 | 2;
+  schema_version: 1 | 2 | 3;
   kind: "coaching_card";
   request_id: string;
   title?: string;
@@ -70,6 +70,24 @@ export type TCoachingCardData = {
     name: string;
     sequence_id: number;
     sg_event_id: string | number | null;
+  } | null;
+  source_media?: {
+    package_id: string;
+    artifact_id: string;
+    title: string;
+    annotations: Record<string, unknown>[];
+    metadata?: {
+      category: string;
+      location: string;
+      sport: string;
+      program: string;
+      level: string;
+      season: string;
+      start_date: string;
+      start_time: string;
+      created_by: string;
+      tags: string[];
+    };
   };
   player: {
     id: string;
@@ -89,6 +107,12 @@ export type TCoachingCardData = {
     season: string;
     program: string;
     level: string;
+    category?: string;
+    location?: string;
+    tags?: string[];
+    start_date?: string;
+    start_time?: string;
+    uploaded_by?: string;
     created_at: string;
     author: { id: string; name: string; email: string };
     project: { id: string; name: string; identifier: string };
@@ -103,15 +127,17 @@ export type TCoachingCardData = {
 
 export type TCreateCoachingCardsPayload = {
   request_id: string;
-  source_issue_id: string;
   player_ids: string[];
   title: string;
   feedback: string;
   card_type: string;
   priority: string;
   sport_label: string;
-  playlists: TCoachingCardPlaylist[];
-};
+  context?: { sport: string | null; level: string | null; program: string | null; season: string | null };
+} & (
+  | { source_issue_id: string; source_media?: never; playlists: TCoachingCardPlaylist[] }
+  | { source_issue_id?: never; source_media: { package_id: string; artifact_id: string }; playlists?: never }
+);
 
 export type TCreateCoachingCardsResponse = {
   created_count: number;
@@ -122,7 +148,7 @@ export type TCreateCoachingCardsResponse = {
     sequence_id: number;
     project_id: string;
     state_id: string;
-    parent_id: string;
+    parent_id: string | null;
     category: string;
     roster_player_id: string;
     coaching_card_data: TCoachingCardData;

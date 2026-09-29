@@ -180,6 +180,7 @@ export const VideoAnnotationEditor = ({
   toolbarHostElement = null,
   showTimeline = false,
   timelineHostElement = null,
+  timelineHeaderAction,
 }: VideoAnnotationEditorProps) => {
   const savedAnnotations = useMemo(
     () => resolveAnnotationTimelineLayers(normalizePlaylistAnnotations(savedAnnotationValue)),
@@ -1065,6 +1066,7 @@ export const VideoAnnotationEditor = ({
           timelineContentWidthPx={timelineContentWidthPx}
           timelineDurationSeconds={timelineDurationSeconds}
           timelineHeaderScrollableElementRef={timelineHeaderScrollableElementRef}
+          timelineHeaderAction={timelineHeaderAction}
           timelineProgressPercent={timelineProgressPercent}
           timelineResizeId={timelineResizeId}
           timelineScrollableElementRef={timelineScrollableElementRef}

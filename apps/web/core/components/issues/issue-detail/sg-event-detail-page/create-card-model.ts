@@ -43,6 +43,7 @@ export type CardFormValues = {
   feedback: string;
   cardType: CardType;
   priority: CardPriority;
+  context: CardContextValues;
   playlists: { id: string; clipIds: string[] }[];
 };
 
@@ -50,6 +51,8 @@ const cleanText = (value: string | null | undefined) => {
   const text = value?.trim() ?? "";
   return ["--", "-", "n/a"].includes(text.toLowerCase()) ? "" : text;
 };
+
+export const hasCardContextMetadata = (value: string | null | undefined): boolean => Boolean(cleanText(value));
 
 export const formatCardPlayer = (player: IRosterPlayer) => {
   const jersey = player.jersey_number?.trim().replace(/^#/, "");

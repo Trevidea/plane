@@ -12,6 +12,7 @@ import {
   CARD_TYPE_OPTIONS,
   formatCardDuration,
   formatCardPlayer,
+  hasCardContextMetadata,
 } from "./create-card-model";
 import type { CardContextValues, CardFormValues, CardPriority, CardType } from "./create-card-model";
 import { CardClipThumbnail, CreateCardPreview } from "./create-card-preview";
@@ -50,7 +51,16 @@ export const CreateCardModal = ({
   const [cardType, setCardType] = useState<CardType>("Correction");
   const [priority, setPriority] = useState<CardPriority>("Standard");
   const [contextOverrides, setContextOverrides] = useState<Partial<CardContextValues>>({});
-  const context = { ...initialContext, ...contextOverrides };
+  const contextValue = (field: keyof CardContextValues) => {
+    const sourceValue = initialContext[field];
+    return hasCardContextMetadata(sourceValue) ? sourceValue : (contextOverrides[field] ?? sourceValue);
+  };
+  const context: CardContextValues = {
+    sport: contextValue("sport"),
+    level: contextValue("level"),
+    program: contextValue("program"),
+    season: contextValue("season"),
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const selectedPlayers = useMemo(
@@ -87,6 +97,7 @@ export const CreateCardModal = ({
               feedback: feedback.trim(),
               cardType,
               priority,
+              context,
               playlists: includedPlaylists.map((group) => ({
                 id: group.id,
                 clipIds: group.clips.map((clip) => clip.id),
@@ -136,7 +147,11 @@ export const CreateCardModal = ({
               />
               <CreateCardContextFields
                 value={context}
-                onChange={(field, value) => setContextOverrides((current) => ({ ...current, [field]: value }))}
+                initialValue={initialContext}
+                onChange={(field, value) => {
+                  if (hasCardContextMetadata(initialContext[field])) return;
+                  setContextOverrides((current) => ({ ...current, [field]: value }));
+                }}
                 disabled={isSubmitting}
               />
               <section>

@@ -550,6 +550,14 @@ export const SgEventDetailPage = ({
   const handleCreateMatrixCard = useCallback(
     (rows: SgTagRow[]) => {
       if (rows.length === 0) return;
+      if (playlistDraft) {
+        setToast({
+          type: TOAST_TYPE.ERROR,
+          title: "Save changes before creating a card",
+          message: "Save your playlist changes, then try again.",
+        });
+        return;
+      }
       setCreateCardContext({
         rows,
         requestId: uuidv4(),
@@ -566,7 +574,7 @@ export const SgEventDetailPage = ({
         ],
       });
     },
-    [resolvedCustomPlaylistEventId]
+    [playlistDraft, resolvedCustomPlaylistEventId]
   );
 
   const handleCreateCards = useCallback(
@@ -587,7 +595,8 @@ export const SgEventDetailPage = ({
         feedback: values.feedback,
         card_type: values.cardType,
         priority: values.priority,
-        sport_label: resolvedSport,
+        sport_label: values.context.sport ?? "",
+        context: values.context,
         playlists,
       });
 
@@ -598,7 +607,7 @@ export const SgEventDetailPage = ({
         message: `${cardCount} card${cardCount === 1 ? "" : "s"} added to the New column on the coaching board.`,
       });
     },
-    [createCardContext, issueService, projectId, resolvedSport, resolvedWorkItemId, workspaceSlug]
+    [createCardContext, issueService, projectId, resolvedWorkItemId, workspaceSlug]
   );
 
   const handleCreateCustomPlaylist = useCallback(
