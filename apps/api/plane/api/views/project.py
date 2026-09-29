@@ -32,6 +32,7 @@ from .base import BaseAPIView
 from plane.utils.host import base_host
 from plane.utils.exception_logger import log_exception
 from plane.utils.media_library import delete_project_library
+from plane.utils.coaching_card_lifecycle import default_project_state_definitions
 from plane.api.serializers import (
     ProjectSerializer,
     ProjectCreateSerializer,
@@ -235,39 +236,7 @@ class ProjectListCreateAPIEndpoint(BaseAPIView):
                     )
 
                 # Default states
-                states = [
-                    {
-                        "name": "Backlog",
-                        "color": "#60646C",
-                        "sequence": 15000,
-                        "group": "backlog",
-                        "default": True,
-                    },
-                    {
-                        "name": "Todo",
-                        "color": "#60646C",
-                        "sequence": 25000,
-                        "group": "unstarted",
-                    },
-                    {
-                        "name": "In Progress",
-                        "color": "#F59E0B",
-                        "sequence": 35000,
-                        "group": "started",
-                    },
-                    {
-                        "name": "Done",
-                        "color": "#46A758",
-                        "sequence": 45000,
-                        "group": "completed",
-                    },
-                    {
-                        "name": "Cancelled",
-                        "color": "#9AA4BC",
-                        "sequence": 55000,
-                        "group": "cancelled",
-                    },
-                ]
+                states = default_project_state_definitions(serializer.instance)
 
                 State.objects.bulk_create(
                     [

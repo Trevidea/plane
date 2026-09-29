@@ -1,6 +1,7 @@
 # Python imports
 import copy
 import json
+from uuid import UUID
 
 # Django imports
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -193,6 +194,7 @@ class IssueListEndpoint(BaseAPIView):
                 "category",
                 "sg_event_id",
                 "roster_player_id",
+                "position_group",
                 "coaching_card_data",
             )
             datetime_fields = ["created_at", "updated_at"]
@@ -288,6 +290,30 @@ class IssueViewSet(BaseViewSet):
 
         if request.GET.get("coaching_cards", "").lower() in {"1", "true"}:
             issue_queryset = issue_queryset.filter(category=COACHING_CARD_CATEGORY)
+            for query_key, field_name in (
+                ("sport", "sport"), ("program", "program"), ("level", "level"),
+                ("season", "year"), ("stage_id", "state_id"),
+            ):
+                value = request.GET.get(query_key)
+                if value:
+                    issue_queryset = issue_queryset.filter(**{field_name: value})
+            assignment = request.GET.get("assignment")
+            if assignment == "player":
+                issue_queryset = issue_queryset.filter(roster_player_id__isnull=False)
+            elif assignment == "group":
+                issue_queryset = issue_queryset.filter(position_group__isnull=False)
+            elif assignment:
+                return Response({"assignment": ["Use player or group."]}, status=status.HTTP_400_BAD_REQUEST)
+            assignment_id = request.GET.get("assignment_id")
+            if assignment_id and assignment == "player":
+                try:
+                    issue_queryset = issue_queryset.filter(roster_player_id=UUID(assignment_id))
+                except ValueError:
+                    return Response({"assignment_id": ["Use a valid player ID."]}, status=status.HTTP_400_BAD_REQUEST)
+            elif assignment_id and assignment == "group":
+                issue_queryset = issue_queryset.filter(position_group__iexact=assignment_id)
+            elif assignment_id:
+                return Response({"assignment_id": ["Select an assignment type."]}, status=status.HTTP_400_BAD_REQUEST)
 
         # Keeping a copy of the queryset before applying annotations
         filtered_issue_queryset = copy.deepcopy(issue_queryset)
@@ -411,6 +437,8 @@ class IssueViewSet(BaseViewSet):
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER])
     @transaction.atomic
     def create(self, request, slug, project_id):
+        if request.data.get("category") == COACHING_CARD_CATEGORY:
+            return Response({"detail": "Use the coaching card create API."}, status=status.HTTP_400_BAD_REQUEST)
         project = Project.objects.get(pk=project_id)
 
         serializer = IssueCreateSerializer(
@@ -711,6 +739,12 @@ class IssueViewSet(BaseViewSet):
         if not issue:
             return Response({"error": "Issue not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        if issue.category == COACHING_CARD_CATEGORY:
+            return Response(
+                {"detail": "Use the coaching card detail and transition APIs to update coaching cards."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         current_instance = json.dumps(IssueDetailSerializer(issue).data, cls=DjangoJSONEncoder)
 
         requested_data = json.dumps(self.request.data, cls=DjangoJSONEncoder)
@@ -768,6 +802,15 @@ class IssueViewSet(BaseViewSet):
             )
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER], creator=True, model=Issue)
+    def update(self, request, slug, project_id, pk=None):
+        if Issue.issue_objects.filter(pk=pk, project_id=project_id, category=COACHING_CARD_CATEGORY).exists():
+            return Response(
+                {"detail": "Use PATCH to update coaching card properties."},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED,
+            )
+        return super().update(request, slug=slug, project_id=project_id, pk=pk)
 
     @allow_permission([ROLE.ADMIN], creator=True, model=Issue)
     @transaction.atomic

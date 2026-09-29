@@ -76,6 +76,7 @@ class IssueSerializer(BaseSerializer):
             "updated_at",
             "sg_event_id",
             "roster_player",
+            "position_group",
             "coaching_card_data",
         ]
         exclude = ["description", "description_stripped"]
@@ -696,6 +697,7 @@ class IssueExpandSerializer(BaseSerializer):
             "updated_at",
             "sg_event_id",
             "roster_player",
+            "position_group",
             "coaching_card_data",
         ]
 

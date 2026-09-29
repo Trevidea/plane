@@ -1275,11 +1275,11 @@ export default {
       issue_delete: "Failed to delete work item",
     },
     state: {
-      backlog: "Backlog",
-      unstarted: "Unstarted",
-      started: "Started",
-      completed: "Completed",
-      cancelled: "Cancelled",
+      backlog: "To Review",
+      unstarted: "Action Required",
+      started: "In Progress",
+      completed: "Verified",
+      cancelled: "Closed",
     },
     sort: {
       manual: "Manual",

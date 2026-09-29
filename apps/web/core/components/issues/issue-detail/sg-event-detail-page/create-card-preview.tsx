@@ -43,6 +43,7 @@ export const CardClipThumbnail = ({
 
 type Props = {
   players: IRosterPlayer[];
+  positionGroup: string | null;
   playlists: CardPlaylist[];
   title: string;
   feedback: string;
@@ -51,7 +52,16 @@ type Props = {
   context: CardContextValues;
 };
 
-export const CreateCardPreview = ({ players, playlists, title, feedback, cardType, priority, context }: Props) => {
+export const CreateCardPreview = ({
+  players,
+  positionGroup,
+  playlists,
+  title,
+  feedback,
+  cardType,
+  priority,
+  context,
+}: Props) => {
   const player = players[0];
   const clip = playlists[0]?.clips[0];
   const clipCount = playlists.reduce((count, playlist) => count + playlist.clips.length, 0);
@@ -89,7 +99,9 @@ export const CreateCardPreview = ({ players, playlists, title, feedback, cardTyp
           </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-2 text-custom-text-100">
             {jersey && <span className="text-2xl font-semibold">#{jersey}</span>}
-            <span className="text-sm font-medium uppercase">{player?.player_name || "Select a player"}</span>
+            <span className="text-sm font-medium uppercase">
+              {positionGroup ? `${positionGroup} group` : player?.player_name || "Select a player"}
+            </span>
           </div>
           {player?.position && <p className="mt-0.5 text-xs text-custom-text-200">{player.position}</p>}
         </div>
@@ -108,6 +120,12 @@ export const CreateCardPreview = ({ players, playlists, title, feedback, cardTyp
               </div>
             )}
           </div>
+          {clip && (
+            <p className="truncate text-[10px] text-custom-text-300" title={clip.sourceUrl || clip.eventId}>
+              Source: {clip.mediaId || clip.eventId || "Event video"}
+              {clip.timecode ? ` · ${clip.timecode}` : ""}
+            </p>
+          )}
           <section>
             <div className="mb-2 flex items-center justify-between gap-2">
               <h3 className="text-[10px] uppercase tracking-[0.12em] text-custom-text-300">Playlists</h3>

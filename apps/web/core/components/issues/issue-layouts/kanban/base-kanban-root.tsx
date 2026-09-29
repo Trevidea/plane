@@ -1,13 +1,15 @@
 "use client";
 
 import type { FC } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+import useSWR from "swr";
 import { EIssueFilterType, EUserPermissions, EUserPermissionsLevel, WORK_ITEM_TRACKER_EVENTS } from "@plane/constants";
+import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { EIssueServiceType, EIssueLayoutTypes, EIssuesStoreType } from "@plane/types";
 //constants
 //hooks
@@ -20,6 +22,7 @@ import { useUserPermissions } from "@/hooks/store/user";
 import { useGroupIssuesDragNDrop } from "@/hooks/use-group-dragndrop";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { useIssuesActions } from "@/hooks/use-issues-actions";
+import { IssueService } from "@/services/issue/issue.service";
 // store
 // ui
 // types
@@ -27,9 +30,14 @@ import { DeleteIssueModal } from "../../delete-issue-modal";
 import { IssueLayoutHOC } from "../issue-layout-HOC";
 import type { IQuickActionProps, TRenderQuickActions } from "../list/list-view-types";
 //components
+import type { GroupDropLocation } from "../utils";
 import { getSourceFromDropPayload } from "../utils";
+import { canTransitionCard } from "./coaching-card-stage-model";
+import { CoachingSwimlaneBoard } from "./coaching-swimlane-board";
+import { getSwimlaneLaneUpdate } from "./coaching-swimlane-model";
 import { KanBan } from "./default";
 import { KanBanSwimLanes } from "./swimlanes";
+import { useSwimlanePreference } from "./use-swimlane-preference";
 
 export type KanbanStoreType =
   | EIssuesStoreType.PROJECT
@@ -94,10 +102,6 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
 
   const orderBy = displayFilters?.order_by;
 
-  useEffect(() => {
-    fetchIssues("init-loader", { canGroup: true, perPageCount: sub_group_by ? 10 : 30 }, viewId);
-  }, [fetchIssues, storeType, group_by, sub_group_by, viewId]);
-
   const fetchMoreIssues = useCallback(
     (groupId?: string, subgroupId?: string) => {
       if (issues?.getIssueLoader(groupId, subgroupId) !== "pagination") {
@@ -111,11 +115,49 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
 
   const userDisplayFilters = displayFilters || null;
 
-  const KanBanView = sub_group_by ? KanBanSwimLanes : KanBan;
-
   const { enableInlineEditing, enableQuickAdd, enableIssueCreation } = issues?.viewFlags || {};
   const currentProject = projectId ? getProjectById(projectId.toString()) : undefined;
   const isCoachingBoard = storeType === EIssuesStoreType.PROJECT && Boolean(currentProject?.sport?.trim());
+  const { view: swimlaneView, preferenceKey } = useSwimlanePreference(
+    workspaceSlug?.toString(),
+    isCoachingBoard ? projectId?.toString() : undefined,
+    currentProject?.default_swimlane_view ?? "stage"
+  );
+  const hasCoachingSwimlanes = isCoachingBoard && swimlaneView !== "stage";
+  const KanBanView = sub_group_by && !isCoachingBoard ? KanBanSwimLanes : KanBan;
+  const boardPageSize = hasCoachingSwimlanes ? 1000 : sub_group_by && !isCoachingBoard ? 10 : 30;
+
+  useEffect(() => {
+    fetchIssues("init-loader", { canGroup: true, perPageCount: boardPageSize }, viewId);
+  }, [fetchIssues, storeType, group_by, sub_group_by, boardPageSize, viewId]);
+  useEffect(() => {
+    if (isCoachingBoard && (group_by !== "state" || sub_group_by) && projectId) {
+      void updateFilters(projectId.toString(), EIssueFilterType.DISPLAY_FILTERS, {
+        group_by: "state",
+        sub_group_by: null,
+      });
+    }
+  }, [group_by, sub_group_by, isCoachingBoard, projectId, updateFilters]);
+  const cardService = useMemo(() => new IssueService(), []);
+  const {
+    data: cardStageConfig,
+    error: cardConfigError,
+    mutate: refreshCardConfig,
+  } = useSWR(
+    isCoachingBoard && workspaceSlug && projectId ? ["coaching-card-config", workspaceSlug, projectId] : null,
+    () => cardService.getCoachingCardConfig(workspaceSlug.toString(), projectId.toString())
+  );
+
+  useEffect(() => {
+    if (!isCoachingBoard) return;
+    const refreshBoard = (event: Event) => {
+      if ((event as CustomEvent<{ projectId: string }>).detail?.projectId !== projectId?.toString()) return;
+      void refreshCardConfig();
+      void fetchIssues("init-loader", { canGroup: true, perPageCount: boardPageSize }, viewId);
+    };
+    window.addEventListener("coaching-card-created", refreshBoard);
+    return () => window.removeEventListener("coaching-card-created", refreshBoard);
+  }, [fetchIssues, isCoachingBoard, projectId, refreshCardConfig, boardPageSize, viewId]);
 
   const scrollableContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -128,8 +170,6 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
     EUserPermissionsLevel.PROJECT
   );
 
-  const handleOnDrop = useGroupIssuesDragNDrop(storeType, orderBy, group_by, sub_group_by);
-
   const canEditProperties = useCallback(
     (projectId: string | undefined) => {
       const isEditingAllowedBasedOnProject =
@@ -138,6 +178,107 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
       return enableInlineEditing && isEditingAllowedBasedOnProject;
     },
     [canEditPropertiesBasedOnProject, enableInlineEditing, isEditingAllowed]
+  );
+
+  const handleOnDrop = useGroupIssuesDragNDrop(
+    storeType,
+    orderBy,
+    group_by,
+    isCoachingBoard ? undefined : sub_group_by,
+    cardStageConfig
+  );
+
+  const handleSwimlaneDrop = useCallback(
+    async (source: GroupDropLocation, destination: GroupDropLocation) => {
+      if (!source.id || !projectId || !workspaceSlug) return;
+      const issue = getIssueById(source.id);
+      if (!issue || !canEditProperties(issue.project_id ?? undefined)) return;
+      const sourceLane = source.subGroupId || "";
+      const targetLane = destination.subGroupId || "";
+      const changedLane = sourceLane !== targetLane;
+      const changedStage = source.groupId !== destination.groupId;
+      if (!changedLane) {
+        await handleOnDrop(
+          { ...source, subGroupId: "null", columnId: `${source.groupId}__null` },
+          { ...destination, subGroupId: "null", columnId: `${destination.groupId}__null` }
+        );
+        return;
+      }
+      if (swimlaneView === "aging" || swimlaneView === "stage") {
+        setToast({
+          type: TOAST_TYPE.WARNING,
+          title: "Aging is automatic",
+          message: "Cards cannot be moved between aging lanes.",
+        });
+        return;
+      }
+      if (changedStage && !canTransitionCard(cardStageConfig, source.groupId, destination.groupId)) {
+        setToast({
+          type: TOAST_TYPE.WARNING,
+          title: "Stage unavailable",
+          message: "Cards can move only to the next stage.",
+        });
+        return;
+      }
+      const slug = workspaceSlug.toString();
+      const boardId = projectId.toString();
+      let laneUpdate: ReturnType<typeof getSwimlaneLaneUpdate>;
+      try {
+        laneUpdate = getSwimlaneLaneUpdate(swimlaneView, sourceLane, targetLane, issue.assignee_ids);
+      } catch (error) {
+        setToast({
+          type: TOAST_TYPE.WARNING,
+          title: "Lane unavailable",
+          message: error instanceof Error ? error.message : "This lane does not accept cards.",
+        });
+        return;
+      }
+      let stageMoved = false;
+      try {
+        if (changedStage) {
+          await cardService.transitionCoachingCard(slug, boardId, issue.id, destination.groupId);
+          stageMoved = true;
+        }
+        if (laneUpdate.issuePatch) {
+          if (!updateIssue) throw new Error("Coach assignment is unavailable.");
+          await updateIssue(issue.project_id, issue.id, laneUpdate.issuePatch);
+        }
+        if (laneUpdate.cardPatch) await cardService.updateCoachingCard(slug, boardId, issue.id, laneUpdate.cardPatch);
+      } catch (error) {
+        setToast({
+          type: TOAST_TYPE.ERROR,
+          title: "Card move failed",
+          message: stageMoved
+            ? "The stage changed, but the lane assignment could not be updated."
+            : error instanceof Error
+              ? error.message
+              : "The card could not be moved.",
+        });
+      } finally {
+        try {
+          await fetchIssues("init-loader", { canGroup: true, perPageCount: 1000 }, viewId);
+        } catch {
+          setToast({
+            type: TOAST_TYPE.ERROR,
+            title: "Board refresh failed",
+            message: "Refresh the board to see the latest card.",
+          });
+        }
+      }
+    },
+    [
+      projectId,
+      workspaceSlug,
+      getIssueById,
+      canEditProperties,
+      handleOnDrop,
+      swimlaneView,
+      cardStageConfig,
+      cardService,
+      updateIssue,
+      fetchIssues,
+      viewId,
+    ]
   );
 
   // Enable Auto Scroll for Main Kanban
@@ -243,6 +384,32 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
 
   const collapsedGroups = issuesFilter?.issueFilters?.kanbanFilters || { group_by: [], sub_group_by: [] };
 
+  const boardProps = {
+    issuesMap: issueMap,
+    cardStageConfig,
+    isDropDisabled: isCoachingBoard && !cardStageConfig,
+    dropErrorMessage: "Coaching stage configuration is unavailable.",
+    groupedIssueIds: groupedIssueIds ?? {},
+    getGroupIssueCount: issues.getGroupIssueCount,
+    displayProperties,
+    sub_group_by: isCoachingBoard ? null : sub_group_by,
+    group_by,
+    orderBy,
+    updateIssue,
+    quickActions: renderQuickActions,
+    handleCollapsedGroups,
+    collapsedGroups,
+    enableQuickIssueCreate: isCoachingBoard ? false : enableQuickAdd,
+    showEmptyGroup: isCoachingBoard || (userDisplayFilters?.show_empty_groups ?? true),
+    quickAddCallback: quickAddIssue,
+    disableIssueCreation: isCoachingBoard || !enableIssueCreation || !isEditingAllowed || isCompletedCycle,
+    canEditProperties,
+    addIssuesToView,
+    scrollableContainerRef,
+    loadMoreIssues: fetchMoreIssues,
+    isEpic,
+  };
+
   return (
     <>
       <DeleteIssueModal
@@ -270,35 +437,27 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
         </div>
       </div>
       <IssueLayoutHOC layout={EIssueLayoutTypes.KANBAN}>
+        {isCoachingBoard && cardConfigError && (
+          <div role="alert" className="border-b border-red-500/30 px-4 py-2 text-sm text-red-500">
+            Coaching stage configuration is unavailable. Card moves are disabled.
+          </div>
+        )}
         <div
-          className={`horizontal-scrollbar scrollbar-lg relative flex h-full w-full bg-custom-background-90 ${sub_group_by ? "vertical-scrollbar overflow-y-auto" : "overflow-x-auto overflow-y-hidden"}`}
+          className={`horizontal-scrollbar scrollbar-lg relative flex h-full w-full bg-custom-background-90 ${hasCoachingSwimlanes || (sub_group_by && !isCoachingBoard) ? "vertical-scrollbar overflow-y-auto" : "overflow-x-auto overflow-y-hidden"}`}
           ref={scrollableContainerRef}
         >
           <div className="relative h-full w-max min-w-full bg-custom-background-90">
             <div className="h-full w-max">
-              <KanBanView
-                issuesMap={issueMap}
-                groupedIssueIds={groupedIssueIds ?? {}}
-                getGroupIssueCount={issues.getGroupIssueCount}
-                displayProperties={displayProperties}
-                sub_group_by={sub_group_by}
-                group_by={group_by}
-                orderBy={orderBy}
-                updateIssue={updateIssue}
-                quickActions={renderQuickActions}
-                handleCollapsedGroups={handleCollapsedGroups}
-                collapsedGroups={collapsedGroups}
-                enableQuickIssueCreate={isCoachingBoard ? false : enableQuickAdd}
-                showEmptyGroup={isCoachingBoard || (userDisplayFilters?.show_empty_groups ?? true)}
-                quickAddCallback={quickAddIssue}
-                disableIssueCreation={isCoachingBoard || !enableIssueCreation || !isEditingAllowed || isCompletedCycle}
-                canEditProperties={canEditProperties}
-                addIssuesToView={addIssuesToView}
-                scrollableContainerRef={scrollableContainerRef}
-                handleOnDrop={handleOnDrop}
-                loadMoreIssues={fetchMoreIssues}
-                isEpic={isEpic}
-              />
+              {hasCoachingSwimlanes ? (
+                <CoachingSwimlaneBoard
+                  {...boardProps}
+                  view={swimlaneView}
+                  preferenceKey={preferenceKey}
+                  handleOnDrop={handleSwimlaneDrop}
+                />
+              ) : (
+                <KanBanView {...boardProps} handleOnDrop={handleOnDrop} />
+              )}
             </div>
           </div>
         </div>

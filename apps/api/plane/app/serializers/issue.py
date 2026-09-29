@@ -73,6 +73,7 @@ class IssueFlatSerializer(BaseSerializer):
             "opposition_team",
             "sg_event_id",
             "roster_player_id",
+            "position_group",
             "coaching_card_data",
         ]
 
@@ -121,6 +122,7 @@ class IssueCreateSerializer(BaseSerializer):
             "updated_at",
             "sg_event_id",
             "roster_player",
+            "position_group",
             "coaching_card_data",
         ]
 
@@ -827,6 +829,7 @@ class IssueSerializer(DynamicBaseSerializer):
             "opposition_team",
             "sg_event_id",
             "roster_player_id",
+            "position_group",
             "coaching_card_data",
         ]
         read_only_fields = fields
@@ -888,6 +891,7 @@ class IssueListDetailSerializer(serializers.Serializer):
             "opposition_team": instance.opposition_team,
             "sg_event_id": instance.sg_event_id,
             "roster_player_id": instance.roster_player_id,
+            "position_group": instance.position_group,
             "coaching_card_data": instance.coaching_card_data,
         }
 

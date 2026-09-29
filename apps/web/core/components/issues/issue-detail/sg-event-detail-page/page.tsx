@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { v4 as uuidv4 } from "uuid";
+import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TIssue } from "@plane/types";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/components/annotation";
 import type { TCustomPlaylistAnnotation } from "@/components/annotation";
 import { useProject } from "@/hooks/store/use-project";
+import { useUserPermissions } from "@/hooks/store/user";
 import { useAppRouter } from "@/hooks/use-app-router";
 import { IssueService } from "@/services/issue/issue.service";
 import type {
@@ -323,6 +325,11 @@ export const SgEventDetailPage = ({
   const mediaMeta = asRecord(mediaItem?.meta);
   const cpServerBaseUrl = useMemo(() => getCpServerBaseUrl(), []);
   const project = getProjectById(projectId);
+  const { allowPermissions } = useUserPermissions();
+  const canManageCards = allowPermissions(
+    [EUserPermissions.ADMIN, EUserPermissions.MEMBER],
+    EUserPermissionsLevel.PROJECT
+  );
   const resolvedWorkItemId = issue?.id || mediaItem?.workItemId || "";
   const {
     data: sgMediaPayload,
@@ -583,22 +590,29 @@ export const SgEventDetailPage = ({
         request_id: createCardContext.requestId,
         source_issue_id: resolvedWorkItemId,
         player_ids: values.playerIds,
+        position_group: values.positionGroup || "",
         title: values.title,
         feedback: values.feedback,
         card_type: values.cardType,
         priority: values.priority,
-        sport_label: resolvedSport,
+        sport_label: values.context.sport || "",
+        program: values.context.program || "",
+        level: values.context.level || "",
+        season: values.context.season || "",
         playlists,
       });
 
       const cardCount = response.cards.length;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("coaching-card-created", { detail: { projectId } }));
+      }
       setToast({
         type: TOAST_TYPE.SUCCESS,
         title: cardCount === 1 ? "Coaching card created" : "Coaching cards created",
-        message: `${cardCount} card${cardCount === 1 ? "" : "s"} added to the New column on the coaching board.`,
+        message: `${cardCount} card${cardCount === 1 ? "" : "s"} added to the coaching board.`,
       });
     },
-    [createCardContext, issueService, projectId, resolvedSport, resolvedWorkItemId, workspaceSlug]
+    [createCardContext, issueService, projectId, resolvedWorkItemId, workspaceSlug]
   );
 
   const handleCreateCustomPlaylist = useCallback(
@@ -1122,7 +1136,7 @@ export const SgEventDetailPage = ({
                   onDraftChange={setPlaylistDraft}
                   customPlaylists={customPlaylists}
                   isCreatingPlaylist={isCreatingCustomPlaylist}
-                  onCreateCard={handleCreatePlaylistCard}
+                  onCreateCard={canManageCards ? handleCreatePlaylistCard : undefined}
                   onCreatePlaylist={handleCreateCustomPlaylist}
                   onDeletePlaylist={handleDeleteCustomPlaylist}
                   onPlayPlaylist={handlePlayCustomPlaylist}
@@ -1148,7 +1162,7 @@ export const SgEventDetailPage = ({
                   isCreatingPlaylist={isCreatingCustomPlaylist}
                   isLoading={isTagRowsLoading}
                   layout="workspace"
-                  onCreateCard={handleCreateMatrixCard}
+                  onCreateCard={canManageCards ? handleCreateMatrixCard : undefined}
                   onCreatePlaylist={handleCreateMatrixPlaylist}
                   onFocusedRowsChange={setFocusedMatrixRows}
                   onPlayTagRow={handlePlayTagRow}
@@ -1184,7 +1198,7 @@ export const SgEventDetailPage = ({
                       onDraftChange={setPlaylistDraft}
                       customPlaylists={customPlaylists}
                       isCreatingPlaylist={isCreatingCustomPlaylist}
-                      onCreateCard={handleCreatePlaylistCard}
+                      onCreateCard={canManageCards ? handleCreatePlaylistCard : undefined}
                       onCreatePlaylist={handleCreateCustomPlaylist}
                       onDeletePlaylist={handleDeleteCustomPlaylist}
                       onPlayPlaylist={handlePlayCustomPlaylist}
