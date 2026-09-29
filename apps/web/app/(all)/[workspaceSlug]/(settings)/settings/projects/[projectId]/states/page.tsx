@@ -38,12 +38,14 @@ const StatesSettingsPage = observer(() => {
     <SettingsContentWrapper>
       <PageHead title={pageTitle} />
       <div className="w-full">
-        <SettingsHeading
-          title={t("project_settings.states.heading")}
-          description={t("project_settings.states.description")}
-        />
         {workspaceSlug && projectId && (
-          <ProjectStateRoot workspaceSlug={workspaceSlug.toString()} projectId={projectId.toString()} />
+          <>
+            <SettingsHeading
+              title={t("project_settings.states.heading")}
+              description={t("project_settings.states.description")}
+            />
+            <ProjectStateRoot workspaceSlug={workspaceSlug.toString()} projectId={projectId.toString()} />
+          </>
         )}
       </div>
     </SettingsContentWrapper>

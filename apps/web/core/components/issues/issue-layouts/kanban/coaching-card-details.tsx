@@ -1,11 +1,23 @@
 import { useState } from "react";
-import { CalendarDays, Layers3, Play, Video } from "lucide-react";
+import { CalendarDays, Layers3, Play, Users, Video } from "lucide-react";
+import { useParams } from "next/navigation";
+import useSWR from "swr";
 import type { TCoachingCardClip, TIssue } from "@plane/types";
 import { cn, renderFormattedDate } from "@plane/utils";
 import {
   buildCustomPlaylistThumbnailUrl,
   formatLooseLabel,
 } from "@/components/issues/issue-detail/sg-event-detail-page/utils";
+import { useProjectState } from "@/hooks/store/use-project-state";
+import { IssueService } from "@/services/issue/issue.service";
+
+const CARD_TYPE_ACCENTS: Record<string, string> = {
+  Correction: "border-l-amber-500",
+  "Positive Reinforcement": "border-l-emerald-500",
+  "Opponent Scout": "border-l-violet-500",
+  "S&C Connection": "border-l-sky-500",
+  "Multi-Week Development": "border-l-rose-500",
+};
 
 export const isCoachingCardIssue = (issue: TIssue) =>
   issue.category === "Coaching Card" && issue.coaching_card_data?.kind === "coaching_card";
@@ -64,13 +76,19 @@ export const CoachingCardKanbanDetails = ({
   issue: TIssue;
   projectIdentifier?: string;
 }) => {
+  const { getStateById } = useProjectState();
+  const { workspaceSlug, projectId } = useParams();
+  const { data: cardStageConfig } = useSWR(
+    workspaceSlug && projectId ? ["coaching-card-config", workspaceSlug, projectId] : null,
+    () => new IssueService().getCoachingCardConfig(workspaceSlug.toString(), projectId.toString())
+  );
   const card = issue.coaching_card_data;
   if (!card) return null;
 
   const clips = card.playlists.flatMap((playlist) => playlist.clips);
   const firstClip = clips[0];
   const secondClip = clips.find((clip, index) => index > 0 && clip.thumbnail !== firstClip?.thumbnail) ?? clips[1];
-  const jersey = card.player.jersey_number.trim().replace(/^#/, "");
+  const jersey = card.player?.jersey_number?.trim().replace(/^#/, "") || "";
   const rawPrimaryContext = firstClip?.title || card.summary.primary_clip_title;
   const primaryContext = rawPrimaryContext ? formatLooseLabel(rawPrimaryContext) : "";
   const sourceIdentifier = projectIdentifier
@@ -78,6 +96,15 @@ export const CoachingCardKanbanDetails = ({
     : `#${card.source_issue.sequence_id}`;
   const clipStartTime = getClipStartTime(firstClip?.timecode);
   const clipDuration = formatClipDuration(firstClip?.duration_seconds);
+  const evidenceUrl = card.primary_clip?.source_url || firstClip?.source_url || "";
+  const canOpenEvidence = /^(https?:\/\/|\/)/i.test(evidenceUrl);
+  const openEvidence = () => {
+    if (canOpenEvidence) window.open(evidenceUrl, "_blank", "noopener,noreferrer");
+  };
+  const stageName =
+    cardStageConfig?.stages.find((stage) => stage.id === issue.state_id)?.name ||
+    getStateById(issue.state_id)?.name ||
+    "Stage unavailable";
   const metadata = [
     card.card_type || card.progress_status,
     card.priority,
@@ -90,7 +117,12 @@ export const CoachingCardKanbanDetails = ({
     .slice(0, 6);
 
   return (
-    <div className="space-y-2.5">
+    <div
+      className={cn(
+        "space-y-2.5 border-l-4 pl-2",
+        CARD_TYPE_ACCENTS[card.card_type || ""] || "border-l-custom-primary-100"
+      )}
+    >
       <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-custom-text-300">
         <Layers3 className="h-3 w-3 shrink-0" aria-hidden="true" />
         <span className="shrink-0">Source {sourceIdentifier}</span>
@@ -117,7 +149,27 @@ export const CoachingCardKanbanDetails = ({
               {clipStartTime || firstClip?.group || firstClip?.title || "Video clip"}
             </span>
             <span className="flex shrink-0 items-center gap-1 text-[9px] tabular-nums">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/65" aria-hidden="true">
+              <span
+                className={cn(
+                  "flex h-5 w-5 items-center justify-center rounded-full bg-black/65",
+                  canOpenEvidence && "cursor-pointer hover:bg-black"
+                )}
+                role={canOpenEvidence ? "button" : undefined}
+                tabIndex={canOpenEvidence ? 0 : undefined}
+                aria-label={canOpenEvidence ? "Open primary clip" : undefined}
+                onClick={(event) => {
+                  if (!canOpenEvidence) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openEvidence();
+                }}
+                onKeyDown={(event) => {
+                  if (!canOpenEvidence || (event.key !== "Enter" && event.key !== " ")) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openEvidence();
+                }}
+              >
                 <Play className="h-2.5 w-2.5 fill-current" />
               </span>
               {clipDuration}
@@ -144,6 +196,9 @@ export const CoachingCardKanbanDetails = ({
       )}
 
       <div className="flex flex-wrap items-center gap-1">
+        <span className="inline-flex h-5 items-center rounded border border-custom-primary-100/40 bg-custom-primary-100/10 px-1.5 text-[10px] font-medium text-custom-primary-100">
+          {stageName}
+        </span>
         <span className="inline-flex h-5 items-center gap-1 rounded border border-custom-border-300 px-1.5 text-[10px] text-custom-text-300">
           <CalendarDays className="h-3 w-3" aria-hidden="true" />
           {renderFormattedDate(issue.created_at)}
@@ -165,10 +220,16 @@ export const CoachingCardKanbanDetails = ({
 
       <div className="flex min-w-0 items-center gap-2 border-t border-custom-border-200 pt-2">
         <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded bg-custom-primary-100/15 px-1 text-[11px] font-semibold text-custom-primary-100">
-          {jersey || card.player.name.slice(0, 2).toUpperCase()}
+          {card.player ? (
+            jersey || card.player.name.slice(0, 2).toUpperCase()
+          ) : (
+            <Users className="h-4 w-4" aria-hidden="true" />
+          )}
         </span>
-        <span className="min-w-0 truncate text-xs font-medium text-custom-text-100">{card.player.name}</span>
-        {card.player.position && (
+        <span className="min-w-0 truncate text-xs font-medium text-custom-text-100">
+          {card.player?.name || card.position_group}
+        </span>
+        {card.player?.position && (
           <span className="shrink-0 text-[11px] text-custom-text-300">· {card.player.position}</span>
         )}
       </div>

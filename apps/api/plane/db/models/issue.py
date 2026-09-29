@@ -154,6 +154,7 @@ class Issue(ProjectBaseModel):
         blank=True,
         related_name="coaching_card_issues",
     )
+    position_group = models.CharField(max_length=100, null=True, blank=True)
     coaching_card_data = models.JSONField(null=True, blank=True)
 
     priority = models.CharField(

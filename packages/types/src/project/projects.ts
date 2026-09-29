@@ -1,6 +1,7 @@
 import { TLogoProps } from "../common";
 import { TUserPermissions } from "../enums";
 import { TStateGroups } from "../state";
+import type { SwimlaneView } from "../view-props";
 import type { IUser, IUserLite } from "../users";
 import type { IWorkspace } from "../workspace";
 
@@ -28,6 +29,7 @@ export interface IPartialProject {
   project_lead?: IUserLite | string | null;
   network?: number;
   sport?: string | null;
+  default_swimlane_view?: SwimlaneView;
   // Timestamps
   created_at?: Date;
   updated_at?: Date;

@@ -180,6 +180,8 @@ export type TCustomPlaylist = {
 };
 
 export type TCustomPlaylistClip = {
+  mediaId?: string;
+  sourceUrl?: string;
   durationSeconds?: number | null;
   endSeconds?: number | null;
   fallbackTimestamp?: string | null;

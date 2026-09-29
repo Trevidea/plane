@@ -12,6 +12,7 @@ import {
   CARD_TYPE_OPTIONS,
   formatCardDuration,
   formatCardPlayer,
+  getPositionGroups,
 } from "./create-card-model";
 import type { CardContextValues, CardFormValues, CardPriority, CardType } from "./create-card-model";
 import { CardClipThumbnail, CreateCardPreview } from "./create-card-preview";
@@ -45,6 +46,8 @@ export const CreateCardModal = ({
   const groups = useMemo(() => buildCardPlaylists(playlists, rows), [playlists, rows]);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(() => groups[0]?.id ?? null);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [assignmentType, setAssignmentType] = useState<"player" | "group">("player");
+  const [positionGroup, setPositionGroup] = useState("");
   const [title, setTitle] = useState("");
   const [feedback, setFeedback] = useState("");
   const [cardType, setCardType] = useState<CardType>("Correction");
@@ -58,10 +61,12 @@ export const CreateCardModal = ({
     [rosterPlayers, selectedPlayerIds]
   );
   const includedPlaylists = useMemo(() => groups.filter((group) => group.clips.length > 0), [groups]);
+  const positionGroups = useMemo(() => getPositionGroups(rosterPlayers), [rosterPlayers]);
   const totalTags = includedPlaylists.reduce((total, group) => total + group.clips.length, 0);
   const canSubmit =
     Boolean(onSubmit) &&
-    selectedPlayers.length > 0 &&
+    (assignmentType === "player" ? selectedPlayers.length > 0 : Boolean(positionGroup)) &&
+    Boolean(context.sport && context.program && context.level && context.season) &&
     title.trim().length > 0 &&
     totalTags > 0 &&
     !isRosterLoading &&
@@ -82,7 +87,9 @@ export const CreateCardModal = ({
           setSubmitError("");
           try {
             await onSubmit({
-              playerIds: selectedPlayers.map((player) => player.id),
+              playerIds: assignmentType === "player" ? selectedPlayers.map((player) => player.id) : [],
+              positionGroup: assignmentType === "group" ? positionGroup : null,
+              context,
               title: title.trim(),
               feedback: feedback.trim(),
               cardType,
@@ -93,8 +100,16 @@ export const CreateCardModal = ({
               })),
             });
             onClose();
-          } catch {
-            setSubmitError("Unable to send this card. Your selections and feedback are still here; please try again.");
+          } catch (error) {
+            const messages =
+              error && typeof error === "object"
+                ? Object.values(error)
+                    .flat()
+                    .filter((message): message is string => typeof message === "string")
+                : [];
+            setSubmitError(
+              messages[0] || "Unable to send this card. Your selections and feedback are still here; please try again."
+            );
           } finally {
             setIsSubmitting(false);
           }
@@ -118,6 +133,7 @@ export const CreateCardModal = ({
           <div className="grid items-start gap-5 md:grid-cols-[280px_minmax(0,1fr)]">
             <CreateCardPreview
               players={selectedPlayers}
+              positionGroup={assignmentType === "group" ? positionGroup : null}
               playlists={includedPlaylists}
               title={title}
               feedback={feedback}
@@ -126,14 +142,74 @@ export const CreateCardModal = ({
               context={context}
             />
             <div className="min-w-0 space-y-4">
-              <CreateCardRosterPicker
-                players={rosterPlayers}
-                selectedPlayers={selectedPlayers}
-                onChange={setSelectedPlayerIds}
-                isLoading={isRosterLoading}
-                hasError={hasRosterError}
-                onRetry={onRetryRoster}
-              />
+              <fieldset className="space-y-2">
+                <legend className="text-sm text-custom-text-200">Assign to</legend>
+                <div className="flex gap-3 text-sm text-custom-text-100">
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      checked={assignmentType === "player"}
+                      onChange={() => {
+                        setAssignmentType("player");
+                        setPositionGroup("");
+                      }}
+                    />
+                    Player
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      checked={assignmentType === "group"}
+                      onChange={() => {
+                        setAssignmentType("group");
+                        setSelectedPlayerIds([]);
+                      }}
+                    />
+                    Position Group
+                  </label>
+                </div>
+              </fieldset>
+              {assignmentType === "player" ? (
+                <CreateCardRosterPicker
+                  players={rosterPlayers}
+                  selectedPlayers={selectedPlayers}
+                  onChange={setSelectedPlayerIds}
+                  isLoading={isRosterLoading}
+                  hasError={hasRosterError}
+                  onRetry={onRetryRoster}
+                />
+              ) : (
+                <label className="block text-sm text-custom-text-200">
+                  Position Group
+                  <select
+                    value={positionGroup}
+                    onChange={(event) => setPositionGroup(event.target.value)}
+                    disabled={isRosterLoading || hasRosterError || isSubmitting}
+                    className="mt-2 h-10 w-full rounded-lg border border-custom-border-300 bg-custom-background-90 px-3 text-sm text-custom-text-100"
+                  >
+                    <option value="">Select a group</option>
+                    {positionGroups.map((group) => (
+                      <option key={group} value={group}>
+                        {group}
+                      </option>
+                    ))}
+                  </select>
+                  {positionGroups.length === 0 && !isRosterLoading && (
+                    <span className="mt-1 block text-xs text-custom-text-300">
+                      No position groups are available in this roster.
+                    </span>
+                  )}
+                  {hasRosterError && (
+                    <button
+                      type="button"
+                      onClick={onRetryRoster}
+                      className="mt-1 block text-xs text-custom-primary-100"
+                    >
+                      Retry roster
+                    </button>
+                  )}
+                </label>
+              )}
               <CreateCardContextFields
                 value={context}
                 onChange={(field, value) => setContextOverrides((current) => ({ ...current, [field]: value }))}
@@ -301,9 +377,11 @@ export const CreateCardModal = ({
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-custom-border-200 px-5 py-3">
           <div className="min-w-0 flex-1 text-[11px] text-custom-text-300">
             <p>
-              {selectedPlayers.length
-                ? `Recipients: ${selectedPlayers.map(formatCardPlayer).join(", ")}`
-                : "Choose players from the roster."}
+              {assignmentType === "group" && positionGroup
+                ? `Recipient: ${positionGroup} group`
+                : selectedPlayers.length
+                  ? `Recipients: ${selectedPlayers.map(formatCardPlayer).join(", ")}`
+                  : "Choose players from the roster."}
             </p>
             {!onSubmit && (
               <p id="create-card-submit-status" className="mt-1">
@@ -334,9 +412,11 @@ export const CreateCardModal = ({
               <PanelsTopLeft className="h-3.5 w-3.5" />
               {isSubmitting
                 ? "Sending…"
-                : selectedPlayers.length
-                  ? `Save & Send to ${selectedPlayers.length} Player${selectedPlayers.length === 1 ? "" : "s"}`
-                  : "Save & Send"}
+                : assignmentType === "group" && positionGroup
+                  ? `Save & Send to ${positionGroup}`
+                  : selectedPlayers.length
+                    ? `Save & Send to ${selectedPlayers.length} Player${selectedPlayers.length === 1 ? "" : "s"}`
+                    : "Save & Send"}
             </button>
           </div>
         </div>

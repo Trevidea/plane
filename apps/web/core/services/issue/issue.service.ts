@@ -13,6 +13,7 @@ import type {
   TIssueSubIssues,
   TCreateCoachingCardsPayload,
   TCreateCoachingCardsResponse,
+  TCoachingCardStageConfig,
 } from "@plane/types";
 import { getIssuesShouldFallbackToServer } from "@plane/utils";
 // services
@@ -44,6 +45,40 @@ export class IssueService extends APIService {
       .catch((error) => {
         throw error?.response?.data;
       });
+  }
+
+  async getCoachingCardConfig(workspaceSlug: string, projectId: string): Promise<TCoachingCardStageConfig> {
+    return this.get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-card-config/`)
+      .then((response) => response?.data)
+      .catch((error) => {
+        throw error?.response?.data;
+      });
+  }
+
+  async transitionCoachingCard(
+    workspaceSlug: string,
+    projectId: string,
+    cardId: string,
+    stageId: string
+  ): Promise<void> {
+    await this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/transition/`, {
+      stage_id: stageId,
+    }).catch((error) => {
+      throw error?.response?.data;
+    });
+  }
+
+  async updateCoachingCard(
+    workspaceSlug: string,
+    projectId: string,
+    cardId: string,
+    data: { player_id?: string; position_group?: string; card_type?: string; priority?: string }
+  ): Promise<void> {
+    await this.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/`, data).catch(
+      (error) => {
+        throw error?.response?.data;
+      }
+    );
   }
 
   async getIssuesFromServer(

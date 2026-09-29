@@ -11,6 +11,7 @@ import type {
   TIssueKanbanFilters,
   TIssueGroupByOptions,
   TIssueOrderByOptions,
+  TCoachingCardStageConfig,
 } from "@plane/types";
 // constants
 import { ContentWrapper } from "@plane/ui";
@@ -29,8 +30,10 @@ import { getGroupByColumns, isWorkspaceLevel, getApproximateCardHeight } from ".
 // components
 import { HeaderGroupByCard } from "./headers/group-by-card";
 import { KanbanGroup } from "./kanban-group";
+import { orderCardColumns } from "./coaching-card-stage-model";
 
 export interface IKanBan {
+  cardStageConfig?: TCoachingCardStageConfig;
   issuesMap: IIssueMap;
   groupedIssueIds: TGroupedIssues | TSubGroupedIssues;
   getGroupIssueCount: (
@@ -66,6 +69,7 @@ export interface IKanBan {
 export const KanBan: React.FC<IKanBan> = observer((props) => {
   const {
     issuesMap,
+    cardStageConfig,
     groupedIssueIds,
     getGroupIssueCount,
     displayProperties,
@@ -99,12 +103,16 @@ export const KanBan: React.FC<IKanBan> = observer((props) => {
 
   const { getIsWorkflowWorkItemCreationDisabled } = useWorkFlowFDragNDrop(group_by, sub_group_by);
 
-  const list = getGroupByColumns({
+  const stateColumns = getGroupByColumns({
     groupBy: group_by as GroupByColumnTypes,
     includeNone: true,
     isWorkspaceLevel: isWorkspaceLevel(storeType),
     isEpic: isEpic,
   });
+  const list =
+    stateColumns && cardStageConfig && group_by === "state"
+      ? orderCardColumns(stateColumns, cardStageConfig)
+      : stateColumns;
 
   if (!list) return null;
 
@@ -164,6 +172,7 @@ export const KanBan: React.FC<IKanBan> = observer((props) => {
               {sub_group_by === null && (
                 <div className="sticky top-0 z-[2] w-full flex-shrink-0 bg-custom-background-90 py-1">
                   <HeaderGroupByCard
+                    cardStageConfig={cardStageConfig}
                     sub_group_by={sub_group_by}
                     group_by={group_by}
                     column_id={subList.id}
@@ -202,6 +211,9 @@ export const KanBan: React.FC<IKanBan> = observer((props) => {
                   defaultValue={groupIndex < 5 && subGroupIndex < 2}
                   useIdletime
                 >
+                  {cardStageConfig && issueLength === 0 && (
+                    <p className="px-3 py-2 text-xs text-custom-text-300">No coaching cards in this stage.</p>
+                  )}
                   <KanbanGroup
                     groupId={subList.id}
                     issuesMap={issuesMap}

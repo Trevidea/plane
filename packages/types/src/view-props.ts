@@ -173,6 +173,8 @@ export interface IIssueFilterOptions {
   category?: string[] | null;
 }
 
+export type SwimlaneView = "stage" | "coach" | "player" | "card_type" | "priority" | "aging";
+
 export interface IIssueDisplayFilterOptions {
   calendar?: {
     show_weekends?: boolean;
