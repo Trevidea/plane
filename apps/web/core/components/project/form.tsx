@@ -16,9 +16,10 @@ import { CustomSelect, Input, TextArea, EmojiIconPickerTypes } from "@plane/ui";
 import { renderFormattedDate, getFileURL } from "@plane/utils";
 // components
 import { Logo } from "@/components/common/logo";
-import SportDropdown from "@/components/dropdowns/sport-property";
 import { ImagePickerPopover } from "@/components/core/image-picker-popover";
+import SportDropdown from "@/components/dropdowns/sport-property";
 import { TimezoneSelect } from "@/components/global";
+import { SWIMLANE_VIEWS } from "@/components/issues/issue-layouts/kanban/coaching-swimlane-model";
 // helpers
 import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
 // hooks
@@ -160,6 +161,7 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
       identifier: formData.identifier,
       description: formData.description,
       sport: formData.sport ?? null,
+      default_swimlane_view: formData.default_swimlane_view ?? "stage",
 
       logo_props: formData.logo_props,
       timezone: formData.timezone,
@@ -190,7 +192,7 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
         <img
           src={getFileURL(
             coverImage ??
-            "https://images.unsplash.com/photo-1672243775941-10d763d9adef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
+              "https://images.unsplash.com/photo-1672243775941-10d763d9adef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
           )}
           alt="Program cover image"
           className="h-44 w-full rounded-md object-cover"
@@ -386,7 +388,7 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
                     buttonClassName="!border-custom-border-200 !shadow-none font-medium rounded-md"
                     input
                     disabled={!isAdmin}
-                  // optionsClassName="w-full"
+                    // optionsClassName="w-full"
                   >
                     {NETWORK_CHOICES.map((network) => (
                       <CustomSelect.Option key={network.key} value={network.key}>
@@ -425,6 +427,30 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
               )}
             />
           </div>
+          {project.sport && (
+            <div className="flex flex-col gap-1">
+              <h4 className="text-sm">Default swimlane view</h4>
+              <Controller
+                name="default_swimlane_view"
+                control={control}
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    value={field.value ?? "stage"}
+                    disabled={!isAdmin}
+                    className="h-10 w-full rounded-md border border-custom-border-200 bg-custom-background-100 px-3 text-sm text-custom-text-100"
+                  >
+                    {SWIMLANE_VIEWS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              />
+              <p className="text-xs text-custom-text-300">Used when a coach has not selected a view for this board.</p>
+            </div>
+          )}
           <div className="flex flex-col gap-1 col-span-1 sm:col-span-2 xl:col-span-1">
             <h4 className="text-sm">{t("common.project_timezone")}</h4>
             <Controller

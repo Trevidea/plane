@@ -15,7 +15,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || "playwright"
 const temp = await mkdtemp(path.join(tmpdir(), "uploaded-card-browser-"));
 await writeFile(
   path.join(temp, "project.ts"),
-  'export const useProject = () => ({ getProjectById: () => ({ name: "Basketball", sport: "Football" }) });'
+  'export const useProject = () => ({ getProjectById: () => ({ name: "Basketball", sport: "" }) });'
 );
 await writeFile(
   path.join(temp, "fixture.tsx"),
@@ -23,7 +23,7 @@ await writeFile(
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { UploadedVideoCreateCard } from ${JSON.stringify(path.join(web, "ce/features/media-library/components/uploaded-video-create-card"))};
-const item = { id: "video-1", packageId: "library", title: "Annotated practice", thumbnail: "", meta: { sport: "Basketball", level: "Varsity" } };
+const item = { id: "video-1", packageId: "library", title: "Annotated practice", thumbnail: "", meta: {} };
 function Fixture() {
   const [open, setOpen] = useState(true);
   return open ? <UploadedVideoCreateCard item={item} workspaceSlug="team" projectId="project" durationSeconds={42} onClose={() => setOpen(false)} /> : <p>Card created</p>;
@@ -113,9 +113,9 @@ try {
   assert.equal(submissions[0].request_id, submissions[1].request_id);
   assert.deepEqual(submissions[1].source_media, { package_id: "library", artifact_id: "video-1" });
   assert.deepEqual(submissions[1].context, {
-    sport: "Basketball",
-    level: "Varsity",
-    program: "Basketball",
+    sport: null,
+    level: null,
+    program: null,
     season: null,
   });
   assert.deepEqual(submissions[1].player_ids, ["player-1"]);
@@ -123,7 +123,7 @@ try {
   assert.equal(submissions[1].source_issue_id, undefined);
   assert.equal(submissions[1].playlists, undefined);
   assert.deepEqual(errors, []);
-  console.log("PASS: uploaded-video form, roster retry, retained inputs, idempotent submission, success close");
+  console.log("PASS: uploaded-video card without metadata, roster retry, retained inputs, idempotent submission, success close");
 } finally {
   await browser?.close();
   await new Promise((resolve) => server.close(resolve));

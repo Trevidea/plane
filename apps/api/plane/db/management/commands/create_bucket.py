@@ -15,7 +15,7 @@ class Command(BaseCommand):
         try:
             s3_client = boto3.client(
                 "s3",
-                endpoint_url=os.environ.get("AWS_S3_ENDPOINT_URL"),  # MinIO endpoint
+                endpoint_url=os.environ.get("AWS_S3_INTERNAL_ENDPOINT_URL") or os.environ.get("AWS_S3_ENDPOINT_URL"),
                 aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),  # MinIO access key
                 aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),  # MinIO secret key
                 region_name=os.environ.get("AWS_REGION"),  # MinIO region

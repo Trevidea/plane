@@ -49,10 +49,8 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
   const [loadError, setLoadError] = useState("");
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const [referenceElement, setReferenceElement] =
-    useState<HTMLButtonElement | null>(null);
-  const [popperElement, setPopperElement] =
-    useState<HTMLDivElement | null>(null);
+  const [referenceElement, setReferenceElement] = useState<HTMLButtonElement | null>(null);
+  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
 
   const { styles, attributes } = usePopper(referenceElement, popperElement, {
     placement: "bottom-start",
@@ -77,9 +75,9 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
         const block = data?.["Gateway Response"]?.result?.[0] ?? [];
         const values = block.find((i: any) => i?.field === "values")?.value;
 
-        const cleanValues = Array.isArray(values)
-          ? values.filter((v) => typeof v === "string").sort()
-          : [];
+        const cleanValues = Array.from(
+          new Set(["American Football", ...(Array.isArray(values) ? values.filter((v) => typeof v === "string") : [])])
+        ).sort();
 
         setSports(cleanValues);
       })
@@ -87,9 +85,7 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredSports = sports.filter((s) =>
-    s.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredSports = sports.filter((s) => s.toLowerCase().includes(search.toLowerCase()));
 
   /* ─────────────── ✅ FIXED SELECT HANDLER ─────────────── */
   const handleSelect = (selectedVal: string | null) => {
@@ -102,8 +98,7 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
     referenceElement?.blur();
   };
 
-  const displayValue =
-    typeof value === "string" && value.length > 0 ? value : placeholder;
+  const displayValue = typeof value === "string" && value.length > 0 ? value : placeholder;
 
   /* ─────────────── Button ─────────────── */
   const comboButton = (
@@ -114,9 +109,7 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
       disabled={disabled}
       className={cn(
         "clickable block h-full max-w-full outline-none",
-        disabled
-          ? "cursor-default text-custom-text-200"
-          : "cursor-pointer",
+        disabled ? "cursor-default text-custom-text-200" : "cursor-pointer",
         buttonContainerClassName
       )}
     >
@@ -132,9 +125,7 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
         {!hideIcon && icon}
 
         {BUTTON_VARIANTS_WITH_TEXT.includes(buttonVariant) && (
-          <span className="flex-grow truncate min-w-0">
-            {displayValue}
-          </span>
+          <span className="flex-grow truncate min-w-0">{displayValue}</span>
         )}
 
         {!!value && !disabled && (
@@ -212,8 +203,7 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
                     className={cn(
                       "px-2 h-6 flex items-center cursor-pointer text-xs",
                       "hover:bg-custom-background-80",
-                      value === sport &&
-                        "bg-custom-background-80 font-medium"
+                      value === sport && "bg-custom-background-80 font-medium"
                     )}
                   >
                     {sport}

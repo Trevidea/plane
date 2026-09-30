@@ -104,6 +104,7 @@ class ProjectLiteSerializer(BaseSerializer):
             "identifier",
             "name",
             "sport",
+            "default_swimlane_view",
             "cover_image",
             "cover_image_url",
             "logo_props",

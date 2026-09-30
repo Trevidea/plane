@@ -3,7 +3,7 @@ import test from "node:test";
 import type { TCustomPlaylist, TCustomPlaylistClip } from "@/services/media-library.service";
 // Node's type-stripping test runner requires explicit TypeScript extensions.
 // @ts-expect-error See comment above.
-import { buildCardPlaylists, buildCoachingCardPlaylists } from "../create-card-model.ts";
+import { buildCardPlaylists, buildCoachingCardPlaylists, getPositionGroups } from "../create-card-model.ts";
 import type { SgTagRow } from "../types";
 
 const playlist = (id: string, clips: TCustomPlaylistClip[]): TCustomPlaylist => ({
@@ -122,4 +122,9 @@ test("coaching card payload includes only selected playlists and clips", () => {
   );
   assert.equal(payload[0].clips[0].duration_seconds, null);
   assert.equal(payload[0].clips[0].secondary_detail, "");
+});
+
+test("position groups come from distinct roster positions", () => {
+  const players = [{ position: " Guard " }, { position: "guard" }, { position: "Forward" }, { position: null }];
+  assert.deepEqual(getPositionGroups(players), ["Forward", "Guard"]);
 });

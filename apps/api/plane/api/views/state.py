@@ -1,5 +1,5 @@
 # Django imports
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 # Third party imports
 from rest_framework import status
@@ -265,6 +265,7 @@ class StateDetailAPIEndpoint(BaseAPIView):
             409: EXTERNAL_ID_EXISTS_RESPONSE,
         },
     )
+    @transaction.atomic
     def patch(self, request, slug, project_id, state_id):
         """Update state
 

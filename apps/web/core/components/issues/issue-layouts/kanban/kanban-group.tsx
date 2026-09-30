@@ -66,6 +66,8 @@ interface IKanbanGroup {
   handleOnDrop: (source: GroupDropLocation, destination: GroupDropLocation) => Promise<void>;
   orderBy: TIssueOrderByOptions | undefined;
   isEpic?: boolean;
+  issueIdsOverride?: string[];
+  disablePagination?: boolean;
 }
 
 export const KanbanGroup = observer((props: IKanbanGroup) => {
@@ -90,6 +92,8 @@ export const KanbanGroup = observer((props: IKanbanGroup) => {
     scrollableContainerRef,
     handleOnDrop,
     isEpic = false,
+    issueIdsOverride,
+    disablePagination = false,
   } = props;
   // i18n
   const { t } = useTranslation();
@@ -245,9 +249,11 @@ export const KanbanGroup = observer((props: IKanbanGroup) => {
 
   const isSubGroup = !!sub_group_id && sub_group_id !== "null";
 
-  const issueIds = isSubGroup
-    ? ((groupedIssueIds as TSubGroupedIssues)?.[groupId]?.[sub_group_id] ?? [])
-    : ((groupedIssueIds as TGroupedIssues)?.[groupId] ?? []);
+  const issueIds =
+    issueIdsOverride ??
+    (isSubGroup
+      ? ((groupedIssueIds as TSubGroupedIssues)?.[groupId]?.[sub_group_id] ?? [])
+      : ((groupedIssueIds as TGroupedIssues)?.[groupId] ?? []));
 
   const groupIssueCount = getGroupIssueCount(groupId, sub_group_id, false) ?? 0;
 
@@ -264,7 +270,8 @@ export const KanbanGroup = observer((props: IKanbanGroup) => {
     </div>
   );
 
-  const shouldLoadMore = nextPageResults === undefined ? issueIds?.length < groupIssueCount : !!nextPageResults;
+  const shouldLoadMore =
+    !disablePagination && (nextPageResults === undefined ? issueIds?.length < groupIssueCount : !!nextPageResults);
   const canOverlayBeVisible = isWorkflowDropDisabled || orderBy !== "sort_order" || isDropDisabled;
   const shouldOverlayBeVisible = isDraggingOverColumn && canOverlayBeVisible;
   const canDragIssuesInCurrentGrouping =

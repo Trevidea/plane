@@ -17,6 +17,11 @@ export type CardPriority = (typeof CARD_PRIORITY_OPTIONS)[number];
 export type CardClip = {
   key: string;
   id: string;
+  mediaId: string;
+  sourceUrl: string;
+  eventId: string;
+  startSeconds: number | null;
+  endSeconds: number | null;
   title: string;
   thumbnail: string | null;
   durationSeconds: number | null;
@@ -39,12 +44,22 @@ export type CardContextValues = {
 
 export type CardFormValues = {
   playerIds: string[];
+  positionGroup: string | null;
+  context: CardContextValues;
   title: string;
   feedback: string;
   cardType: CardType;
   priority: CardPriority;
-  context: CardContextValues;
   playlists: { id: string; clipIds: string[] }[];
+};
+
+export const getPositionGroups = (players: Pick<IRosterPlayer, "position">[]): string[] => {
+  const positions = new Map<string, string>();
+  for (const player of players) {
+    const position = player.position?.trim();
+    if (position && !positions.has(position.toLowerCase())) positions.set(position.toLowerCase(), position);
+  }
+  return [...positions.values()].sort((a, b) => a.localeCompare(b));
 };
 
 const cleanText = (value: string | null | undefined) => {
@@ -90,6 +105,11 @@ export const buildCardPlaylists = (playlists: TCustomPlaylist[], availableRows: 
       return {
         key: JSON.stringify([playlist.id, clip.id, index]),
         id: clip.id,
+        mediaId: clip.mediaId || "",
+        sourceUrl: clip.sourceUrl || row?.sourceUrl || playlist.url || "",
+        eventId: String(playlist.event_id || ""),
+        startSeconds: start != null && Number.isFinite(start) ? start : null,
+        endSeconds: end != null && Number.isFinite(end) ? end : null,
         title: cleanText(row?.action) || cleanText(clip.title) || `Clip ${index + 1}`,
         thumbnail: row?.thumbnailUrl || clip.thumbnail || playlist.thumbnail || null,
         durationSeconds:
@@ -127,6 +147,11 @@ export const buildCoachingCardPlaylists = (
       .map((clip) => ({
         key: clip.key,
         id: clip.id,
+        media_id: clip.mediaId,
+        source_url: clip.sourceUrl,
+        event_id: clip.eventId,
+        start_seconds: clip.startSeconds,
+        end_seconds: clip.endSeconds,
         title: clip.title,
         thumbnail: clip.thumbnail,
         duration_seconds: clip.durationSeconds,

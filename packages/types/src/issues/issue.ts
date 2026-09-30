@@ -41,6 +41,11 @@ export type TOppositionTeam = {
 };
 
 export type TCoachingCardClip = {
+  media_id?: string;
+  source_url?: string;
+  event_id?: string;
+  start_seconds?: number | null;
+  end_seconds?: number | null;
   key: string;
   id: string;
   title: string;
@@ -64,6 +69,7 @@ export type TCoachingCardData = {
   schema_version: 1 | 2 | 3;
   kind: "coaching_card";
   request_id: string;
+  stage_id?: string;
   title?: string;
   source_issue: {
     id: string;
@@ -94,13 +100,23 @@ export type TCoachingCardData = {
     name: string;
     jersey_number: string;
     position: string;
-  };
+  } | null;
+  position_group?: string | null;
   sport: string;
   feedback: string;
   card_type?: string;
   priority?: string;
   progress_status?: string;
   playlists: TCoachingCardPlaylist[];
+  primary_clip?: {
+    playlist_id: string;
+    clip_id: string;
+    media_id: string;
+    event_id: string;
+    source_url: string;
+    start_seconds: number | null;
+    end_seconds: number | null;
+  };
   metadata?: {
     serial_number: string;
     sport: string;
@@ -125,15 +141,31 @@ export type TCoachingCardData = {
   };
 };
 
+export type TCoachingCardStageConfig = {
+  sport: string;
+  initial_stage_id: string;
+  stages: Array<{
+    id: string;
+    name: string;
+    order: number;
+    abbreviation: string;
+    allowed_next_stage_ids: string[];
+  }>;
+};
+
 export type TCreateCoachingCardsPayload = {
   request_id: string;
   player_ids: string[];
+  position_group?: string;
   title: string;
   feedback: string;
   card_type: string;
   priority: string;
   sport_label: string;
   context?: { sport: string | null; level: string | null; program: string | null; season: string | null };
+  program?: string;
+  level?: string;
+  season?: string;
 } & (
   | { source_issue_id: string; source_media?: never; playlists: TCoachingCardPlaylist[] }
   | { source_issue_id?: never; source_media: { package_id: string; artifact_id: string }; playlists?: never }
@@ -150,7 +182,8 @@ export type TCreateCoachingCardsResponse = {
     state_id: string;
     parent_id: string | null;
     category: string;
-    roster_player_id: string;
+    roster_player_id: string | null;
+    position_group: string | null;
     coaching_card_data: TCoachingCardData;
   }>;
 };
@@ -197,6 +230,7 @@ export type TBaseIssue = {
   year: string | null;
   category: string | null;
   roster_player_id?: string | null;
+  position_group?: string | null;
   coaching_card_data?: TCoachingCardData | null;
 
   is_draft: boolean;

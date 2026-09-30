@@ -43,6 +43,7 @@ from .issue import (
     IssueVersion,
     IssueDescriptionVersion,
 )
+from .card_stage_history import CardStageHistory
 from .module import Module, ModuleIssue, ModuleLink, ModuleMember, ModuleUserProperties
 from .notification import EmailNotificationLog, Notification, UserNotificationPreference
 from .page import Page, PageLabel, PageLog, ProjectPage, PageVersion

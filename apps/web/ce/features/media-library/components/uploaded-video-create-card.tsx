@@ -41,6 +41,7 @@ export const UploadedVideoCreateCard = ({ item, workspaceSlug, projectId, durati
       request_id: requestId,
       source_media: { package_id: item.packageId, artifact_id: item.id },
       player_ids: values.playerIds,
+      position_group: values.positionGroup || "",
       title: values.title,
       feedback: values.feedback,
       card_type: values.cardType,
@@ -52,11 +53,12 @@ export const UploadedVideoCreateCard = ({ item, workspaceSlug, projectId, durati
     setToast({
       type: TOAST_TYPE.SUCCESS,
       title: count === 1 ? "Coaching card created" : "Coaching cards created",
-      message: `${count} card${count === 1 ? "" : "s"} added to the New column on the coaching board.`,
+      message: `${count} card${count === 1 ? "" : "s"} added to the coaching board.`,
     });
   };
   return (
     <CreateCardModal
+      requireContext={false}
       playlists={playlists}
       rows={[]}
       rosterPlayers={players ?? []}

@@ -2,13 +2,14 @@
 
 import { useCallback, useState } from "react";
 import { observer } from "mobx-react";
-import { ChartNoAxesColumn, SlidersHorizontal } from "lucide-react";
+import { ChartNoAxesColumn, ChevronDown, SlidersHorizontal } from "lucide-react";
 // plane imports
 import { EIssueFilterType, ISSUE_STORE_TO_FILTERS_MAP } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
 import type { IIssueDisplayFilterOptions, IIssueDisplayProperties } from "@plane/types";
 import { EIssueLayoutTypes, EIssuesStoreType } from "@plane/types";
+import { CustomMenu } from "@plane/ui";
 // hooks
 import { useIssues } from "@/hooks/store/use-issues";
 // plane web imports
@@ -22,6 +23,8 @@ import {
   LayoutSelection,
   MobileLayoutSelection,
 } from "./issue-layouts/filters";
+import { SWIMLANE_VIEWS } from "./issue-layouts/kanban/coaching-swimlane-model";
+import { useSwimlanePreference } from "./issue-layouts/kanban/use-swimlane-preference";
 
 type Props = {
   currentProjectDetails: TProject | undefined;
@@ -57,6 +60,11 @@ export const HeaderFilters = observer((props: Props) => {
   // derived values
   const activeLayout = issueFilters?.displayFilters?.layout;
   const layoutDisplayFiltersOptions = ISSUE_STORE_TO_FILTERS_MAP[storeType]?.layoutOptions[activeLayout];
+  const { view: swimlaneView, selectView } = useSwimlanePreference(
+    workspaceSlug,
+    projectId,
+    currentProjectDetails?.default_swimlane_view ?? "stage"
+  );
 
   const handleLayoutChange = useCallback(
     (layout: EIssueLayoutTypes) => {
@@ -105,6 +113,28 @@ export const HeaderFilters = observer((props: Props) => {
         />
       </div>
       <WorkItemFiltersToggle entityType={storeType} entityId={projectId} />
+      {storeType === EIssuesStoreType.PROJECT &&
+        currentProjectDetails?.sport &&
+        activeLayout === EIssueLayoutTypes.KANBAN && (
+          <CustomMenu
+            placement="bottom-end"
+            className="w-max shrink-0"
+            customButtonClassName="whitespace-nowrap"
+            customButton={
+              <span className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded border border-custom-border-200 bg-custom-background-100 px-2 text-xs text-custom-text-200">
+                <span className="hidden @4xl:inline">Swimlanes:</span>
+                {SWIMLANE_VIEWS.find((option) => option.value === swimlaneView)?.label}
+                <ChevronDown className="size-3.5 shrink-0" />
+              </span>
+            }
+          >
+            {SWIMLANE_VIEWS.map((option) => (
+              <CustomMenu.MenuItem key={option.value} onClick={() => selectView(option.value)}>
+                {option.label}
+              </CustomMenu.MenuItem>
+            ))}
+          </CustomMenu>
+        )}
       <FiltersDropdown
         miniIcon={<SlidersHorizontal className="size-3.5" />}
         title={t("common.display")}

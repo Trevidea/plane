@@ -8,8 +8,13 @@ import { useParams } from "next/navigation";
 import { Minimize2, Maximize2, Circle, Plus } from "lucide-react";
 import { WORK_ITEM_TRACKER_EVENTS } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import type { TIssue, ISearchIssueResponse, TIssueKanbanFilters, TIssueGroupByOptions } from "@plane/types";
-import { EIssuesStoreType } from "@plane/types";
+import type {
+  TIssue,
+  ISearchIssueResponse,
+  TIssueKanbanFilters,
+  TIssueGroupByOptions,
+  TCoachingCardStageConfig,
+} from "@plane/types";
 // ui
 import { CustomMenu } from "@plane/ui";
 // components
@@ -17,22 +22,14 @@ import { ExistingIssuesListModal } from "@/components/core/modals/existing-issue
 import { CreateUpdateIssueModal } from "@/components/issues/issue-modal/modal";
 // constants
 import { captureClick } from "@/helpers/event-tracker.helper";
-import { useProject } from "@/hooks/store/use-project";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { CreateUpdateEpicModal } from "@/plane-web/components/epics/epic-modal";
 // types
 // Plane-web
 import { WorkFlowGroupTree } from "@/plane-web/components/workflow";
 
-const COACHING_BOARD_COLUMN_TITLES: Record<string, string> = {
-  New: "Identified",
-  Backlog: "Assigned",
-  Todo: "In Work",
-  "In Progress": "Ready for Coach Review",
-  Done: "Resolved",
-};
-
 interface IHeaderGroupByCard {
+  cardStageConfig?: TCoachingCardStageConfig;
   sub_group_by: TIssueGroupByOptions | undefined;
   group_by: TIssueGroupByOptions | undefined;
   column_id: string;
@@ -49,6 +46,7 @@ interface IHeaderGroupByCard {
 
 export const HeaderGroupByCard: FC<IHeaderGroupByCard> = observer((props) => {
   const {
+    cardStageConfig,
     group_by,
     sub_group_by,
     column_id,
@@ -68,14 +66,11 @@ export const HeaderGroupByCard: FC<IHeaderGroupByCard> = observer((props) => {
   const [openExistingIssueListModal, setOpenExistingIssueListModal] = React.useState(false);
   // hooks
   const storeType = useIssueStoreType();
-  const { getProjectById } = useProject();
   // router
   const { workspaceSlug, projectId, moduleId, cycleId } = useParams();
 
-  const project = projectId ? getProjectById(projectId.toString()) : undefined;
-  const isCoachingBoard =
-    storeType === EIssuesStoreType.PROJECT && Boolean(project?.sport?.trim()) && group_by === "state";
-  const displayTitle = isCoachingBoard ? (COACHING_BOARD_COLUMN_TITLES[title] ?? title) : title;
+  const displayTitle =
+    group_by === "state" ? (cardStageConfig?.stages.find((stage) => stage.id === column_id)?.name ?? title) : title;
 
   const renderExistingIssueModal = moduleId || cycleId;
   const ExistingIssuesListModalPayload = moduleId ? { module: moduleId.toString() } : { cycle: true };
