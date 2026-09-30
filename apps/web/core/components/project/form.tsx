@@ -192,7 +192,7 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
         <img
           src={getFileURL(
             coverImage ??
-              "https://images.unsplash.com/photo-1672243775941-10d763d9adef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
+            "https://images.unsplash.com/photo-1672243775941-10d763d9adef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
           )}
           alt="Program cover image"
           className="h-44 w-full rounded-md object-cover"
@@ -388,7 +388,7 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
                     buttonClassName="!border-custom-border-200 !shadow-none font-medium rounded-md"
                     input
                     disabled={!isAdmin}
-                    // optionsClassName="w-full"
+                  // optionsClassName="w-full"
                   >
                     {NETWORK_CHOICES.map((network) => (
                       <CustomSelect.Option key={network.key} value={network.key}>
@@ -418,9 +418,9 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
                     onChange={onChange}
                     placeholder={t("add_sport")}
                     buttonVariant="border-with-text"
-                    className="w-full"
-                    buttonContainerClassName="w-full text-left"
-                    buttonClassName="w-full rounded-md border border-custom-border-200 px-3 text-sm"
+                    className="h-auto w-full"
+                    buttonContainerClassName="h-auto w-full text-left"
+                    buttonClassName="h-auto w-full rounded-md border-[0.5px] border-custom-border-200 px-3 py-2 text-sm font-medium"
                     disabled={!isAdmin || isSportLocked}
                   />
                 </>
@@ -433,19 +433,22 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
               <Controller
                 name="default_swimlane_view"
                 control={control}
-                render={({ field }) => (
-                  <select
-                    {...field}
-                    value={field.value ?? "stage"}
+                render={({ field: { value, onChange } }) => (
+                  <CustomSelect
+                    value={value ?? "stage"}
+                    onChange={onChange}
+                    label={SWIMLANE_VIEWS.find((option) => option.value === (value ?? "stage"))?.label ?? "By Stage"}
                     disabled={!isAdmin}
-                    className="h-10 w-full rounded-md border border-custom-border-200 bg-custom-background-100 px-3 text-sm text-custom-text-100"
+                    input
+                    className="w-full"
+                    buttonClassName="!border-custom-border-200 !shadow-none font-medium rounded-md"
                   >
                     {SWIMLANE_VIEWS.map((option) => (
-                      <option key={option.value} value={option.value}>
+                      <CustomSelect.Option key={option.value} value={option.value}>
                         {option.label}
-                      </option>
+                      </CustomSelect.Option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 )}
               />
               <p className="text-xs text-custom-text-300">Used when a coach has not selected a view for this board.</p>

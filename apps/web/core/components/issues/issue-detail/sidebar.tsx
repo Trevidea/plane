@@ -88,13 +88,20 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
 
   const maxDate = issue.target_date ? getDate(issue.target_date) : null;
   maxDate?.setDate(maxDate.getDate());
-  const isDateTimeLocked = !isEditable || isDateTimePast(issue.start_date, issue.start_time);
+  const isEventDetailsReadOnly = !isEditable || issue.category === "Coaching Card";
+  const isDateTimeLocked = isEventDetailsReadOnly || isDateTimePast(issue.start_date, issue.start_time);
   const projectSport = projectDetails?.sport?.trim() || null;
   const issueSport = issue.sport?.trim() || null;
   const shouldShowSportField = !!projectSport || !!issueSport;
-  const isSportLocked = !isEditable || !!projectSport;
+  const isSportLocked = isEventDetailsReadOnly || !!projectSport;
+
+  const handleEventDetailsUpdate = (data: Partial<TIssue>) => {
+    if (isEventDetailsReadOnly) return;
+    return issueOperations.update(workspaceSlug, projectId, issueId, data);
+  };
 
   const handleDateTimeUpdate = (data: Partial<TIssue>) => {
+    if (isDateTimeLocked) return;
     if (
       isDateTimePastWithOverrides({
         currentDateValue: issue.start_date,
@@ -111,7 +118,7 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
       return;
     }
 
-    issueOperations.update(workspaceSlug, projectId, issueId, data);
+    return handleEventDetailsUpdate(data);
   };
 
   return (
@@ -150,8 +157,8 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
               </div>
               <YearRangeDropdown
                 value={issue?.year}
-                onChange={(val) => issueOperations.update(workspaceSlug, projectId, issueId, { year: val })}
-                disabled={!isEditable}
+                onChange={(val) => handleEventDetailsUpdate({ year: val })}
+                disabled={isEventDetailsReadOnly}
                 placeholder={t("add_year")}
                 buttonVariant="transparent-with-text"
                 className="group w-3/5 flex-grow"
@@ -171,9 +178,9 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
               <CategoryDropdown
                 value={issue?.category}
                 onChange={(val) => {
-                  issueOperations.update(workspaceSlug, projectId, issueId, { category: val });
+                  handleEventDetailsUpdate({ category: val });
                 }}
-                disabled={!isEditable}
+                disabled={isEventDetailsReadOnly}
                 placeholder={t("add_category")}
                 buttonVariant="transparent-with-text"
                 className="group w-3/5 flex-grow"
@@ -324,7 +331,7 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
                 <SportDropdown
                   value={issue.sport}
                   onChange={(val: string | null) => {
-                    issueOperations.update(workspaceSlug, projectId, issueId, { sport: val });
+                    handleEventDetailsUpdate({ sport: val });
                   }}
                   disabled={isSportLocked}
                   placeholder={t("add_sport")}
@@ -348,11 +355,11 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
                 storageKey={`opp-team-${issueId}`}
                 value={parseOppositionTeam(issue?.opposition_team)}
                 onChange={(team) =>
-                  issueOperations.update(workspaceSlug, projectId, issueId, {
+                  handleEventDetailsUpdate({
                     opposition_team: serializeOppositionTeam(team),
                   })
                 }
-                disabled={!isEditable}
+                disabled={isEventDetailsReadOnly}
               />
             </div>
 
@@ -365,9 +372,9 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
               <ProgramDropdown
                 value={issue.program}
                 onChange={(val: string | null) => {
-                  issueOperations.update(workspaceSlug, projectId, issueId, { program: val });
+                  handleEventDetailsUpdate({ program: val });
                 }}
-                disabled={!isEditable}
+                disabled={isEventDetailsReadOnly}
                 placeholder={t("add_program")}
                 hideIcon
                 buttonVariant="transparent-with-text"
@@ -387,9 +394,9 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
               <LevelDropdown
                 value={issue.level}
                 onChange={(val: string | null) => {
-                  issueOperations.update(workspaceSlug, projectId, issueId, { level: val });
+                  handleEventDetailsUpdate({ level: val });
                 }}
-                disabled={!isEditable}
+                disabled={isEventDetailsReadOnly}
                 placeholder={t("add_level")}
                 hideIcon
                 buttonVariant="transparent-with-text"

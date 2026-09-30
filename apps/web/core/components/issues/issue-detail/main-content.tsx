@@ -28,6 +28,7 @@ import { IssueDetailWidgets } from "../issue-detail-widgets";
 import { NameDescriptionUpdateStatus } from "../issue-update-status";
 import { PeekOverviewProperties } from "../peek-overview/properties";
 import { IssueTitleInput } from "../title-input";
+import { CoachingCardClips } from "./coaching-card-clips";
 import { IssueActivity } from "./issue-activity";
 import { IssueParentDetail } from "./parent";
 import { IssueReaction } from "./reactions";
@@ -183,6 +184,8 @@ export const IssueMainContent: React.FC<Props> = observer((props) => {
         renderWidgetModals={!isPeekModeActive}
         issueServiceType={EIssueServiceType.ISSUES}
       />
+
+      <CoachingCardClips key={issue.id} issue={issue} />
 
       {windowSize[0] < 768 && (
         <PeekOverviewProperties

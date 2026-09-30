@@ -13,6 +13,7 @@ import useKeypress from "@/hooks/use-keypress";
 import usePeekOverviewOutsideClickDetector from "@/hooks/use-peek-overview-outside-click";
 // local imports
 import type { TIssueOperations } from "../issue-detail";
+import { CoachingCardClips } from "../issue-detail/coaching-card-clips";
 import { IssueActivity } from "../issue-detail/issue-activity";
 import { IssueDetailWidgets } from "../issue-detail-widgets";
 import { IssuePeekOverviewError } from "./error";
@@ -41,7 +42,11 @@ const resolveDescriptionImageSrc = (value: string, workspaceSlug: string, projec
   return getFileURL(trimmed) ?? trimmed;
 };
 
-const extractDescriptionImageUrls = (descriptionHtml: string | null | undefined, workspaceSlug: string, projectId: string) => {
+const extractDescriptionImageUrls = (
+  descriptionHtml: string | null | undefined,
+  workspaceSlug: string,
+  projectId: string
+) => {
   if (!descriptionHtml) return [];
   const sources = new Set<string>();
 
@@ -286,6 +291,8 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                       />
                     </div>
 
+                    {issue && <CoachingCardClips key={issue.id} issue={issue} />}
+
                     <PeekOverviewProperties
                       workspaceSlug={workspaceSlug}
                       projectId={projectId}
@@ -337,6 +344,8 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                           />
                         </div>
 
+                        {issue && <CoachingCardClips key={issue.id} issue={issue} />}
+
                         <IssueActivity
                           workspaceSlug={workspaceSlug}
                           projectId={projectId}
@@ -346,9 +355,8 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                       </div>
                     </div>
                     <div
-                      className={`h-full !w-[400px] flex-shrink-0 border-l border-custom-border-200 p-4 py-5 overflow-hidden vertical-scrollbar scrollbar-sm ${
-                        is_archived ? "pointer-events-none" : ""
-                      }`}
+                      className={`h-full !w-[400px] flex-shrink-0 border-l border-custom-border-200 p-4 py-5 overflow-hidden vertical-scrollbar scrollbar-sm ${is_archived ? "pointer-events-none" : ""
+                        }`}
                     >
                       <PeekOverviewProperties
                         workspaceSlug={workspaceSlug}

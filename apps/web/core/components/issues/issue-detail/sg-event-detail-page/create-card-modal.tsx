@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, PanelsTopLeft, X } from "lucide-react";
+import { ChevronDown, PanelsTopLeft, UserRound, UsersRound, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
 import type { IRosterPlayer } from "@plane/types";
 import { EModalWidth, ModalCore } from "@plane/ui";
@@ -15,6 +15,7 @@ import {
   getPositionGroups,
 } from "./create-card-model";
 import type { CardContextValues, CardFormValues, CardPriority, CardType } from "./create-card-model";
+import { CreateCardPositionGroupPicker } from "./create-card-position-group-picker";
 import { CardClipThumbnail, CreateCardPreview } from "./create-card-preview";
 import { CreateCardRosterPicker } from "./create-card-roster-picker";
 import { CreateCardScrollArea } from "./create-card-scroll-area";
@@ -142,30 +143,42 @@ export const CreateCardModal = ({
               context={context}
             />
             <div className="min-w-0 space-y-4">
-              <fieldset className="space-y-2">
+              <fieldset disabled={isSubmitting}>
                 <legend className="text-sm text-custom-text-200">Assign to</legend>
-                <div className="flex gap-3 text-sm text-custom-text-100">
-                  <label className="flex items-center gap-1">
+                <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-custom-border-300 bg-custom-background-90 p-2">
+                  <label className="min-w-0 cursor-pointer">
                     <input
                       type="radio"
+                      name="card-assignment"
+                      value="player"
                       checked={assignmentType === "player"}
                       onChange={() => {
                         setAssignmentType("player");
                         setPositionGroup("");
                       }}
+                      className="peer sr-only"
                     />
-                    Player
+                    <span className="flex min-h-9 items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm text-custom-text-200 transition-colors hover:bg-custom-background-80 peer-checked:border-custom-primary-100 peer-checked:bg-custom-primary-10 peer-checked:text-custom-primary-100 peer-focus-visible:ring-2 peer-focus-visible:ring-custom-primary-100 peer-disabled:cursor-not-allowed peer-disabled:opacity-40">
+                      <UserRound aria-hidden="true" className="h-4 w-4 shrink-0" />
+                      Player
+                    </span>
                   </label>
-                  <label className="flex items-center gap-1">
+                  <label className="min-w-0 cursor-pointer">
                     <input
                       type="radio"
+                      name="card-assignment"
+                      value="group"
                       checked={assignmentType === "group"}
                       onChange={() => {
                         setAssignmentType("group");
                         setSelectedPlayerIds([]);
                       }}
+                      className="peer sr-only"
                     />
-                    Position Group
+                    <span className="flex min-h-9 items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm text-custom-text-200 transition-colors hover:bg-custom-background-80 peer-checked:border-custom-primary-100 peer-checked:bg-custom-primary-10 peer-checked:text-custom-primary-100 peer-focus-visible:ring-2 peer-focus-visible:ring-custom-primary-100 peer-disabled:cursor-not-allowed peer-disabled:opacity-40">
+                      <UsersRound aria-hidden="true" className="h-4 w-4 shrink-0" />
+                      Position Group
+                    </span>
                   </label>
                 </div>
               </fieldset>
@@ -179,36 +192,15 @@ export const CreateCardModal = ({
                   onRetry={onRetryRoster}
                 />
               ) : (
-                <label className="block text-sm text-custom-text-200">
-                  Position Group
-                  <select
-                    value={positionGroup}
-                    onChange={(event) => setPositionGroup(event.target.value)}
-                    disabled={isRosterLoading || hasRosterError || isSubmitting}
-                    className="mt-2 h-10 w-full rounded-lg border border-custom-border-300 bg-custom-background-90 px-3 text-sm text-custom-text-100"
-                  >
-                    <option value="">Select a group</option>
-                    {positionGroups.map((group) => (
-                      <option key={group} value={group}>
-                        {group}
-                      </option>
-                    ))}
-                  </select>
-                  {positionGroups.length === 0 && !isRosterLoading && (
-                    <span className="mt-1 block text-xs text-custom-text-300">
-                      No position groups are available in this roster.
-                    </span>
-                  )}
-                  {hasRosterError && (
-                    <button
-                      type="button"
-                      onClick={onRetryRoster}
-                      className="mt-1 block text-xs text-custom-primary-100"
-                    >
-                      Retry roster
-                    </button>
-                  )}
-                </label>
+                <CreateCardPositionGroupPicker
+                  groups={positionGroups}
+                  selectedGroup={positionGroup}
+                  onChange={setPositionGroup}
+                  isLoading={isRosterLoading}
+                  hasError={hasRosterError}
+                  onRetry={onRetryRoster}
+                  disabled={isSubmitting}
+                />
               )}
               <CreateCardContextFields
                 value={context}
@@ -377,8 +369,10 @@ export const CreateCardModal = ({
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-custom-border-200 px-5 py-3">
           <div className="min-w-0 flex-1 text-[11px] text-custom-text-300">
             <p>
-              {assignmentType === "group" && positionGroup
-                ? `Recipient: ${positionGroup} group`
+              {assignmentType === "group"
+                ? positionGroup
+                  ? `Recipient: ${positionGroup} group`
+                  : "Choose a position group from the roster."
                 : selectedPlayers.length
                   ? `Recipients: ${selectedPlayers.map(formatCardPlayer).join(", ")}`
                   : "Choose players from the roster."}
