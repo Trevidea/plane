@@ -1,12 +1,14 @@
 from html import escape
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
+from urllib.parse import quote
 
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.response import Response
+from rest_framework.exceptions import NotFound
 
 from plane.app.permissions import ROLE, allow_permission
 from plane.db.models import (
@@ -18,6 +20,8 @@ from plane.db.models import (
     WorkspaceMember,
 )
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY, COACHING_CARD_KIND
+from plane.utils.coaching_card_media import build_uploaded_video_card_source, choose_card_context_value
+from plane.utils.media_library import manifest_path, read_manifest, resolve_artifact_metadata, validate_segment
 from plane.utils.coaching_card_lifecycle import (
     advance_card_after_review,
     get_project_card_stage_config,
@@ -62,9 +66,28 @@ class CoachingCardPlaylistSerializer(serializers.Serializer):
     clips = CoachingCardClipSerializer(many=True, allow_empty=False, max_length=500)
 
 
+class CoachingCardMediaSourceSerializer(serializers.Serializer):
+    package_id = serializers.CharField(max_length=255)
+    artifact_id = serializers.CharField(max_length=255)
+
+    def validate_package_id(self, value):
+        return validate_segment(value, "package_id")
+
+    def validate_artifact_id(self, value):
+        return validate_segment(value, "artifact_id")
+
+
+class CoachingCardContextSerializer(serializers.Serializer):
+    sport = serializers.CharField(max_length=100, allow_blank=True, allow_null=True, required=False)
+    level = serializers.CharField(max_length=100, allow_blank=True, allow_null=True, required=False)
+    program = serializers.CharField(max_length=100, allow_blank=True, allow_null=True, required=False)
+    season = serializers.CharField(max_length=20, allow_blank=True, allow_null=True, required=False)
+
+
 class CoachingCardBulkCreateSerializer(serializers.Serializer):
     request_id = serializers.UUIDField()
-    source_issue_id = serializers.UUIDField()
+    source_issue_id = serializers.UUIDField(required=False)
+    source_media = CoachingCardMediaSourceSerializer(required=False)
     player_ids = serializers.ListField(
         child=serializers.UUIDField(),
         allow_empty=True,
@@ -86,10 +109,11 @@ class CoachingCardBulkCreateSerializer(serializers.Serializer):
     )
     priority = serializers.ChoiceField(choices=("Game Plan Critical", "Standard", "Developmental"))
     sport_label = serializers.CharField(max_length=100, allow_blank=True, required=False, default="")
+    context = CoachingCardContextSerializer(required=False)
+    playlists = CoachingCardPlaylistSerializer(many=True, allow_empty=False, max_length=25, required=False)
     program = serializers.CharField(max_length=100, allow_blank=True, required=False, default="")
     level = serializers.CharField(max_length=100, allow_blank=True, required=False, default="")
     season = serializers.CharField(max_length=20, allow_blank=True, required=False, default="")
-    playlists = CoachingCardPlaylistSerializer(many=True, allow_empty=False, max_length=25)
 
     def validate_player_ids(self, player_ids):
         if len(player_ids) != len(set(player_ids)):
@@ -97,9 +121,55 @@ class CoachingCardBulkCreateSerializer(serializers.Serializer):
         return player_ids
 
     def validate(self, attrs):
+        if bool(attrs.get("source_issue_id")) == bool(attrs.get("source_media")):
+            raise serializers.ValidationError("Provide exactly one source event or uploaded video.")
+        if attrs.get("source_media") and "playlists" in attrs:
+            raise serializers.ValidationError({"playlists": "Uploaded video clips are resolved from saved media."})
+        if attrs.get("source_issue_id") and not attrs.get("playlists"):
+            raise serializers.ValidationError({"playlists": "At least one playlist is required."})
         if attrs["player_ids"] and attrs["position_group"].strip():
             raise serializers.ValidationError("Select players or one position group, not both.")
         return attrs
+
+
+def _resolve_media_source(project, slug, source):
+    package_id, artifact_id = source["package_id"], source["artifact_id"]
+    path = manifest_path(str(project.id), package_id)
+    if not path.exists():
+        raise NotFound("The uploaded video is unavailable in this program.")
+    manifest = read_manifest(path)
+    artifacts = manifest.get("artifacts") or []
+    artifact = next((item for item in artifacts if isinstance(item, dict) and item.get("name") == artifact_id), None)
+    if artifact is None:
+        raise NotFound("The uploaded video is unavailable in this program.")
+    metadata = resolve_artifact_metadata(artifact, manifest.get("metadata"))
+    thumbnail = next(
+        (
+            item
+            for item in artifacts
+            if isinstance(item, dict)
+            and item.get("link") == artifact_id
+            and (item.get("format") == "thumbnail" or item.get("action") == "preview")
+        ),
+        None,
+    )
+    thumbnail_url = None
+    if thumbnail and isinstance(thumbnail.get("name"), str):
+        thumbnail_url = (
+            f"/api/workspaces/{quote(slug, safe='')}/projects/{project.id}/media-library/"
+            f"packages/{quote(package_id, safe='')}/artifacts/{quote(thumbnail['name'], safe='')}/file/"
+        )
+    try:
+        resolved = build_uploaded_video_card_source(artifact, metadata, package_id, thumbnail_url)
+    except ValueError as error:
+        raise serializers.ValidationError({"source_media": str(error)}) from error
+    linked_id = artifact.get("work_item_id") or metadata.get("work_item_id") or metadata.get("workItemId")
+    try:
+        linked_id = UUID(str(linked_id)) if linked_id else None
+    except (ValueError, TypeError, AttributeError):
+        linked_id = None
+    resolved["source_issue"] = Issue.issue_objects.filter(project=project, pk=linked_id).first() if linked_id else None
+    return resolved
 
 
 class CardTransitionSerializer(serializers.Serializer):
@@ -140,7 +210,17 @@ class CoachingCardUpdateSerializer(serializers.Serializer):
         return attrs
 
 
-def _get_initial_coaching_state(project, assigned=False):
+def _get_initial_coaching_state(project, assigned=False, allow_missing_sport=False):
+    if allow_missing_sport and not (project.sport or "").strip():
+        state = (
+            State.objects.filter(project=project, is_triage=False, deleted_at__isnull=True)
+            .exclude(group="cancelled")
+            .order_by("sequence", "id")
+            .first()
+        )
+        if state is None:
+            raise serializers.ValidationError({"stages": ["At least one coaching stage is required."]})
+        return state
     config = get_project_card_stage_config(project)
     review_stages = review_stage_ids(config)
     stage_id = review_stages[0] if assigned and review_stages else config["initial_stage_id"]
@@ -234,12 +314,32 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
                 status=status.HTTP_200_OK,
             )
 
-        source_issue = Issue.issue_objects.filter(project=project, pk=payload["source_issue_id"]).first()
-        if source_issue is None:
+        media_source = (
+            _resolve_media_source(project, slug, payload["source_media"]) if payload.get("source_media") else None
+        )
+        source_issue = (
+            media_source["source_issue"]
+            if media_source
+            else Issue.issue_objects.filter(project=project, pk=payload["source_issue_id"]).first()
+        )
+        if not media_source and source_issue is None:
             return Response(
                 {"source_issue_id": ["The source event does not exist in this program."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        source_context = media_source["context"] if media_source else {}
+        selected_context = {key: payload[key] for key in ("program", "level", "season") if payload.get(key)}
+        selected_context.update(payload.get("context") or {})
+
+        level = choose_card_context_value(
+            "level", source_context, selected_context, getattr(source_issue, "level", None)
+        )
+        program = choose_card_context_value(
+            "program", source_context, selected_context, getattr(source_issue, "program", None) or project.name
+        )
+        season = choose_card_context_value(
+            "season", source_context, selected_context, getattr(source_issue, "year", None)
+        )
 
         players_by_id = {
             player.id: player for player in RosterPlayer.objects.filter(project=project, id__in=payload["player_ids"])
@@ -251,6 +351,7 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        playlists = media_source["playlists"] if media_source else payload["playlists"]
         position_group = payload["position_group"].strip()
         recipients = [players_by_id[player_id] for player_id in payload["player_ids"]]
         if position_group:
@@ -264,31 +365,34 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
                 )
             position_group = recipients[0].position
 
-        playlists = payload["playlists"]
         first_clip = playlists[0]["clips"][0]
         clip_count = sum(len(playlist["clips"]) for playlist in playlists)
         feedback = payload["feedback"].strip()
         description_html = f"<p>{escape(feedback)}</p>" if feedback else "<p></p>"
         created_at = timezone.now().isoformat()
-        if not project.sport:
-            return Response({"sport": ["The program needs a sport before cards can be created."]}, status=400)
-        sport = project.sport
-        if project.sport and payload["sport_label"] and project.sport.casefold() != payload["sport_label"].casefold():
-            return Response({"sport_label": ["The card sport must match the program sport."]}, status=400)
-        program = payload["program"].strip() or source_issue.program or project.name
-        level = payload["level"].strip() or source_issue.level or ""
-        season = payload["season"].strip() or source_issue.year or ""
-        missing_context = [
-            key
-            for key, value in (("sport", sport), ("program", program), ("level", level), ("season", season))
-            if not value
-        ]
-        if missing_context:
-            return Response(
-                {key: ["This card context is required."] for key in missing_context},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        state = _get_initial_coaching_state(project, assigned=bool(recipients))
+        sport = choose_card_context_value(
+            "sport",
+            source_context,
+            selected_context,
+            ("" if media_source else payload["sport_label"]) or project.sport or getattr(source_issue, "sport", None),
+        )
+        if not media_source:
+            if not project.sport:
+                return Response({"sport": ["The program needs a sport before cards can be created."]}, status=400)
+            sport = project.sport
+            if payload["sport_label"] and project.sport.casefold() != payload["sport_label"].casefold():
+                return Response({"sport_label": ["The card sport must match the program sport."]}, status=400)
+            missing_context = [
+                key
+                for key, value in (("sport", sport), ("program", program), ("level", level), ("season", season))
+                if not value
+            ]
+            if missing_context:
+                return Response(
+                    {key: ["This card context is required."] for key in missing_context},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        state = _get_initial_coaching_state(project, assigned=bool(recipients), allow_missing_sport=bool(media_source))
         recipient_snapshots = [_player_snapshot(player) for player in recipients]
         assigned_at = timezone.now() if recipients and state.name.casefold() == "assigned" else None
         card_data = {
@@ -302,7 +406,10 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
                 "name": source_issue.name,
                 "sequence_id": source_issue.sequence_id,
                 "sg_event_id": source_issue.sg_event_id,
-            },
+            }
+            if source_issue
+            else None,
+            **({"source_media": media_source["source_media"]} if media_source else {}),
             "player": recipient_snapshots[0] if len(recipients) == 1 and not position_group else None,
             "recipients": recipient_snapshots,
             "recipient_ids": [recipient["id"] for recipient in recipient_snapshots],
@@ -329,9 +436,21 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
             "metadata": {
                 "serial_number": f"CC-{uuid4()}",
                 "sport": sport,
-                "season": season,
+                "season": season or "",
                 "program": program,
-                "level": level,
+                "level": level or "",
+                **(
+                    {
+                        "category": media_source["source_media"]["metadata"]["category"],
+                        "location": media_source["source_media"]["metadata"]["location"],
+                        "tags": media_source["source_media"]["metadata"]["tags"],
+                        "start_date": media_source["source_media"]["metadata"]["start_date"],
+                        "start_time": media_source["source_media"]["metadata"]["start_time"],
+                        "uploaded_by": media_source["source_media"]["metadata"]["created_by"],
+                    }
+                    if media_source
+                    else {}
+                ),
                 "created_at": created_at,
                 "author": {
                     "id": str(request.user.id),
@@ -357,6 +476,7 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
             state=state,
             name=payload["title"],
             description_html=description_html,
+            sport=sport,
             level=level,
             program=program,
             year=season,

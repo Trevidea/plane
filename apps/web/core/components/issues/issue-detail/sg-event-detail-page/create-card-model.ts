@@ -67,6 +67,8 @@ const cleanText = (value: string | null | undefined) => {
   return ["--", "-", "n/a"].includes(text.toLowerCase()) ? "" : text;
 };
 
+export const hasCardContextMetadata = (value: string | null | undefined): boolean => Boolean(cleanText(value));
+
 export const formatCardPlayer = (player: IRosterPlayer) => {
   const jersey = player.jersey_number?.trim().replace(/^#/, "");
   return [player.player_name.trim() || "Unnamed player", jersey ? `#${jersey}` : ""].filter(Boolean).join(", ");

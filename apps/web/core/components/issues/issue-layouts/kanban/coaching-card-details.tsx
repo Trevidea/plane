@@ -1,10 +1,12 @@
 import { useParams } from "next/navigation";
 import useSWR from "swr";
-import { CalendarDays, Play, UserRound, UsersRound, Video } from "lucide-react";
+import { CalendarDays, Layers3, Play, UserRound, UsersRound, Video } from "lucide-react";
 import type { TIssue } from "@plane/types";
 import { cn, renderFormattedDate } from "@plane/utils";
 import { useProjectState } from "@/hooks/store/use-project-state";
+import { useAppRouter } from "@/hooks/use-app-router";
 import { IssueService } from "@/services/issue/issue.service";
+import { getCoachingCardSource } from "./coaching-card-source";
 
 const CARD_TYPES: Record<string, { label: string; accent: string; textClass: string }> = {
   Correction: { label: "Correction", accent: "#2893cc", textClass: "text-[#006b9a] dark:text-[#44b5f0]" },
@@ -38,8 +40,9 @@ export const CoachingCardKanbanDetails = ({
   issue: TIssue;
   projectIdentifier?: string;
 }) => {
+  const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
+  const router = useAppRouter();
   const { getStateById } = useProjectState();
-  const { workspaceSlug, projectId } = useParams();
   const { data: cardStageConfig } = useSWR(
     workspaceSlug && projectId ? ["coaching-card-config", workspaceSlug, projectId] : null,
     () => new IssueService().getCoachingCardConfig(workspaceSlug.toString(), projectId.toString())
@@ -58,6 +61,20 @@ export const CoachingCardKanbanDetails = ({
   const firstRecipient = recipients[0];
   const jersey = firstRecipient?.jersey_number?.trim().replace(/^#/, "");
   const viewedCount = recipients.filter((recipient) => Boolean(card.review?.viewed_by?.[recipient.id])).length;
+  const source = getCoachingCardSource(card, workspaceSlug, issue.project_id, projectIdentifier);
+  const cardContext = [
+    card.metadata?.sport,
+    card.metadata?.level,
+    card.metadata?.program,
+    card.metadata?.season,
+    card.metadata?.category,
+    card.metadata?.location,
+    card.metadata?.start_date,
+    card.metadata?.start_time,
+    ...(card.metadata?.tags ?? []),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
   const stageName =
     cardStageConfig?.stages.find((stage) => stage.id === issue.state_id)?.name ||
     getStateById(issue.state_id)?.name ||
@@ -84,7 +101,12 @@ export const CoachingCardKanbanDetails = ({
   const clipTitle = firstClip?.title || card.summary.primary_clip_title || "Video clip";
   const clipMeta = clips.length > 1 ? `${clips.length} clips` : formatClipDuration(firstClip?.duration_seconds);
   const evidenceUrl = card.primary_clip?.source_url || firstClip?.source_url || "";
-  const canOpenEvidence = /^(https?:\/\/|\/)/i.test(evidenceUrl);
+  const hasDirectEvidence = /^(https?:\/\/|\/)/i.test(evidenceUrl);
+  const canOpenEvidence = hasDirectEvidence || Boolean(source.href);
+  const openEvidence = () => {
+    if (hasDirectEvidence) window.open(evidenceUrl, "_blank", "noopener,noreferrer");
+    else if (source.href) router.push(source.href);
+  };
   const reviewDate =
     normalizedStageName === "player reviewed" || normalizedStageName === "in work" ? card.review?.completed_at : null;
   const assignmentDate = normalizedStageName === "assigned" ? card.review?.assigned_at : null;
@@ -141,6 +163,16 @@ export const CoachingCardKanbanDetails = ({
         >
           {stageBadge}
         </span>
+      </div>
+
+      <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-custom-text-300">
+        <Layers3 className="h-3 w-3 shrink-0" aria-hidden="true" />
+        <span className="shrink-0">{source.label}</span>
+        {source.title && (
+          <span className="truncate" title={source.title}>
+            · {source.title}
+          </span>
+        )}
       </div>
 
       <div className="min-w-0">
@@ -216,6 +248,11 @@ export const CoachingCardKanbanDetails = ({
           {card.feedback}
         </p>
       )}
+      {cardContext && (
+        <p className="line-clamp-1 text-[11px] text-custom-text-300" title={cardContext}>
+          {cardContext}
+        </p>
+      )}
 
       <div className="flex min-w-0 flex-wrap items-center gap-1">
         {qualifier && (
@@ -251,18 +288,18 @@ export const CoachingCardKanbanDetails = ({
             role="button"
             tabIndex={0}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-custom-background-80 text-custom-text-100 hover:bg-custom-background-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-custom-primary-100"
-            title="Open original clip"
-            aria-label="Open original clip"
+            title={source.href && !hasDirectEvidence ? "Open uploaded video" : "Open original clip"}
+            aria-label={source.href && !hasDirectEvidence ? "Open uploaded video" : "Open original clip"}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              window.open(evidenceUrl, "_blank", "noopener,noreferrer");
+              openEvidence();
             }}
             onKeyDown={(event) => {
               if (event.key !== "Enter" && event.key !== " ") return;
               event.preventDefault();
               event.stopPropagation();
-              window.open(evidenceUrl, "_blank", "noopener,noreferrer");
+              openEvidence();
             }}
           >
             <Play className="h-3 w-3 fill-current" aria-hidden="true" />

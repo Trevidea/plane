@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { TCustomPlaylistAnnotation } from "./annotation.types";
 
 export type VideoAnnotationEditorProps = {
@@ -29,4 +30,5 @@ export type VideoAnnotationEditorProps = {
   showTimeline?: boolean;
   thumbnailUrl?: string | null;
   timelineHostElement?: HTMLElement | null;
+  timelineHeaderAction?: ReactNode;
 };

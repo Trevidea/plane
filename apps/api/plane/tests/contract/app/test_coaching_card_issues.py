@@ -428,31 +428,185 @@ class TestCoachingCardIssues:
         assert "player_ids" in response.json()
         assert not Issue.objects.filter(project=project, category="Coaching Card").exists()
 
-    @pytest.mark.django_db
-    def test_rejects_missing_card_context(self, session_client, workspace, create_user):
-        project = Project.objects.create(name="Basketball", identifier="BALL", workspace=workspace, sport="Basketball")
-        ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
-        state = State.objects.create(name="Scheduled", color="#333", group="unstarted", project=project)
-        source = Issue.objects.create(name="Game", project=project, state=state, sg_event_id=445)
-        player = RosterPlayer.objects.create(project=project, player_name="Jordan")
-        payload = {
-            "request_id": str(uuid4()),
-            "source_issue_id": str(source.id),
-            "player_ids": [str(player.id)],
-            "title": "Review",
-            "card_type": "Correction",
-            "priority": "Standard",
-            "playlists": [{"id": "playlist-1", "name": "Plays", "clips": [_clip()]}],
-        }
-        response = session_client.post(
-            f"/api/workspaces/{workspace.slug}/projects/{project.id}/issues/create-coaching-cards/",
-            payload,
-            format="json",
-        )
-        assert response.status_code == 400
-        assert "level" in response.json() and "season" in response.json()
-        assert not Issue.objects.filter(project=project, category="Coaching Card").exists()
 
+@pytest.mark.contract
+@pytest.mark.django_db
+@pytest.mark.parametrize("linked", [False, True])
+@pytest.mark.parametrize("annotation_state", ["saved", "empty", "missing"])
+def test_uploaded_video_cards_snapshot_annotations_and_replay(
+    session_client, workspace, create_user, settings, tmp_path, linked, annotation_state
+):
+    import json
+    from plane.utils.media_library import manifest_path
+
+    settings.MEDIA_LIBRARY_ROOT = str(tmp_path)
+    project = Project.objects.create(name="Basketball", identifier="BALL", workspace=workspace, sport="Basketball")
+    ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
+    state = State.objects.create(name="Scheduled", color="#333333", group="unstarted", default=True, project=project)
+    source = Issue.objects.create(project=project, state=state, name="Practice") if linked else None
+    players = [RosterPlayer.objects.create(project=project, player_name=name) for name in ("Jordan", "Taylor")]
+    annotations = [{"id": "audio-1", "type": "audio", "startTime": 1, "endTime": 4, "content": "/saved/audio.webm"}]
+    metadata = {
+        "sport": "Basketball",
+        "season": "2026",
+        "duration_seconds": 30,
+        "category": "Practice",
+        "location": "Home",
+        "tags": ["Footwork", "Defense"],
+        "start_date": "2026-09-28",
+        "start_time": "10:30",
+        "created_by": str(create_user.id),
+    }
+    if annotation_state != "missing":
+        metadata["annotations"] = annotations if annotation_state == "saved" else []
+    if source:
+        metadata["work_item_id"] = str(source.id)
+    path = manifest_path(str(project.id), "library")
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps({"artifacts": [{"name": "video-1", "title": "Practice video", "format": "mp4", "meta": metadata}]})
+    )
+    payload = {
+        "request_id": str(uuid4()),
+        "source_media": {"package_id": "library", "artifact_id": "video-1"},
+        "player_ids": [str(player.id) for player in players],
+        "title": "Footwork",
+        "feedback": "Stay low",
+        "card_type": "Correction",
+        "priority": "Standard",
+    }
+    if annotation_state == "saved":
+        payload["context"] = {"sport": "Soccer", "level": "Senior", "program": "Women", "season": "2027"}
+    url = f"/api/workspaces/{workspace.slug}/projects/{project.id}/issues/create-coaching-cards/"
+    response = session_client.post(url, payload, format="json")
+    assert response.status_code == 201, response.data
+    cards = list(Issue.objects.filter(project=project, category="Coaching Card"))
+    assert len(cards) == 1
+    assert cards[0].roster_player_id is None
+    assert all(card.parent_id == (source.id if source else None) for card in cards)
+    assert all(card.state_id == state.id for card in cards)
+    data = cards[0].coaching_card_data
+    assert data["recipient_ids"] == [str(player.id) for player in players]
+    assert data["source_media"]["annotations"] == (annotations if annotation_state == "saved" else [])
+    assert data["source_media"]["artifact_id"] == "video-1"
+    assert data["source_media"]["metadata"]["tags"] == ["Footwork", "Defense"]
+    assert data["source_media"]["metadata"]["location"] == "Home"
+    assert data["schema_version"] == 3
+    assert data["summary"]["clip_count"] == 1
+    assert data["metadata"]["season"] == ("2027" if annotation_state == "saved" else "2026")
+    assert data["metadata"]["sport"] == ("Soccer" if annotation_state == "saved" else "Basketball")
+    assert data["metadata"]["category"] == "Practice"
+    assert data["metadata"]["tags"] == ["Footwork", "Defense"]
+    assert cards[0].level == ("Senior" if annotation_state == "saved" else "")
+    if not source:
+        assert data["source_issue"] is None
+    replay = session_client.post(url, payload, format="json")
+    assert replay.status_code == 200
+    assert replay.data["idempotent_replay"] is True
+    assert Issue.objects.filter(project=project, category="Coaching Card").count() == 1
+
+
+@pytest.mark.contract
+@pytest.mark.django_db
+@pytest.mark.parametrize("project_sport", ["Basketball", ""])
+@pytest.mark.parametrize("context", [None, {"sport": None, "level": None, "program": None, "season": None}])
+def test_uploaded_video_card_creates_without_metadata(
+    session_client, workspace, create_user, settings, tmp_path, project_sport, context
+):
+    import json
+    from plane.utils.media_library import manifest_path
+
+    settings.MEDIA_LIBRARY_ROOT = str(tmp_path)
+    project = Project.objects.create(name="Practice", identifier="PRACTICE", workspace=workspace, sport=project_sport)
+    ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
+    state = State.objects.create(name="Identified", color="#333333", group="unstarted", project=project)
+    player = RosterPlayer.objects.create(project=project, player_name="Jordan")
+    path = manifest_path(str(project.id), "library")
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({"artifacts": [{"name": "video-1", "title": "Practice", "format": "mp4"}]}))
+    payload = {
+        "request_id": str(uuid4()),
+        "source_media": {"package_id": "library", "artifact_id": "video-1"},
+        "player_ids": [str(player.id)],
+        "title": "Review",
+        "card_type": "Correction",
+        "priority": "Standard",
+    }
+    if context is not None:
+        payload["context"] = context
+    response = session_client.post(
+        f"/api/workspaces/{workspace.slug}/projects/{project.id}/issues/create-coaching-cards/", payload, format="json"
+    )
+    assert response.status_code == 201, response.data
+    card = Issue.objects.get(project=project, category="Coaching Card")
+    assert card.parent_id is None
+    assert card.state_id == state.id
+    assert card.level == ""
+    assert card.year == ""
+    assert card.coaching_card_data["source_media"]["artifact_id"] == "video-1"
+    assert card.coaching_card_data["summary"]["clip_count"] == 1
+
+
+@pytest.mark.contract
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "invalid",
+    ["nonvideo", "missing", "traversal", "conflicting", "playlists", "foreign_player", "foreign_media"],
+)
+def test_uploaded_video_card_rejects_invalid_sources(
+    session_client, workspace, create_user, settings, tmp_path, invalid
+):
+    import json
+    from plane.utils.media_library import manifest_path
+
+    settings.MEDIA_LIBRARY_ROOT = str(tmp_path)
+    project = Project.objects.create(name="Basketball", identifier="BALL", workspace=workspace)
+    ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
+    other = Project.objects.create(name="Other", identifier="OTHER", workspace=workspace)
+    player = RosterPlayer.objects.create(
+        project=other if invalid == "foreign_player" else project, player_name="Jordan"
+    )
+    annotations = [{"id": "a", "type": "arrow", "startTime": 0, "endTime": 2}]
+    path = manifest_path(str(other.id if invalid == "foreign_media" else project.id), "library")
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps(
+            {
+                "artifacts": [
+                    {
+                        "name": "video-1",
+                        "title": "Practice",
+                        "format": "json" if invalid == "nonvideo" else "mp4",
+                        "meta": {"annotations": annotations},
+                    }
+                ]
+            }
+        )
+    )
+    payload = {
+        "request_id": str(uuid4()),
+        "source_media": {
+            "package_id": "../library" if invalid == "traversal" else "library",
+            "artifact_id": "missing" if invalid == "missing" else "video-1",
+        },
+        "player_ids": [str(player.id)],
+        "title": "Footwork",
+        "card_type": "Correction",
+        "priority": "Standard",
+    }
+    if invalid == "conflicting":
+        payload["source_issue_id"] = str(uuid4())
+    if invalid == "playlists":
+        payload["playlists"] = [{"id": "fake", "name": "Fake", "clips": [_clip()]}]
+    response = session_client.post(
+        f"/api/workspaces/{workspace.slug}/projects/{project.id}/issues/create-coaching-cards/", payload, format="json"
+    )
+    assert response.status_code in (400, 404), response.data
+    assert not Issue.objects.filter(project=project, category="Coaching Card").exists()
+
+
+@pytest.mark.contract
+class TestCoachingCardLifecycle:
     @pytest.mark.django_db
     def test_linked_player_review_advances_shared_card(self, session_client, workspace, create_user):
         project = Project.objects.create(name="Football", identifier="FOOT", workspace=workspace, sport="Football")
@@ -619,3 +773,30 @@ class TestCoachingCardIssues:
         assert card.coaching_card_data["review"]["completion_reason"] == "three_day_timeout"
         assert not advance_card_after_review(card, now + timedelta(days=1))
         assert CardStageHistory.objects.filter(issue=card).count() == 1
+
+
+@pytest.mark.contract
+@pytest.mark.django_db
+def test_rejects_missing_card_context(session_client, workspace, create_user):
+    project = Project.objects.create(name="Basketball", identifier="BALL", workspace=workspace, sport="Basketball")
+    ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
+    state = State.objects.create(name="Scheduled", color="#333", group="unstarted", project=project)
+    source = Issue.objects.create(name="Game", project=project, state=state, sg_event_id=445)
+    player = RosterPlayer.objects.create(project=project, player_name="Jordan")
+    payload = {
+        "request_id": str(uuid4()),
+        "source_issue_id": str(source.id),
+        "player_ids": [str(player.id)],
+        "title": "Review",
+        "card_type": "Correction",
+        "priority": "Standard",
+        "playlists": [{"id": "playlist-1", "name": "Plays", "clips": [_clip()]}],
+    }
+    response = session_client.post(
+        f"/api/workspaces/{workspace.slug}/projects/{project.id}/issues/create-coaching-cards/",
+        payload,
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "level" in response.json() and "season" in response.json()
+    assert not Issue.objects.filter(project=project, category="Coaching Card").exists()
