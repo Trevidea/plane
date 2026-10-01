@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
+  ReactNode,
   Ref,
   UIEvent as ReactUIEvent,
 } from "react";
@@ -73,6 +74,7 @@ type VideoAnnotationTimelinePanelProps = {
   timelineContentWidthPx: number;
   timelineDurationSeconds: number;
   timelineHeaderScrollableElementRef: Ref<HTMLDivElement>;
+  timelineHeaderAction?: ReactNode;
   timelineProgressPercent: number;
   timelineResizeId: string | null;
   timelineScrollableElementRef: Ref<HTMLDivElement>;
@@ -112,6 +114,7 @@ export const VideoAnnotationTimelinePanel = ({
   timelineContentWidthPx,
   timelineDurationSeconds,
   timelineHeaderScrollableElementRef,
+  timelineHeaderAction,
   timelineProgressPercent,
   timelineResizeId,
   timelineScrollableElementRef,
@@ -162,7 +165,7 @@ export const VideoAnnotationTimelinePanel = ({
     [effectiveCurrentTime, sortedAnnotations]
   );
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[6px] border border-custom-border-200 bg-custom-background-100 shadow-sm">
+    <div className="isolate flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[6px] border border-custom-border-200 bg-custom-background-100 shadow-sm">
       <div className="flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-custom-border-200 bg-custom-background-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
           <button
@@ -237,7 +240,8 @@ export const VideoAnnotationTimelinePanel = ({
           </span>
         </div>
 
-        <div className="ml-auto flex min-w-0 items-center justify-end">
+        <div className="ml-auto flex min-w-0 items-center justify-end gap-4">
+          {timelineHeaderAction}
           <span className="hidden text-[12px] text-custom-text-300 md:inline">
             {sortedAnnotations.length} annotation{sortedAnnotations.length === 1 ? "" : "s"}
           </span>

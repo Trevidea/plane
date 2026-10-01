@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, PanelsTopLeft, UserRound, UsersRound, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
 import type { IRosterPlayer } from "@plane/types";
-import { EModalWidth, ModalCore } from "@plane/ui";
+import { Button, EModalWidth, ModalCore } from "@plane/ui";
 import { cn } from "@plane/utils";
 import type { TCustomPlaylist } from "@/services/media-library.service";
 import { CreateCardContextFields } from "./create-card-context-fields";
@@ -12,6 +12,7 @@ import {
   CARD_TYPE_OPTIONS,
   formatCardDuration,
   formatCardPlayer,
+  hasCardContextMetadata,
   getPositionGroups,
 } from "./create-card-model";
 import type { CardContextValues, CardFormValues, CardPriority, CardType } from "./create-card-model";
@@ -31,6 +32,7 @@ type Props = {
   onClose: () => void;
   onSubmit?: (values: CardFormValues) => Promise<void>;
   initialContext: CardContextValues;
+  requireContext?: boolean;
 };
 
 export const CreateCardModal = ({
@@ -43,6 +45,7 @@ export const CreateCardModal = ({
   onClose,
   onSubmit,
   initialContext,
+  requireContext = true,
 }: Props) => {
   const groups = useMemo(() => buildCardPlaylists(playlists, rows), [playlists, rows]);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(() => groups[0]?.id ?? null);
@@ -54,7 +57,16 @@ export const CreateCardModal = ({
   const [cardType, setCardType] = useState<CardType>("Correction");
   const [priority, setPriority] = useState<CardPriority>("Standard");
   const [contextOverrides, setContextOverrides] = useState<Partial<CardContextValues>>({});
-  const context = { ...initialContext, ...contextOverrides };
+  const contextValue = (field: keyof CardContextValues) => {
+    const sourceValue = initialContext[field];
+    return hasCardContextMetadata(sourceValue) ? sourceValue : (contextOverrides[field] ?? sourceValue);
+  };
+  const context: CardContextValues = {
+    sport: contextValue("sport"),
+    level: contextValue("level"),
+    program: contextValue("program"),
+    season: contextValue("season"),
+  };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const selectedPlayers = useMemo(
@@ -67,7 +79,7 @@ export const CreateCardModal = ({
   const canSubmit =
     Boolean(onSubmit) &&
     (assignmentType === "player" ? selectedPlayers.length > 0 : Boolean(positionGroup)) &&
-    Boolean(context.sport && context.program && context.level && context.season) &&
+    (!requireContext || Boolean(context.sport && context.program && context.level && context.season)) &&
     title.trim().length > 0 &&
     totalTags > 0 &&
     !isRosterLoading &&
@@ -120,7 +132,8 @@ export const CreateCardModal = ({
           <Dialog.Title as="h2" className="text-xl font-semibold text-custom-text-100">
             Create Card
           </Dialog.Title>
-          <button
+          <Button
+            unstyled
             type="button"
             aria-label="Close create card"
             onClick={handleClose}
@@ -128,7 +141,7 @@ export const CreateCardModal = ({
             className="flex h-7 w-7 items-center justify-center rounded-lg border border-custom-border-200 text-custom-text-300 hover:bg-custom-background-90 disabled:opacity-40"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
         <div className="min-h-0 overflow-y-auto px-5 pb-5">
           <div className="grid items-start gap-5 md:grid-cols-[280px_minmax(0,1fr)]">
@@ -204,7 +217,11 @@ export const CreateCardModal = ({
               )}
               <CreateCardContextFields
                 value={context}
-                onChange={(field, value) => setContextOverrides((current) => ({ ...current, [field]: value }))}
+                initialValue={initialContext}
+                onChange={(field, value) => {
+                  if (hasCardContextMetadata(initialContext[field])) return;
+                  setContextOverrides((current) => ({ ...current, [field]: value }));
+                }}
                 disabled={isSubmitting}
               />
               <section>
@@ -295,7 +312,8 @@ export const CreateCardModal = ({
                         className="overflow-hidden rounded-lg border border-custom-border-300 bg-custom-background-90"
                       >
                         <div className="flex min-h-10 items-center gap-2 px-3">
-                          <button
+                          <Button
+                            unstyled
                             type="button"
                             onClick={() => setExpandedGroupId((current) => (current === group.id ? null : group.id))}
                             aria-expanded={!isCollapsed}
@@ -315,7 +333,7 @@ export const CreateCardModal = ({
                                 isCollapsed && "-rotate-90"
                               )}
                             />
-                          </button>
+                          </Button>
                         </div>
                         <CreateCardScrollArea
                           id={listId}
@@ -389,15 +407,17 @@ export const CreateCardModal = ({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={handleClose}
               disabled={isSubmitting}
               className="rounded-lg border border-custom-border-300 px-3 py-2 text-sm text-custom-text-100 hover:bg-custom-background-90 disabled:opacity-40"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
+              unstyled
               type="submit"
               disabled={!canSubmit}
               aria-describedby={!onSubmit ? "create-card-submit-status" : undefined}
@@ -411,7 +431,7 @@ export const CreateCardModal = ({
                   : selectedPlayers.length
                     ? `Save & Send to ${selectedPlayers.length} Player${selectedPlayers.length === 1 ? "" : "s"}`
                     : "Save & Send"}
-            </button>
+            </Button>
           </div>
         </div>
       </form>

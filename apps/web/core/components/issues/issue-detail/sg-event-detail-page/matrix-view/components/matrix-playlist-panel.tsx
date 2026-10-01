@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { ChevronDown, ChevronRight, ClipboardList, Pencil, Plus, Trash2, Video, X } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import { AlertModalCore, Checkbox } from "@plane/ui";
+import { AlertModalCore, Button, Checkbox } from "@plane/ui";
 import type {
   TCustomPlaylist,
   TCustomPlaylistClip,
@@ -775,8 +775,10 @@ export const SgMatrixPlaylistPanel = ({
     () => customPlaylists.filter((playlist) => selectedPlaylistIds.has(playlist.id)),
     [customPlaylists, selectedPlaylistIds]
   );
+  const hasUnsavedPlaylistChanges = Boolean(draft || editingPlaylistText || savingPlaylistText);
   const isCreateCardDisabled =
-    !onCreateCard || !selectedPlaylists.some((playlist) => (playlist.clips ?? []).length > 0);
+    !onCreateCard ||
+    (!hasUnsavedPlaylistChanges && !selectedPlaylists.some((playlist) => (playlist.clips ?? []).length > 0));
   const deletePlaylistClipCount = playlistPendingDelete ? getPlaylistCardClipCount(playlistPendingDelete) : 0;
   const deletePlaylistName =
     playlistPendingDelete?.name?.trim().replace(GENERATED_PLAYLIST_NAME_SUFFIX, "") || "Playlist";
@@ -998,19 +1000,29 @@ export const SgMatrixPlaylistPanel = ({
           )}
         </div>
         <div className="shrink-0 px-1.5 pb-1.5 pt-2">
-          <button
+          <Button
+            unstyled
             type="button"
-            onClick={() =>
+            onClick={() => {
+              if (hasUnsavedPlaylistChanges) {
+                setToast({
+                  type: TOAST_TYPE.ERROR,
+                  title: "Save changes before creating a card",
+                  message: "Save your playlist changes, then try again.",
+                });
+                return;
+              }
               onCreateCard?.(
                 selectedPlaylists.map((playlist) => ({ ...playlist, name: getPlaylistCardTitle(playlist) }))
-              )
-            }
+              );
+            }}
             disabled={isCreateCardDisabled}
+            title={hasUnsavedPlaylistChanges ? "Save changes before creating a card" : undefined}
             className="inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-[4px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-selected-nav)] text-[10px] font-normal text-[var(--sg-matrix-primary-blue)] transition-colors hover:border-[var(--sg-matrix-active-border)] hover:bg-[var(--sg-matrix-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:text-[var(--sg-matrix-text-secondary)] disabled:opacity-60"
           >
             <ClipboardList className="h-3.5 w-3.5" />
             Create Card
-          </button>
+          </Button>
         </div>
       </aside>
       <AlertModalCore
