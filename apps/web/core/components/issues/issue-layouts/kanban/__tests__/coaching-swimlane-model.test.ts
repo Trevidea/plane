@@ -54,10 +54,7 @@ test("includes a card in each assigned coach lane", () => {
 
 test("does not group cards absent from the filtered stage results", () => {
   const groups = groupCardsBySwimlane({ identified: ["a"] }, cards, "player", now);
-  assert.deepEqual(
-    groups.map((group) => group.id),
-    ["player-p1"]
-  );
+  assert.deepEqual(groups.map((group) => group.id).sort(), ["player-p1"]);
   assert.equal(groups[0].cardCount, 1);
 });
 
@@ -65,6 +62,26 @@ test("keeps player cards and position-group cards in separate lanes", () => {
   const groups = groupCardsBySwimlane(stages, cards, "player", now);
   assert.equal(groups.find((group) => group.id === "player-p1")?.secondaryLabel, "#10 · ILB");
   assert.deepEqual(groups.find((group) => group.id === "position-Wide Receiver")?.cardsByStage.assigned, ["b"]);
+});
+
+test("one broadcast card appears in every recipient lane without creating another card", () => {
+  const broadcast = {
+    ...cards.a,
+    coaching_card_data: {
+      ...cards.a.coaching_card_data,
+      player: null,
+      recipients: [
+        { id: "p1", name: "Cody Simon", jersey_number: "10", position: "ILB" },
+        { id: "p2", name: "Bryson Green", jersey_number: "5", position: "WR" },
+      ],
+    },
+  };
+  const groups = groupCardsBySwimlane({ identified: ["a"] }, { a: broadcast }, "player", now);
+  assert.deepEqual(groups.map((group) => group.id).sort(), ["player-p1", "player-p2"]);
+  assert.deepEqual(
+    groups.map((group) => group.cardsByStage.identified),
+    [["a"], ["a"]]
+  );
 });
 
 test("shows an available player lane even when filtered cards leave it empty", () => {
@@ -104,6 +121,15 @@ test("moving between coach lanes keeps other assignees", () => {
 });
 
 test("player and type lane moves use coaching card update fields", () => {
+  assert.deepEqual(getSwimlaneLaneUpdate("player", "player-p1", "player-p3", [], ["p1", "p2"]), {
+    cardPatch: { player_ids: ["p2", "p3"] },
+  });
+  assert.deepEqual(getSwimlaneLaneUpdate("player", "player-p1", "player-p2", [], ["p1", "p2"]), {
+    cardPatch: { player_ids: ["p2"] },
+  });
+  assert.deepEqual(getSwimlaneLaneUpdate("player", "position-Forward", "player-p3", [], ["p1", "p2"]), {
+    cardPatch: { player_ids: ["p3"] },
+  });
   assert.deepEqual(getSwimlaneLaneUpdate("player", "player-p1", "position-Wide Receiver", []), {
     cardPatch: { position_group: "Wide Receiver" },
   });

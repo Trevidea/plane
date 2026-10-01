@@ -293,15 +293,20 @@ class IssueViewSet(BaseViewSet):
         if request.GET.get("coaching_cards", "").lower() in {"1", "true"}:
             issue_queryset = issue_queryset.filter(category=COACHING_CARD_CATEGORY)
             for query_key, field_name in (
-                ("sport", "sport"), ("program", "program"), ("level", "level"),
-                ("season", "year"), ("stage_id", "state_id"),
+                ("sport", "sport"),
+                ("program", "program"),
+                ("level", "level"),
+                ("season", "year"),
+                ("stage_id", "state_id"),
             ):
                 value = request.GET.get(query_key)
                 if value:
                     issue_queryset = issue_queryset.filter(**{field_name: value})
             assignment = request.GET.get("assignment")
             if assignment == "player":
-                issue_queryset = issue_queryset.filter(roster_player_id__isnull=False)
+                issue_queryset = issue_queryset.filter(
+                    Q(roster_player_id__isnull=False) | Q(coaching_card_data__recipient_ids__0__isnull=False)
+                )
             elif assignment == "group":
                 issue_queryset = issue_queryset.filter(position_group__isnull=False)
             elif assignment:
@@ -309,7 +314,10 @@ class IssueViewSet(BaseViewSet):
             assignment_id = request.GET.get("assignment_id")
             if assignment_id and assignment == "player":
                 try:
-                    issue_queryset = issue_queryset.filter(roster_player_id=UUID(assignment_id))
+                    player_id = UUID(assignment_id)
+                    issue_queryset = issue_queryset.filter(
+                        Q(roster_player_id=player_id) | Q(coaching_card_data__recipient_ids__contains=[str(player_id)])
+                    )
                 except ValueError:
                     return Response({"assignment_id": ["Use a valid player ID."]}, status=status.HTTP_400_BAD_REQUEST)
             elif assignment_id and assignment == "group":
@@ -819,7 +827,7 @@ class IssueViewSet(BaseViewSet):
     @transaction.atomic
     def destroy(self, request, slug, project_id, pk=None):
         issue = Issue.objects.get(workspace__slug=slug, project_id=project_id, pk=pk)
-                # delete workitems using service gateway for proper cascade delete and webhook trigger
+        # delete workitems using service gateway for proper cascade delete and webhook trigger
 
         deleted_issue_id = issue.id
         deleted_issue_event_data = {

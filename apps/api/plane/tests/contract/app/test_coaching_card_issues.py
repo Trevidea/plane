@@ -1,10 +1,15 @@
 from uuid import uuid4
+from datetime import timedelta
 
 import pytest
+from django.utils import timezone
 from rest_framework import status
+from rest_framework.test import APIClient
 
-from plane.db.models import CardStageHistory, Issue, Project, ProjectMember, RosterPlayer, State, WorkspaceMember
+from plane.db.models import CardStageHistory, Issue, Project, ProjectMember, RosterPlayer, State, User, WorkspaceMember
+from plane.bgtasks.coaching_card_review_task import advance_expired_coaching_card_reviews
 from plane.utils.coaching_card_lifecycle import default_project_state_definitions
+from plane.utils.coaching_card_lifecycle import advance_card_after_review
 
 
 def _clip(clip_id="clip-1"):
@@ -26,7 +31,7 @@ def _clip(clip_id="clip-1"):
 @pytest.mark.contract
 class TestCoachingCardIssues:
     @pytest.mark.django_db
-    def test_creates_one_existing_issue_per_player_and_replays_idempotently(
+    def test_creates_one_shared_issue_for_all_players_and_replays_idempotently(
         self, session_client, workspace, create_user
     ):
         project = Project.objects.create(
@@ -83,10 +88,13 @@ class TestCoachingCardIssues:
         response = session_client.post(url, payload, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["created_count"] == 2
+        assert response.json()["created_count"] == 1
         cards = list(Issue.objects.filter(project=project, category="Coaching Card").order_by("sequence_id"))
-        assert len(cards) == 2
-        assert {card.roster_player_id for card in cards} == {player.id for player in players}
+        assert len(cards) == 1
+        assert cards[0].roster_player_id is None
+        assert cards[0].coaching_card_data["recipient_ids"] == [str(player.id) for player in players]
+        assert len(cards[0].coaching_card_data["recipients"]) == 2
+        assert cards[0].coaching_card_data["review"]["deadline_at"] is None
         assert all(card.state_id == event_state.id for card in cards)
         assert State.objects.filter(project=project).count() == 1
         assert all(card.parent_id == source_issue.id for card in cards)
@@ -99,17 +107,34 @@ class TestCoachingCardIssues:
         assert cards[0].coaching_card_data["priority"] == "Game Plan Critical"
         assert cards[0].coaching_card_data["metadata"]["season"] == "2026-27"
         assert cards[0].coaching_card_data["metadata"]["author"]["id"] == str(create_user.id)
-        assert (
-            cards[0].coaching_card_data["metadata"]["serial_number"]
-            != cards[1].coaching_card_data["metadata"]["serial_number"]
-        )
+        assert cards[0].coaching_card_data["schema_version"] == 3
 
         replay = session_client.post(url, payload, format="json")
 
         assert replay.status_code == status.HTTP_200_OK
         assert replay.json()["created_count"] == 0
         assert replay.json()["idempotent_replay"] is True
-        assert Issue.objects.filter(project=project, category="Coaching Card").count() == 2
+        assert Issue.objects.filter(project=project, category="Coaching Card").count() == 1
+        filtered = session_client.get(
+            f"/api/workspaces/{workspace.slug}/projects/{project.id}/issues/",
+            {
+                "layout": "list",
+                "coaching_cards": "true",
+                "cursor": "100:0:0",
+                "assignment": "player",
+                "assignment_id": str(players[1].id),
+            },
+        )
+        assert filtered.status_code == 200
+        assert [str(issue["id"]) for issue in filtered.data["results"]] == [str(cards[0].id)]
+
+        payload["request_id"] = str(uuid4())
+        payload["player_ids"] = []
+        unassigned = session_client.post(url, payload, format="json")
+        assert unassigned.status_code == 201
+        unassigned_card = Issue.objects.get(pk=unassigned.json()["cards"][0]["id"])
+        assert unassigned_card.coaching_card_data["recipient_ids"] == []
+        assert unassigned_card.coaching_card_data["review"]["deadline_at"] is None
 
     @pytest.mark.django_db
     def test_creates_position_group_card_with_selected_context(self, session_client, workspace, create_user):
@@ -142,6 +167,7 @@ class TestCoachingCardIssues:
         card = Issue.objects.get(project=project, category="Coaching Card")
         assert card.roster_player_id is None
         assert card.position_group == "Guard"
+        assert len(card.coaching_card_data["recipients"]) == 1
         assert (card.program, card.level, card.year) == ("Men's Basketball", "Varsity", "2026-27")
         filtered = session_client.get(
             f"/api/workspaces/{workspace.slug}/projects/{project.id}/issues/",
@@ -170,7 +196,7 @@ class TestCoachingCardIssues:
                     "assignment": "player",
                 },
             ).data["total_count"]
-            == 0
+            == 1
         )
 
         payload["request_id"] = str(uuid4())
@@ -187,7 +213,7 @@ class TestCoachingCardIssues:
         project = Project.objects.create(name="Basketball", identifier="BALL", workspace=workspace, sport="Basketball")
         ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
         initial = State.objects.create(name="New", color="#333", group="backlog", project=project)
-        middle = State.objects.create(name="Review", color="#444", group="started", project=project)
+        State.objects.create(name="Review", color="#444", group="started", project=project)
         final = State.objects.create(name="Complete", color="#555", group="completed", project=project)
         source = Issue.objects.create(
             name="Game",
@@ -217,18 +243,19 @@ class TestCoachingCardIssues:
         assert [stage["name"] for stage in config["stages"]] == ["New", "Review", "Complete"]
 
         url = f"{root}/coaching-cards/{card_id}/transition/"
-        assert session_client.post(url, {"stage_id": str(final.id)}, format="json").status_code == 400
-        assert session_client.post(url, {"stage_id": str(middle.id)}, format="json").status_code == 200
+        assert Issue.objects.get(id=card_id).state_id == initial.id
+        assert session_client.post(url, {"stage_id": str(initial.id)}, format="json").status_code == 400
+        assert session_client.post(url, {"stage_id": str(final.id)}, format="json").status_code == 200
         card = Issue.objects.get(id=card_id)
-        assert card.state_id == middle.id
+        assert card.state_id == final.id
         history = CardStageHistory.objects.get(issue=card)
         assert (history.from_stage_id, history.to_stage_id, history.changed_by_id) == (
             initial.id,
-            middle.id,
+            final.id,
             create_user.id,
         )
-        assert session_client.post(url, {"stage_id": str(initial.id)}, format="json").status_code == 400
-        assert CardStageHistory.objects.filter(issue=card).count() == 1
+        assert session_client.post(url, {"stage_id": str(initial.id)}, format="json").status_code == 200
+        assert CardStageHistory.objects.filter(issue=card).count() == 2
 
         detail_url = f"{root}/coaching-cards/{card_id}/"
         updated = session_client.patch(
@@ -246,6 +273,7 @@ class TestCoachingCardIssues:
         assert card.position_group == "Guard"
         assert card.roster_player_id is None
         assert card.coaching_card_data["playlists"][0]["clips"][0]["id"] == "clip-1"
+        assert card.coaching_card_data["recipient_ids"] == [str(player.id)]
         assert session_client.patch(f"{root}/issues/{card_id}/", {"name": "Bypass"}, format="json").status_code == 400
         card.refresh_from_db()
         assert card.name == "Better defense"
@@ -334,19 +362,21 @@ class TestCoachingCardIssues:
         )
         assert response.status_code == 201, response.data
         project = Project.objects.get(identifier="NFP", workspace=workspace)
-        states = list(State.objects.filter(project=project).order_by("sequence").values_list("name", "default"))
+        states = list(
+            State.objects.filter(project=project).order_by("sequence").values_list("name", "group", "default")
+        )
         assert states == [
-            ("Identified", True),
-            ("Assigned", False),
-            ("In Work", False),
-            ("Ready for Coach Review", False),
-            ("Resolved", False),
-            ("Cancelled", False),
+            ("Identified", "backlog", True),
+            ("Assigned", "unstarted", False),
+            ("In Work", "started", False),
+            ("Ready for Coach Review", "started", False),
+            ("Resolved", "completed", False),
+            ("Cancelled", "cancelled", False),
         ]
 
         config_url = f"/api/workspaces/{workspace.slug}/projects/{project.id}/coaching-card-config/"
         config = session_client.get(config_url).json()
-        assert [stage["name"] for stage in config["stages"]] == [name for name, _ in states[:-1]]
+        assert [stage["name"] for stage in config["stages"]] == [name for name, _, _ in states[:-1]]
         assert session_client.patch(config_url, {"stages": []}, format="json").status_code == 405
         response = session_client.post(
             f"/api/workspaces/{workspace.slug}/projects/",
@@ -451,10 +481,12 @@ def test_uploaded_video_cards_snapshot_annotations_and_replay(
     response = session_client.post(url, payload, format="json")
     assert response.status_code == 201, response.data
     cards = list(Issue.objects.filter(project=project, category="Coaching Card"))
-    assert len(cards) == 2
+    assert len(cards) == 1
+    assert cards[0].roster_player_id is None
     assert all(card.parent_id == (source.id if source else None) for card in cards)
     assert all(card.state_id == state.id for card in cards)
     data = cards[0].coaching_card_data
+    assert data["recipient_ids"] == [str(player.id) for player in players]
     assert data["source_media"]["annotations"] == (annotations if annotation_state == "saved" else [])
     assert data["source_media"]["artifact_id"] == "video-1"
     assert data["source_media"]["metadata"]["tags"] == ["Footwork", "Defense"]
@@ -471,7 +503,7 @@ def test_uploaded_video_cards_snapshot_annotations_and_replay(
     replay = session_client.post(url, payload, format="json")
     assert replay.status_code == 200
     assert replay.data["idempotent_replay"] is True
-    assert Issue.objects.filter(project=project, category="Coaching Card").count() == 2
+    assert Issue.objects.filter(project=project, category="Coaching Card").count() == 1
 
 
 @pytest.mark.contract
@@ -571,6 +603,176 @@ def test_uploaded_video_card_rejects_invalid_sources(
     )
     assert response.status_code in (400, 404), response.data
     assert not Issue.objects.filter(project=project, category="Coaching Card").exists()
+
+
+@pytest.mark.contract
+class TestCoachingCardLifecycle:
+    @pytest.mark.django_db
+    def test_linked_player_review_advances_shared_card(self, session_client, workspace, create_user):
+        project = Project.objects.create(name="Football", identifier="FOOT", workspace=workspace, sport="Football")
+        ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
+        initial = State.objects.create(
+            name="Film Tagged", color="#333", group="backlog", sequence=1000, project=project
+        )
+        assigned = State.objects.create(
+            name="Assigned", color="#444", group="unstarted", sequence=2000, project=project
+        )
+        reviewed = State.objects.create(
+            name="Player Reviewed", color="#555", group="started", sequence=3000, project=project
+        )
+        source = Issue.objects.create(
+            name="Game", project=project, state=initial, program="Football", level="Varsity", year="2026-27"
+        )
+        player = RosterPlayer.objects.create(project=project, player_name="Jordan")
+        root = f"/api/workspaces/{workspace.slug}/projects/{project.id}"
+        created = session_client.post(
+            f"{root}/issues/create-coaching-cards/",
+            {
+                "request_id": str(uuid4()),
+                "source_issue_id": str(source.id),
+                "player_ids": [str(player.id)],
+                "title": "Review game film",
+                "card_type": "Correction",
+                "priority": "Standard",
+                "playlists": [{"id": "playlist-1", "name": "Plays", "clips": [_clip()]}],
+            },
+            format="json",
+        )
+        assert created.status_code == 201
+        card_id = created.json()["cards"][0]["id"]
+        card = Issue.objects.get(pk=card_id)
+        assert card.state_id == assigned.id
+        review_url = f"{root}/coaching-cards/{card_id}/review-complete/"
+        assert session_client.post(review_url).status_code == 404
+        player_account = User.objects.create(email="player-review@example.com", username="player-review")
+        WorkspaceMember.objects.create(workspace=workspace, member=player_account, role=5, is_active=True)
+        linked = session_client.patch(f"{root}/roster/{player.id}/", {"user": str(player_account.id)}, format="json")
+        assert linked.status_code == 200
+        player_client = APIClient()
+        player_client.force_authenticate(user=player_account)
+        Issue.objects.create(
+            name="Another player's card",
+            project=project,
+            state=assigned,
+            category="Coaching Card",
+            coaching_card_data={"recipient_ids": [str(uuid4())], "kind": "coaching_card"},
+        )
+        mine = player_client.get(f"{root}/coaching-cards/mine/")
+        assert mine.status_code == 200
+        assert mine.json()["total_count"] == 1
+        assert mine.json()["results"][0]["id"] == str(card.id)
+        assert "recipient_ids" not in mine.json()["results"][0]["coaching_card_data"]
+        assert "viewed_by" not in mine.json()["results"][0]["coaching_card_data"]["review"]
+        reviewed_response = player_client.post(review_url)
+        assert reviewed_response.status_code == 200
+        assert reviewed_response.json()["review"]["viewed_count"] == 1
+        assert "viewed_by" not in reviewed_response.json()["review"]
+        assert player_client.post(review_url).status_code == 200
+        assert player_client.get(f"{root}/issues/").status_code == 403
+        WorkspaceMember.objects.filter(workspace=workspace, member=player_account).update(is_active=False)
+        assert player_client.post(review_url).status_code == 404
+        assert player_client.get(f"{root}/coaching-cards/mine/").status_code == 404
+        card.refresh_from_db()
+        assert card.state_id == reviewed.id
+        assert len(card.coaching_card_data["review"]["viewed_by"]) == 1
+        assert card.coaching_card_data["review"]["completion_reason"] == "all_viewed"
+        assert CardStageHistory.objects.filter(issue=card, changed_by__isnull=True).count() == 1
+
+    @pytest.mark.django_db
+    def test_review_deadline_advances_once_but_coach_move_wins(self, workspace, create_user):
+        project = Project.objects.create(name="Football", identifier="FOOT", workspace=workspace, sport="Football")
+        State.objects.create(name="Film Tagged", color="#333", group="backlog", sequence=1000, project=project)
+        assigned = State.objects.create(
+            name="Assigned", color="#444", group="unstarted", sequence=2000, project=project
+        )
+        reviewed = State.objects.create(
+            name="Player Reviewed", color="#555", group="started", sequence=3000, project=project
+        )
+        now = timezone.now()
+        player_id = str(uuid4())
+        data = {
+            "schema_version": 3,
+            "kind": "coaching_card",
+            "stage_id": str(assigned.id),
+            "recipient_ids": [player_id],
+            "review": {
+                "assigned_at": (now - timedelta(days=3)).isoformat(),
+                "deadline_at": now.isoformat(),
+                "viewed_by": {},
+            },
+        }
+        card = Issue.objects.create(
+            name="Review", project=project, state=assigned, category="Coaching Card", coaching_card_data=data
+        )
+        advance_expired_coaching_card_reviews()
+        card.refresh_from_db()
+        assert card.state_id == reviewed.id
+        assert card.coaching_card_data["review"]["completion_reason"] == "three_day_timeout"
+        advance_expired_coaching_card_reviews()
+        assert CardStageHistory.objects.filter(issue=card).count() == 1
+
+        second = Issue.objects.create(
+            name="Coach move", project=project, state=assigned, category="Coaching Card", coaching_card_data=data
+        )
+        from plane.utils.coaching_card_lifecycle import transition_coaching_card
+
+        transition_coaching_card(second, reviewed.id, create_user)
+        assert second.coaching_card_data["review"]["completion_reason"] == "coach_override"
+        assert not advance_card_after_review(second, now + timedelta(hours=1))
+
+        future_data = {
+            **data,
+            "review": {
+                "assigned_at": now.isoformat(),
+                "deadline_at": (now + timedelta(days=3)).isoformat(),
+                "viewed_by": {player_id: now.isoformat()},
+            },
+            "recipient_ids": [player_id, str(uuid4())],
+        }
+        third = Issue.objects.create(
+            name="Broadcast", project=project, state=assigned, category="Coaching Card", coaching_card_data=future_data
+        )
+        assert not advance_card_after_review(third, now)
+        future_data["review"]["viewed_by"][future_data["recipient_ids"][1]] = now.isoformat()
+        third.coaching_card_data = future_data
+        third.save(update_fields=["coaching_card_data"])
+        assert advance_card_after_review(third, now)
+        assert third.state_id == reviewed.id
+        assert third.coaching_card_data["review"]["completion_reason"] == "all_viewed"
+
+    @pytest.mark.django_db
+    def test_legacy_assigned_stage_advances_to_in_work(self, workspace):
+        project = Project.objects.create(name="Football", identifier="FOOT", workspace=workspace, sport="Football")
+        State.objects.create(name="Identified", color="#333", group="backlog", sequence=1000, project=project)
+        assigned = State.objects.create(
+            name="Assigned", color="#444", group="unstarted", sequence=2000, project=project
+        )
+        in_work = State.objects.create(name="In Work", color="#555", group="started", sequence=3000, project=project)
+        now = timezone.now()
+        card = Issue.objects.create(
+            name="Legacy review",
+            project=project,
+            state=assigned,
+            category="Coaching Card",
+            coaching_card_data={
+                "schema_version": 3,
+                "kind": "coaching_card",
+                "stage_id": str(assigned.id),
+                "recipient_ids": [str(uuid4())],
+                "review": {
+                    "assigned_at": (now - timedelta(days=3)).isoformat(),
+                    "deadline_at": now.isoformat(),
+                    "viewed_by": {},
+                },
+            },
+        )
+
+        assert advance_card_after_review(card, now)
+        card.refresh_from_db()
+        assert card.state_id == in_work.id
+        assert card.coaching_card_data["review"]["completion_reason"] == "three_day_timeout"
+        assert not advance_card_after_review(card, now + timedelta(days=1))
+        assert CardStageHistory.objects.filter(issue=card).count() == 1
 
 
 @pytest.mark.contract

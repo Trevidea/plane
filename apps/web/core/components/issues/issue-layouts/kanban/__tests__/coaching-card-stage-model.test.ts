@@ -12,24 +12,25 @@ const config = {
       name: "New",
       order: 0,
       abbreviation: "N",
-      allowed_next_stage_ids: ["review"],
+      allowed_next_stage_ids: ["review", "done"],
     },
     {
       id: "review",
       name: "Review",
       order: 1,
       abbreviation: "R",
-      allowed_next_stage_ids: ["done"],
+      allowed_next_stage_ids: ["new", "done"],
     },
-    { id: "done", name: "Done", order: 2, abbreviation: "D", allowed_next_stage_ids: [] },
+    { id: "done", name: "Done", order: 2, abbreviation: "D", allowed_next_stage_ids: ["new", "review"] },
   ],
 };
 
-test("only configured immediate forward transition is available", () => {
+test("coaches can move to any other configured stage", () => {
   assert.equal(canTransitionCard(config, "new", "review"), true);
-  assert.equal(canTransitionCard(config, "new", "done"), false);
-  assert.equal(canTransitionCard(config, "review", "new"), false);
-  assert.equal(canTransitionCard(config, "done", "new"), false);
+  assert.equal(canTransitionCard(config, "new", "done"), true);
+  assert.equal(canTransitionCard(config, "review", "new"), true);
+  assert.equal(canTransitionCard(config, "done", "new"), true);
+  assert.equal(canTransitionCard(config, "new", "new"), false);
 });
 
 test("board columns follow configuration order", () => {

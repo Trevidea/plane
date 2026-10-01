@@ -9,17 +9,19 @@ from rest_framework import serializers
 
 # Module imports
 from .base import BaseSerializer
-from plane.db.models import RosterPlayer, RosterPlayerStatus
+from plane.db.models import RosterPlayer, RosterPlayerStatus, User, WorkspaceMember
 
 
 class RosterPlayerSerializer(BaseSerializer):
     program_id = serializers.UUIDField(source="project_id", read_only=True)
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
 
     class Meta:
         model = RosterPlayer
         fields = [
             "id",
             "program_id",
+            "user",
             "player_name",
             "jersey_number",
             "position",
@@ -51,6 +53,15 @@ class RosterPlayerSerializer(BaseSerializer):
 
     def validate(self, attrs):
         project = self.context["project"]
+        user = attrs.get("user")
+        if user is not None:
+            if not WorkspaceMember.objects.filter(workspace=project.workspace, member=user, is_active=True).exists():
+                raise serializers.ValidationError({"user": "The account must be a member of this workspace."})
+            linked = RosterPlayer.objects.filter(project=project, user=user)
+            if self.instance:
+                linked = linked.exclude(pk=self.instance.pk)
+            if linked.exists():
+                raise serializers.ValidationError({"user": "The account is already linked to a roster player."})
         jersey_number = attrs.get("jersey_number")
         if jersey_number:
             queryset = RosterPlayer.objects.filter(project=project, jersey_number=jersey_number)
@@ -118,9 +129,7 @@ class RosterPlayerImportSerializer(serializers.Serializer):
         for row_number, validated_row in validated_rows:
             jersey_number = validated_row.get("jersey_number")
             if jersey_number and jersey_number in existing_jersey_numbers:
-                row_errors.append(
-                    f"Row {row_number}: Jersey number {jersey_number} already exists in this program."
-                )
+                row_errors.append(f"Row {row_number}: Jersey number {jersey_number} already exists in this program.")
 
         if row_errors:
             raise serializers.ValidationError(row_errors)

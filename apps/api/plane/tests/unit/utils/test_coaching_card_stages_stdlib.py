@@ -22,6 +22,7 @@ class CoachingCardStageTests(unittest.TestCase):
         self.assertEqual(config["initial_stage_id"], "a")
         self.assertEqual([stage["id"] for stage in config["stages"]], ["a", "b"])
         self.assertEqual(config["stages"][0]["allowed_next_stage_ids"], ["b"])
+        self.assertEqual(config["stages"][1]["allowed_next_stage_ids"], ["a"])
         self.assertEqual(config["stages"][1]["abbreviation"], "PP")
         self.assertEqual(next_stage_id(config, "a"), "b")
         self.assertIsNone(next_stage_id(config, "b"))
