@@ -5,9 +5,10 @@ import DOMPurify from "dompurify";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import videojs from "video.js";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ClipboardList } from "lucide-react";
 // import "video.js/dist/video-js.css";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import { Button } from "@plane/ui";
 import {
   buildSgEventAnnotationDisplayMeta,
   buildSgEventAnnotationVideoItem,
@@ -41,8 +42,10 @@ import {
 } from "../utils/media-detail-utils";
 import { isEventMediaItem } from "../utils/media-event";
 import { buildMediaViewStorageKey, shouldRecordMediaPlaybackView } from "../utils/media-view-counter";
+import { canCreateUploadedVideoCard } from "../utils/uploaded-video-card";
 import { MediaDetailPreview } from "./media-detail-preview";
 import { MediaDetailSidebar } from "./media-detail-sidebar";
+import { UploadedVideoCreateCard } from "./uploaded-video-create-card";
 
 type TPipCaptionMode = "disabled" | "hidden" | "showing";
 
@@ -183,6 +186,11 @@ const MediaDetailPage = () => {
     workspaceSlug: string;
     projectId: string;
   };
+  const cardMediaKey = `${workspaceSlug}:${projectId}:${mediaId}`;
+  const currentCardMediaKeyRef = useRef(cardMediaKey);
+  currentCardMediaKeyRef.current = cardMediaKey;
+  const [creatingCardFor, setCreatingCardFor] = useState<string | null>(null);
+  const [savingAnnotationsFor, setSavingAnnotationsFor] = useState<string | null>(null);
   const router = useAppRouter();
   const { getUserDetails } = useMember();
   const searchParams = useSearchParams();
@@ -1417,8 +1425,11 @@ const MediaDetailPage = () => {
     const player = playerRef.current;
     player?.controls?.(true);
   }, []);
-  const handleSaveVideoAnnotations = useCallback(
+  const persistVideoAnnotations = useCallback(
     async (annotations: TCustomPlaylistAnnotation[]) => {
+      const updateSavedMedia = (updates: Partial<TMediaItem>) => {
+        if (currentCardMediaKeyRef.current === cardMediaKey) handleMediaItemUpdated(updates);
+      };
       if (!item?.packageId || !item.id) {
         throw new Error("Uploaded video annotations can only be saved on media library videos.");
       }
@@ -1444,7 +1455,7 @@ const MediaDetailPage = () => {
           viewKey: annotationViewKey,
         });
         const nextAnnotations = updatedAnnotations.length > 0 ? updatedAnnotations : annotations;
-        handleMediaItemUpdated({
+        updateSavedMedia({
           isAnnotated: nextAnnotations.length > 0,
           meta: {
             ...(item.meta ?? {}),
@@ -1490,7 +1501,7 @@ const MediaDetailPage = () => {
         });
         const nextAnnotations = updatedAnnotations.length > 0 ? updatedAnnotations : annotations;
         const annotationCount = nextAnnotations.length;
-        handleMediaItemUpdated({
+        updateSavedMedia({
           isAnnotated: annotationCount > 0,
           meta: {
             ...(item.meta ?? {}),
@@ -1517,11 +1528,12 @@ const MediaDetailPage = () => {
           meta: nextMeta,
         },
       });
-      handleMediaItemUpdated({ isAnnotated: annotations.length > 0, meta: nextMeta });
+      updateSavedMedia({ isAnnotated: annotations.length > 0, meta: nextMeta });
 
       return annotations;
     },
     [
+      cardMediaKey,
       annotationDeviceIdParam,
       annotationStreamIdParam,
       annotationStreamParam,
@@ -1539,6 +1551,17 @@ const MediaDetailPage = () => {
       shouldOpenVideoAnnotationWorkspaceFromQuery,
       workspaceSlug,
     ]
+  );
+  const handleSaveVideoAnnotations = useCallback(
+    async (annotations: TCustomPlaylistAnnotation[]) => {
+      setSavingAnnotationsFor(cardMediaKey);
+      try {
+        return await persistVideoAnnotations(annotations);
+      } finally {
+        setSavingAnnotationsFor((current) => (current === cardMediaKey ? null : current));
+      }
+    },
+    [cardMediaKey, persistVideoAnnotations]
   );
   const canAnnotateCurrentVideo = isVideo && Boolean(item?.packageId && item.id);
   const isFocusedVideoAnnotationWorkspace = isVideo && isVideoAnnotationWorkspaceOpen;
@@ -1607,6 +1630,18 @@ const MediaDetailPage = () => {
   const createdBy = getMetaString(meta, ["created_by", "createdBy"], "");
   const createdByLabel = (createdBy ? (getUserDetails(createdBy)?.display_name ?? createdBy) : "") || item.author;
   const canAnnotateUploadedVideo = canAnnotateCurrentVideo;
+  const showCreateCard =
+    isVideo && !isSgEventAsset && !isEventMediaItem(rawItem) && !isCustomPlaylistAnnotation && Boolean(item.packageId);
+  const canCreateCard = canCreateUploadedVideoCard({
+    isVideo,
+    isEvent: isSgEventAsset,
+    packageId: item.packageId,
+    artifactId: item.id,
+    annotations: item.meta?.annotations,
+    hasUnsavedChanges: hasUnsavedVideoAnnotationChanges,
+    isSaving: savingAnnotationsFor === cardMediaKey,
+    isRecording: isNarrationRecordingLocked,
+  });
 
   if (isSgEventAsset && !(shouldOpenVideoAnnotationWorkspaceFromQuery && isVideo)) {
     return (
@@ -1627,6 +1662,16 @@ const MediaDetailPage = () => {
     <div
       className={`vertical-scrollbar scrollbar-md relative h-full w-full overflow-x-hidden overflow-y-auto ${isFocusedVideoAnnotationWorkspace ? "" : "lg:overflow-hidden"}`}
     >
+      {creatingCardFor === cardMediaKey && showCreateCard && (
+        <UploadedVideoCreateCard
+          key={cardMediaKey}
+          item={item}
+          workspaceSlug={workspaceSlug}
+          projectId={projectId}
+          durationSeconds={currentVideoDurationSeconds}
+          onClose={() => setCreatingCardFor(null)}
+        />
+      )}
       <div
         className={[
           "flex min-h-full flex-col lg:h-full lg:min-h-0",
@@ -1748,6 +1793,39 @@ const MediaDetailPage = () => {
                     propertyHostElement={isFocusedVideoAnnotationWorkspace ? videoAnnotationPropertiesElement : null}
                     toolbarHostElement={isFocusedVideoAnnotationWorkspace ? videoAnnotationToolbarElement : null}
                     showTimeline={isFocusedVideoAnnotationWorkspace}
+                    timelineHeaderAction={
+                      showCreateCard ? (
+                        <Button
+                          unstyled
+                          type="button"
+                          onClick={() => {
+                            if (hasUnsavedVideoAnnotationChanges) {
+                              setToast({
+                                type: TOAST_TYPE.ERROR,
+                                title: "Save changes before creating a card",
+                                message: "Save your video annotations, then try again.",
+                              });
+                              return;
+                            }
+                            if (!canCreateCard) return;
+                            playerRef.current?.pause?.();
+                            setCreatingCardFor(cardMediaKey);
+                          }}
+                          disabled={!canCreateCard && !hasUnsavedVideoAnnotationChanges}
+                          className="sg-matrix-workspace inline-flex h-7 w-[168px] shrink-0 items-center justify-center gap-1.5 rounded-[4px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-selected-nav)] text-[10px] font-normal text-[var(--sg-matrix-primary-blue)] transition-colors hover:border-[var(--sg-matrix-active-border)] hover:bg-[var(--sg-matrix-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:text-[var(--sg-matrix-text-secondary)] disabled:opacity-60"
+                          title={
+                            hasUnsavedVideoAnnotationChanges
+                              ? "Save changes before creating a card"
+                              : canCreateCard
+                                ? "Create a card from this video"
+                                : "Save or fix your annotations before creating a card"
+                          }
+                        >
+                          <ClipboardList className="h-3.5 w-3.5" />
+                          Create Card
+                        </Button>
+                      ) : null
+                    }
                     thumbnailUrl={item.thumbnail}
                     timelineHostElement={isFocusedVideoAnnotationWorkspace ? videoTimelineElement : null}
                   />

@@ -414,7 +414,8 @@ export const MediaDetailPreview = ({
           <>
             {isVideoAnnotationWorkspaceOpen ? (
               <div className="mb-2 flex h-11 w-full shrink-0 items-center justify-between rounded-lg border border-custom-border-200 bg-custom-background-100 px-3">
-                <button
+                <Button
+                  unstyled
                   type="button"
                   onClick={handleRequestDiscardVideoAnnotationWorkspace}
                   className={VIDEO_ANNOTATION_HEADER_BACK_ACTION_CLASS}
@@ -426,18 +427,21 @@ export const MediaDetailPreview = ({
                 >
                   <ArrowLeft className="h-4 w-4 shrink-0" />
                   <span className="whitespace-nowrap leading-none">Back</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRequestCloseVideoAnnotationWorkspace}
-                  className={VIDEO_ANNOTATION_HEADER_ACTION_CLASS}
-                  disabled={isNarrationRecordingLocked}
-                  aria-label="Close annotation editor"
-                  title="Close annotation editor"
-                >
-                  <Check className="h-4 w-4 shrink-0" />
-                  <span className="whitespace-nowrap leading-none">Save</span>
-                </button>
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    unstyled
+                    type="button"
+                    onClick={handleRequestCloseVideoAnnotationWorkspace}
+                    className={VIDEO_ANNOTATION_HEADER_ACTION_CLASS}
+                    disabled={isNarrationRecordingLocked}
+                    aria-label="Close annotation editor"
+                    title="Close annotation editor"
+                  >
+                    <Check className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap leading-none">Save</span>
+                  </Button>
+                </div>
               </div>
             ) : null}
             <div className="flex w-full max-w-full shrink-0 flex-wrap items-start gap-2">
