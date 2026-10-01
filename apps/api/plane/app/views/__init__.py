@@ -128,6 +128,8 @@ from .issue.coaching_card import (
     CoachingCardDetailEndpoint,
     CoachingCardTransitionEndpoint,
     CoachingCardStageHistoryEndpoint,
+    CoachingCardReviewCompleteEndpoint,
+    CoachingCardMineEndpoint,
 )
 
 from .issue.activity import IssueActivityEndpoint

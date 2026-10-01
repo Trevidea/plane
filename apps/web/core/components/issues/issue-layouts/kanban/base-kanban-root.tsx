@@ -216,7 +216,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
         setToast({
           type: TOAST_TYPE.WARNING,
           title: "Stage unavailable",
-          message: "Cards can move only to the next stage.",
+          message: "Select a stage on this coaching board.",
         });
         return;
       }
@@ -224,7 +224,14 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
       const boardId = projectId.toString();
       let laneUpdate: ReturnType<typeof getSwimlaneLaneUpdate>;
       try {
-        laneUpdate = getSwimlaneLaneUpdate(swimlaneView, sourceLane, targetLane, issue.assignee_ids);
+        laneUpdate = getSwimlaneLaneUpdate(
+          swimlaneView,
+          sourceLane,
+          targetLane,
+          issue.assignee_ids,
+          issue.coaching_card_data?.recipient_ids ??
+            (issue.coaching_card_data?.player ? [issue.coaching_card_data.player.id] : [])
+        );
       } catch (error) {
         setToast({
           type: TOAST_TYPE.WARNING,

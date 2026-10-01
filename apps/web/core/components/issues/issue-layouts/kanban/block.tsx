@@ -108,7 +108,7 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
   return (
     <>
       <div className="relative">
-        {issue.project_id && (
+        {!isCoachingCard && issue.project_id && (
           <IssueIdentifier
             issueId={issue.id}
             projectId={issue.project_id}
@@ -117,8 +117,8 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
           />
         )}
         <div
-          className={cn("absolute -top-1 right-0", {
-            "hidden group-hover/kanban-block:block": !isMobile,
+          className={cn("absolute right-0", isCoachingCard ? "top-0" : "-top-1", {
+            "hidden group-hover/kanban-block:block": !isMobile && !isCoachingCard,
             "!block": isMenuActive,
           })}
           onClick={handleEventPropagation}
@@ -264,6 +264,7 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
   }, [cardRef?.current, issue?.id, isDragAllowed, canDropOverIssue, setIsCurrentBlockDragging, setIsDraggingOverBlock]);
 
   if (!issue) return null;
+  const isCoachingCard = isCoachingCardIssue(issue);
 
   return (
     <>
@@ -291,6 +292,7 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
           ref={cardRef}
           className={cn(
             "block rounded border-[1px] outline-[0.5px] outline-transparent w-full border-custom-border-200 bg-custom-background-100 text-sm transition-all hover:border-custom-border-400",
+            isCoachingCard && "relative rounded-md",
             { "hover:cursor-pointer": isDragAllowed },
             { "border border-custom-primary-70 hover:border-custom-primary-70": getIsIssuePeeked(issue.id) },
             { "bg-custom-background-80 z-[100]": isCurrentBlockDragging }
@@ -299,9 +301,9 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
           disabled={!!issue?.tempId}
         >
           <RenderIfVisible
-            classNames={cn("space-y-2 px-3 py-2", isCoachingCardIssue(issue) && "py-3")}
+            classNames={cn("space-y-2 px-3 py-2", isCoachingCard && "py-2.5")}
             root={scrollableContainerRef}
-            defaultHeight={isCoachingCardIssue(issue) ? "300px" : "100px"}
+            defaultHeight={isCoachingCard ? "245px" : "100px"}
             horizontalOffset={100}
             verticalOffset={200}
             defaultValue={shouldRenderByDefault}

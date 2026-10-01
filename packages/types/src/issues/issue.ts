@@ -66,7 +66,7 @@ export type TCoachingCardPlaylist = {
 };
 
 export type TCoachingCardData = {
-  schema_version: 1 | 2;
+  schema_version: 1 | 2 | 3;
   kind: "coaching_card";
   request_id: string;
   stage_id?: string;
@@ -83,6 +83,15 @@ export type TCoachingCardData = {
     jersey_number: string;
     position: string;
   } | null;
+  recipients?: Array<{ id: string; name: string; jersey_number: string; position: string }>;
+  recipient_ids?: string[];
+  review?: {
+    assigned_at: string | null;
+    deadline_at: string | null;
+    viewed_by: Record<string, string>;
+    completed_at?: string | null;
+    completion_reason?: string | null;
+  };
   position_group?: string | null;
   sport: string;
   feedback: string;
@@ -298,36 +307,37 @@ export type TWorkItemWidgets = "sub-work-items" | "relations" | "links" | "attac
 
 export type TIssueServiceType = EIssueServiceType.ISSUES | EIssueServiceType.EPICS | EIssueServiceType.WORK_ITEMS;
 
-export interface IPublicIssue extends Pick<
-  TIssue,
-  | "description_html"
-  | "created_at"
-  | "updated_at"
-  | "created_by"
-  | "id"
-  | "name"
-  | "priority"
-  | "state_id"
-  | "project_id"
-  | "sequence_id"
-  | "sort_order"
-  | "start_date"
-  | "start_time"
-  | "target_date"
-  | "cycle_id"
-  | "module_ids"
-  | "label_ids"
-  | "assignee_ids"
-  | "attachment_count"
-  | "sub_issues_count"
-  | "link_count"
-  | "estimate_point"
-  | "level"
-  | "sport"
-  | "program"
-  | "year"
-  | "category"
-> {
+export interface IPublicIssue
+  extends Pick<
+    TIssue,
+    | "description_html"
+    | "created_at"
+    | "updated_at"
+    | "created_by"
+    | "id"
+    | "name"
+    | "priority"
+    | "state_id"
+    | "project_id"
+    | "sequence_id"
+    | "sort_order"
+    | "start_date"
+    | "start_time"
+    | "target_date"
+    | "cycle_id"
+    | "module_ids"
+    | "label_ids"
+    | "assignee_ids"
+    | "attachment_count"
+    | "sub_issues_count"
+    | "link_count"
+    | "estimate_point"
+    | "level"
+    | "sport"
+    | "program"
+    | "year"
+    | "category"
+  > {
   comments: TIssuePublicComment[];
   reaction_items: IIssuePublicReaction[];
   vote_items: IPublicVote[];

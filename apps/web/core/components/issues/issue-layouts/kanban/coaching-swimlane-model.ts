@@ -8,6 +8,7 @@ type SwimlaneCard = Pick<TIssue, "id" | "state_id" | "assignee_ids" | "created_a
   priority?: string | null;
   coaching_card_data?: {
     player?: { id: string; name: string; jersey_number: string; position: string } | null;
+    recipients?: Array<{ id: string; name: string; jersey_number: string; position: string }>;
     position_group?: string | null;
     card_type?: string;
     priority?: string;
@@ -73,6 +74,22 @@ const cardLanes = (issue: SwimlaneCard, view: Exclude<SwimlaneView, "stage">, no
         ? issue.assignee_ids.map((id) => ({ id: `coach-${id}`, value: id, label: id }))
         : [{ id: "coach-unassigned", value: "", label: "Unassigned coach" }];
     case "player":
+      if (card?.position_group || issue.position_group) {
+        const position = card?.position_group || issue.position_group || "";
+        return [{ id: `position-${position}`, value: position, label: position, secondaryLabel: "Position group" }];
+      }
+      if (card?.recipients?.length)
+        return card.recipients.map((recipient) => ({
+          id: `player-${recipient.id}`,
+          value: recipient.id,
+          label: recipient.name,
+          secondaryLabel: [
+            recipient.jersey_number && `#${recipient.jersey_number.replace(/^#/, "")}`,
+            recipient.position,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        }));
       if (card?.player)
         return [
           {
@@ -87,10 +104,6 @@ const cardLanes = (issue: SwimlaneCard, view: Exclude<SwimlaneView, "stage">, no
               .join(" · "),
           },
         ];
-      if (card?.position_group || issue.position_group) {
-        const position = card?.position_group || issue.position_group || "";
-        return [{ id: `position-${position}`, value: position, label: position, secondaryLabel: "Position group" }];
-      }
       return [{ id: "player-unassigned", value: "", label: "Unassigned player" }];
     case "card_type": {
       const value = card?.card_type || "";
@@ -160,11 +173,12 @@ export const getSwimlaneLaneUpdate = (
   view: Exclude<SwimlaneView, "stage">,
   sourceLane: string,
   targetLane: string,
-  assigneeIds: string[]
+  assigneeIds: string[],
+  recipientIds: string[] = []
 ):
   | { issuePatch: { assignee_ids: string[] }; cardPatch?: never }
   | {
-      cardPatch: { player_id?: string; position_group?: string; card_type?: string; priority?: string };
+      cardPatch: { player_ids?: string[]; position_group?: string; card_type?: string; priority?: string };
       issuePatch?: never;
     } => {
   if (view === "coach") {
@@ -177,7 +191,10 @@ export const getSwimlaneLaneUpdate = (
   }
   if (view === "player") {
     if (targetLane.startsWith("player-") && targetLane !== "player-unassigned") {
-      return { cardPatch: { player_id: targetLane.slice(7) } };
+      const nextId = targetLane.slice(7);
+      const previousId = sourceLane.startsWith("player-") ? sourceLane.slice(7) : "";
+      const retained = sourceLane.startsWith("position-") ? [] : recipientIds.filter((id) => id !== previousId);
+      return { cardPatch: { player_ids: retained.includes(nextId) ? retained : [...retained, nextId] } };
     }
     if (targetLane.startsWith("position-")) {
       return { cardPatch: { position_group: targetLane.slice(9) } };

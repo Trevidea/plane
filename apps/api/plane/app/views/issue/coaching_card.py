@@ -1,7 +1,9 @@
 from html import escape
+from datetime import timedelta
 from uuid import uuid4
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.response import Response
@@ -13,10 +15,13 @@ from plane.db.models import (
     Project,
     RosterPlayer,
     State,
+    WorkspaceMember,
 )
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY, COACHING_CARD_KIND
 from plane.utils.coaching_card_lifecycle import (
+    advance_card_after_review,
     get_project_card_stage_config,
+    review_stage_ids,
     transition_coaching_card,
 )
 
@@ -88,17 +93,22 @@ class CoachingCardBulkCreateSerializer(serializers.Serializer):
 
     def validate_player_ids(self, player_ids):
         if len(player_ids) != len(set(player_ids)):
-            raise serializers.ValidationError("Each player can only receive one card per request.")
+            raise serializers.ValidationError("Select each recipient only once.")
         return player_ids
 
     def validate(self, attrs):
-        if bool(attrs["player_ids"]) == bool(attrs["position_group"].strip()):
-            raise serializers.ValidationError("Select players or one position group.")
+        if attrs["player_ids"] and attrs["position_group"].strip():
+            raise serializers.ValidationError("Select players or one position group, not both.")
         return attrs
 
 
 class CardTransitionSerializer(serializers.Serializer):
     stage_id = serializers.UUIDField()
+
+
+class CoachingCardMineQuerySerializer(serializers.Serializer):
+    limit = serializers.IntegerField(min_value=1, max_value=100, default=50)
+    offset = serializers.IntegerField(min_value=0, default=0)
 
 
 class CoachingCardUpdateSerializer(serializers.Serializer):
@@ -119,17 +129,31 @@ class CoachingCardUpdateSerializer(serializers.Serializer):
     level = serializers.CharField(max_length=100, required=False)
     season = serializers.CharField(max_length=20, required=False)
     player_id = serializers.UUIDField(required=False)
+    player_ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=True, max_length=50, required=False)
     position_group = serializers.CharField(max_length=100, required=False, allow_blank=True)
 
     def validate(self, attrs):
-        if "player_id" in attrs and "position_group" in attrs:
-            raise serializers.ValidationError("Select a player or a position group.")
+        if sum(key in attrs for key in ("player_id", "player_ids", "position_group")) > 1:
+            raise serializers.ValidationError("Change players or position group in one request.")
+        if "player_ids" in attrs and len(attrs["player_ids"]) != len(set(attrs["player_ids"])):
+            raise serializers.ValidationError({"player_ids": ["Select each recipient only once."]})
         return attrs
 
 
-def _get_initial_coaching_state(project):
+def _get_initial_coaching_state(project, assigned=False):
     config = get_project_card_stage_config(project)
-    return State.objects.get(project=project, pk=config["initial_stage_id"])
+    review_stages = review_stage_ids(config)
+    stage_id = review_stages[0] if assigned and review_stages else config["initial_stage_id"]
+    return State.objects.get(project=project, pk=stage_id)
+
+
+def _player_snapshot(player):
+    return {
+        "id": str(player.id),
+        "name": player.player_name,
+        "jersey_number": player.jersey_number or "",
+        "position": player.position or "",
+    }
 
 
 def _card_response(card):
@@ -144,6 +168,42 @@ def _card_response(card):
         "roster_player_id": card.roster_player_id,
         "position_group": card.position_group,
         "coaching_card_data": card.coaching_card_data,
+    }
+
+
+def _linked_player(request, project_id, slug):
+    player = RosterPlayer.objects.filter(
+        project_id=project_id, project__workspace__slug=slug, user=request.user
+    ).first()
+    if (
+        player is None
+        or not WorkspaceMember.objects.filter(
+            workspace_id=player.workspace_id, member=request.user, is_active=True
+        ).exists()
+    ):
+        return None
+    return player
+
+
+def _player_card_response(card, player_id):
+    response = _card_response(card)
+    data = dict(card.coaching_card_data or {})
+    recipient_ids = data.pop("recipient_ids", None) or ([str(card.roster_player_id)] if card.roster_player_id else [])
+    data.pop("recipients", None)
+    data["review"] = _player_review_response(data, player_id, recipient_ids)
+    response["coaching_card_data"] = data
+    return response
+
+
+def _player_review_response(data, player_id, recipient_ids):
+    review = data.get("review") or {}
+    viewed_by = review.get("viewed_by") or {}
+    return {
+        "assigned_at": review.get("assigned_at"),
+        "deadline_at": review.get("deadline_at"),
+        "viewed_at": viewed_by.get(str(player_id)),
+        "recipient_count": len(recipient_ids),
+        "viewed_count": sum(recipient_id in viewed_by for recipient_id in recipient_ids),
     }
 
 
@@ -192,14 +252,17 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
             )
 
         position_group = payload["position_group"].strip()
+        recipients = [players_by_id[player_id] for player_id in payload["player_ids"]]
         if position_group:
-            matching_position = RosterPlayer.objects.filter(project=project, position__iexact=position_group).first()
-            if matching_position is None:
+            recipients = list(
+                RosterPlayer.objects.filter(project=project, position__iexact=position_group).order_by("id")
+            )
+            if not recipients:
                 return Response(
                     {"position_group": ["The selected group is not in this program's roster."]},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            position_group = matching_position.position
+            position_group = recipients[0].position
 
         playlists = payload["playlists"]
         first_clip = playlists[0]["clips"][0]
@@ -225,96 +288,89 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
                 {key: ["This card context is required."] for key in missing_context},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        state = _get_initial_coaching_state(project)
-        cards = []
-
-        for player_id in payload["player_ids"] or [None]:
-            player = players_by_id.get(player_id)
-            player_snapshot = (
-                {
-                    "id": str(player.id),
-                    "name": player.player_name,
-                    "jersey_number": player.jersey_number or "",
-                    "position": player.position or "",
-                }
-                if player
-                else None
-            )
-            card_data = {
-                "schema_version": 2,
-                "kind": COACHING_CARD_KIND,
-                "stage_id": str(state.id),
-                "request_id": request_id,
-                "title": payload["title"],
-                "source_issue": {
-                    "id": str(source_issue.id),
-                    "name": source_issue.name,
-                    "sequence_id": source_issue.sequence_id,
-                    "sg_event_id": source_issue.sg_event_id,
-                },
-                "player": player_snapshot,
-                "position_group": position_group or None,
+        state = _get_initial_coaching_state(project, assigned=bool(recipients))
+        recipient_snapshots = [_player_snapshot(player) for player in recipients]
+        assigned_at = timezone.now() if recipients and state.name.casefold() == "assigned" else None
+        card_data = {
+            "schema_version": 3,
+            "kind": COACHING_CARD_KIND,
+            "stage_id": str(state.id),
+            "request_id": request_id,
+            "title": payload["title"],
+            "source_issue": {
+                "id": str(source_issue.id),
+                "name": source_issue.name,
+                "sequence_id": source_issue.sequence_id,
+                "sg_event_id": source_issue.sg_event_id,
+            },
+            "player": recipient_snapshots[0] if len(recipients) == 1 and not position_group else None,
+            "recipients": recipient_snapshots,
+            "recipient_ids": [recipient["id"] for recipient in recipient_snapshots],
+            "review": {
+                "assigned_at": assigned_at.isoformat() if assigned_at else None,
+                "deadline_at": (assigned_at + timedelta(days=3)).isoformat() if assigned_at else None,
+                "viewed_by": {},
+            },
+            "position_group": position_group or None,
+            "sport": sport,
+            "feedback": feedback,
+            "card_type": payload["card_type"],
+            "priority": payload["priority"],
+            "playlists": playlists,
+            "primary_clip": {
+                "playlist_id": playlists[0]["id"],
+                "clip_id": first_clip["id"],
+                "media_id": first_clip.get("media_id", ""),
+                "event_id": first_clip.get("event_id", ""),
+                "source_url": first_clip.get("source_url", ""),
+                "start_seconds": first_clip.get("start_seconds"),
+                "end_seconds": first_clip.get("end_seconds"),
+            },
+            "metadata": {
+                "serial_number": f"CC-{uuid4()}",
                 "sport": sport,
-                "feedback": feedback,
-                "card_type": payload["card_type"],
-                "priority": payload["priority"],
-                "playlists": playlists,
-                "primary_clip": {
-                    "playlist_id": playlists[0]["id"],
-                    "clip_id": first_clip["id"],
-                    "media_id": first_clip.get("media_id", ""),
-                    "event_id": first_clip.get("event_id", ""),
-                    "source_url": first_clip.get("source_url", ""),
-                    "start_seconds": first_clip.get("start_seconds"),
-                    "end_seconds": first_clip.get("end_seconds"),
+                "season": season,
+                "program": program,
+                "level": level,
+                "created_at": created_at,
+                "author": {
+                    "id": str(request.user.id),
+                    "name": request.user.display_name or request.user.email,
+                    "email": request.user.email or "",
                 },
-                "metadata": {
-                    "serial_number": f"CC-{uuid4()}",
-                    "sport": sport,
-                    "season": season,
-                    "program": program,
-                    "level": level,
-                    "created_at": created_at,
-                    "author": {
-                        "id": str(request.user.id),
-                        "name": request.user.display_name or request.user.email,
-                        "email": request.user.email or "",
-                    },
-                    "project": {
-                        "id": str(project.id),
-                        "name": project.name,
-                        "identifier": project.identifier,
-                    },
+                "project": {
+                    "id": str(project.id),
+                    "name": project.name,
+                    "identifier": project.identifier,
                 },
-                "summary": {
-                    "playlist_count": len(playlists),
-                    "clip_count": clip_count,
-                    "primary_thumbnail": first_clip.get("thumbnail"),
-                    "primary_clip_title": first_clip["title"],
-                },
-            }
-            cards.append(
-                Issue.objects.create(
-                    project=project,
-                    parent=source_issue,
-                    state=state,
-                    name=payload["title"],
-                    description_html=description_html,
-                    level=level,
-                    program=program,
-                    year=season,
-                    category=COACHING_CARD_CATEGORY,
-                    roster_player=player,
-                    position_group=position_group or None,
-                    coaching_card_data=card_data,
-                )
-            )
+            },
+            "summary": {
+                "playlist_count": len(playlists),
+                "clip_count": clip_count,
+                "primary_thumbnail": first_clip.get("thumbnail"),
+                "primary_clip_title": first_clip["title"],
+            },
+        }
+        card = Issue.objects.create(
+            project=project,
+            parent=source_issue,
+            state=state,
+            name=payload["title"],
+            description_html=description_html,
+            level=level,
+            program=program,
+            year=season,
+            category=COACHING_CARD_CATEGORY,
+            roster_player=recipients[0] if len(recipients) == 1 and not position_group else None,
+            position_group=position_group or None,
+            coaching_card_data=card_data,
+        )
 
         return Response(
             {
-                "created_count": len(cards),
+                "created_count": 1,
                 "idempotent_replay": False,
-                "cards": [_card_response(card) for card in cards],
+                "cards": [_card_response(card)],
             },
             status=status.HTTP_201_CREATED,
         )
@@ -325,6 +381,30 @@ class CoachingCardConfigEndpoint(BaseAPIView):
     def get(self, request, slug, project_id):
         project = Project.objects.get(pk=project_id, workspace__slug=slug)
         return Response(get_project_card_stage_config(project))
+
+
+class CoachingCardMineEndpoint(BaseAPIView):
+    def get(self, request, slug, project_id):
+        player = _linked_player(request, project_id, slug)
+        if player is None:
+            return Response({"detail": "Coaching cards not found."}, status=status.HTTP_404_NOT_FOUND)
+        query = CoachingCardMineQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        limit = query.validated_data["limit"]
+        offset = query.validated_data["offset"]
+        cards = Issue.issue_objects.filter(
+            Q(roster_player=player) | Q(coaching_card_data__recipient_ids__contains=[str(player.id)]),
+            project_id=project_id,
+            category=COACHING_CARD_CATEGORY,
+        ).order_by("-created_at", "-id")
+        return Response(
+            {
+                "total_count": cards.count(),
+                "limit": limit,
+                "offset": offset,
+                "results": [_player_card_response(card, player.id) for card in cards[offset : offset + limit]],
+            }
+        )
 
 
 class CoachingCardDetailEndpoint(BaseAPIView):
@@ -370,33 +450,48 @@ class CoachingCardDetailEndpoint(BaseAPIView):
             if field in values:
                 setattr(card, issue_field, values[field])
                 metadata[field] = values[field]
-        if "player_id" in values:
-            player = RosterPlayer.objects.filter(project=card.project, pk=values["player_id"]).first()
-            if player is None:
-                return Response({"player_id": ["The player is not in this program's roster."]}, status=400)
-            card.roster_player = player
-            card.position_group = None
-            data["player"] = {
-                "id": str(player.id),
-                "name": player.player_name,
-                "jersey_number": player.jersey_number or "",
-                "position": player.position or "",
+        assignment_changed = any(key in values for key in ("player_id", "player_ids", "position_group"))
+        if assignment_changed:
+            player_ids = values.get("player_ids", [values["player_id"]] if "player_id" in values else [])
+            players_by_id = {
+                player.id: player for player in RosterPlayer.objects.filter(project=card.project, id__in=player_ids)
             }
-            data["position_group"] = None
-        elif "position_group" in values:
-            group = values["position_group"].strip()
-            member = (
-                RosterPlayer.objects.filter(project=card.project, position__iexact=group).first() if group else None
-            )
-            if member is None:
-                return Response({"position_group": ["The group is not in this program's roster."]}, status=400)
-            card.roster_player = None
-            card.position_group = member.position
-            data["player"] = None
-            data["position_group"] = member.position
+            if len(players_by_id) != len(player_ids):
+                return Response({"player_ids": ["One or more players are not in this program's roster."]}, status=400)
+            group = values.get("position_group", "").strip()
+            recipients = [players_by_id[player_id] for player_id in player_ids]
+            if group:
+                recipients = list(
+                    RosterPlayer.objects.filter(project=card.project, position__iexact=group).order_by("id")
+                )
+                if not recipients:
+                    return Response({"position_group": ["The group is not in this program's roster."]}, status=400)
+                group = recipients[0].position
+            snapshots = [_player_snapshot(player) for player in recipients]
+            old_ids = data.get("recipient_ids") or ([data["player"]["id"]] if data.get("player") else [])
+            new_ids = [snapshot["id"] for snapshot in snapshots]
+            if old_ids != new_ids or (card.position_group or "") != group:
+                assigned_at = timezone.now() if snapshots and card.state.name.casefold() == "assigned" else None
+                data["review"] = {
+                    "assigned_at": assigned_at.isoformat() if assigned_at else None,
+                    "deadline_at": (assigned_at + timedelta(days=3)).isoformat() if assigned_at else None,
+                    "viewed_by": {},
+                }
+            data["schema_version"] = 3
+            data["recipients"] = snapshots
+            data["recipient_ids"] = new_ids
+            data["player"] = snapshots[0] if len(snapshots) == 1 and not group else None
+            data["position_group"] = group or None
+            card.roster_player = recipients[0] if len(recipients) == 1 and not group else None
+            card.position_group = group or None
         data["metadata"] = metadata
         card.coaching_card_data = data
         card.save()
+        if assignment_changed and data.get("recipient_ids"):
+            config = get_project_card_stage_config(card.project)
+            review_stages = review_stage_ids(config)
+            if review_stages and str(card.state_id) == config["initial_stage_id"]:
+                transition_coaching_card(card, review_stages[0], request.user)
         return Response(_card_response(card))
 
 
@@ -416,6 +511,40 @@ class CoachingCardTransitionEndpoint(BaseAPIView):
             return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
         transition_coaching_card(card, serializer.validated_data["stage_id"], request.user)
         return Response({"id": str(card.id), "stage_id": str(card.state_id)})
+
+
+class CoachingCardReviewCompleteEndpoint(BaseAPIView):
+    @transaction.atomic
+    def post(self, request, slug, project_id, card_id):
+        card = (
+            Issue.issue_objects.select_for_update(of=("self",))
+            .select_related("project")
+            .filter(pk=card_id, project_id=project_id, project__workspace__slug=slug, category=COACHING_CARD_CATEGORY)
+            .first()
+        )
+        if card is None:
+            return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        player = _linked_player(request, project_id, slug)
+        data = dict(card.coaching_card_data or {})
+        if player is None or str(player.id) not in (data.get("recipient_ids") or []):
+            return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        review = dict(data.get("review") or {})
+        viewed_by = dict(review.get("viewed_by") or {})
+        viewed_by.setdefault(str(player.id), timezone.now().isoformat())
+        review["viewed_by"] = viewed_by
+        data["review"] = review
+        card.coaching_card_data = data
+        card.save(update_fields=["coaching_card_data", "updated_at"])
+        advance_card_after_review(card, timezone.now())
+        return Response(
+            {
+                "id": str(card.id),
+                "stage_id": str(card.state_id),
+                "review": _player_review_response(card.coaching_card_data, player.id, data["recipient_ids"]),
+            }
+        )
 
 
 class CoachingCardStageHistoryEndpoint(BaseAPIView):

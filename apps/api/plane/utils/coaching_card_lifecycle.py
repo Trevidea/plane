@@ -1,7 +1,10 @@
 from rest_framework import serializers
+from datetime import timedelta
+from django.utils.dateparse import parse_datetime
+from django.utils import timezone
 
 from plane.db.models import CardStageHistory, State
-from plane.utils.coaching_card_stages import build_stage_config, next_stage_id
+from plane.utils.coaching_card_stages import build_stage_config
 
 
 DEFAULT_COACHING_NAMES = (
@@ -22,19 +25,9 @@ def default_project_state_definitions(project):
         first_sequence = 15000
     else:
         names = DEFAULT_COACHING_NAMES
-        groups = []
-        for index in range(len(names)):
-            if index < 2:
-                groups.append("backlog")
-            elif index == len(names) - 1:
-                groups.append("completed")
-            elif index == 2:
-                groups.append("unstarted")
-            else:
-                groups.append("started")
+        groups = ("backlog", "unstarted", "started", "started", "completed")
         colors = tuple(
-            "#46A758" if group == "completed" else "#F59E0B" if group == "started" else "#60646C"
-            for group in groups
+            "#46A758" if group == "completed" else "#F59E0B" if group == "started" else "#60646C" for group in groups
         )
         first_sequence = 5000
 
@@ -78,10 +71,22 @@ def get_project_card_stage_config(project):
         raise serializers.ValidationError({"stages": [str(exc)]}) from exc
 
 
+def review_stage_ids(config):
+    stages = config["stages"]
+    if (
+        len(stages) >= 3
+        and stages[1]["name"].casefold() == "assigned"
+        and stages[2]["name"].casefold() in {"player reviewed", "in work"}
+    ):
+        return stages[1]["id"], stages[2]["id"]
+    return None
+
+
 def transition_coaching_card(card, target_stage_id, actor):
     config = get_project_card_stage_config(card.project)
-    if next_stage_id(config, card.state_id) != str(target_stage_id):
-        raise serializers.ValidationError({"stage_id": ["Only the immediate next stage is allowed."]})
+    current = next((stage for stage in config["stages"] if stage["id"] == str(card.state_id)), None)
+    if current is None or str(target_stage_id) not in current["allowed_next_stage_ids"]:
+        raise serializers.ValidationError({"stage_id": ["Select a different stage on this coaching board."]})
 
     target = State.objects.filter(project=card.project, pk=target_stage_id, is_triage=False).first()
     if target is None:
@@ -92,6 +97,20 @@ def transition_coaching_card(card, target_stage_id, actor):
     target_name = next(stage["name"] for stage in config["stages"] if stage["id"] == str(target.id))
     data = dict(card.coaching_card_data or {})
     data["stage_id"] = str(target.id)
+    review_stages = review_stage_ids(config)
+    if review_stages and str(target.id) == review_stages[0] and data.get("recipient_ids"):
+        assigned_at = timezone.now()
+        data["review"] = {
+            "assigned_at": assigned_at.isoformat(),
+            "deadline_at": (assigned_at + timedelta(days=3)).isoformat(),
+            "viewed_by": {},
+        }
+    elif actor is not None and review_stages and str(previous.id) == review_stages[0]:
+        review = dict(data.get("review") or {})
+        if review.get("assigned_at") and not review.get("completed_at"):
+            review["completed_at"] = timezone.now().isoformat()
+            review["completion_reason"] = "coach_override"
+            data["review"] = review
     card.state = target
     card.coaching_card_data = data
     card.save()
@@ -104,3 +123,28 @@ def transition_coaching_card(card, target_stage_id, actor):
         changed_by=actor,
     )
     return card
+
+
+def advance_card_after_review(card, now):
+    """Advance only an assigned broadcast card whose viewers or deadline satisfy review."""
+    data = dict(card.coaching_card_data or {})
+    recipient_ids = data.get("recipient_ids") or []
+    review = dict(data.get("review") or {})
+    config = get_project_card_stage_config(card.project)
+    review_stages = review_stage_ids(config)
+    if not review_stages or str(card.state_id) != review_stages[0] or not recipient_ids:
+        return False
+
+    viewed_by = review.get("viewed_by") or {}
+    all_viewed = all(player_id in viewed_by for player_id in recipient_ids)
+    deadline_at = review.get("deadline_at")
+    deadline = parse_datetime(deadline_at) if deadline_at else None
+    if not all_viewed and (deadline is None or deadline > now):
+        return False
+
+    review["completed_at"] = now.isoformat()
+    review["completion_reason"] = "all_viewed" if all_viewed else "three_day_timeout"
+    data["review"] = review
+    card.coaching_card_data = data
+    transition_coaching_card(card, review_stages[1], None)
+    return True

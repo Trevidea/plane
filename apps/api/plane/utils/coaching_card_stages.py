@@ -28,7 +28,7 @@ def build_stage_config(sport, states):
                 "name": name,
                 "order": index,
                 "abbreviation": abbreviation,
-                "allowed_next_stage_ids": [str(ordered[index + 1]["id"])] if index + 1 < len(ordered) else [],
+                "allowed_next_stage_ids": [str(other["id"]) for other in ordered if str(other["id"]) != stage_id],
             }
         )
 
@@ -36,7 +36,7 @@ def build_stage_config(sport, states):
 
 
 def next_stage_id(config, current_stage_id):
-    for stage in config["stages"]:
+    for index, stage in enumerate(config["stages"]):
         if stage["id"] == str(current_stage_id):
-            return next(iter(stage["allowed_next_stage_ids"]), None)
+            return config["stages"][index + 1]["id"] if index + 1 < len(config["stages"]) else None
     return None
