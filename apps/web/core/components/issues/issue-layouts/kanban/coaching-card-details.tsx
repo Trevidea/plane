@@ -1,77 +1,36 @@
-import { useState } from "react";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
-import { CalendarDays, Layers3, Play, Users, Video } from "lucide-react";
-import { API_BASE_URL } from "@plane/constants";
-import type { TCoachingCardClip, TIssue } from "@plane/types";
-import { Button } from "@plane/ui";
+import { CalendarDays, Layers3, Play, UserRound, UsersRound, Video } from "lucide-react";
+import type { TIssue } from "@plane/types";
 import { cn, renderFormattedDate } from "@plane/utils";
-import {
-  buildCustomPlaylistThumbnailUrl,
-  formatLooseLabel,
-} from "@/components/issues/issue-detail/sg-event-detail-page/utils";
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { useAppRouter } from "@/hooks/use-app-router";
 import { IssueService } from "@/services/issue/issue.service";
 import { getCoachingCardSource } from "./coaching-card-source";
 
-const CARD_TYPE_ACCENTS: Record<string, string> = {
-  Correction: "border-l-amber-500",
-  "Positive Reinforcement": "border-l-emerald-500",
-  "Opponent Scout": "border-l-violet-500",
-  "S&C Connection": "border-l-sky-500",
-  "Multi-Week Development": "border-l-rose-500",
+const CARD_TYPES: Record<string, { label: string; accent: string; textClass: string }> = {
+  Correction: { label: "Correction", accent: "#2893cc", textClass: "text-[#006b9a] dark:text-[#44b5f0]" },
+  "Positive Reinforcement": {
+    label: "Reinforcement",
+    accent: "#c5a55a",
+    textClass: "text-[#74520c] dark:text-[#ddbd72]",
+  },
+  "Opponent Scout": { label: "Scout", accent: "#445588", textClass: "text-[#344b83] dark:text-[#92a9dc]" },
+  "S&C Connection": { label: "S&C", accent: "#7a4488", textClass: "text-[#663b7d] dark:text-[#c091d4]" },
+  "Multi-Week Development": {
+    label: "Multi-Week Development",
+    accent: "#2893cc",
+    textClass: "text-[#006b9a] dark:text-[#44b5f0]",
+  },
 };
 
 export const isCoachingCardIssue = (issue: TIssue) =>
   issue.category === "Coaching Card" && issue.coaching_card_data?.kind === "coaching_card";
 
-const getThumbnailUrl = (thumbnail?: string | null) => {
-  if (!thumbnail) return "";
-  if (thumbnail.startsWith("/api/")) return `${API_BASE_URL.replace(/\/$/, "")}${thumbnail}`;
-  return thumbnail.startsWith("/") ? thumbnail : buildCustomPlaylistThumbnailUrl(thumbnail);
-};
-
 const formatClipDuration = (durationSeconds?: number | null) => {
   if (durationSeconds === null || durationSeconds === undefined || !Number.isFinite(durationSeconds)) return "";
-  const roundedSeconds = Math.max(0, Math.round(durationSeconds));
-  const minutes = Math.floor(roundedSeconds / 60);
-  const seconds = roundedSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
-
-const getClipStartTime = (timecode?: string) => timecode?.split("-")[0]?.trim() ?? "";
-
-const CoachingCardThumbnail = ({
-  clip,
-  fallbackThumbnail,
-  children,
-}: {
-  clip?: TCoachingCardClip;
-  fallbackThumbnail?: string | null;
-  children?: React.ReactNode;
-}) => {
-  const thumbnail = getThumbnailUrl(clip?.thumbnail || fallbackThumbnail);
-  const [failedThumbnail, setFailedThumbnail] = useState("");
-  const hasThumbnail = Boolean(thumbnail) && failedThumbnail !== thumbnail;
-
-  return (
-    <div className="relative min-w-0 overflow-hidden bg-custom-background-80">
-      {hasThumbnail ? (
-        <img
-          src={thumbnail}
-          alt={clip?.title ? `Clip: ${clip.title}` : "Coaching card video clip"}
-          className="h-full w-full object-cover"
-          onError={() => setFailedThumbnail(thumbnail)}
-        />
-      ) : (
-        <div className="flex h-full items-center justify-center text-custom-text-300">
-          <Video className="h-5 w-5" aria-hidden="true" />
-        </div>
-      )}
-      {children}
-    </div>
-  );
+  const seconds = Math.max(0, Math.round(durationSeconds));
+  return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
 };
 
 export const CoachingCardKanbanDetails = ({
@@ -91,16 +50,18 @@ export const CoachingCardKanbanDetails = ({
   const card = issue.coaching_card_data;
   if (!card) return null;
 
+  const type = CARD_TYPES[card.card_type || ""] || {
+    label: card.card_type || "Coaching card",
+    accent: "#2893cc",
+    textClass: "text-[#006b9a] dark:text-[#44b5f0]",
+  };
   const clips = card.playlists.flatMap((playlist) => playlist.clips);
   const firstClip = clips[0];
-  const secondClip = clips.find((clip, index) => index > 0 && clip.thumbnail !== firstClip?.thumbnail) ?? clips[1];
-  const jersey = card.player?.jersey_number?.trim().replace(/^#/, "") || "";
-  const rawPrimaryContext = firstClip?.title || card.summary.primary_clip_title;
-  const primaryContext = rawPrimaryContext ? formatLooseLabel(rawPrimaryContext) : "";
+  const recipients = card.recipients ?? (card.player ? [card.player] : []);
+  const firstRecipient = recipients[0];
+  const jersey = firstRecipient?.jersey_number?.trim().replace(/^#/, "");
+  const viewedCount = recipients.filter((recipient) => Boolean(card.review?.viewed_by?.[recipient.id])).length;
   const source = getCoachingCardSource(card, workspaceSlug, issue.project_id, projectIdentifier);
-  const clipStartTime = getClipStartTime(firstClip?.timecode);
-  const clipDuration = formatClipDuration(firstClip?.duration_seconds);
-
   const cardContext = [
     card.metadata?.sport,
     card.metadata?.level,
@@ -114,162 +75,270 @@ export const CoachingCardKanbanDetails = ({
   ]
     .filter((value): value is string => Boolean(value))
     .join(" · ");
-  const evidenceUrl = card.primary_clip?.source_url || firstClip?.source_url || "";
-  const canOpenEvidence = /^(https?:\/\/|\/)/i.test(evidenceUrl);
-  const openEvidence = () => {
-    if (canOpenEvidence) window.open(evidenceUrl, "_blank", "noopener,noreferrer");
-  };
   const stageName =
     cardStageConfig?.stages.find((stage) => stage.id === issue.state_id)?.name ||
     getStateById(issue.state_id)?.name ||
     "Stage unavailable";
-  const metadata = [
-    card.card_type || card.progress_status,
-    card.priority,
-    firstClip?.group,
-    firstClip?.detail,
-    firstClip?.result,
-    firstClip?.secondary_detail,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .slice(0, 6);
+  const normalizedStageName = stageName.toLowerCase();
+  const isDraft =
+    recipients.length === 0 &&
+    (issue.state_id === cardStageConfig?.initial_stage_id ||
+      (!cardStageConfig && (stageName === "Identified" || stageName === "Film Tagged")));
+  const isResolved = normalizedStageName === "resolved" || normalizedStageName === "verified on film";
+  const stageBadge = isDraft
+    ? "Draft"
+    : normalizedStageName === "verified on film"
+      ? "Verified"
+      : normalizedStageName === "player reviewed"
+        ? "Reviewed"
+        : normalizedStageName === "practice check"
+          ? "Practice"
+          : normalizedStageName === "ready for coach review"
+            ? "Coach Review"
+            : stageName;
+  const badgeColor = isResolved ? "#3edbb0" : type.accent;
+  const qualifier = firstClip?.detail || firstClip?.secondary_detail || firstClip?.group;
+  const clipTitle = firstClip?.title || card.summary.primary_clip_title || "Video clip";
+  const clipMeta = clips.length > 1 ? `${clips.length} clips` : formatClipDuration(firstClip?.duration_seconds);
+  const evidenceUrl = card.primary_clip?.source_url || firstClip?.source_url || "";
+  const hasDirectEvidence = /^(https?:\/\/|\/)/i.test(evidenceUrl);
+  const canOpenEvidence = hasDirectEvidence || Boolean(source.href);
+  const openEvidence = () => {
+    if (hasDirectEvidence) window.open(evidenceUrl, "_blank", "noopener,noreferrer");
+    else if (source.href) router.push(source.href);
+  };
+  const reviewDate =
+    normalizedStageName === "player reviewed" || normalizedStageName === "in work" ? card.review?.completed_at : null;
+  const assignmentDate = normalizedStageName === "assigned" ? card.review?.assigned_at : null;
+  const dateLabel = reviewDate ? "Advanced" : assignmentDate ? "Delivered" : "Created";
+  const date = reviewDate || assignmentDate || issue.created_at;
+  const startTime = new Date(issue.created_at).getTime();
+  const ageDays = Number.isFinite(startTime) ? Math.max(0, Math.floor((Date.now() - startTime) / 86_400_000)) : 0;
+  const statusLabel =
+    recipients.length === 0
+      ? "Awaiting assignee"
+      : normalizedStageName === "assigned"
+        ? viewedCount === 0
+          ? "Unopened · 0 viewed"
+          : `${viewedCount} of ${recipients.length} viewed`
+        : normalizedStageName === "player reviewed" || card.review?.completion_reason === "all_viewed"
+          ? "Reviewed"
+          : "";
 
   return (
-    <div
-      className={cn(
-        "space-y-2.5 border-l-4 pl-2",
-        CARD_TYPE_ACCENTS[card.card_type || ""] || "border-l-custom-primary-100"
-      )}
-    >
+    <div className="min-w-0 space-y-2 text-xs">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 left-0 w-[3px]"
+        style={{
+          background: card.position_group ? `linear-gradient(180deg, ${type.accent} 50%, #7a4488 50%)` : type.accent,
+        }}
+      />
+
+      <div className="flex min-w-0 items-center gap-1.5 pr-6 text-[11px] leading-4">
+        <span className="shrink-0 font-medium text-custom-text-300">
+          {projectIdentifier ? `${projectIdentifier}-${issue.sequence_id}` : `#${issue.sequence_id}`}
+        </span>
+        <span className={cn("min-w-0 truncate font-medium", type.textClass)} title={card.card_type}>
+          {type.label}
+          {card.position_group ? " · Group" : ""}
+        </span>
+        {card.priority === "Game Plan Critical" && (
+          <span
+            className="shrink-0 rounded-sm bg-[#c5a55a] px-1 py-0.5 text-[9px] font-bold text-[#15110a]"
+            title="Game Plan Critical"
+          >
+            GP
+          </span>
+        )}
+        <span
+          className={cn(
+            "ml-auto max-w-[38%] shrink-0 truncate rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase",
+            isDraft && "bg-[#fd9038]/15 text-[#9a4800] dark:text-[#fd9038]",
+            !isDraft && (isResolved || type.label === "Reinforcement") && "text-[#0a1a15]",
+            !isDraft && !isResolved && type.label !== "Reinforcement" && "text-white"
+          )}
+          style={isDraft ? undefined : { backgroundColor: badgeColor }}
+          title={stageName}
+        >
+          {stageBadge}
+        </span>
+      </div>
+
       <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-custom-text-300">
         <Layers3 className="h-3 w-3 shrink-0" aria-hidden="true" />
         <span className="shrink-0">{source.label}</span>
-        <span aria-hidden="true">·</span>
-        {source.href ? (
-          <Button
-            unstyled
-            type="button"
-            className="truncate text-left hover:underline"
-            title={source.title}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (source.href) router.push(source.href);
-            }}
-          >
-            {source.title}
-          </Button>
-        ) : (
+        {source.title && (
           <span className="truncate" title={source.title}>
-            {source.title}
+            · {source.title}
           </span>
         )}
       </div>
 
-      <p className="line-clamp-2 text-[13px] leading-5 text-custom-text-100" title={issue.name}>
-        <span className="font-semibold">{card.title || issue.name}</span>
-        {primaryContext && (
-          <>
-            <span className="text-custom-text-300"> — </span>
-            {primaryContext}
-          </>
+      <div className="min-w-0">
+        {firstRecipient && !card.position_group ? (
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span
+              className="min-w-0 truncate text-sm font-semibold leading-5 text-custom-text-100"
+              title={firstRecipient.name}
+            >
+              {jersey ? `#${jersey} — ` : ""}
+              {firstRecipient.name}
+            </span>
+            {firstRecipient.position && (
+              <span className="shrink-0 text-[11px] text-custom-text-300">{firstRecipient.position}</span>
+            )}
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "flex min-w-0 items-center gap-1.5 text-sm font-semibold leading-5",
+              recipients.length ? "text-custom-text-100" : "text-[#9a4800] dark:text-[#fd9038]"
+            )}
+          >
+            {recipients.length ? (
+              <UsersRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <UserRound className="h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
+            <span className="truncate">{card.position_group || "Unassigned"}</span>
+            {recipients.length > 0 && (
+              <span className="shrink-0 text-[11px] font-normal text-custom-text-300">{recipients.length} players</span>
+            )}
+          </div>
         )}
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-custom-text-300">
+          {card.position_group ? (
+            <span className="rounded bg-[#7a4488]/20 px-2 py-0.5 text-[#663b7d] dark:text-[#c091d4]">
+              Position group
+            </span>
+          ) : recipients.length > 1 ? (
+            <>
+              {recipients.slice(1, 3).map((recipient) => (
+                <span
+                  key={recipient.id}
+                  className="max-w-full truncate rounded border border-custom-border-200 px-2 py-0.5 text-custom-text-200"
+                >
+                  + {recipient.jersey_number ? `#${recipient.jersey_number.replace(/^#/, "")} ` : ""}
+                  {recipient.name}
+                </span>
+              ))}
+              {recipients.length > 3 && <span>+{recipients.length - 3} more</span>}
+            </>
+          ) : null}
+          <span>
+            {recipients.length
+              ? `${recipients.length} ${recipients.length === 1 ? "recipient" : "recipients"}`
+              : "No player selected"}
+          </span>
+        </div>
+      </div>
+
+      <p
+        className={cn("line-clamp-2 min-w-0 break-words text-[13px] font-medium leading-[1.4]", type.textClass)}
+        title={card.title || issue.name}
+      >
+        {card.title || issue.name}
       </p>
+      {card.feedback && (
+        <p
+          className="line-clamp-2 whitespace-pre-wrap break-words text-xs leading-[1.45] text-custom-text-200"
+          title={card.feedback}
+        >
+          {card.feedback}
+        </p>
+      )}
       {cardContext && (
-        <p className="line-clamp-2 text-[11px] text-custom-text-300" title={cardContext}>
+        <p className="line-clamp-1 text-[11px] text-custom-text-300" title={cardContext}>
           {cardContext}
         </p>
       )}
 
-      <div className="grid h-[82px] grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-[3px] overflow-hidden rounded-md border border-custom-border-200">
-        <CoachingCardThumbnail clip={firstClip} fallbackThumbnail={card.summary.primary_thumbnail}>
-          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-1 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2 pb-1.5 pt-6 text-white">
-            <span className="min-w-0 truncate text-[9px] font-medium uppercase">
-              {clipStartTime || firstClip?.group || firstClip?.title || "Video clip"}
-            </span>
-            <span className="flex shrink-0 items-center gap-1 text-[9px] tabular-nums">
-              <span
-                className={cn(
-                  "flex h-5 w-5 items-center justify-center rounded-full bg-black/65",
-                  canOpenEvidence && "cursor-pointer hover:bg-black"
-                )}
-                role={canOpenEvidence ? "button" : undefined}
-                tabIndex={canOpenEvidence ? 0 : undefined}
-                aria-label={canOpenEvidence ? "Open primary clip" : undefined}
-                onClick={(event) => {
-                  if (!canOpenEvidence) return;
-                  event.preventDefault();
-                  event.stopPropagation();
-                  openEvidence();
-                }}
-                onKeyDown={(event) => {
-                  if (!canOpenEvidence || (event.key !== "Enter" && event.key !== " ")) return;
-                  event.preventDefault();
-                  event.stopPropagation();
-                  openEvidence();
-                }}
-              >
-                <Play className="h-2.5 w-2.5 fill-current" />
-              </span>
-              {clipDuration}
-            </span>
-          </div>
-        </CoachingCardThumbnail>
-
-        <CoachingCardThumbnail clip={secondClip} fallbackThumbnail={card.summary.primary_thumbnail}>
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 px-1 text-center text-white">
-            <span className="text-[11px] font-medium tabular-nums">
-              {card.summary.playlist_count} playlist{card.summary.playlist_count === 1 ? "" : "s"}
-            </span>
-            <span className="mt-1 text-[9px] text-white/75">
-              {card.summary.clip_count} tag{card.summary.clip_count === 1 ? "" : "s"}
-            </span>
-          </div>
-        </CoachingCardThumbnail>
-      </div>
-
-      {card.feedback && (
-        <p className="line-clamp-2 whitespace-pre-wrap break-words text-xs leading-[1.4] text-custom-text-200">
-          {card.feedback}
-        </p>
-      )}
-
-      <div className="flex flex-wrap items-center gap-1">
-        <span className="inline-flex h-5 items-center rounded border border-custom-primary-100/40 bg-custom-primary-100/10 px-1.5 text-[10px] font-medium text-custom-primary-100">
-          {stageName}
-        </span>
-        <span className="inline-flex h-5 items-center gap-1 rounded border border-custom-border-300 px-1.5 text-[10px] text-custom-text-300">
-          <CalendarDays className="h-3 w-3" aria-hidden="true" />
-          {renderFormattedDate(issue.created_at)}
-        </span>
-        {metadata.map((value, index) => (
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
+        {qualifier && (
           <span
-            key={`${index}-${value}`}
-            className={cn(
-              "inline-flex h-5 max-w-full items-center truncate rounded border border-custom-border-300 px-1.5 text-[10px] text-custom-text-200",
-              index === 0 && "border-custom-primary-100/40 bg-custom-primary-100/10 text-custom-primary-100",
-              index === 4 && "text-custom-primary-100"
-            )}
-            title={value}
+            className={cn("max-w-full truncate rounded px-2 py-1 text-[10px] font-medium", type.textClass)}
+            style={{ backgroundColor: `${type.accent}1f` }}
+            title={qualifier}
           >
-            {value}
+            {qualifier}
           </span>
-        ))}
+        )}
+        {card.priority && (
+          <span
+            className={cn(
+              "max-w-full truncate rounded border border-custom-border-200 px-2 py-1 text-[10px]",
+              card.priority === "Game Plan Critical"
+                ? "border-transparent bg-[#c5a55a]/15 text-[#74520c] dark:text-[#c5a55a]"
+                : "text-custom-text-200"
+            )}
+          >
+            {card.priority === "Game Plan Critical" ? "Game-Plan Critical" : card.priority}
+          </span>
+        )}
+        <span className="inline-flex max-w-full items-center gap-1 truncate rounded border border-custom-border-200 px-2 py-1 text-[10px] text-custom-text-300">
+          <CalendarDays className="h-3 w-3 shrink-0" aria-hidden="true" />
+          {dateLabel} {renderFormattedDate(date)}
+        </span>
       </div>
 
-      <div className="flex min-w-0 items-center gap-2 border-t border-custom-border-200 pt-2">
-        <span className="flex h-7 min-w-7 shrink-0 items-center justify-center rounded bg-custom-primary-100/15 px-1 text-[11px] font-semibold text-custom-primary-100">
-          {card.player ? (
-            jersey || card.player.name.slice(0, 2).toUpperCase()
-          ) : (
-            <Users className="h-4 w-4" aria-hidden="true" />
-          )}
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5 border-t border-custom-border-200 pt-2 text-[11px]">
+        {canOpenEvidence ? (
+          <span
+            role="button"
+            tabIndex={0}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-custom-background-80 text-custom-text-100 hover:bg-custom-background-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-custom-primary-100"
+            title={source.href && !hasDirectEvidence ? "Open uploaded video" : "Open original clip"}
+            aria-label={source.href && !hasDirectEvidence ? "Open uploaded video" : "Open original clip"}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              openEvidence();
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              event.stopPropagation();
+              openEvidence();
+            }}
+          >
+            <Play className="h-3 w-3 fill-current" aria-hidden="true" />
+          </span>
+        ) : (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-custom-background-80 text-custom-text-300">
+            <Video className="h-3 w-3" aria-hidden="true" />
+          </span>
+        )}
+        <span className="min-w-0 flex-1 truncate text-custom-text-200" title={clipTitle}>
+          {clipTitle}
         </span>
-        <span className="min-w-0 truncate text-xs font-medium text-custom-text-100">
-          {card.player?.name || card.position_group}
-        </span>
-        {card.player?.position && (
-          <span className="shrink-0 text-[11px] text-custom-text-300">· {card.player.position}</span>
+        {clipMeta && <span className="shrink-0 text-custom-text-300">· {clipMeta}</span>}
+        {statusLabel && (
+          <span
+            className={cn(
+              "shrink-0 rounded px-2 py-1 text-[10px] font-medium",
+              recipients.length === 0
+                ? "bg-[#fd9038]/15 text-[#9a4800] dark:text-[#fd9038]"
+                : isResolved
+                  ? "bg-[#3edbb0]/15 text-[#006e54] dark:text-[#3edbb0]"
+                  : "bg-[#2893cc]/15 text-[#006b9a] dark:text-[#3aa8e5]"
+            )}
+          >
+            {statusLabel}
+          </span>
+        )}
+        {ageDays > 5 && !isResolved && (
+          <span
+            className={cn(
+              "shrink-0 rounded px-2 py-1 text-[10px] font-semibold",
+              ageDays >= 10
+                ? "bg-[#e05656]/15 text-[#a12727] dark:text-[#e05656]"
+                : "bg-[#fd9038]/15 text-[#9a4800] dark:text-[#fd9038]"
+            )}
+            title={`${ageDays} days since card creation`}
+          >
+            {ageDays}d
+          </span>
         )}
       </div>
     </div>

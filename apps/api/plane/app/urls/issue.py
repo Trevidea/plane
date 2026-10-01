@@ -32,6 +32,8 @@ from plane.app.views import (
     CoachingCardDetailEndpoint,
     CoachingCardTransitionEndpoint,
     CoachingCardStageHistoryEndpoint,
+    CoachingCardReviewCompleteEndpoint,
+    CoachingCardMineEndpoint,
 )
 
 urlpatterns = [
@@ -56,9 +58,19 @@ urlpatterns = [
         name="project-coaching-card-config",
     ),
     path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/mine/",
+        CoachingCardMineEndpoint.as_view(),
+        name="project-my-coaching-cards",
+    ),
+    path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/transition/",
         CoachingCardTransitionEndpoint.as_view(),
         name="project-coaching-card-transition",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/review-complete/",
+        CoachingCardReviewCompleteEndpoint.as_view(),
+        name="project-coaching-card-review-complete",
     ),
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/",

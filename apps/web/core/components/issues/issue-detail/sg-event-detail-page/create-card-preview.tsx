@@ -65,13 +65,13 @@ export const CreateCardPreview = ({
   const player = players[0];
   const clip = playlists[0]?.clips[0];
   const clipCount = playlists.reduce((count, playlist) => count + playlist.clips.length, 0);
-  const jersey = player?.jersey_number?.trim().replace(/^#/, "");
+  const jersey = players.length === 1 ? player?.jersey_number?.trim().replace(/^#/, "") : "";
   const recipients = players.map(formatCardPlayer).join(", ");
   const details = [clip?.detail, clip?.result, clip?.secondaryDetail].filter(Boolean);
   return (
     <aside className="min-w-0 md:border-r md:border-custom-border-200 md:pr-5">
       <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-custom-text-300">
-        Player preview
+        Card preview
       </p>
       <div className="overflow-hidden rounded-xl border border-custom-border-300 bg-custom-background-90">
         <div className="border-b border-custom-border-200 p-3.5">
@@ -100,10 +100,16 @@ export const CreateCardPreview = ({
           <div className="mt-1 flex flex-wrap items-baseline gap-2 text-custom-text-100">
             {jersey && <span className="text-2xl font-semibold">#{jersey}</span>}
             <span className="text-sm font-medium uppercase">
-              {positionGroup ? `${positionGroup} group` : player?.player_name || "Select a player"}
+              {positionGroup
+                ? `${positionGroup} group`
+                : players.length > 1
+                  ? `${players.length} recipients`
+                  : player?.player_name || "Unassigned"}
             </span>
           </div>
-          {player?.position && <p className="mt-0.5 text-xs text-custom-text-200">{player.position}</p>}
+          {players.length === 1 && player?.position && (
+            <p className="mt-0.5 text-xs text-custom-text-200">{player.position}</p>
+          )}
         </div>
         <div className="space-y-3 p-3.5">
           <div className="relative">
@@ -199,7 +205,9 @@ export const CreateCardPreview = ({
             <p className="text-[11px] leading-4 text-custom-text-200">
               {players.length
                 ? `Selected for ${players.length} player${players.length === 1 ? "" : "s"} · ${recipients}`
-                : "Select recipients from the roster."}
+                : positionGroup
+                  ? `Selected for the ${positionGroup} group.`
+                  : "No recipients yet. This card stays in the first stage."}
             </p>
           </div>
         </div>

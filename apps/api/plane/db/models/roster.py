@@ -1,5 +1,6 @@
 # Django imports
 from django.db import models
+from django.conf import settings
 from django.db.models import Q, Case, When, Value, IntegerField
 from django.db.models.functions import Cast
 
@@ -15,6 +16,7 @@ class RosterPlayerStatus(models.TextChoices):
 
 
 class RosterPlayer(ProjectBaseModel):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     player_name = models.CharField(max_length=255)
     jersey_number = models.CharField(max_length=20, null=True, blank=True)
     position = models.CharField(max_length=50, null=True, blank=True)
@@ -27,10 +29,15 @@ class RosterPlayer(ProjectBaseModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
+                fields=["project", "user"],
+                condition=Q(deleted_at__isnull=True) & Q(user__isnull=False),
+                name="roster_player_unique_project_user_when_active",
+            ),
+            models.UniqueConstraint(
                 fields=["project", "jersey_number"],
                 condition=Q(deleted_at__isnull=True) & Q(jersey_number__isnull=False) & ~Q(jersey_number=""),
                 name="roster_player_unique_project_jersey_when_active",
-            )
+            ),
         ]
         verbose_name = "Roster Player"
         verbose_name_plural = "Roster Players"

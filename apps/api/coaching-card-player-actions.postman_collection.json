@@ -1,0 +1,755 @@
+{
+  "info": {
+    "_postman_id": "b7600e4a-837d-491c-8934-75fc9e1b1f62",
+    "name": "Kanavio - Coaching Card Player Actions",
+    "description": "Local/test use only. This collection links two roster players to accounts, records their review acknowledgements, and changes a real card's stage. Create a NEW card with exactly two recipients on a board with Assigned -> Player Reviewed before each run. Set baseUrl, workspaceSlug, projectId, rosterPlayer1Id, rosterPlayer2Id, and cardId in collection variables. Set coachEmail, coachPassword, player1Email, player1Password, player2Email, and player2Password as SECRET variables in a local Postman environment; never export real passwords. Use the same baseUrl host for every request and keep Postman's cookie jar enabled. Run requests in numbered order. Sign-in requests have redirects disabled because the API redirects to the web app. A linked player must be an active workspace member, but need not be a project member. This verifies the API acknowledgement, not video playback. The three-day timeout is covered by automated tests, not this collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://plane.local:8000" },
+    { "key": "workspaceSlug", "value": "" },
+    { "key": "projectId", "value": "" },
+    { "key": "rosterPlayer1Id", "value": "" },
+    { "key": "rosterPlayer2Id", "value": "" },
+    { "key": "cardId", "value": "" },
+    { "key": "csrfToken", "value": "" },
+    { "key": "player1UserId", "value": "" },
+    { "key": "player2UserId", "value": "" },
+    { "key": "assignedStageId", "value": "" },
+    { "key": "reviewedStageId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 - Identify player accounts",
+      "item": [
+        {
+          "name": "01.1 - Get CSRF token for player 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('CSRF token received', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const token = pm.response.json().csrf_token;",
+                  "  pm.expect(token).to.be.a('string').and.not.empty;",
+                  "  pm.collectionVariables.set('csrfToken', token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/get-csrf-token/"
+          }
+        },
+        {
+          "name": "01.2 - Sign in player 1",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sign-in redirects after credential check', function () {",
+                  "  pm.expect([302, 303]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              },
+              { "key": "X-CSRFToken", "value": "{{csrfToken}}" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "{{player1Email}}", "type": "text" },
+                {
+                  "key": "password",
+                  "value": "{{player1Password}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/auth/sign-in/"
+          }
+        },
+        {
+          "name": "01.3 - Confirm player 1 account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Player 1 session is active', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user.email.toLowerCase()).to.equal(pm.variables.get('player1Email').toLowerCase());",
+                  "  pm.collectionVariables.set('player1UserId', user.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Cache-Control", "value": "no-cache" }],
+            "url": "{{baseUrl}}/api/users/me/"
+          }
+        },
+        {
+          "name": "01.4 - Get CSRF token for player 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('CSRF token received', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.collectionVariables.set('csrfToken', pm.response.json().csrf_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/get-csrf-token/"
+          }
+        },
+        {
+          "name": "01.5 - Sign in player 2",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sign-in redirects after credential check', function () {",
+                  "  pm.expect([302, 303]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              },
+              { "key": "X-CSRFToken", "value": "{{csrfToken}}" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "{{player2Email}}", "type": "text" },
+                {
+                  "key": "password",
+                  "value": "{{player2Password}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/auth/sign-in/"
+          }
+        },
+        {
+          "name": "01.6 - Confirm player 2 account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Player 2 session is active', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user.email.toLowerCase()).to.equal(pm.variables.get('player2Email').toLowerCase());",
+                  "  pm.collectionVariables.set('player2UserId', user.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Cache-Control", "value": "no-cache" }],
+            "url": "{{baseUrl}}/api/users/me/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Coach setup",
+      "item": [
+        {
+          "name": "02.1 - Get CSRF token for coach",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('CSRF token received', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.collectionVariables.set('csrfToken', pm.response.json().csrf_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/get-csrf-token/"
+          }
+        },
+        {
+          "name": "02.2 - Sign in coach",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sign-in redirects after credential check', function () {",
+                  "  pm.expect([302, 303]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              },
+              { "key": "X-CSRFToken", "value": "{{csrfToken}}" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "{{coachEmail}}", "type": "text" },
+                {
+                  "key": "password",
+                  "value": "{{coachPassword}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/auth/sign-in/"
+          }
+        },
+        {
+          "name": "02.3 - Confirm coach account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Coach session is active', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json().email.toLowerCase()).to.equal(pm.variables.get('coachEmail').toLowerCase());",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Cache-Control", "value": "no-cache" }],
+            "url": "{{baseUrl}}/api/users/me/"
+          }
+        },
+        {
+          "name": "02.4 - Check coaching stages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Board supports automatic review transition', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const stages = pm.response.json().stages;",
+                  "  const assigned = stages[1];",
+                  "  const reviewed = stages[2];",
+                  "  pm.expect(assigned && assigned.name.toLowerCase()).to.equal('assigned');",
+                  "  pm.expect(reviewed && reviewed.name.toLowerCase()).to.equal('player reviewed');",
+                  "  pm.collectionVariables.set('assignedStageId', assigned.id);",
+                  "  pm.collectionVariables.set('reviewedStageId', reviewed.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-card-config/"
+          }
+        },
+        {
+          "name": "02.5 - Link roster player 1 to account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Roster player 1 linked', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json().user).to.equal(pm.collectionVariables.get('player1UserId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user\":\"{{player1UserId}}\"}"
+            },
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/roster/{{rosterPlayer1Id}}/"
+          }
+        },
+        {
+          "name": "02.6 - Link roster player 2 to account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Roster player 2 linked', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json().user).to.equal(pm.collectionVariables.get('player2UserId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user\":\"{{player2UserId}}\"}"
+            },
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/roster/{{rosterPlayer2Id}}/"
+          }
+        },
+        {
+          "name": "02.7 - Confirm one card with two recipients",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Card is assigned to exactly these two players', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const card = pm.response.json();",
+                  "  const ids = card.coaching_card_data.recipient_ids;",
+                  "  pm.expect(ids).to.have.length(2);",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('rosterPlayer1Id'));",
+                  "  pm.expect(ids).to.include(pm.collectionVariables.get('rosterPlayer2Id'));",
+                  "  pm.expect(card.state_id).to.equal(pm.collectionVariables.get('assignedStageId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Player 1 review",
+      "item": [
+        {
+          "name": "03.1 - Get CSRF token for player 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('CSRF token received', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.collectionVariables.set('csrfToken', pm.response.json().csrf_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/get-csrf-token/"
+          }
+        },
+        {
+          "name": "03.2 - Sign in player 1",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sign-in redirects after credential check', function () {",
+                  "  pm.expect([302, 303]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              },
+              { "key": "X-CSRFToken", "value": "{{csrfToken}}" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "{{player1Email}}", "type": "text" },
+                {
+                  "key": "password",
+                  "value": "{{player1Password}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/auth/sign-in/"
+          }
+        },
+        {
+          "name": "03.3 - Player 1 sees only assigned cards",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Shared card is visible without other player IDs', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const cards = pm.response.json().results;",
+                  "  const card = cards.find((entry) => entry.id === pm.collectionVariables.get('cardId'));",
+                  "  pm.expect(card, 'Card not on this page; choose a fresh card or increase limit').to.exist;",
+                  "  pm.expect(card.coaching_card_data).not.to.have.property('recipient_ids');",
+                  "  pm.expect(card.coaching_card_data.review).not.to.have.property('viewed_by');",
+                  "  pm.expect(card.coaching_card_data.review.recipient_count).to.equal(2);",
+                  "  pm.expect(card.coaching_card_data.review.viewed_count).to.equal(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/mine/?limit=100"
+          }
+        },
+        {
+          "name": "03.4 - Mark player 1 review complete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('One of two reviews recorded; stage unchanged', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const result = pm.response.json();",
+                  "  pm.expect(result.stage_id).to.equal(pm.collectionVariables.get('assignedStageId'));",
+                  "  pm.expect(result.review.recipient_count).to.equal(2);",
+                  "  pm.expect(result.review.viewed_count).to.equal(1);",
+                  "  pm.expect(result.review).not.to.have.property('viewed_by');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/review-complete/"
+          }
+        },
+        {
+          "name": "03.5 - Repeat player 1 acknowledgement (idempotent)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Repeated acknowledgement counts once', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json().review.viewed_count).to.equal(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/review-complete/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Player 2 review",
+      "item": [
+        {
+          "name": "04.1 - Get CSRF token for player 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('CSRF token received', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.collectionVariables.set('csrfToken', pm.response.json().csrf_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/get-csrf-token/"
+          }
+        },
+        {
+          "name": "04.2 - Sign in player 2",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sign-in redirects after credential check', function () {",
+                  "  pm.expect([302, 303]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              },
+              { "key": "X-CSRFToken", "value": "{{csrfToken}}" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "{{player2Email}}", "type": "text" },
+                {
+                  "key": "password",
+                  "value": "{{player2Password}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/auth/sign-in/"
+          }
+        },
+        {
+          "name": "04.3 - Player 2 sees one review pending",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Shared card shows one of two reviewed', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const cards = pm.response.json().results;",
+                  "  const card = cards.find((entry) => entry.id === pm.collectionVariables.get('cardId'));",
+                  "  pm.expect(card, 'Card not on this page; choose a fresh card or increase limit').to.exist;",
+                  "  pm.expect(card.coaching_card_data.review.recipient_count).to.equal(2);",
+                  "  pm.expect(card.coaching_card_data.review.viewed_count).to.equal(1);",
+                  "  pm.expect(card.coaching_card_data).not.to.have.property('recipient_ids');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/mine/?limit=100"
+          }
+        },
+        {
+          "name": "04.4 - Mark player 2 review complete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('All reviews recorded and card advanced once', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const result = pm.response.json();",
+                  "  pm.expect(result.stage_id).to.equal(pm.collectionVariables.get('reviewedStageId'));",
+                  "  pm.expect(result.review.recipient_count).to.equal(2);",
+                  "  pm.expect(result.review.viewed_count).to.equal(2);",
+                  "  pm.expect(result.review).not.to.have.property('viewed_by');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/review-complete/"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Coach verifies result",
+      "item": [
+        {
+          "name": "05.1 - Get CSRF token for coach",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('CSRF token received', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.collectionVariables.set('csrfToken', pm.response.json().csrf_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/get-csrf-token/"
+          }
+        },
+        {
+          "name": "05.2 - Sign in coach",
+          "protocolProfileBehavior": { "followRedirects": false },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Sign-in redirects after credential check', function () {",
+                  "  pm.expect([302, 303]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              },
+              { "key": "X-CSRFToken", "value": "{{csrfToken}}" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "{{coachEmail}}", "type": "text" },
+                {
+                  "key": "password",
+                  "value": "{{coachPassword}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/auth/sign-in/"
+          }
+        },
+        {
+          "name": "05.3 - Check final card stage and audit reason",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Shared card reached Player Reviewed', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const card = pm.response.json();",
+                  "  pm.expect(card.state_id).to.equal(pm.collectionVariables.get('reviewedStageId'));",
+                  "  pm.expect(card.coaching_card_data.review.completion_reason).to.equal('all_viewed');",
+                  "  pm.expect(Object.keys(card.coaching_card_data.review.viewed_by)).to.have.length(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/"
+          }
+        },
+        {
+          "name": "05.4 - Check stage history",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('System stage transition is recorded', function () {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const expected = pm.collectionVariables.get('reviewedStageId');",
+                  "  pm.expect(pm.response.json().some((entry) => entry.to_stage_id === expected && entry.changed_by_id === null)).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/stage-history/"
+          }
+        }
+      ]
+    }
+  ]
+}

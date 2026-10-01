@@ -77,12 +77,11 @@ export const CreateCardModal = ({
   const totalTags = includedPlaylists.reduce((total, group) => total + group.clips.length, 0);
   const canSubmit =
     Boolean(onSubmit) &&
-    (assignmentType === "player" ? selectedPlayers.length > 0 : Boolean(positionGroup)) &&
+    (assignmentType === "player" || Boolean(positionGroup)) &&
     (!requireContext || Boolean(context.sport && context.program && context.level && context.season)) &&
     title.trim().length > 0 &&
     totalTags > 0 &&
-    !isRosterLoading &&
-    !hasRosterError &&
+    (assignmentType === "player" || (!isRosterLoading && !hasRosterError)) &&
     !isSubmitting;
   const handleClose = () => {
     if (!isSubmitting) onClose();
@@ -167,7 +166,7 @@ export const CreateCardModal = ({
                         setPositionGroup("");
                       }}
                     />
-                    Player
+                    Players
                   </label>
                   <label className="flex items-center gap-1">
                     <input
@@ -400,11 +399,11 @@ export const CreateCardModal = ({
                 ? `Recipient: ${positionGroup} group`
                 : selectedPlayers.length
                   ? `Recipients: ${selectedPlayers.map(formatCardPlayer).join(", ")}`
-                  : "Choose players from the roster."}
+                  : "No recipients yet. This card will stay in the first stage."}
             </p>
             {!onSubmit && (
               <p id="create-card-submit-status" className="mt-1">
-                Saving and sending cards is not available yet.
+                Creating coaching cards is not available yet.
               </p>
             )}
             {submitError && (
@@ -432,12 +431,12 @@ export const CreateCardModal = ({
             >
               <PanelsTopLeft className="h-3.5 w-3.5" />
               {isSubmitting
-                ? "Sending…"
+                ? "Saving…"
                 : assignmentType === "group" && positionGroup
                   ? `Save & Send to ${positionGroup}`
                   : selectedPlayers.length
                     ? `Save & Send to ${selectedPlayers.length} Player${selectedPlayers.length === 1 ? "" : "s"}`
-                    : "Save & Send"}
+                    : "Save Card"}
             </Button>
           </div>
         </div>

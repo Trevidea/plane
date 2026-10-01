@@ -72,7 +72,7 @@ export class IssueService extends APIService {
     workspaceSlug: string,
     projectId: string,
     cardId: string,
-    data: { player_id?: string; position_group?: string; card_type?: string; priority?: string }
+    data: { player_ids?: string[]; position_group?: string; card_type?: string; priority?: string }
   ): Promise<void> {
     await this.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/`, data).catch(
       (error) => {

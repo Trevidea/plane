@@ -9,9 +9,9 @@ import type {
   TIssueGroupByOptions,
   TIssueOrderByOptions,
 } from "@plane/types";
+import { canTransitionCard } from "@/components/issues/issue-layouts/kanban/coaching-card-stage-model";
 import type { GroupDropLocation } from "@/components/issues/issue-layouts/utils";
 import { handleGroupDragDrop } from "@/components/issues/issue-layouts/utils";
-import { canTransitionCard } from "@/components/issues/issue-layouts/kanban/coaching-card-stage-model";
 import { IssueService } from "@/services/issue/issue.service";
 import { ISSUE_FILTER_DEFAULT_DATA } from "@/store/issue/helpers/base-issues.store";
 import { useIssueDetail } from "./store/use-issue-detail";
@@ -129,7 +129,7 @@ export const useGroupIssuesDragNDrop = (
         setToast({
           type: TOAST_TYPE.WARNING,
           title: "Stage unavailable",
-          message: "Cards can move only to the next stage.",
+          message: "Select a stage on this coaching board.",
         });
         return;
       }

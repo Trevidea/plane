@@ -594,7 +594,7 @@ export const SgEventDetailPage = ({
       const playlists = buildCoachingCardPlaylists(groups, values.playlists);
       if (playlists.length === 0) throw new Error("At least one staged tag is required.");
 
-      const response = await issueService.createCoachingCards(workspaceSlug, projectId, {
+      await issueService.createCoachingCards(workspaceSlug, projectId, {
         request_id: createCardContext.requestId,
         source_issue_id: resolvedWorkItemId,
         player_ids: values.playerIds,
@@ -611,14 +611,13 @@ export const SgEventDetailPage = ({
         playlists,
       });
 
-      const cardCount = response.cards.length;
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("coaching-card-created", { detail: { projectId } }));
       }
       setToast({
         type: TOAST_TYPE.SUCCESS,
-        title: cardCount === 1 ? "Coaching card created" : "Coaching cards created",
-        message: `${cardCount} card${cardCount === 1 ? "" : "s"} added to the coaching board.`,
+        title: "Coaching card created",
+        message: `One card added to the coaching board${values.playerIds.length ? ` for ${values.playerIds.length} players` : ""}.`,
       });
     },
     [createCardContext, issueService, projectId, resolvedWorkItemId, workspaceSlug]
