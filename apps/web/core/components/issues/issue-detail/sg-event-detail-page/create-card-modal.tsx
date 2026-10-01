@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, PanelsTopLeft, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
 import type { IRosterPlayer } from "@plane/types";
-import { EModalWidth, ModalCore } from "@plane/ui";
+import { Button, EModalWidth, ModalCore } from "@plane/ui";
 import { cn } from "@plane/utils";
 import type { TCustomPlaylist } from "@/services/media-library.service";
 import { CreateCardContextFields } from "./create-card-context-fields";
@@ -131,7 +131,8 @@ export const CreateCardModal = ({
           <Dialog.Title as="h2" className="text-xl font-semibold text-custom-text-100">
             Create Card
           </Dialog.Title>
-          <button
+          <Button
+            unstyled
             type="button"
             aria-label="Close create card"
             onClick={handleClose}
@@ -139,7 +140,7 @@ export const CreateCardModal = ({
             className="flex h-7 w-7 items-center justify-center rounded-lg border border-custom-border-200 text-custom-text-300 hover:bg-custom-background-90 disabled:opacity-40"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
         <div className="min-h-0 overflow-y-auto px-5 pb-5">
           <div className="grid items-start gap-5 md:grid-cols-[280px_minmax(0,1fr)]">
@@ -212,13 +213,14 @@ export const CreateCardModal = ({
                     </span>
                   )}
                   {hasRosterError && (
-                    <button
+                    <Button
+                      unstyled
                       type="button"
                       onClick={onRetryRoster}
                       className="mt-1 block text-xs text-custom-primary-100"
                     >
                       Retry roster
-                    </button>
+                    </Button>
                   )}
                 </label>
               )}
@@ -319,7 +321,8 @@ export const CreateCardModal = ({
                         className="overflow-hidden rounded-lg border border-custom-border-300 bg-custom-background-90"
                       >
                         <div className="flex min-h-10 items-center gap-2 px-3">
-                          <button
+                          <Button
+                            unstyled
                             type="button"
                             onClick={() => setExpandedGroupId((current) => (current === group.id ? null : group.id))}
                             aria-expanded={!isCollapsed}
@@ -339,7 +342,7 @@ export const CreateCardModal = ({
                                 isCollapsed && "-rotate-90"
                               )}
                             />
-                          </button>
+                          </Button>
                         </div>
                         <CreateCardScrollArea
                           id={listId}
@@ -411,15 +414,17 @@ export const CreateCardModal = ({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={handleClose}
               disabled={isSubmitting}
               className="rounded-lg border border-custom-border-300 px-3 py-2 text-sm text-custom-text-100 hover:bg-custom-background-90 disabled:opacity-40"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
+              unstyled
               type="submit"
               disabled={!canSubmit}
               aria-describedby={!onSubmit ? "create-card-submit-status" : undefined}
@@ -433,7 +438,7 @@ export const CreateCardModal = ({
                   : selectedPlayers.length
                     ? `Save & Send to ${selectedPlayers.length} Player${selectedPlayers.length === 1 ? "" : "s"}`
                     : "Save & Send"}
-            </button>
+            </Button>
           </div>
         </div>
       </form>

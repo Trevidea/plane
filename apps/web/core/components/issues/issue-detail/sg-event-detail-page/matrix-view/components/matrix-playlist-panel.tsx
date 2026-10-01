@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { ChevronDown, ChevronRight, ClipboardList, Pencil, Plus, Trash2, Video, X } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import { AlertModalCore, Checkbox } from "@plane/ui";
+import { AlertModalCore, Button, Checkbox } from "@plane/ui";
 import type {
   TCustomPlaylist,
   TCustomPlaylistClip,
@@ -1000,7 +1000,8 @@ export const SgMatrixPlaylistPanel = ({
           )}
         </div>
         <div className="shrink-0 px-1.5 pb-1.5 pt-2">
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={() => {
               if (hasUnsavedPlaylistChanges) {
@@ -1021,7 +1022,7 @@ export const SgMatrixPlaylistPanel = ({
           >
             <ClipboardList className="h-3.5 w-3.5" />
             Create Card
-          </button>
+          </Button>
         </div>
       </aside>
       <AlertModalCore

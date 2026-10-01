@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 import { Popover } from "@headlessui/react";
 import type { IRosterPlayer } from "@plane/types";
+import { Button } from "@plane/ui";
 import { formatCardPlayer } from "./create-card-model";
 
 type Props = {
@@ -42,7 +43,8 @@ export const CreateCardRosterPicker = ({ players, selectedPlayers, onChange, isL
                     className="inline-flex max-w-full items-center gap-2 rounded-md border border-custom-border-300 bg-custom-background-80 px-2 py-1 text-xs text-custom-text-100"
                   >
                     <span className="truncate">{formatCardPlayer(player)}</span>
-                    <button
+                    <Button
+                      unstyled
                       type="button"
                       aria-label={`Remove ${formatCardPlayer(player)}`}
                       onClick={() =>
@@ -53,10 +55,12 @@ export const CreateCardRosterPicker = ({ players, selectedPlayers, onChange, isL
                       className="shrink-0 rounded text-custom-text-300 hover:text-custom-text-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-custom-primary-100"
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </Button>
                   </span>
                 ))}
                 <Popover.Button
+                  as={Button}
+                  unstyled
                   disabled={isLoading || hasError || players.length === 0}
                   aria-label={open ? "Hide roster players" : "Show roster players"}
                   aria-describedby="create-card-roster-status"
@@ -122,17 +126,23 @@ export const CreateCardRosterPicker = ({ players, selectedPlayers, onChange, isL
                     {selectedPlayers.length} of {players.length} selected
                   </span>
                   <span className="flex items-center gap-3">
-                    <button
+                    <Button
+                      unstyled
                       type="button"
                       onClick={() => onChange([])}
                       disabled={!selectedPlayers.length}
                       className="text-custom-primary-100 hover:underline disabled:opacity-40"
                     >
                       Clear all
-                    </button>
-                    <button type="button" onClick={() => close()} className="text-custom-primary-100 hover:underline">
+                    </Button>
+                    <Button
+                      unstyled
+                      type="button"
+                      onClick={() => close()}
+                      className="text-custom-primary-100 hover:underline"
+                    >
                       Done
-                    </button>
+                    </Button>
                   </span>
                 </div>
               </Popover.Panel>
@@ -144,9 +154,9 @@ export const CreateCardRosterPicker = ({ players, selectedPlayers, onChange, isL
         {hasError ? (
           <>
             Unable to load the roster.{" "}
-            <button type="button" onClick={onRetry} className="text-custom-primary-100 hover:underline">
+            <Button unstyled type="button" onClick={onRetry} className="text-custom-primary-100 hover:underline">
               Retry
-            </button>
+            </Button>
           </>
         ) : isLoading ? (
           "Loading roster players…"

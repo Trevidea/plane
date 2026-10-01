@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { CalendarDays, Layers3, Play, Users, Video } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import type { TCoachingCardClip, TIssue } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn, renderFormattedDate } from "@plane/utils";
 import {
   buildCustomPlaylistThumbnailUrl,
@@ -145,7 +146,8 @@ export const CoachingCardKanbanDetails = ({
         <span className="shrink-0">{source.label}</span>
         <span aria-hidden="true">·</span>
         {source.href ? (
-          <button
+          <Button
+            unstyled
             type="button"
             className="truncate text-left hover:underline"
             title={source.title}
@@ -156,7 +158,7 @@ export const CoachingCardKanbanDetails = ({
             }}
           >
             {source.title}
-          </button>
+          </Button>
         ) : (
           <span className="truncate" title={source.title}>
             {source.title}

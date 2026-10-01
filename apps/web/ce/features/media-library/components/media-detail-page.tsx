@@ -8,6 +8,7 @@ import videojs from "video.js";
 import { ArrowLeft, ClipboardList } from "lucide-react";
 // import "video.js/dist/video-js.css";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import { Button } from "@plane/ui";
 import {
   buildSgEventAnnotationDisplayMeta,
   buildSgEventAnnotationVideoItem,
@@ -1794,7 +1795,8 @@ const MediaDetailPage = () => {
                     showTimeline={isFocusedVideoAnnotationWorkspace}
                     timelineHeaderAction={
                       showCreateCard ? (
-                        <button
+                        <Button
+                          unstyled
                           type="button"
                           onClick={() => {
                             if (hasUnsavedVideoAnnotationChanges) {
@@ -1821,7 +1823,7 @@ const MediaDetailPage = () => {
                         >
                           <ClipboardList className="h-3.5 w-3.5" />
                           Create Card
-                        </button>
+                        </Button>
                       ) : null
                     }
                     thumbnailUrl={item.thumbnail}
