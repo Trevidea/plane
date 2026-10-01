@@ -2,17 +2,48 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { Plus, Video } from "lucide-react";
+import { API_BASE_URL } from "@plane/constants";
 import type { TIssue } from "@plane/types";
 import { cn, renderFormattedDate } from "@plane/utils";
+import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
+import { useMediaLibraryItem } from "ce/features/media-library/hooks/use-media-library-item";
 import { CoachingCardClipPlayer } from "./coaching-card-clip-player";
 import { buildCoachingCardClips, resolveCoachingClipSource } from "./coaching-card-clips-model";
 import { formatCardDuration } from "./sg-event-detail-page/create-card-model";
 import { buildCustomPlaylistThumbnailUrl, formatLooseLabel, getArchivedHlsBaseUrl } from "./sg-event-detail-page/utils";
 
-export const CoachingCardClips = ({ issue }: { issue: TIssue }) => {
+export const CoachingCardClips = ({
+  issue,
+  workspaceSlug,
+  projectId,
+}: {
+  issue: TIssue;
+  workspaceSlug: string;
+  projectId: string;
+}) => {
+  const uploadedMedia = issue.coaching_card_data?.source_media;
+  const { item: mediaItem, isLoading: isMediaLoading } = useMediaLibraryItem(
+    workspaceSlug,
+    projectId,
+    uploadedMedia?.artifact_id
+  );
+  const { effectiveVideoSrc: uploadedSourceUrl } = useResolvedMediaSources({
+    item: mediaItem,
+    meta: mediaItem?.meta ?? {},
+    documentFormat: mediaItem?.format ?? "",
+    normalizedAction: (mediaItem?.action ?? "").toLowerCase(),
+  });
   const clips = useMemo(
-    () => (issue.coaching_card_data ? buildCoachingCardClips(issue.coaching_card_data, issue.created_at) : []),
-    [issue.coaching_card_data, issue.created_at]
+    () =>
+      issue.coaching_card_data
+        ? buildCoachingCardClips(issue.coaching_card_data, issue.created_at, {
+            workspaceSlug,
+            projectId,
+            apiBaseUrl: API_BASE_URL,
+            uploadedSourceUrl,
+          })
+        : [],
+    [issue.coaching_card_data, issue.created_at, workspaceSlug, projectId, uploadedSourceUrl]
   );
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [autoPlay, setAutoPlay] = useState(false);
@@ -26,10 +57,15 @@ export const CoachingCardClips = ({ issue }: { issue: TIssue }) => {
     setSelectedKey(nextClip.key);
   }, [activeClip?.key, playableClips]);
   if (issue.category !== "Coaching Card") return null;
-  const source = activeClip ? resolveCoachingClipSource(activeClip.sourceUrl, getArchivedHlsBaseUrl()) : "";
-  const poster = activeClip?.thumbnail?.startsWith("/")
-    ? activeClip.thumbnail
-    : buildCustomPlaylistThumbnailUrl(activeClip?.thumbnail);
+  const source =
+    activeClip && (!uploadedMedia || uploadedSourceUrl)
+      ? resolveCoachingClipSource(activeClip.sourceUrl, getArchivedHlsBaseUrl())
+      : "";
+  const poster =
+    mediaItem?.thumbnail ||
+    (activeClip?.thumbnail?.startsWith("/")
+      ? activeClip.thumbnail
+      : buildCustomPlaylistThumbnailUrl(activeClip?.thumbnail));
   const sourceType = /\.m3u8(?:[?#]|$)/i.test(source) ? "m3u8 / Live Stream Archive" : "Video";
 
   return (
@@ -57,7 +93,11 @@ export const CoachingCardClips = ({ issue }: { issue: TIssue }) => {
       ) : (
         <div className="flex aspect-video flex-col items-center justify-center gap-2 rounded-lg border border-custom-border-200 bg-custom-background-90 px-4 text-center text-sm text-custom-text-300">
           <Video aria-hidden="true" className="h-6 w-6" />
-          {activeClip ? "This clip has no saved video source." : "No clips are attached to this coaching card."}
+          {isMediaLoading
+            ? "Loading video…"
+            : activeClip
+              ? "This clip has no saved video source."
+              : "No clips are attached to this coaching card."}
         </div>
       )}
       {activeClip && (

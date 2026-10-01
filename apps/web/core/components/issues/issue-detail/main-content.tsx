@@ -185,7 +185,7 @@ export const IssueMainContent: React.FC<Props> = observer((props) => {
         issueServiceType={EIssueServiceType.ISSUES}
       />
 
-      <CoachingCardClips key={issue.id} issue={issue} />
+      <CoachingCardClips key={issue.id} issue={issue} workspaceSlug={workspaceSlug} projectId={projectId} />
 
       {windowSize[0] < 768 && (
         <PeekOverviewProperties

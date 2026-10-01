@@ -123,6 +123,7 @@ class IssueListEndpoint(BaseAPIView):
                 attachment_count=FileAsset.objects.filter(
                     issue_id=OuterRef("id"),
                     entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+                    is_uploaded=True,
                 )
                 .order_by()
                 .annotate(count=Func(F("id"), function="Count"))
@@ -240,6 +241,7 @@ class IssueViewSet(BaseViewSet):
                     FileAsset.objects.filter(
                         issue_id=OuterRef("id"),
                         entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+                        is_uploaded=True,
                     )
                     .values("issue_id")
                     .annotate(count=Count("id"))
@@ -582,6 +584,7 @@ class IssueViewSet(BaseViewSet):
                     FileAsset.objects.filter(
                         issue_id=OuterRef("id"),
                         entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+                        is_uploaded=True,
                     )
                     .values("issue_id")
                     .annotate(count=Count("id"))
@@ -969,6 +972,7 @@ class IssuePaginatedViewSet(BaseViewSet):
                     FileAsset.objects.filter(
                         issue_id=OuterRef("id"),
                         entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+                        is_uploaded=True,
                     )
                     .values("issue_id")
                     .annotate(count=Count("id"))
@@ -1126,6 +1130,7 @@ class IssueDetailEndpoint(BaseAPIView):
                 attachment_count=FileAsset.objects.filter(
                     issue_id=OuterRef("id"),
                     entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+                    is_uploaded=True,
                 )
                 .order_by()
                 .annotate(count=Func(F("id"), function="Count"))
@@ -1379,6 +1384,7 @@ class IssueDetailIdentifierEndpoint(BaseAPIView):
                 attachment_count=FileAsset.objects.filter(
                     issue_id=OuterRef("id"),
                     entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+                    is_uploaded=True,
                 )
                 .order_by()
                 .annotate(count=Func(F("id"), function="Count"))

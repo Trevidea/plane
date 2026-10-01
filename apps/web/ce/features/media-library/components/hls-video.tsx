@@ -30,12 +30,8 @@ export const HlsVideo = ({
     const video = targetRef.current;
     if (!video || !src) return;
 
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = src;
-      video.load();
-      return;
-    }
-
+    // Prefer MediaSource playback: Chrome can advertise native HLS support
+    // but reject the proxied playlist with MEDIA_ERR_SRC_NOT_SUPPORTED.
     if (Hls.isSupported()) {
       const hls = new Hls();
       hls.on(Hls.Events.ERROR, (_event, data) => {

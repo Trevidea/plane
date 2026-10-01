@@ -16,7 +16,11 @@ export type CoachingCardDetailClip = {
 const validSeconds = (value: number | null | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 
-export const buildCoachingCardClips = (card: TCoachingCardData, createdAt: string): CoachingCardDetailClip[] => {
+export const buildCoachingCardClips = (
+  card: TCoachingCardData,
+  createdAt: string,
+  context?: { workspaceSlug: string; projectId: string; apiBaseUrl?: string; uploadedSourceUrl?: string }
+): CoachingCardDetailClip[] => {
   const primary = card.primary_clip;
   const addedAt = card.metadata?.created_at || createdAt;
   const clips = (card.playlists ?? []).flatMap((playlist) =>
@@ -30,7 +34,12 @@ export const buildCoachingCardClips = (card: TCoachingCardData, createdAt: strin
         slot: 0,
         title: clip.title?.trim() || "Original Clip",
         playlistName: playlist.name,
-        sourceUrl: (isPrimary ? primary.source_url?.trim() || clip.source_url : clip.source_url)?.trim() || "",
+        sourceUrl:
+          (isPrimary ? primary.source_url?.trim() || clip.source_url : clip.source_url)?.trim() ||
+          (context && card.source_media?.artifact_id === clip.id
+            ? context.uploadedSourceUrl?.trim() ||
+              `${(context.apiBaseUrl || "").replace(/\/+$/, "")}/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/projects/${encodeURIComponent(context.projectId)}/media-library/packages/${encodeURIComponent(card.source_media.package_id)}/artifacts/${encodeURIComponent(card.source_media.artifact_id)}/file/`
+            : ""),
         thumbnail: clip.thumbnail || (isPrimary ? card.summary?.primary_thumbnail : null) || null,
         startSeconds,
         endSeconds: endSeconds !== null && endSeconds > startSeconds ? endSeconds : null,
