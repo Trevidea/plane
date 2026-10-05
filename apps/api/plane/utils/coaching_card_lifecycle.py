@@ -4,7 +4,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 
 from plane.db.models import CardStageHistory, State
-from plane.utils.coaching_card_stages import build_stage_config
+from plane.utils.coaching_card_stages import build_stage_config, review_stage_ids, validate_stage_transition
 
 
 DEFAULT_COACHING_NAMES = (
@@ -71,22 +71,15 @@ def get_project_card_stage_config(project):
         raise serializers.ValidationError({"stages": [str(exc)]}) from exc
 
 
-def review_stage_ids(config):
-    stages = config["stages"]
-    if (
-        len(stages) >= 3
-        and stages[1]["name"].casefold() == "assigned"
-        and stages[2]["name"].casefold() in {"player reviewed", "in work"}
-    ):
-        return stages[1]["id"], stages[2]["id"]
-    return None
-
-
-def transition_coaching_card(card, target_stage_id, actor):
+def transition_coaching_card(card, target_stage_id, actor, reason=""):
     config = get_project_card_stage_config(card.project)
-    current = next((stage for stage in config["stages"] if stage["id"] == str(card.state_id)), None)
-    if current is None or str(target_stage_id) not in current["allowed_next_stage_ids"]:
-        raise serializers.ValidationError({"stage_id": ["Select a different stage on this coaching board."]})
+    data = dict(card.coaching_card_data or {})
+    recipient_ids = data.get("recipient_ids") or ([data["player"]["id"]] if data.get("player") else [])
+    try:
+        validate_stage_transition(config, card.state_id, target_stage_id, recipient_ids, reason, actor is None)
+    except ValueError as exc:
+        field = "reason" if "reason is required" in str(exc) else "stage_id"
+        raise serializers.ValidationError({field: [str(exc)]}) from exc
 
     target = State.objects.filter(project=card.project, pk=target_stage_id, is_triage=False).first()
     if target is None:
@@ -95,22 +88,17 @@ def transition_coaching_card(card, target_stage_id, actor):
     previous = card.state
     previous_name = next(stage["name"] for stage in config["stages"] if stage["id"] == str(previous.id))
     target_name = next(stage["name"] for stage in config["stages"] if stage["id"] == str(target.id))
-    data = dict(card.coaching_card_data or {})
     data["stage_id"] = str(target.id)
     review_stages = review_stage_ids(config)
-    if review_stages and str(target.id) == review_stages[0] and data.get("recipient_ids"):
+    if review_stages and str(target.id) == review_stages[0] and recipient_ids:
         assigned_at = timezone.now()
         data["review"] = {
             "assigned_at": assigned_at.isoformat(),
             "deadline_at": (assigned_at + timedelta(days=3)).isoformat(),
             "viewed_by": {},
         }
-    elif actor is not None and review_stages and str(previous.id) == review_stages[0]:
-        review = dict(data.get("review") or {})
-        if review.get("assigned_at") and not review.get("completed_at"):
-            review["completed_at"] = timezone.now().isoformat()
-            review["completion_reason"] = "coach_override"
-            data["review"] = review
+    elif str(target.id) == config["initial_stage_id"]:
+        data["review"] = {"assigned_at": None, "deadline_at": None, "viewed_by": {}}
     card.state = target
     card.coaching_card_data = data
     card.save()
@@ -121,6 +109,7 @@ def transition_coaching_card(card, target_stage_id, actor):
         to_stage_id=target.id,
         to_stage_name=target_name,
         changed_by=actor,
+        reason=reason.strip(),
     )
     return card
 

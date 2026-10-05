@@ -44,7 +44,8 @@ export interface IProjectIssues extends IBaseIssuesStore {
     projectId: string,
     issueId: string,
     stageId: string,
-    sortOrder?: number
+    sortOrder?: number,
+    reason?: string
   ) => Promise<void>;
   archiveIssue: (workspaceSlug: string, projectId: string, issueId: string) => Promise<void>;
   quickAddIssue: (workspaceSlug: string, projectId: string, data: TIssue) => Promise<TIssue | undefined>;
@@ -208,7 +209,8 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
     projectId: string,
     issueId: string,
     stageId: string,
-    sortOrder?: number
+    sortOrder?: number,
+    reason?: string
   ) => {
     const issue = this.rootIssueStore.issues.getIssueById(issueId);
     if (!issue) throw new Error("Coaching card not found.");
@@ -217,20 +219,10 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
     await this.issueUpdate(workspaceSlug, projectId, issueId, changes, false);
 
     try {
-      await this.issueService.transitionCoachingCard(workspaceSlug, projectId, issueId, stageId);
+      await this.issueService.transitionCoachingCard(workspaceSlug, projectId, issueId, stageId, reason, sortOrder);
     } catch (error) {
       await this.issueUpdate(workspaceSlug, projectId, issueId, previous, false);
       throw error;
-    }
-
-    if (sortOrder !== undefined) {
-      try {
-        await this.issueService.patchIssue(workspaceSlug, projectId, issueId, { sort_order: sortOrder });
-      } catch (error) {
-        // The stage is already committed; only undo the failed reorder.
-        await this.issueUpdate(workspaceSlug, projectId, issueId, { sort_order: previous.sort_order }, false);
-        throw error;
-      }
     }
   };
 

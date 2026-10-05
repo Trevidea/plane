@@ -108,10 +108,7 @@ test("a dropped card moves immediately and keeps its requested ordering", async 
   api.resolve();
   await pending;
   assert.equal(cards.card.sort_order, 150);
-  assert.deepEqual(calls, [
-    ["school", "project", "card", "next"],
-    ["school", "project", "card", { sort_order: 150 }],
-  ]);
+  assert.deepEqual(calls, [["school", "project", "card", "next", undefined, 150]]);
 });
 
 test("a rejected transition rolls back the card and column counts", async () => {
@@ -127,16 +124,14 @@ test("a rejected transition rolls back the card and column counts", async () => 
   assert.equal(store.getGroupIssueCount("next", undefined, false), 1);
 });
 
-test("a failed reorder does not undo an already committed stage", async () => {
-  const { store, cards, api } = setup();
-  store.issueService.patchIssue = async () => {
-    throw new Error("Reorder failed");
-  };
-  const pending = store.transitionCoachingCard("school", "project", "card", "next", 150);
+test("a reopen sends its audit reason with the atomic stage and ordering update", async () => {
+  const { store, cards, api, calls } = setup();
+  const pending = store.transitionCoachingCard("school", "project", "card", "next", 150, "Needs more practice");
   api.resolve();
-  await assert.rejects(pending, /Reorder failed/);
+  await pending;
   assert.equal(cards.card.state_id, "next");
-  assert.equal(cards.card.sort_order, 100);
+  assert.equal(cards.card.sort_order, 150);
+  assert.deepEqual(calls, [["school", "project", "card", "next", "Needs more practice", 150]]);
   assert.deepEqual([...store.getIssueIds("next")], ["card", "other"]);
 });
 

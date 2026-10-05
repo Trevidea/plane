@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import useSWR from "swr";
 import { ArrowRight, ListFilter, UsersRound, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
@@ -12,6 +12,7 @@ import { CreateCardRosterPicker } from "@/components/issues/issue-detail/sg-even
 import { IssueService } from "@/services/issue/issue.service";
 import { RosterService } from "@/services/roster.service";
 import { getCardStageActions } from "./coaching-card-stage-model";
+import { CoachingCardStageRequestContext } from "./coaching-card-stage-request-context";
 
 const issueService = new IssueService();
 const rosterService = new RosterService();
@@ -35,13 +36,14 @@ type ActionProps = {
   onChanged: () => void;
 };
 
-const AssignmentDialog = ({
+export const AssignmentDialog = ({
   issue,
   workspaceSlug,
   projectId,
   onChanged,
   onClose,
-}: ActionProps & { onClose: () => void }) => {
+  advanceOnSave = false,
+}: ActionProps & { onClose: () => void; advanceOnSave?: boolean }) => {
   const card = issue.coaching_card_data;
   const originalIds =
     card?.recipient_ids ?? card?.recipients?.map((recipient) => recipient.id) ?? (card?.player ? [card.player.id] : []);
@@ -77,8 +79,8 @@ const AssignmentDialog = ({
     !isLoading &&
     !error &&
     !isSaving &&
-    hasChanged &&
-    (mode === "group" ? Boolean(group) : selectedIds.length > 0 || originalIds.length > 0);
+    (hasChanged || advanceOnSave) &&
+    (mode === "group" ? Boolean(group) : selectedIds.length > 0 || (!advanceOnSave && originalIds.length > 0));
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -117,7 +119,7 @@ const AssignmentDialog = ({
       >
         <div className="flex items-center justify-between gap-3">
           <Dialog.Title as="h2" className="text-base font-semibold text-custom-text-100">
-            {originalIds.length ? "Edit recipients" : "Assign players"}
+            {advanceOnSave ? "Assign players" : originalIds.length ? "Edit recipients" : "Assign players"}
           </Dialog.Title>
           <Button
             unstyled
@@ -221,7 +223,7 @@ const AssignmentDialog = ({
             disabled={!canSave}
             className="rounded bg-custom-primary-100 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
           >
-            {isSaving ? "Saving..." : "Save recipients"}
+            {isSaving ? "Saving..." : advanceOnSave ? "Assign and send" : "Save recipients"}
           </Button>
         </div>
       </form>
@@ -230,6 +232,7 @@ const AssignmentDialog = ({
 };
 
 export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, onChanged }: ActionProps) => {
+  const requestStageChange = useContext(CoachingCardStageRequestContext);
   const [dialog, setDialog] = useState<"recipients" | "stages" | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const card = issue.coaching_card_data;
@@ -237,18 +240,24 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
   const { available, next } = getCardStageActions(config, issue.state_id);
   const stageOptions = available.filter((stage) => recipientCount > 0 || stage.name.toLowerCase() !== "assigned");
   const nextStage = stageOptions.find((stage) => stage.id === next?.id);
+  const needsAssignment = issue.state_id === config?.initial_stage_id && next?.name.toLowerCase() === "assigned";
+  const awaitsReview =
+    config?.stages.find((stage) => stage.id === issue.state_id)?.name.toLowerCase() === "assigned" && !nextStage;
   const currentName = config?.stages.find((stage) => stage.id === issue.state_id)?.name ?? "Current stage";
 
   const moveToStage = async (stageId: string, stageName: string) => {
     if (isMoving) return;
+    setDialog(null);
+    const request = requestStageChange ? await requestStageChange(issue, stageId) : null;
+    if (!request) return;
     setIsMoving(true);
     try {
-      await issueService.transitionCoachingCard(workspaceSlug, projectId, issue.id, stageId);
+      await issueService.transitionCoachingCard(workspaceSlug, projectId, issue.id, request.stageId, request.reason);
       setDialog(null);
       onChanged();
       setToast({
         type: TOAST_TYPE.SUCCESS,
-        title: `Moved to ${stageName}`,
+        title: `Moved to ${config?.stages.find((stage) => stage.id === request.stageId)?.name ?? stageName}`,
         message: "The coaching board is up to date.",
       });
     } catch (moveError) {
@@ -264,24 +273,24 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
 
   return (
     <>
-      <Tooltip tooltipContent={recipientCount ? "Edit recipients" : "Assign to Player"}>
+      <Tooltip tooltipContent={recipientCount && !needsAssignment ? "Edit recipients" : "Assign to Player"}>
         <Button
           unstyled
           type="button"
           onClick={() => setDialog("recipients")}
-          aria-label={recipientCount ? "Edit recipients" : "Assign to Player"}
+          aria-label={recipientCount && !needsAssignment ? "Edit recipients" : "Assign to Player"}
           className={cn(
             "inline-flex h-6 shrink-0 items-center justify-center gap-1.5 rounded-md text-[11px] font-medium focus-visible:ring-2 focus-visible:ring-custom-primary-100",
-            recipientCount
+            recipientCount && !needsAssignment
               ? "w-6 border border-custom-border-200 bg-custom-background-80 text-custom-text-200 hover:text-custom-text-100"
               : "bg-custom-primary-100 px-2.5 text-white hover:opacity-90"
           )}
         >
           <UsersRound className="h-3 w-3" aria-hidden="true" />
-          {!recipientCount && "Assign to Player"}
+          {(!recipientCount || needsAssignment) && "Assign to Player"}
         </Button>
       </Tooltip>
-      {nextStage && (
+      {nextStage && !needsAssignment && (
         <Tooltip tooltipContent={`Move to ${nextStage.name}`}>
           <Button
             unstyled
@@ -295,6 +304,11 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
             <ArrowRight className="h-3 w-3 shrink-0" aria-hidden="true" />
             <span className="truncate">{nextStage.name}</span>
           </Button>
+        </Tooltip>
+      )}
+      {awaitsReview && (
+        <Tooltip tooltipContent="This stage advances automatically after player review.">
+          <span className="truncate text-[11px] text-custom-text-300">Awaiting player review</span>
         </Tooltip>
       )}
       {stageOptions.length > 0 && (
@@ -320,6 +334,7 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
           projectId={projectId}
           onChanged={onChanged}
           onClose={() => setDialog(null)}
+          advanceOnSave={needsAssignment}
         />
       )}
       {dialog === "stages" && (
