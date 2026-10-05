@@ -32,6 +32,7 @@ import type { IQuickActionProps, TRenderQuickActions } from "../list/list-view-t
 //components
 import type { GroupDropLocation } from "../utils";
 import { getSourceFromDropPayload } from "../utils";
+import { CoachingCardStageContext } from "./coaching-card-stage-context";
 import { canTransitionCard } from "./coaching-card-stage-model";
 import { CoachingSwimlaneBoard } from "./coaching-swimlane-board";
 import { getSwimlaneLaneUpdate } from "./coaching-swimlane-model";
@@ -73,6 +74,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
   const storeType = useIssueStoreType() as KanbanStoreType;
   const { allowPermissions } = useUserPermissions();
   const { issueMap, issuesFilter, issues } = useIssues(storeType);
+  const { issues: projectIssues } = useIssues(EIssuesStoreType.PROJECT);
   const { getProjectById } = useProject();
   const {
     issue: { getIssueById },
@@ -153,10 +155,16 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
     const refreshBoard = (event: Event) => {
       if ((event as CustomEvent<{ projectId: string }>).detail?.projectId !== projectId?.toString()) return;
       void refreshCardConfig();
-      void fetchIssues("init-loader", { canGroup: true, perPageCount: boardPageSize }, viewId);
+      void fetchIssues("mutation", { canGroup: true, perPageCount: boardPageSize }, viewId).catch(() =>
+        setToast({ type: TOAST_TYPE.ERROR, title: "Board refresh failed", message: "Refresh to see the latest card." })
+      );
     };
     window.addEventListener("coaching-card-created", refreshBoard);
-    return () => window.removeEventListener("coaching-card-created", refreshBoard);
+    window.addEventListener("coaching-card-updated", refreshBoard);
+    return () => {
+      window.removeEventListener("coaching-card-created", refreshBoard);
+      window.removeEventListener("coaching-card-updated", refreshBoard);
+    };
   }, [fetchIssues, isCoachingBoard, projectId, refreshCardConfig, boardPageSize, viewId]);
 
   const scrollableContainerRef = useRef<HTMLDivElement | null>(null);
@@ -243,7 +251,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
       let stageMoved = false;
       try {
         if (changedStage) {
-          await cardService.transitionCoachingCard(slug, boardId, issue.id, destination.groupId);
+          await projectIssues.transitionCoachingCard(slug, boardId, issue.id, destination.groupId);
           stageMoved = true;
         }
         if (laneUpdate.issuePatch) {
@@ -263,7 +271,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
         });
       } finally {
         try {
-          await fetchIssues("init-loader", { canGroup: true, perPageCount: 1000 }, viewId);
+          await fetchIssues("mutation", { canGroup: true, perPageCount: 1000 }, viewId);
         } catch {
           setToast({
             type: TOAST_TYPE.ERROR,
@@ -282,6 +290,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
       swimlaneView,
       cardStageConfig,
       cardService,
+      projectIssues,
       updateIssue,
       fetchIssues,
       viewId,
@@ -455,16 +464,18 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
         >
           <div className="relative h-full w-max min-w-full bg-custom-background-90">
             <div className="h-full w-max">
-              {hasCoachingSwimlanes ? (
-                <CoachingSwimlaneBoard
-                  {...boardProps}
-                  view={swimlaneView}
-                  preferenceKey={preferenceKey}
-                  handleOnDrop={handleSwimlaneDrop}
-                />
-              ) : (
-                <KanBanView {...boardProps} handleOnDrop={handleOnDrop} />
-              )}
+              <CoachingCardStageContext.Provider value={cardStageConfig}>
+                {hasCoachingSwimlanes ? (
+                  <CoachingSwimlaneBoard
+                    {...boardProps}
+                    view={swimlaneView}
+                    preferenceKey={preferenceKey}
+                    handleOnDrop={handleSwimlaneDrop}
+                  />
+                ) : (
+                  <KanBanView {...boardProps} handleOnDrop={handleOnDrop} />
+                )}
+              </CoachingCardStageContext.Provider>
             </div>
           </div>
         </div>

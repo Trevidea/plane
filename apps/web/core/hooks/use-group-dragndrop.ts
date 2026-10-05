@@ -2,13 +2,8 @@
 
 import { useParams } from "next/navigation";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import type {
-  EIssuesStoreType,
-  TCoachingCardStageConfig,
-  TIssue,
-  TIssueGroupByOptions,
-  TIssueOrderByOptions,
-} from "@plane/types";
+import type { TCoachingCardStageConfig, TIssue, TIssueGroupByOptions, TIssueOrderByOptions } from "@plane/types";
+import { EIssuesStoreType } from "@plane/types";
 import { canTransitionCard } from "@/components/issues/issue-layouts/kanban/coaching-card-stage-model";
 import type { GroupDropLocation } from "@/components/issues/issue-layouts/utils";
 import { handleGroupDragDrop } from "@/components/issues/issue-layouts/utils";
@@ -45,6 +40,7 @@ export const useGroupIssuesDragNDrop = (
   } = useIssueDetail();
   const { updateIssue, fetchIssues } = useIssuesActions(storeType);
   const cardService = new IssueService();
+  const { issues: projectIssues } = useIssues(EIssuesStoreType.PROJECT);
   const {
     issues: { getIssueIds, addCycleToIssue, removeCycleFromIssue, changeModulesInIssue },
   } = useIssues(storeType);
@@ -104,9 +100,31 @@ export const useGroupIssuesDragNDrop = (
     if (sourceIssue?.category === "Coaching Card" && data.state_id && data.state_id !== sourceIssue.state_id) {
       if (!workspaceSlug) return;
       try {
-        await cardService.transitionCoachingCard(workspaceSlug.toString(), projectId, issueId, data.state_id);
+        if (storeType === EIssuesStoreType.PROJECT) {
+          await projectIssues.transitionCoachingCard(
+            workspaceSlug.toString(),
+            projectId,
+            issueId,
+            data.state_id,
+            data.sort_order
+          );
+        } else {
+          await cardService.transitionCoachingCard(workspaceSlug.toString(), projectId, issueId, data.state_id);
+        }
       } finally {
-        await fetchIssues("init-loader", { canGroup: true, perPageCount: 30 });
+        if (storeType === EIssuesStoreType.PROJECT) {
+          await projectIssues
+            .fetchIssuesWithExistingPagination(workspaceSlug.toString(), projectId, "mutation")
+            .catch(() =>
+              setToast({
+                type: TOAST_TYPE.ERROR,
+                title: "Board refresh failed",
+                message: "Refresh to see the latest card.",
+              })
+            );
+        } else {
+          await fetchIssues("init-loader", { canGroup: true, perPageCount: 30 });
+        }
       }
       return;
     }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node's type stripping requires an extension.
-import { canTransitionCard, orderCardColumns } from "../coaching-card-stage-model.ts";
+import { canTransitionCard, getCardStageActions, orderCardColumns } from "../coaching-card-stage-model.ts";
 
 const config = {
   sport: "Basketball",
@@ -40,4 +40,14 @@ test("board columns follow configuration order", () => {
     ),
     ["new", "review", "done", "none"]
   );
+});
+
+test("card actions offer the next stage and other permitted stages in board order", () => {
+  assert.deepEqual(
+    getCardStageActions(config, "new").available.map((stage) => stage.name),
+    ["Review", "Done"]
+  );
+  assert.equal(getCardStageActions(config, "new").next?.name, "Review");
+  assert.equal(getCardStageActions(config, "done").next, null);
+  assert.deepEqual(getCardStageActions(undefined, "new"), { available: [], next: null });
 });

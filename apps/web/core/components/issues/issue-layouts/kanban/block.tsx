@@ -1,7 +1,7 @@
 "use client";
 
 import type { MutableRefObject } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { observer } from "mobx-react";
@@ -12,7 +12,7 @@ import { useOutsideClickDetector } from "@plane/hooks";
 // types
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
-import type { TIssue, IIssueDisplayProperties, IIssueMap } from "@plane/types";
+import type { TCoachingCardStageConfig, TIssue, IIssueDisplayProperties, IIssueMap } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
 // ui
 import { ControlLink, DropIndicator } from "@plane/ui";
@@ -34,7 +34,10 @@ import { IssueStats } from "@/plane-web/components/issues/issue-layouts/issue-st
 import type { TRenderQuickActions } from "../list/list-view-types";
 import { IssueProperties } from "../properties/all-properties";
 import { WithDisplayPropertiesHOC } from "../properties/with-display-properties-HOC";
-import { CoachingCardKanbanDetails, isCoachingCardIssue } from "./coaching-card-details";
+import { CoachingCardActions } from "./coaching-card-actions";
+import { CoachingCardKanbanDetails, getCoachingCardAccent, isCoachingCardIssue } from "./coaching-card-details";
+import { CoachingCardFooter } from "./coaching-card-footer";
+import { CoachingCardStageContext } from "./coaching-card-stage-context";
 
 interface IssueBlockProps {
   issueId: string;
@@ -61,6 +64,7 @@ interface IssueDetailsBlockProps {
   updateIssue: ((projectId: string | null, issueId: string, data: Partial<TIssue>) => Promise<void>) | undefined;
   quickActions: TRenderQuickActions;
   isReadOnly: boolean;
+  cardStageConfig?: TCoachingCardStageConfig;
   isEpic?: boolean;
 }
 
@@ -72,6 +76,7 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
     updateIssue,
     quickActions,
     isReadOnly,
+    cardStageConfig,
     displayProperties,
     isEpic = false,
   } = props;
@@ -132,7 +137,11 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
       </div>
 
       {isCoachingCard ? (
-        <CoachingCardKanbanDetails issue={issue} projectIdentifier={projectIdentifier} />
+        <CoachingCardKanbanDetails
+          issue={issue}
+          projectIdentifier={projectIdentifier}
+          cardStageConfig={cardStageConfig}
+        />
       ) : (
         <>
           <Tooltip tooltipContent={issue.name} isMobile={isMobile} renderByDefault={false}>
@@ -186,6 +195,7 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
   } = props;
 
   const cardRef = useRef<HTMLAnchorElement | null>(null);
+  const cardContainerRef = useRef<HTMLDivElement | null>(null);
   // router
   const { workspaceSlug: routerWorkspaceSlug } = useParams();
   const workspaceSlug = routerWorkspaceSlug?.toString();
@@ -209,6 +219,10 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
 
   const isDragAllowed = canDragIssuesInCurrentGrouping && !issue?.tempId && canEditIssueProperties;
   const projectIdentifier = getProjectIdentifierById(issue?.project_id);
+  const isCoachingCard = Boolean(issue && isCoachingCardIssue(issue));
+  const coachingCardAccent = getCoachingCardAccent(issue?.coaching_card_data?.card_type);
+  const showCoachingActions = Boolean(isCoachingCard && canEditIssueProperties && workspaceSlug && issue?.project_id);
+  const cardStageConfig = useContext(CoachingCardStageContext);
 
   const workItemLink = generateWorkItemLink({
     workspaceSlug,
@@ -220,7 +234,8 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
     isArchived: !!issue?.archived_at,
   });
 
-  useOutsideClickDetector(cardRef, () => {
+  useOutsideClickDetector(cardContainerRef, () => {
+    cardContainerRef.current?.classList.remove(HIGHLIGHT_CLASS);
     cardRef?.current?.classList?.remove(HIGHLIGHT_CLASS);
   });
 
@@ -264,15 +279,27 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
   }, [cardRef?.current, issue?.id, isDragAllowed, canDropOverIssue, setIsCurrentBlockDragging, setIsDraggingOverBlock]);
 
   if (!issue) return null;
-  const isCoachingCard = isCoachingCardIssue(issue);
+
+  const handleCardChanged = () => {
+    window.dispatchEvent(new CustomEvent("coaching-card-updated", { detail: { projectId: issue.project_id } }));
+  };
 
   return (
     <>
       <DropIndicator isVisible={!isCurrentBlockDragging && isDraggingOverBlock} />
       <div
-        id={`issue-${issueId}`}
+        id={isCoachingCard ? getIssueBlockId(issueId, groupId, subGroupId) : `issue-${issueId}`}
+        ref={cardContainerRef}
         // make Z-index higher at the beginning of drag, to have a issue drag image of issue block without any overlaps
-        className={cn("group/kanban-block relative mb-2", { "z-[1]": isCurrentBlockDragging })}
+        className={cn(
+          "group/kanban-block relative mb-2",
+          isCoachingCard &&
+            "rounded-md border border-custom-border-200 bg-custom-background-100 transition-colors hover:border-custom-border-400",
+          isCoachingCard &&
+            getIsIssuePeeked(issue.id) &&
+            "border-custom-primary-70 ring-1 ring-custom-primary-70 hover:border-custom-primary-70",
+          { "z-[1]": isCurrentBlockDragging }
+        )}
         onDragStart={() => {
           if (isDragAllowed) setIsCurrentBlockDragging(true);
           else {
@@ -286,15 +313,31 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
           }
         }}
       >
+        {isCoachingCard && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-px left-px z-[1] w-[3px] rounded-l-md"
+            style={{
+              background: issue.coaching_card_data?.position_group
+                ? `linear-gradient(180deg, ${coachingCardAccent} 50%, #7a4488 50%)`
+                : coachingCardAccent,
+            }}
+          />
+        )}
         <ControlLink
-          id={getIssueBlockId(issueId, groupId, subGroupId)}
+          id={isCoachingCard ? undefined : getIssueBlockId(issueId, groupId, subGroupId)}
           href={workItemLink}
           ref={cardRef}
           className={cn(
-            "block rounded border-[1px] outline-[0.5px] outline-transparent w-full border-custom-border-200 bg-custom-background-100 text-sm transition-all hover:border-custom-border-400",
-            isCoachingCard && "relative rounded-md",
+            "block w-full text-sm",
+            isCoachingCard
+              ? "relative rounded-t-md"
+              : "rounded border-[1px] outline-[0.5px] outline-transparent border-custom-border-200 bg-custom-background-100 transition-all hover:border-custom-border-400",
             { "hover:cursor-pointer": isDragAllowed },
-            { "border border-custom-primary-70 hover:border-custom-primary-70": getIsIssuePeeked(issue.id) },
+            {
+              "border border-custom-primary-70 hover:border-custom-primary-70":
+                !isCoachingCard && getIsIssuePeeked(issue.id),
+            },
             { "bg-custom-background-80 z-[100]": isCurrentBlockDragging }
           )}
           onClick={() => handleIssuePeekOverview(issue)}
@@ -316,10 +359,24 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
               updateIssue={updateIssue}
               quickActions={quickActions}
               isReadOnly={!canEditIssueProperties}
+              cardStageConfig={cardStageConfig}
               isEpic={isEpic}
             />
           </RenderIfVisible>
         </ControlLink>
+        {isCoachingCard && (
+          <CoachingCardFooter issue={issue} projectIdentifier={projectIdentifier} config={cardStageConfig}>
+            {showCoachingActions && workspaceSlug && issue.project_id && (
+              <CoachingCardActions
+                issue={issue}
+                config={cardStageConfig}
+                workspaceSlug={workspaceSlug}
+                projectId={issue.project_id}
+                onChanged={handleCardChanged}
+              />
+            )}
+          </CoachingCardFooter>
+        )}
       </div>
     </>
   );

@@ -39,6 +39,13 @@ export interface IProjectIssues extends IBaseIssuesStore {
 
   createIssue: (workspaceSlug: string, projectId: string, data: Partial<TIssue>) => Promise<TIssue>;
   updateIssue: (workspaceSlug: string, projectId: string, issueId: string, data: Partial<TIssue>) => Promise<void>;
+  transitionCoachingCard: (
+    workspaceSlug: string,
+    projectId: string,
+    issueId: string,
+    stageId: string,
+    sortOrder?: number
+  ) => Promise<void>;
   archiveIssue: (workspaceSlug: string, projectId: string, issueId: string) => Promise<void>;
   quickAddIssue: (workspaceSlug: string, projectId: string, data: TIssue) => Promise<TIssue | undefined>;
   removeBulkIssues: (workspaceSlug: string, projectId: string, issueIds: string[]) => Promise<void>;
@@ -63,6 +70,7 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
       fetchIssues: action,
       fetchNextIssues: action,
       fetchIssuesWithExistingPagination: action,
+      transitionCoachingCard: action,
 
       quickAddIssue: action,
     });
@@ -104,8 +112,13 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
       // set loader and clear store
       runInAction(() => {
         this.setLoader(loadType);
-        this.clear(!isExistingPaginationOptions, false); // clear while fetching from server.
-        if (!this.groupBy) this.clear(!isExistingPaginationOptions, true); // clear while using local to have the no load effect.
+        if (loadType === "mutation" && this.groupedIssueIds !== undefined) {
+          this.controller.abort();
+          this.controller = new AbortController();
+        } else {
+          this.clear(!isExistingPaginationOptions, false);
+          if (!this.groupBy) this.clear(!isExistingPaginationOptions, true);
+        }
       });
 
       // get params from pagination options
@@ -117,8 +130,13 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
         signal: this.controller.signal,
       });
 
-      // after fetching issues, call the base method to process the response further
-      this.onfetchIssues(response, options, workspaceSlug, projectId, undefined, !isExistingPaginationOptions);
+      // Replace retained groups atomically so background refreshes never expose an empty board.
+      runInAction(() => {
+        if (loadType === "mutation" && this.groupedIssueIds !== undefined) {
+          this.clear(!isExistingPaginationOptions, false);
+        }
+        this.onfetchIssues(response, options, workspaceSlug, projectId, undefined, !isExistingPaginationOptions);
+      });
       return response;
     } catch (error) {
       // set loader to undefined if errored out
@@ -183,6 +201,37 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
   ) => {
     if (!this.paginationOptions) return;
     return await this.fetchIssues(workspaceSlug, projectId, loadType, this.paginationOptions, true);
+  };
+
+  transitionCoachingCard = async (
+    workspaceSlug: string,
+    projectId: string,
+    issueId: string,
+    stageId: string,
+    sortOrder?: number
+  ) => {
+    const issue = this.rootIssueStore.issues.getIssueById(issueId);
+    if (!issue) throw new Error("Coaching card not found.");
+    const previous = { state_id: issue.state_id, sort_order: issue.sort_order };
+    const changes = { state_id: stageId, ...(sortOrder === undefined ? {} : { sort_order: sortOrder }) };
+    await this.issueUpdate(workspaceSlug, projectId, issueId, changes, false);
+
+    try {
+      await this.issueService.transitionCoachingCard(workspaceSlug, projectId, issueId, stageId);
+    } catch (error) {
+      await this.issueUpdate(workspaceSlug, projectId, issueId, previous, false);
+      throw error;
+    }
+
+    if (sortOrder !== undefined) {
+      try {
+        await this.issueService.patchIssue(workspaceSlug, projectId, issueId, { sort_order: sortOrder });
+      } catch (error) {
+        // The stage is already committed; only undo the failed reorder.
+        await this.issueUpdate(workspaceSlug, projectId, issueId, { sort_order: previous.sort_order }, false);
+        throw error;
+      }
+    }
   };
 
   /**
