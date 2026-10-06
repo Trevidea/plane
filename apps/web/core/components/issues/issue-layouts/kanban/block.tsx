@@ -7,7 +7,7 @@ import { draggable, dropTargetForElements } from "@atlaskit/pragmatic-drag-and-d
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 // plane helpers
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, MoreVertical } from "lucide-react";
 import { useOutsideClickDetector } from "@plane/hooks";
 // types
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
@@ -87,6 +87,11 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
   // hooks
   const { isMobile } = usePlatformOS();
 
+  // derived values
+  const subIssueCount = issue?.sub_issues_count ?? 0;
+  const isCoachingCard = isCoachingCardIssue(issue);
+  const MenuIcon = isCoachingCard ? MoreVertical : MoreHorizontal;
+
   const customActionButton = (
     <div
       ref={menuActionRef}
@@ -95,13 +100,9 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
       }`}
       onClick={() => setIsMenuActive(!isMenuActive)}
     >
-      <MoreHorizontal className="h-3.5 w-3.5" />
+      <MenuIcon className="h-3.5 w-3.5" />
     </div>
   );
-
-  // derived values
-  const subIssueCount = issue?.sub_issues_count ?? 0;
-  const isCoachingCard = isCoachingCardIssue(issue);
 
   const handleEventPropagation = (e: React.MouseEvent) => {
     e.stopPropagation();

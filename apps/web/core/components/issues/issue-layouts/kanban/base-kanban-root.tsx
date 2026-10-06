@@ -478,7 +478,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
           ref={scrollableContainerRef}
         >
           <div className="relative h-full w-max min-w-full bg-custom-background-90">
-            <div className="h-full w-max">
+            <div className="h-full w-max min-w-full">
               <CoachingCardStageContext.Provider value={cardStageConfig}>
                 <CoachingCardStageRequestContext.Provider value={requestStageChange}>
                   {hasCoachingSwimlanes ? (
