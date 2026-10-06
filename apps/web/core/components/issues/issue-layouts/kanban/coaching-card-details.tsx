@@ -1,11 +1,8 @@
 import { useParams } from "next/navigation";
-import useSWR from "swr";
-import { CalendarDays, Layers3, Play, UserRound, UsersRound, Video } from "lucide-react";
-import type { TIssue } from "@plane/types";
+import { CalendarDays, Layers3, UserRound, UsersRound } from "lucide-react";
+import type { TCoachingCardStageConfig, TIssue } from "@plane/types";
 import { cn, renderFormattedDate } from "@plane/utils";
 import { useProjectState } from "@/hooks/store/use-project-state";
-import { useAppRouter } from "@/hooks/use-app-router";
-import { IssueService } from "@/services/issue/issue.service";
 import { getCoachingCardSource } from "./coaching-card-source";
 
 const CARD_TYPES: Record<string, { label: string; accent: string; textClass: string }> = {
@@ -27,26 +24,19 @@ const CARD_TYPES: Record<string, { label: string; accent: string; textClass: str
 export const isCoachingCardIssue = (issue: TIssue) =>
   issue.category === "Coaching Card" && issue.coaching_card_data?.kind === "coaching_card";
 
-const formatClipDuration = (durationSeconds?: number | null) => {
-  if (durationSeconds === null || durationSeconds === undefined || !Number.isFinite(durationSeconds)) return "";
-  const seconds = Math.max(0, Math.round(durationSeconds));
-  return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
-};
+export const getCoachingCardAccent = (cardType?: string) => CARD_TYPES[cardType || ""]?.accent || "#2893cc";
 
 export const CoachingCardKanbanDetails = ({
   issue,
   projectIdentifier,
+  cardStageConfig,
 }: {
   issue: TIssue;
   projectIdentifier?: string;
+  cardStageConfig?: TCoachingCardStageConfig;
 }) => {
-  const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
-  const router = useAppRouter();
+  const { workspaceSlug } = useParams() as { workspaceSlug: string };
   const { getStateById } = useProjectState();
-  const { data: cardStageConfig } = useSWR(
-    workspaceSlug && projectId ? ["coaching-card-config", workspaceSlug, projectId] : null,
-    () => new IssueService().getCoachingCardConfig(workspaceSlug.toString(), projectId.toString())
-  );
   const card = issue.coaching_card_data;
   if (!card) return null;
 
@@ -60,7 +50,6 @@ export const CoachingCardKanbanDetails = ({
   const recipients = card.recipients ?? (card.player ? [card.player] : []);
   const firstRecipient = recipients[0];
   const jersey = firstRecipient?.jersey_number?.trim().replace(/^#/, "");
-  const viewedCount = recipients.filter((recipient) => Boolean(card.review?.viewed_by?.[recipient.id])).length;
   const source = getCoachingCardSource(card, workspaceSlug, issue.project_id, projectIdentifier);
   const cardContext = [
     card.metadata?.sport,
@@ -98,43 +87,14 @@ export const CoachingCardKanbanDetails = ({
             : stageName;
   const badgeColor = isResolved ? "#3edbb0" : type.accent;
   const qualifier = firstClip?.detail || firstClip?.secondary_detail || firstClip?.group;
-  const clipTitle = firstClip?.title || card.summary.primary_clip_title || "Video clip";
-  const clipMeta = clips.length > 1 ? `${clips.length} clips` : formatClipDuration(firstClip?.duration_seconds);
-  const evidenceUrl = card.primary_clip?.source_url || firstClip?.source_url || "";
-  const hasDirectEvidence = /^(https?:\/\/|\/)/i.test(evidenceUrl);
-  const canOpenEvidence = hasDirectEvidence || Boolean(source.href);
-  const openEvidence = () => {
-    if (hasDirectEvidence) window.open(evidenceUrl, "_blank", "noopener,noreferrer");
-    else if (source.href) router.push(source.href);
-  };
   const reviewDate =
     normalizedStageName === "player reviewed" || normalizedStageName === "in work" ? card.review?.completed_at : null;
   const assignmentDate = normalizedStageName === "assigned" ? card.review?.assigned_at : null;
   const dateLabel = reviewDate ? "Advanced" : assignmentDate ? "Delivered" : "Created";
   const date = reviewDate || assignmentDate || issue.created_at;
-  const startTime = new Date(issue.created_at).getTime();
-  const ageDays = Number.isFinite(startTime) ? Math.max(0, Math.floor((Date.now() - startTime) / 86_400_000)) : 0;
-  const statusLabel =
-    recipients.length === 0
-      ? "Awaiting assignee"
-      : normalizedStageName === "assigned"
-        ? viewedCount === 0
-          ? "Unopened · 0 viewed"
-          : `${viewedCount} of ${recipients.length} viewed`
-        : normalizedStageName === "player reviewed" || card.review?.completion_reason === "all_viewed"
-          ? "Reviewed"
-          : "";
 
   return (
     <div className="min-w-0 space-y-2 text-xs">
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 left-0 w-[3px]"
-        style={{
-          background: card.position_group ? `linear-gradient(180deg, ${type.accent} 50%, #7a4488 50%)` : type.accent,
-        }}
-      />
-
       <div className="flex min-w-0 items-center gap-1.5 pr-6 text-[11px] leading-4">
         <span className="shrink-0 font-medium text-custom-text-300">
           {projectIdentifier ? `${projectIdentifier}-${issue.sequence_id}` : `#${issue.sequence_id}`}
@@ -280,66 +240,6 @@ export const CoachingCardKanbanDetails = ({
           <CalendarDays className="h-3 w-3 shrink-0" aria-hidden="true" />
           {dateLabel} {renderFormattedDate(date)}
         </span>
-      </div>
-
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5 border-t border-custom-border-200 pt-2 text-[11px]">
-        {canOpenEvidence ? (
-          <span
-            role="button"
-            tabIndex={0}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-custom-background-80 text-custom-text-100 hover:bg-custom-background-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-custom-primary-100"
-            title={source.href && !hasDirectEvidence ? "Open uploaded video" : "Open original clip"}
-            aria-label={source.href && !hasDirectEvidence ? "Open uploaded video" : "Open original clip"}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              openEvidence();
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
-              event.preventDefault();
-              event.stopPropagation();
-              openEvidence();
-            }}
-          >
-            <Play className="h-3 w-3 fill-current" aria-hidden="true" />
-          </span>
-        ) : (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-custom-background-80 text-custom-text-300">
-            <Video className="h-3 w-3" aria-hidden="true" />
-          </span>
-        )}
-        <span className="min-w-0 flex-1 truncate text-custom-text-200" title={clipTitle}>
-          {clipTitle}
-        </span>
-        {clipMeta && <span className="shrink-0 text-custom-text-300">· {clipMeta}</span>}
-        {statusLabel && (
-          <span
-            className={cn(
-              "shrink-0 rounded px-2 py-1 text-[10px] font-medium",
-              recipients.length === 0
-                ? "bg-[#fd9038]/15 text-[#9a4800] dark:text-[#fd9038]"
-                : isResolved
-                  ? "bg-[#3edbb0]/15 text-[#006e54] dark:text-[#3edbb0]"
-                  : "bg-[#2893cc]/15 text-[#006b9a] dark:text-[#3aa8e5]"
-            )}
-          >
-            {statusLabel}
-          </span>
-        )}
-        {ageDays > 5 && !isResolved && (
-          <span
-            className={cn(
-              "shrink-0 rounded px-2 py-1 text-[10px] font-semibold",
-              ageDays >= 10
-                ? "bg-[#e05656]/15 text-[#a12727] dark:text-[#e05656]"
-                : "bg-[#fd9038]/15 text-[#9a4800] dark:text-[#fd9038]"
-            )}
-            title={`${ageDays} days since card creation`}
-          >
-            {ageDays}d
-          </span>
-        )}
       </div>
     </div>
   );

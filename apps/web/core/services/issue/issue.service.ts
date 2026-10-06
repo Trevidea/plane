@@ -59,10 +59,14 @@ export class IssueService extends APIService {
     workspaceSlug: string,
     projectId: string,
     cardId: string,
-    stageId: string
+    stageId: string,
+    reason?: string,
+    sortOrder?: number
   ): Promise<void> {
     await this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/transition/`, {
       stage_id: stageId,
+      ...(reason ? { reason } : {}),
+      ...(sortOrder === undefined ? {} : { sort_order: sortOrder }),
     }).catch((error) => {
       throw error?.response?.data;
     });

@@ -1,4 +1,5 @@
 from html import escape
+from math import isfinite
 from datetime import timedelta
 from uuid import UUID, uuid4
 from urllib.parse import quote
@@ -174,6 +175,13 @@ def _resolve_media_source(project, slug, source):
 
 class CardTransitionSerializer(serializers.Serializer):
     stage_id = serializers.UUIDField()
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=2000, default="")
+    sort_order = serializers.FloatField(required=False)
+
+    def validate_sort_order(self, value):
+        if not isfinite(value):
+            raise serializers.ValidationError("Card order must be a finite number.")
+        return value
 
 
 class CoachingCardMineQuerySerializer(serializers.Serializer):
@@ -629,7 +637,12 @@ class CoachingCardTransitionEndpoint(BaseAPIView):
         )
         if card is None:
             return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
-        transition_coaching_card(card, serializer.validated_data["stage_id"], request.user)
+        values = serializer.validated_data
+        if card.state_id != values["stage_id"] or "sort_order" not in values:
+            transition_coaching_card(card, values["stage_id"], request.user, values["reason"])
+        if "sort_order" in values:
+            card.sort_order = values["sort_order"]
+            card.save(update_fields=["sort_order", "updated_at"])
         return Response({"id": str(card.id), "stage_id": str(card.state_id)})
 
 
@@ -675,6 +688,13 @@ class CoachingCardStageHistoryEndpoint(BaseAPIView):
         ).exists():
             return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
         history = CardStageHistory.objects.filter(issue_id=card_id).values(
-            "id", "from_stage_id", "from_stage_name", "to_stage_id", "to_stage_name", "changed_by_id", "changed_at"
+            "id",
+            "from_stage_id",
+            "from_stage_name",
+            "to_stage_id",
+            "to_stage_name",
+            "changed_by_id",
+            "changed_at",
+            "reason",
         )
         return Response(list(history))

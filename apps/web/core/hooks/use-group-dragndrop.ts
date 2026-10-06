@@ -2,14 +2,13 @@
 
 import { useParams } from "next/navigation";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import type {
-  EIssuesStoreType,
-  TCoachingCardStageConfig,
-  TIssue,
-  TIssueGroupByOptions,
-  TIssueOrderByOptions,
-} from "@plane/types";
+import type { TCoachingCardStageConfig, TIssue, TIssueGroupByOptions, TIssueOrderByOptions } from "@plane/types";
+import { EIssuesStoreType } from "@plane/types";
 import { canTransitionCard } from "@/components/issues/issue-layouts/kanban/coaching-card-stage-model";
+import type {
+  CardStageRequest,
+  RequestCardStageChange,
+} from "@/components/issues/issue-layouts/kanban/coaching-card-stage-request-context";
 import type { GroupDropLocation } from "@/components/issues/issue-layouts/utils";
 import { handleGroupDragDrop } from "@/components/issues/issue-layouts/utils";
 import { IssueService } from "@/services/issue/issue.service";
@@ -36,7 +35,8 @@ export const useGroupIssuesDragNDrop = (
   orderBy: TIssueOrderByOptions | undefined,
   groupBy: TIssueGroupByOptions | undefined,
   subGroupBy?: TIssueGroupByOptions,
-  cardStageConfig?: TCoachingCardStageConfig
+  cardStageConfig?: TCoachingCardStageConfig,
+  requestCardStageChange?: RequestCardStageChange
 ) => {
   const { workspaceSlug } = useParams();
 
@@ -45,6 +45,7 @@ export const useGroupIssuesDragNDrop = (
   } = useIssueDetail();
   const { updateIssue, fetchIssues } = useIssuesActions(storeType);
   const cardService = new IssueService();
+  const { issues: projectIssues } = useIssues(EIssuesStoreType.PROJECT);
   const {
     issues: { getIssueIds, addCycleToIssue, removeCycleFromIssue, changeModulesInIssue },
   } = useIssues(storeType);
@@ -65,7 +66,8 @@ export const useGroupIssuesDragNDrop = (
         ADD: string[];
         REMOVE: string[];
       };
-    }
+    },
+    reason?: string
   ) => {
     const errorToastProps = {
       type: TOAST_TYPE.ERROR,
@@ -101,12 +103,44 @@ export const useGroupIssuesDragNDrop = (
     }
 
     const sourceIssue = getIssueById(issueId);
-    if (sourceIssue?.category === "Coaching Card" && data.state_id && data.state_id !== sourceIssue.state_id) {
+    if (sourceIssue?.category === "Coaching Card" && (data.state_id || data.sort_order !== undefined)) {
       if (!workspaceSlug) return;
+      const stageId = data.state_id ?? sourceIssue.state_id;
+      if (!stageId) throw new Error("Coaching card stage is unavailable.");
       try {
-        await cardService.transitionCoachingCard(workspaceSlug.toString(), projectId, issueId, data.state_id);
+        if (storeType === EIssuesStoreType.PROJECT) {
+          await projectIssues.transitionCoachingCard(
+            workspaceSlug.toString(),
+            projectId,
+            issueId,
+            stageId,
+            data.sort_order,
+            reason
+          );
+        } else {
+          await cardService.transitionCoachingCard(
+            workspaceSlug.toString(),
+            projectId,
+            issueId,
+            stageId,
+            reason,
+            data.sort_order
+          );
+        }
       } finally {
-        await fetchIssues("init-loader", { canGroup: true, perPageCount: 30 });
+        if (storeType === EIssuesStoreType.PROJECT) {
+          await projectIssues
+            .fetchIssuesWithExistingPagination(workspaceSlug.toString(), projectId, "mutation")
+            .catch(() =>
+              setToast({
+                type: TOAST_TYPE.ERROR,
+                title: "Board refresh failed",
+                message: "Refresh to see the latest card.",
+              })
+            );
+        } else {
+          await fetchIssues("init-loader", { canGroup: true, perPageCount: 30 });
+        }
       }
       return;
     }
@@ -124,8 +158,21 @@ export const useGroupIssuesDragNDrop = (
       return;
 
     const sourceIssue = source.id ? getIssueById(source.id) : undefined;
+    let request: CardStageRequest | null = null;
     if (sourceIssue?.category === "Coaching Card" && groupBy === "state" && source.groupId !== destination.groupId) {
-      if (!canTransitionCard(cardStageConfig, source.groupId, destination.groupId)) {
+      if (requestCardStageChange) {
+        request = await requestCardStageChange(sourceIssue, destination.groupId);
+        if (!request) return;
+        if (request.stageId !== destination.groupId) {
+          // A backward drop reopens the previous stage, not the arbitrary drop column.
+          destination = {
+            ...destination,
+            groupId: request.stageId,
+            columnId: `${request.stageId}__${destination.subGroupId || "null"}`,
+            id: undefined,
+          };
+        }
+      } else if (!canTransitionCard(cardStageConfig, source.groupId, destination.groupId)) {
         setToast({
           type: TOAST_TYPE.WARNING,
           title: "Stage unavailable",
@@ -140,7 +187,7 @@ export const useGroupIssuesDragNDrop = (
       destination,
       getIssueById,
       getIssueIds,
-      updateIssueOnDrop,
+      (boardId, issueId, data, updates) => updateIssueOnDrop(boardId, issueId, data, updates, request?.reason),
       groupBy,
       subGroupBy,
       orderBy !== "sort_order"
@@ -148,7 +195,7 @@ export const useGroupIssuesDragNDrop = (
       setToast({
         title: "Error!",
         type: TOAST_TYPE.ERROR,
-        message: err?.detail ?? err?.stage_id?.[0] ?? "Failed to perform this action",
+        message: err?.detail ?? err?.reason?.[0] ?? err?.stage_id?.[0] ?? "Failed to perform this action",
       });
     });
   };
