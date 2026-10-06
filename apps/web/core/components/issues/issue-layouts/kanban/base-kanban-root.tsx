@@ -32,11 +32,13 @@ import type { IQuickActionProps, TRenderQuickActions } from "../list/list-view-t
 //components
 import type { GroupDropLocation } from "../utils";
 import { getSourceFromDropPayload } from "../utils";
-import { canTransitionCard } from "./coaching-card-stage-model";
+import { CoachingCardStageContext } from "./coaching-card-stage-context";
+import { CoachingCardStageRequestContext } from "./coaching-card-stage-request-context";
 import { CoachingSwimlaneBoard } from "./coaching-swimlane-board";
 import { getSwimlaneLaneUpdate } from "./coaching-swimlane-model";
 import { KanBan } from "./default";
 import { KanBanSwimLanes } from "./swimlanes";
+import { useCoachingCardStageRequest } from "./use-coaching-card-stage-request";
 import { useSwimlanePreference } from "./use-swimlane-preference";
 
 export type KanbanStoreType =
@@ -73,6 +75,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
   const storeType = useIssueStoreType() as KanbanStoreType;
   const { allowPermissions } = useUserPermissions();
   const { issueMap, issuesFilter, issues } = useIssues(storeType);
+  const { issues: projectIssues } = useIssues(EIssuesStoreType.PROJECT);
   const { getProjectById } = useProject();
   const {
     issue: { getIssueById },
@@ -153,10 +156,16 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
     const refreshBoard = (event: Event) => {
       if ((event as CustomEvent<{ projectId: string }>).detail?.projectId !== projectId?.toString()) return;
       void refreshCardConfig();
-      void fetchIssues("init-loader", { canGroup: true, perPageCount: boardPageSize }, viewId);
+      void fetchIssues("mutation", { canGroup: true, perPageCount: boardPageSize }, viewId).catch(() =>
+        setToast({ type: TOAST_TYPE.ERROR, title: "Board refresh failed", message: "Refresh to see the latest card." })
+      );
     };
     window.addEventListener("coaching-card-created", refreshBoard);
-    return () => window.removeEventListener("coaching-card-created", refreshBoard);
+    window.addEventListener("coaching-card-updated", refreshBoard);
+    return () => {
+      window.removeEventListener("coaching-card-created", refreshBoard);
+      window.removeEventListener("coaching-card-updated", refreshBoard);
+    };
   }, [fetchIssues, isCoachingBoard, projectId, refreshCardConfig, boardPageSize, viewId]);
 
   const scrollableContainerRef = useRef<HTMLDivElement | null>(null);
@@ -180,12 +189,24 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
     [canEditPropertiesBasedOnProject, enableInlineEditing, isEditingAllowed]
   );
 
+  const refreshAfterAssignment = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("coaching-card-updated", { detail: { projectId: projectId?.toString() } }));
+  }, [projectId]);
+  const { requestStageChange, dialogs: stageDialogs } = useCoachingCardStageRequest(
+    cardStageConfig,
+    workspaceSlug?.toString() ?? "",
+    projectId?.toString() ?? "",
+    refreshAfterAssignment,
+    currentProject?.identifier
+  );
+
   const handleOnDrop = useGroupIssuesDragNDrop(
     storeType,
     orderBy,
     group_by,
     isCoachingBoard ? undefined : sub_group_by,
-    cardStageConfig
+    cardStageConfig,
+    isCoachingBoard ? requestStageChange : undefined
   );
 
   const handleSwimlaneDrop = useCallback(
@@ -212,14 +233,8 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
         });
         return;
       }
-      if (changedStage && !canTransitionCard(cardStageConfig, source.groupId, destination.groupId)) {
-        setToast({
-          type: TOAST_TYPE.WARNING,
-          title: "Stage unavailable",
-          message: "Select a stage on this coaching board.",
-        });
-        return;
-      }
+      const stageRequest = changedStage ? await requestStageChange(issue, destination.groupId) : null;
+      if (changedStage && !stageRequest) return;
       const slug = workspaceSlug.toString();
       const boardId = projectId.toString();
       let laneUpdate: ReturnType<typeof getSwimlaneLaneUpdate>;
@@ -242,8 +257,15 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
       }
       let stageMoved = false;
       try {
-        if (changedStage) {
-          await cardService.transitionCoachingCard(slug, boardId, issue.id, destination.groupId);
+        if (stageRequest) {
+          await projectIssues.transitionCoachingCard(
+            slug,
+            boardId,
+            issue.id,
+            stageRequest.stageId,
+            undefined,
+            stageRequest.reason
+          );
           stageMoved = true;
         }
         if (laneUpdate.issuePatch) {
@@ -263,7 +285,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
         });
       } finally {
         try {
-          await fetchIssues("init-loader", { canGroup: true, perPageCount: 1000 }, viewId);
+          await fetchIssues("mutation", { canGroup: true, perPageCount: 1000 }, viewId);
         } catch {
           setToast({
             type: TOAST_TYPE.ERROR,
@@ -280,8 +302,9 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
       canEditProperties,
       handleOnDrop,
       swimlaneView,
-      cardStageConfig,
+      requestStageChange,
       cardService,
+      projectIssues,
       updateIssue,
       fetchIssues,
       viewId,
@@ -419,6 +442,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
 
   return (
     <>
+      {stageDialogs}
       <DeleteIssueModal
         dataId={draggedIssueId}
         isOpen={deleteIssueModal}
@@ -454,17 +478,21 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
           ref={scrollableContainerRef}
         >
           <div className="relative h-full w-max min-w-full bg-custom-background-90">
-            <div className="h-full w-max">
-              {hasCoachingSwimlanes ? (
-                <CoachingSwimlaneBoard
-                  {...boardProps}
-                  view={swimlaneView}
-                  preferenceKey={preferenceKey}
-                  handleOnDrop={handleSwimlaneDrop}
-                />
-              ) : (
-                <KanBanView {...boardProps} handleOnDrop={handleOnDrop} />
-              )}
+            <div className="h-full w-max min-w-full">
+              <CoachingCardStageContext.Provider value={cardStageConfig}>
+                <CoachingCardStageRequestContext.Provider value={requestStageChange}>
+                  {hasCoachingSwimlanes ? (
+                    <CoachingSwimlaneBoard
+                      {...boardProps}
+                      view={swimlaneView}
+                      preferenceKey={preferenceKey}
+                      handleOnDrop={handleSwimlaneDrop}
+                    />
+                  ) : (
+                    <KanBanView {...boardProps} handleOnDrop={handleOnDrop} />
+                  )}
+                </CoachingCardStageRequestContext.Provider>
+              </CoachingCardStageContext.Provider>
             </div>
           </div>
         </div>

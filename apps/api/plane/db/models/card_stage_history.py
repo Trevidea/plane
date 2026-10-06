@@ -13,6 +13,7 @@ class CardStageHistory(BaseModel):
     to_stage_name = models.CharField(max_length=255)
     changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     changed_at = models.DateTimeField(default=timezone.now)
+    reason = models.CharField(max_length=2000, blank=True, default="")
 
     class Meta:
         db_table = "card_stage_history"
