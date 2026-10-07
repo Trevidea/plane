@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { ImageWithFallback } from "@plane/ui";
 
 interface Props {
   path: string | null;
@@ -9,7 +10,6 @@ interface Props {
 export const TeamLogo = ({ path, name }: Props) => {
   const [error, setError] = useState(false);
 
-
   const getImageUrl = (imagePath: string) => {
     if (!imagePath) return null;
     if (imagePath.startsWith("http") || imagePath.startsWith("data:")) return imagePath;
@@ -18,10 +18,9 @@ export const TeamLogo = ({ path, name }: Props) => {
 
   const fullUrl = path ? getImageUrl(path) : null;
 
-
   if (fullUrl && !error) {
     return (
-      <img
+      <ImageWithFallback
         src={fullUrl}
         alt={name}
         className="w-full h-full object-cover"
@@ -29,7 +28,6 @@ export const TeamLogo = ({ path, name }: Props) => {
       />
     );
   }
-
 
   return (
     <div className="w-full h-full flex items-center justify-center text-gray-500 text-xl bg-zinc-900">

@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { History, MessageSquare } from "lucide-react";
 // plane imports
 import type { IUserActivityResponse } from "@plane/types";
+import { ImageWithFallback } from "@plane/ui";
 import { calculateTimeAgo, getFileURL } from "@plane/utils";
 // components
 import { ActivityIcon, ActivityMessage, IssueLink } from "@/components/core/activity";
@@ -41,7 +42,7 @@ export const ActivityList: React.FC<Props> = observer((props) => {
                       {activityItem.field ? (
                         activityItem.new_value === "restore" && <History className="h-3.5 w-3.5 text-custom-text-200" />
                       ) : activityItem.actor_detail.avatar_url && activityItem.actor_detail.avatar_url !== "" ? (
-                        <img
+                        <ImageWithFallback
                           src={getFileURL(activityItem.actor_detail.avatar_url)}
                           alt={activityItem.actor_detail.display_name}
                           height={30}
@@ -120,7 +121,7 @@ export const ActivityList: React.FC<Props> = observer((props) => {
                                   )
                                 ) : activityItem.actor_detail.avatar_url &&
                                   activityItem.actor_detail.avatar_url !== "" ? (
-                                  <img
+                                  <ImageWithFallback
                                     src={getFileURL(activityItem.actor_detail.avatar_url)}
                                     alt={activityItem.actor_detail.display_name}
                                     height={24}

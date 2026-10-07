@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Ban, CirclePlus, Search } from "lucide-react";
+import { ImageWithFallback } from "@plane/ui";
 import { cn } from "@plane/utils";
-import { normalizeOppositionTeam, TOppositionTeamOption } from "@/helpers/opposition-team";
+import type { TOppositionTeamOption } from "@/helpers/opposition-team";
+import { normalizeOppositionTeam } from "@/helpers/opposition-team";
 
 type Team = TOppositionTeamOption;
 
@@ -12,11 +14,7 @@ interface OppositionTeamPropertyProps {
   storageKey?: string;
 }
 
-const OppositionTeamProperty: React.FC<OppositionTeamPropertyProps> = ({
-  value,
-  onChange,
-  disabled = false,
-}) => {
+const OppositionTeamProperty: React.FC<OppositionTeamPropertyProps> = ({ value, onChange, disabled = false }) => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -70,15 +68,13 @@ const OppositionTeamProperty: React.FC<OppositionTeamPropertyProps> = ({
         className={cn(
           "rounded-lg px-2 py-1 flex items-center justify-between",
           value ? "text-custom-text-100" : "text-custom-text-300",
-          disabled
-            ? "cursor-default"
-            : "cursor-pointer hover:bg-custom-background-80 hover:text-custom-text-100"
+          disabled ? "cursor-default" : "cursor-pointer hover:bg-custom-background-80 hover:text-custom-text-100"
         )}
       >
         {value ? (
           <div className="flex items-center gap-1.5">
             {value.logo ? (
-              <img
+              <ImageWithFallback
                 src={`${process.env.NEXT_PUBLIC_CP_SERVER_URL}/blobs/${value.logo}`}
                 alt={value.name}
                 className="w-5 h-5 rounded-full object-cover"
@@ -127,7 +123,7 @@ const OppositionTeamProperty: React.FC<OppositionTeamPropertyProps> = ({
                 className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-custom-background-80"
               >
                 {team.logo ? (
-                  <img
+                  <ImageWithFallback
                     src={`${process.env.NEXT_PUBLIC_CP_SERVER_URL}/blobs/${team.logo}`}
                     alt={team.name}
                     className="w-5 h-5 rounded-full object-cover"

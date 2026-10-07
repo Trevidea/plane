@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -10,6 +9,7 @@ import { ArrowLeft, Check, List, Settings, UploadCloud, Users } from "lucide-rea
 // types
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IGithubRepoCollaborator, IGithubServiceImportFormData } from "@plane/types";
+import Image from "@/components/common/image-with-fallback";
 // ui
 // components
 import {

@@ -273,12 +273,26 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
 
   return (
     <>
-      <Tooltip tooltipContent={recipientCount && !needsAssignment ? "Edit recipients" : "Assign to Player"}>
+      <Tooltip
+        tooltipContent={
+          recipientCount && !needsAssignment
+            ? "Edit recipients"
+            : needsAssignment
+              ? `Next: ${next?.name} — assign players`
+              : "Assign to Player"
+        }
+      >
         <Button
           unstyled
           type="button"
           onClick={() => setDialog("recipients")}
-          aria-label={recipientCount && !needsAssignment ? "Edit recipients" : "Assign to Player"}
+          aria-label={
+            recipientCount && !needsAssignment
+              ? "Edit recipients"
+              : needsAssignment
+                ? `Next: ${next?.name} — assign players`
+                : "Assign to Player"
+          }
           className={cn(
             "inline-flex h-6 shrink-0 items-center justify-center gap-1.5 rounded-md text-[11px] font-medium focus-visible:ring-2 focus-visible:ring-custom-primary-100",
             recipientCount && !needsAssignment
@@ -286,8 +300,14 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
               : "bg-custom-primary-100 px-2.5 text-white hover:opacity-90"
           )}
         >
-          <UsersRound className="h-3 w-3" aria-hidden="true" />
-          {(!recipientCount || needsAssignment) && "Assign to Player"}
+          <span className="shrink-0">
+            {needsAssignment ? (
+              <ArrowRight className="h-3 w-3" aria-hidden="true" />
+            ) : (
+              <UsersRound className="h-3 w-3" aria-hidden="true" />
+            )}
+          </span>
+          {(!recipientCount || needsAssignment) && (needsAssignment ? `Next: ${next?.name}` : "Assign to Player")}
         </Button>
       </Tooltip>
       {nextStage && !needsAssignment && (
@@ -302,7 +322,7 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
             className="inline-flex h-6 min-w-0 max-w-full items-center gap-1 rounded-md bg-custom-primary-100 px-2.5 text-[11px] font-medium text-white hover:opacity-90 focus-visible:ring-2 focus-visible:ring-custom-primary-100 disabled:opacity-50"
           >
             <ArrowRight className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span className="truncate">{nextStage.name}</span>
+            <span className="truncate">Next: {nextStage.name}</span>
           </Button>
         </Tooltip>
       )}

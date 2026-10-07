@@ -1,6 +1,6 @@
 # Coaching Card Clips
 
-Status: proposed specification for user review. The user approved the initial approach on October 6, 2026. Implementation has not started.
+Status: implemented in the workspace on October 6, 2026. See the implementation plan ledger for validation evidence. The running API image requires a rebuild to activate the new endpoints.
 
 ## Intent
 
@@ -60,7 +60,7 @@ On successful mutation, refresh/update the selected issue through the existing s
 
 ## Section and interactions
 
-Keep Clips in Overview immediately after workflow so evidence is prominent. Preserve title/assignment and the existing Overview, Discussion, Activity tabs. The section uses Plane buttons, tooltips, menus, badges, selectors, dialogs, loading primitives, editor patterns, and text/background/border tokens.
+Following the user's placement correction, put all card clips in a dedicated Clips tab beside Overview, Discussion, and Activity. Overview retains workflow, coaching note, and properties. A direct clip link opens the Clips tab. Preserve title/assignment. The section uses Plane buttons, tooltips, menus, badges, selectors, dialogs, loading primitives, editor patterns, and text/background/border tokens.
 
 Show the Clips header with Add clip, selected title and type/source/period/clock, one responsive 16:9 player, compact property-row details, optional note/tags, and the clip list. Rows contain a lazy thumbnail/play affordance, title, type/source, period/clock, source range and duration, author/date, tags, and overflow actions. Selection uses Plane selected/focus styling and keyboard activation. Switching rows only updates active player state and metadata, without fetching or remounting the entire detail view.
 

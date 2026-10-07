@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { useTheme } from "next-themes";
+import Image from "@/components/common/image-with-fallback";
 // assets
 import LogoSpinnerDark from "@/public/images/logo-spinner-dark.gif";
 import LogoSpinnerLight from "@/public/images/logo-spinner-light.gif";

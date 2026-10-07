@@ -1,10 +1,10 @@
 "use client";
 import { useState } from "react";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 // plane imports
 import { Button } from "@plane/propel/button";
+import Image from "@/components/common/image-with-fallback";
 // hooks
 import { useProject } from "@/hooks/store/use-project";
 import { useUserPermissions } from "@/hooks/store/user";

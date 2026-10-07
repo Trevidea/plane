@@ -8,7 +8,15 @@ def build_stage_config(sport, states):
     if not sport:
         raise ValueError("A project sport is required for coaching stages.")
 
-    ordered = sorted(states, key=lambda state: (state["sequence"], str(state["id"])))
+    # Settings order groups first; sequence values are only comparable within a group.
+    group_order = {
+        group: index
+        for index, group in enumerate(("backlog", "unstarted", "started", "completed", "cancelled"))
+    }
+    ordered = sorted(
+        states,
+        key=lambda state: (group_order.get(state.get("group"), 0), state["sequence"], str(state["id"])),
+    )
     if not ordered:
         raise ValueError("At least one coaching stage is required.")
 

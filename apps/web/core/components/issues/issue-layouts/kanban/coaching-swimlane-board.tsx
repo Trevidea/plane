@@ -76,7 +76,7 @@ export const CoachingSwimlaneBoard: React.FC<Props> = observer((props) => {
   }, [loadedCounts, issues, props.loadMoreIssues]);
   const coachColumns =
     view === "coach"
-      ? getGroupByColumns({ groupBy: "assignees", includeNone: true, isWorkspaceLevel: isWorkspaceLevel(storeType) })
+      ? getGroupByColumns({ groupBy: "created_by", includeNone: false, isWorkspaceLevel: isWorkspaceLevel(storeType) })
       : undefined;
   const coachById = new Map(coachColumns?.map((coach) => [coach.id, coach]));
   const availableLanes =
@@ -170,7 +170,9 @@ export const CoachingSwimlaneBoard: React.FC<Props> = observer((props) => {
             >
               {isCollapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
               {coach?.icon && <span className="shrink-0">{coach.icon}</span>}
-              {view === "player" && <Avatar name={laneLabel(group)} size="sm" />}
+              {(view === "player" || (view === "coach" && !coach?.icon)) && (
+                <Avatar name={laneLabel(group)} size="sm" />
+              )}
               {view === "player" && group.secondaryLabel?.startsWith("#") && (
                 <span className="flex size-6 shrink-0 items-center justify-center rounded bg-custom-background-80 text-xs">
                   {group.secondaryLabel.split(" · ")[0]}

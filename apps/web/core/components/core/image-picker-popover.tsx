@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useDropzone } from "react-dropzone";
 import type { Control } from "react-hook-form";
@@ -15,9 +14,10 @@ import { useOutsideClickDetector } from "@plane/hooks";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { EFileAssetType } from "@plane/types";
-import { Input, Loader } from "@plane/ui";
+import { ImageWithFallback, Input, Loader } from "@plane/ui";
 // helpers
 import { getFileURL } from "@plane/utils";
+import Image from "@/components/common/image-with-fallback";
 // hooks
 import { useDropdownKeyDown } from "@/hooks/use-dropdown-key-down";
 // services
@@ -246,7 +246,7 @@ export const ImagePickerPopover: React.FC<Props> = observer((props) => {
                                 onChange(image.urls.regular);
                               }}
                             >
-                              <img
+                              <ImageWithFallback
                                 src={image.urls.small}
                                 alt={image.alt_description}
                                 className="absolute left-0 top-0 h-full w-full cursor-pointer rounded object-cover"
@@ -285,7 +285,7 @@ export const ImagePickerPopover: React.FC<Props> = observer((props) => {
                                 onChange(image);
                               }}
                             >
-                              <img
+                              <ImageWithFallback
                                 src={image}
                                 alt={`Default program cover image- ${index}`}
                                 className="absolute left-0 top-0 h-full w-full cursor-pointer rounded object-cover"

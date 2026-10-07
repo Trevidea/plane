@@ -218,6 +218,8 @@ const getStateColumns = ({ projectId }: TGetColumns): IGroupByColumn[] | undefin
         <StateGroupIcon stateGroup={state.group} color={state.color} size={EIconSize.LG} percentage={state.order} />
       </div>
     ),
+    group: state.group,
+    sequence: state.sequence,
     payload: { state_id: state.id },
   }));
 };

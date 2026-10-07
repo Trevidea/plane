@@ -4,6 +4,7 @@ import type { FC } from "react";
 import { MoveRight } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
 // components
+import { Button } from "@plane/ui";
 import { EmptyState } from "@/components/common/empty-state";
 // hooks
 import { usePlatformOS } from "@/hooks/use-platform-os";
@@ -12,10 +13,11 @@ import emptyIssue from "@/public/empty-state/issue.svg";
 
 type TIssuePeekOverviewError = {
   removeRoutePeekId: () => void;
+  onRetry?: () => void;
 };
 
 export const IssuePeekOverviewError: FC<TIssuePeekOverviewError> = (props) => {
-  const { removeRoutePeekId } = props;
+  const { removeRoutePeekId, onRetry } = props;
   // hooks
   const { isMobile } = usePlatformOS();
 
@@ -32,9 +34,16 @@ export const IssuePeekOverviewError: FC<TIssuePeekOverviewError> = (props) => {
       <div className="w-full h-full">
         <EmptyState
           image={emptyIssue ?? undefined}
-          title="Work item does not exist"
-          description="The work item you are looking for does not exist, has been archived, or has been deleted."
+          title="Unable to load details"
+          description="Please try again. The item may be unavailable or you may no longer have access."
         />
+        {onRetry && (
+          <div className="flex justify-center">
+            <Button variant="neutral-primary" size="sm" onClick={onRetry}>
+              Retry
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

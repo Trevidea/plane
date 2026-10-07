@@ -5,10 +5,10 @@ import PhoneInput from "react-phone-input-2";
 import { v4 as uuidv4 } from "uuid";
 import { Pencil, Users } from "lucide-react";
 import { Button } from "@plane/propel/button";
-import { Input, ModalCore, EModalPosition, Label } from "@plane/ui";
-import { useOppositionTeams } from "../store/opposition-teams-context";
+import { ImageWithFallback, Input, ModalCore, EModalPosition, Label } from "@plane/ui";
 import { updateEntity } from "../services/update-opposition";
 import { generateFileOppositionName, getAbsoluteImageUrl, uploadImageToServer } from "../services/upload-service";
+import { useOppositionTeams } from "../store/opposition-teams-context";
 
 interface Team {
   id: string;
@@ -171,7 +171,7 @@ export const OppositionTeamModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <div className="relative">
               <div className="w-[50px] h-[50px] border border-custom-border-200 rounded overflow-hidden flex items-center justify-center">
                 {preview ? (
-                  <img
+                  <ImageWithFallback
                     src={preview} // preview contains either blob:url (new file) or http://server/blobs/path (existing)
                     alt="logo"
                     className="w-full h-full object-cover"
@@ -375,7 +375,7 @@ export const EditOppositionTeamModal: React.FC<Props> = ({ isOpen, onClose, team
           <div className="relative">
             <div className="w-[50px] h-[50px] border border-custom-border-200 rounded overflow-hidden">
               {preview ? (
-                <img src={preview} alt="logo" className="w-full h-full object-cover" />
+                <ImageWithFallback src={preview} alt="logo" className="w-full h-full object-cover" />
               ) : (
                 <Users className="text-zinc-500 text-3xl" />
               )}

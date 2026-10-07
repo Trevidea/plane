@@ -1,11 +1,11 @@
 import { Download, FileText, X } from "lucide-react";
-import { EModalPosition, EModalWidth, ModalCore } from "@plane/ui";
+import { ImageWithFallback, EModalPosition, EModalWidth, ModalCore } from "@plane/ui";
 
 import { LogoSpinner } from "@/components/common/logo-spinner";
 import { DOCUMENT_PREVIEW_STYLE } from "@/plane-web/features/media-library/utils/media-detail-utils";
 
-import type { TWebhookArtifact } from "./webhook-artifacts-types";
 import { WEBHOOK_DOCUMENT_PREVIEW_HEIGHT_CLASS } from "./webhook-artifacts-constants";
+import type { TWebhookArtifact } from "./webhook-artifacts-types";
 
 type TWebhookArtifactModalProps = {
   activeArtifact: TWebhookArtifact | null;
@@ -75,14 +75,19 @@ export const WebhookArtifactModal = ({
         {activeArtifact?.mediaType === "video" && (
           <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
             <div data-vjs-player className="h-full w-full">
-              <video ref={setVideoElement} className="video-js vjs-default-skin h-full w-full" playsInline preload="auto" />
+              <video
+                ref={setVideoElement}
+                className="video-js vjs-default-skin h-full w-full"
+                playsInline
+                preload="auto"
+              />
             </div>
           </div>
         )}
 
         {activeArtifact?.mediaType === "image" && (
           <div className="flex min-h-[420px] max-h-[70vh] w-full items-center justify-center overflow-hidden rounded-md bg-black/80 p-2">
-            <img
+            <ImageWithFallback
               src={activeArtifact.openUrl}
               alt={activeArtifact.title}
               className="max-h-[68vh] w-auto max-w-full object-contain"
@@ -107,7 +112,9 @@ export const WebhookArtifactModal = ({
                     <span>Loading preview...</span>
                   </div>
                 ) : documentPreviewError ? (
-                  <div className="flex h-full items-center justify-center text-xs text-custom-text-300">{documentPreviewError}</div>
+                  <div className="flex h-full items-center justify-center text-xs text-custom-text-300">
+                    {documentPreviewError}
+                  </div>
                 ) : documentPreviewHtml ? (
                   <div className="h-full overflow-hidden rounded-lg bg-white">
                     <iframe
@@ -118,7 +125,11 @@ export const WebhookArtifactModal = ({
                     />
                   </div>
                 ) : documentPreviewUrl ? (
-                  <iframe src={documentPreviewUrl} title={activeArtifact.title} className="h-full w-full rounded-lg bg-white" />
+                  <iframe
+                    src={documentPreviewUrl}
+                    title={activeArtifact.title}
+                    className="h-full w-full rounded-lg bg-white"
+                  />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs text-custom-text-300">
                     No preview available for this file.

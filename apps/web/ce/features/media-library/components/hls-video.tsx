@@ -46,6 +46,11 @@ export const HlsVideo = ({
 
     video.src = src;
     video.load();
+    return () => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
   }, [src, targetRef, onError]);
 
   return (

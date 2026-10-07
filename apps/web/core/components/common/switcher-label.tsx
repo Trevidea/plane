@@ -1,6 +1,7 @@
 import type { FC } from "react";
 import type { ISvgIcons } from "@plane/propel/icons";
 import type { TLogoProps } from "@plane/types";
+import { ImageWithFallback } from "@plane/ui";
 import { getFileURL, truncateText } from "@plane/utils";
 import { Logo } from "@/components/common/logo";
 
@@ -25,7 +26,7 @@ export const SwitcherIcon: FC<TSwitcherIconProps> = ({
 
   if (logo_url) {
     return (
-      <img
+      <ImageWithFallback
         src={getFileURL(logo_url)}
         alt="logo"
         className="rounded-sm object-cover"

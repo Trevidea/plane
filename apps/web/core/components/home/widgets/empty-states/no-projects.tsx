@@ -9,6 +9,7 @@ import { EUserPermissions, EUserPermissionsLevel, PROJECT_TRACKER_ELEMENTS } fro
 import { useLocalStorage } from "@plane/hooks";
 import { useTranslation } from "@plane/i18n";
 import { ProjectIcon } from "@plane/propel/icons";
+import { ImageWithFallback } from "@plane/ui";
 import { cn, getFileURL } from "@plane/utils";
 // helpers
 // hooks
@@ -94,7 +95,7 @@ export const NoProjectsEmptyState = observer(() => {
         currentUser?.avatar_url && currentUser?.avatar_url.trim() !== "" ? (
           <Link href={`/${workspaceSlug}/profile/${currentUser?.id}`}>
             <span className="relative flex size-4 items-center justify-center rounded-full p-4 capitalize text-white">
-              <img
+              <ImageWithFallback
                 src={getFileURL(currentUser?.avatar_url)}
                 className="absolute left-0 top-0 h-full w-full rounded-full object-cover"
                 alt={currentUser?.display_name || currentUser?.email}

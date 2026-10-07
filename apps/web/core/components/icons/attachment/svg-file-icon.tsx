@@ -1,5 +1,5 @@
 import React from "react";
-import Image from "next/image";
+import Image from "@/components/common/image-with-fallback";
 // image
 import SvgFileIcon from "@/public/attachment/svg-icon.png";
 // type

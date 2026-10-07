@@ -126,6 +126,7 @@ from .issue.coaching_card import (
     CoachingCardBulkCreateEndpoint,
     CoachingCardConfigEndpoint,
     CoachingCardDetailEndpoint,
+    CoachingCardClipsEndpoint,
     CoachingCardTransitionEndpoint,
     CoachingCardStageHistoryEndpoint,
     CoachingCardReviewCompleteEndpoint,

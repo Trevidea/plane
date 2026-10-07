@@ -76,13 +76,68 @@ export class IssueService extends APIService {
     workspaceSlug: string,
     projectId: string,
     cardId: string,
-    data: { player_ids?: string[]; position_group?: string; card_type?: string; priority?: string }
+    data: {
+      player_ids?: string[];
+      position_group?: string;
+      card_type?: string;
+      priority?: string;
+      title?: string;
+      feedback?: string;
+      program?: string;
+      level?: string;
+      season?: string;
+    }
   ): Promise<void> {
     await this.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/`, data).catch(
       (error) => {
         throw error?.response?.data;
       }
     );
+  }
+
+  async saveCoachingCardClip(
+    workspaceSlug: string,
+    projectId: string,
+    cardId: string,
+    data: Record<string, unknown>,
+    associationId?: string
+  ): Promise<Partial<TIssue>> {
+    const url = `/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/clips/`;
+    const response = associationId
+      ? await this.patch(`${url}${encodeURIComponent(associationId)}/`, data)
+      : await this.post(url, data);
+    return response.data;
+  }
+
+  async removeCoachingCardClip(
+    workspaceSlug: string,
+    projectId: string,
+    cardId: string,
+    associationId: string
+  ): Promise<Partial<TIssue>> {
+    const response = await this.delete(
+      `/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/clips/${encodeURIComponent(associationId)}/`
+    );
+    return response.data;
+  }
+
+  async getCoachingCardHistory(
+    workspaceSlug: string,
+    projectId: string,
+    cardId: string
+  ): Promise<
+    Array<{
+      id: string;
+      from_stage_name: string | null;
+      to_stage_name: string;
+      changed_by_id: string | null;
+      changed_at: string;
+      reason: string;
+    }>
+  > {
+    return this.get(
+      `/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/stage-history/`
+    ).then((response) => response.data);
   }
 
   async getIssuesFromServer(

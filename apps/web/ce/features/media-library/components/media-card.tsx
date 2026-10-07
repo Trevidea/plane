@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -12,13 +11,13 @@ import {
   File,
   FolderOpen,
   Image as ImageIcon,
-  ImageOff,
   LoaderCircle,
   PencilLine,
   Video,
 } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
-import { ETagSize, ETagVariant, Tag } from "@plane/ui";
+import { ETagSize, ETagVariant, Tag, ImageWithFallback } from "@plane/ui";
+import Image from "@/components/common/image-with-fallback";
 
 import { useVideoDuration } from "../hooks/use-video-duration";
 import type { TMediaItem } from "../types/media-library.types";
@@ -161,10 +160,7 @@ export const MediaCard = ({
   };
 
   const thumbnailUnavailableFallback = (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-custom-text-300">
-      <ImageOff className="h-16 w-16" strokeWidth={2.5} />
-      <span className="sr-only">Thumbnail unavailable</span>
-    </div>
+    <ImageWithFallback alt="Thumbnail unavailable" className="h-full w-full object-cover" />
   );
 
   const cardBody = (
@@ -265,9 +261,7 @@ export const MediaCard = ({
         ) : (
           <>
             {isThumbnailUnavailable ? (
-              <div className="flex h-full w-full items-center justify-center text-custom-text-300">
-                <File className="h-6 w-6" strokeWidth={3.5} />
-              </div>
+              thumbnailUnavailableFallback
             ) : (
               <Image
                 src={item.thumbnail}

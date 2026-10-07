@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
-// ui
 import { Button } from "@plane/propel/button";
+import Image from "@/components/common/image-with-fallback";
+// ui
 // assets
 import emptyApiTokens from "@/public/empty-state/api-token.svg";
 

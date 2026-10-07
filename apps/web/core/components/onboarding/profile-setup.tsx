@@ -16,7 +16,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IUser, TUserProfile, TOnboardingSteps } from "@plane/types";
 // ui
-import { Input, PasswordStrengthIndicator, Spinner } from "@plane/ui";
+import { ImageWithFallback, Input, PasswordStrengthIndicator, Spinner } from "@plane/ui";
 // components
 import { getFileURL, getPasswordStrength } from "@plane/utils";
 import { UserImageUploadModal } from "@/components/core/modals/user-image-upload-modal";
@@ -327,7 +327,7 @@ export const ProfileSetup: React.FC<Props> = observer((props) => {
                     </div>
                   ) : (
                     <div className="relative mr-3 h-16 w-16 overflow-hidden">
-                      <img
+                      <ImageWithFallback
                         src={getFileURL(userAvatar ?? "")}
                         className="absolute left-0 top-0 h-full w-full rounded-full object-cover"
                         onClick={() => setIsImageUploadModalOpen(true)}

@@ -2,10 +2,10 @@
 
 import React from "react";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 // ui
 import { Button } from "@plane/propel/button";
+import Image from "@/components/common/image-with-fallback";
 // images
 import Image404 from "@/public/404.svg";
 

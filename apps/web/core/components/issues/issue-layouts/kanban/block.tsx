@@ -31,6 +31,7 @@ import { usePlatformOS } from "@/hooks/use-platform-os";
 import { IssueIdentifier } from "@/plane-web/components/issues/issue-details/issue-identifier";
 // local components
 import { IssueStats } from "@/plane-web/components/issues/issue-layouts/issue-stats";
+import { canActivateCard } from "../../peek-overview/coaching-card/model";
 import type { TRenderQuickActions } from "../list/list-view-types";
 import { IssueProperties } from "../properties/all-properties";
 import { WithDisplayPropertiesHOC } from "../properties/with-display-properties-HOC";
@@ -197,6 +198,7 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
 
   const cardRef = useRef<HTMLAnchorElement | null>(null);
   const cardContainerRef = useRef<HTMLDivElement | null>(null);
+  const suppressClickUntil = useRef(0);
   // router
   const { workspaceSlug: routerWorkspaceSlug } = useParams();
   const workspaceSlug = routerWorkspaceSlug?.toString();
@@ -207,7 +209,8 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
   const { isMobile } = usePlatformOS();
 
   // handlers
-  const handleIssuePeekOverview = (issue: TIssue) => handleRedirection(workspaceSlug, issue, isMobile);
+  const handleIssuePeekOverview = (issue: TIssue) =>
+    handleRedirection(workspaceSlug, issue, isCoachingCardIssue(issue) ? false : isMobile);
 
   const issue = issuesMap[issueId];
 
@@ -254,10 +257,12 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
         canDrag: () => isDragAllowed,
         getInitialData: () => ({ id: issue?.id, type: "ISSUE" }),
         onDragStart: () => {
+          suppressClickUntil.current = Number.POSITIVE_INFINITY;
           setIsCurrentBlockDragging(true);
           setIsKanbanDragging(true);
         },
         onDrop: () => {
+          suppressClickUntil.current = Date.now() + 350;
           setIsKanbanDragging(false);
           setIsCurrentBlockDragging(false);
         },
@@ -289,6 +294,8 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
     <>
       <DropIndicator isVisible={!isCurrentBlockDragging && isDraggingOverBlock} />
       <div
+        data-coaching-card-id={isCoachingCard ? issue.id : undefined}
+        data-prevent-outside-click={isCoachingCard ? true : undefined}
         id={isCoachingCard ? getIssueBlockId(issueId, groupId, subGroupId) : `issue-${issueId}`}
         ref={cardContainerRef}
         // make Z-index higher at the beginning of drag, to have a issue drag image of issue block without any overlaps
@@ -332,7 +339,7 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
           className={cn(
             "block w-full text-sm",
             isCoachingCard
-              ? "relative rounded-t-md"
+              ? "relative rounded-t-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100"
               : "rounded border-[1px] outline-[0.5px] outline-transparent border-custom-border-200 bg-custom-background-100 transition-all hover:border-custom-border-400",
             { "hover:cursor-pointer": isDragAllowed },
             {
@@ -341,7 +348,15 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
             },
             { "bg-custom-background-80 z-[100]": isCurrentBlockDragging }
           )}
-          onClick={() => handleIssuePeekOverview(issue)}
+          onClick={(event) => {
+            const target = event.target as HTMLElement;
+            const interactive =
+              Boolean(target.closest("button, input, select, textarea, [role='button'], [role='menuitem']")) ||
+              Boolean(target.closest("a") && target.closest("a") !== event.currentTarget);
+            if (canActivateCard({ now: Date.now(), suppressUntil: suppressClickUntil.current, interactive })) {
+              handleIssuePeekOverview(issue);
+            }
+          }}
           disabled={!!issue?.tempId}
         >
           <RenderIfVisible

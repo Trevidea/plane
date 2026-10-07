@@ -23,6 +23,7 @@ type Props = TDropdownProps & {
   icon?: React.ReactNode;
   clearIconClassName?: string;
   dropdownClassName?: string;
+  isClearable?: boolean;
 };
 
 export const YearRangeDropdown: React.FC<Props> = observer((props) => {
@@ -42,6 +43,7 @@ export const YearRangeDropdown: React.FC<Props> = observer((props) => {
     onChange,
     startYear = 2020,
     dropdownClassName = "",
+    isClearable = true,
   } = props;
 
   const [search, setSearch] = useState("");
@@ -73,9 +75,7 @@ export const YearRangeDropdown: React.FC<Props> = observer((props) => {
   };
 
   const yearRanges = generateYearSessions(startYear);
-  const filteredRanges = yearRanges.filter((y) =>
-    y.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredRanges = yearRanges.filter((y) => y.toLowerCase().includes(search.toLowerCase()));
 
   const handleSelect = (range: string | null) => {
     console.log("[YearRangeDropdown] selected:", range);
@@ -118,7 +118,7 @@ export const YearRangeDropdown: React.FC<Props> = observer((props) => {
           <span className="flex-grow truncate">{displayValue}</span>
         )}
 
-        {!!value && !disabled && (
+        {!!value && !disabled && isClearable && (
           <X
             className={cn("h-2.5 w-2.5 flex-shrink-0", clearIconClassName)}
             onClick={(e) => {
@@ -145,6 +145,7 @@ export const YearRangeDropdown: React.FC<Props> = observer((props) => {
       {isOpen &&
         createPortal(
           <div
+            data-prevent-outside-click
             ref={setPopperElement}
             style={styles.popper}
             {...attributes.popper}
@@ -167,17 +168,19 @@ export const YearRangeDropdown: React.FC<Props> = observer((props) => {
             </div>
 
             {/* None */}
-            <div
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleSelect(null);
-              }}
-              className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-custom-background-80"
-            >
-              <Ban className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs text-gray-400">None</span>
-            </div>
+            {isClearable && (
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelect(null);
+                }}
+                className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-custom-background-80"
+              >
+                <Ban className="w-3.5 h-3.5 text-gray-400" />
+                <span className="text-xs text-gray-400">None</span>
+              </div>
+            )}
 
             {filteredRanges.map((range) => (
               <div

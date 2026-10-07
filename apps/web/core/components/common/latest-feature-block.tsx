@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 // icons
 import { Lightbulb } from "lucide-react";
+import Image from "@/components/common/image-with-fallback";
 // images
 import latestFeatures from "@/public/onboarding/onboarding-pages.webp";
 

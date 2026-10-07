@@ -223,3 +223,216 @@ test("uploaded HLS clips use the resolved media source rather than the local fil
   });
   assert.equal(clips[0].sourceUrl, "http://localhost:1437/media/master.m3u8");
 });
+
+test("timestamp entry accepts coaching timecodes and rejects invalid ranges", () => {
+  assert.equal(clipModel.parseClipTime("01:14:20"), 4460);
+  assert.equal(clipModel.parseClipTime("00:18.5"), 18.5);
+  assert.equal(clipModel.parseClipTime("31"), 31);
+  assert.equal(clipModel.parseClipTime("1:70"), null);
+  assert.equal(clipModel.parseClipTime("-1"), null);
+});
+
+test("clip grouping and sorting retain unknown future types", () => {
+  const clips = [
+    { key: "a", title: "Game", clipType: "game_film", addedAt: "2026-10-01" },
+    { key: "b", title: "Practice", clipType: "practice_check", addedAt: "2026-10-03" },
+    { key: "c", title: "Future", clipType: "future_type", addedAt: "2026-10-02" },
+  ] as clipModel.CoachingCardDetailClip[];
+  assert.deepEqual(
+    clipModel.filterAndSortClips(clips, "all", "newest").map((clip) => clip.key),
+    ["b", "c", "a"]
+  );
+  assert.deepEqual(
+    clipModel.filterAndSortClips(clips, "practice", "oldest").map((clip) => clip.key),
+    ["b"]
+  );
+  assert.deepEqual(
+    clipModel.filterAndSortClips(clips, "other", "oldest").map((clip) => clip.key),
+    ["c"]
+  );
+  assert.deepEqual(
+    clips.map((clip) => clip.key),
+    ["a", "b", "c"]
+  );
+});
+
+test("durable clip metadata and association identity normalize from the API", () => {
+  const data = card({
+    playlists: [
+      {
+        id: "practice",
+        name: "Practice",
+        clips: [
+          {
+            id: "film",
+            key: "film",
+            association_id: "saved-association",
+            title: "Footwork",
+            source_url: "/practice.m3u8",
+            clip_type: "practice_check",
+            source_name: "Tuesday practice",
+            created_by: { id: "coach", name: "Coach Smith" },
+            created_at: "2026-10-06",
+            note: "Watch the first step",
+            tags: ["Footwork"],
+            period: "Rep 2",
+            game_clock: "08:42",
+            playback_mode: "clip",
+            start_seconds: 18,
+            end_seconds: 31,
+            duration_seconds: 13,
+            thumbnail: null,
+            timecode: "",
+            team: "",
+            detail: "",
+            result: "",
+            secondary_detail: "",
+            group: "",
+          },
+        ],
+      },
+    ],
+  });
+  const [clip] = buildCoachingCardClips(data, "2026-01-01");
+  assert.equal(clip.key, "saved-association");
+  assert.equal(clip.clipType, "practice_check");
+  assert.equal(clip.sourceName, "Tuesday practice");
+  assert.equal(clip.createdBy, "Coach Smith");
+  assert.equal(clip.addedAt, "2026-10-06");
+  assert.equal(clip.playbackMode, "clip");
+  assert.equal(clip.note, "Watch the first step");
+});
+
+test("explicit clipped playlists use local coordinates even when the original start fits the duration", () => {
+  assert.deepEqual(
+    getClipPlaybackRange({ startSeconds: 6, endSeconds: 14, durationSeconds: 8, playbackMode: "clip" }, 8),
+    { start: 0, end: 8, duration: 8 }
+  );
+});
+
+test("a subrange of a generated clip keeps the original playlist coordinate anchor", () => {
+  assert.deepEqual(
+    getClipPlaybackRange(
+      { startSeconds: 20, endSeconds: 25, durationSeconds: 5, playbackMode: "clip", sourceStartSeconds: 18 },
+      13
+    ),
+    { start: 2, end: 7, duration: 5 }
+  );
+});
+
+test("HLS detection recognizes proxied manifests with encoded query strings", () => {
+  assert.equal(
+    clipModel.isCoachingClipHls("/api/hls?url=https%3A%2F%2Ffilm.example%2Fmaster.m3u8%3Ftoken%3Dabc"),
+    true
+  );
+  assert.equal(clipModel.isCoachingClipHls("https://film.example/video.mp4"), false);
+});
+
+test("replacement payload explicitly clears obsolete uploaded and stream identities", () => {
+  const payload = clipModel.clipMutationPayload(
+    {
+      key: "saved",
+      slot: 0,
+      playlistName: "Film",
+      thumbnail: null,
+      addedAt: "2026-10-06",
+      title: "Replacement",
+      sourceUrl: "/new.m3u8",
+      startSeconds: 0,
+      endSeconds: null,
+      durationSeconds: null,
+      playbackMode: "source",
+      tags: [],
+    } as clipModel.CoachingCardDetailClip,
+    "request"
+  );
+  assert.equal(payload.source_media, null);
+  assert.equal(payload.stream_id, "");
+  assert.equal(payload.start_segment, null);
+  assert.equal(payload.source_start_seconds, null);
+});
+
+test("an explicit full-source range beyond available media never falls back to unrelated footage", () => {
+  assert.throws(
+    () => getClipPlaybackRange({ startSeconds: 200, endSeconds: 208, durationSeconds: 8, playbackMode: "source" }, 100),
+    /range/i
+  );
+});
+
+test("primary association does not overwrite a second association of the same upstream clip", () => {
+  const base = {
+    id: "film",
+    key: "film",
+    title: "Film",
+    thumbnail: null,
+    duration_seconds: 8,
+    timecode: "",
+    team: "",
+    detail: "",
+    result: "",
+    secondary_detail: "",
+    group: "",
+  };
+  const clips = buildCoachingCardClips(
+    card({
+      playlists: [
+        {
+          id: "game",
+          name: "Game",
+          clips: [
+            { ...base, association_id: "a", source_url: "/a.m3u8" },
+            { ...base, association_id: "b", source_url: "/b.m3u8" },
+          ],
+        },
+      ],
+      primary_clip: {
+        association_id: "a",
+        playlist_id: "game",
+        clip_id: "film",
+        media_id: "",
+        event_id: "",
+        source_url: "/primary.m3u8",
+        start_seconds: 0,
+        end_seconds: 8,
+      },
+    }),
+    "2026-10-06"
+  );
+  assert.equal(clips.find((clip) => clip.key === "b")?.sourceUrl, "/b.m3u8");
+});
+
+test("legacy clips in one combined playlist use distinct offsets instead of both restarting at zero", () => {
+  const data = card({
+    playlists: [
+      {
+        id: "combined",
+        name: "Game",
+        clips: [
+          {
+            id: "pass",
+            key: "pass",
+            title: "Pass",
+            source_url: "/combined.m3u8",
+            start_seconds: 200,
+            end_seconds: 208,
+            duration_seconds: 8,
+          },
+          {
+            id: "run",
+            key: "run",
+            title: "Run",
+            source_url: "/combined.m3u8",
+            start_seconds: 325,
+            end_seconds: 333,
+            duration_seconds: 8,
+          },
+        ],
+      },
+    ],
+  } as Partial<TCoachingCardData>);
+  const clips = buildCoachingCardClips(data, "2026-10-01");
+  assert.deepEqual(getClipPlaybackRange(clips[0], 16), { start: 0, end: 8, duration: 8 });
+  assert.deepEqual(getClipPlaybackRange(clips[1], 16), { start: 8, end: 16, duration: 8 });
+  // A full recording still uses the actual saved source timestamps.
+  assert.deepEqual(getClipPlaybackRange(clips[1], 400), { start: 325, end: 333, duration: 8 });
+});

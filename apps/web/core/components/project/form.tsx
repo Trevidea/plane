@@ -12,7 +12,7 @@ import { EmojiPicker } from "@plane/propel/emoji-icon-picker";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IProject, IWorkspace } from "@plane/types";
-import { CustomSelect, Input, TextArea, EmojiIconPickerTypes } from "@plane/ui";
+import { ImageWithFallback, CustomSelect, Input, TextArea, EmojiIconPickerTypes } from "@plane/ui";
 import { renderFormattedDate, getFileURL } from "@plane/utils";
 // components
 import { Logo } from "@/components/common/logo";
@@ -189,10 +189,10 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
     <form onSubmit={handleSubmit(onSubmit)}>
       <div className="relative h-44 w-full">
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        <img
+        <ImageWithFallback
           src={getFileURL(
             coverImage ??
-            "https://images.unsplash.com/photo-1672243775941-10d763d9adef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
+              "https://images.unsplash.com/photo-1672243775941-10d763d9adef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80"
           )}
           alt="Program cover image"
           className="h-44 w-full rounded-md object-cover"
@@ -388,7 +388,7 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
                     buttonClassName="!border-custom-border-200 !shadow-none font-medium rounded-md"
                     input
                     disabled={!isAdmin}
-                  // optionsClassName="w-full"
+                    // optionsClassName="w-full"
                   >
                     {NETWORK_CHOICES.map((network) => (
                       <CustomSelect.Option key={network.key} value={network.key}>

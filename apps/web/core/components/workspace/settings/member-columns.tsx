@@ -10,7 +10,7 @@ import { Pill, EPillVariant, EPillSize } from "@plane/propel/pill";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IUser, IWorkspaceMember } from "@plane/types";
 // plane ui
-import { CustomSelect, PopoverMenu, cn } from "@plane/ui";
+import { ImageWithFallback, CustomSelect, PopoverMenu, cn } from "@plane/ui";
 // helpers
 import { getFileURL } from "@plane/utils";
 // hooks
@@ -56,7 +56,7 @@ export const NameColumn: React.FC<NameProps> = (props) => {
               ) : avatar_url && avatar_url.trim() !== "" ? (
                 <Link href={`/${workspaceSlug}/profile/${id}`}>
                   <span className="relative flex h-6 w-6 items-center justify-center rounded-full capitalize text-white">
-                    <img
+                    <ImageWithFallback
                       src={getFileURL(avatar_url)}
                       className="absolute left-0 top-0 h-full w-full rounded-full object-cover"
                       alt={display_name || email}
