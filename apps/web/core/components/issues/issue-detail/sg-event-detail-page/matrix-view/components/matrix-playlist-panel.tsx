@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { HlsVideo } from "ce/features/media-library/components/hls-video";
 import { ChevronDown, ChevronRight, ClipboardList, Pencil, Plus, Trash2, Video, X } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import { AlertModalCore, Button, Checkbox } from "@plane/ui";
+import { ImageWithFallback, AlertModalCore, Button, Checkbox } from "@plane/ui";
 import type {
   TCustomPlaylist,
   TCustomPlaylistClip,
   TCustomPlaylistUpdatePayload,
 } from "@/services/media-library.service";
-import { HlsVideo } from "ce/features/media-library/components/hls-video";
 import { PLAYER_FRAME_CLASS } from "../../constants";
 import type { PlaylistDraft } from "../../playlist-draft";
 import type { SgTagRow } from "../../types";
@@ -480,7 +480,11 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
 
                               <span className="relative flex h-[50px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-black text-white/50">
                                 {clipCard.thumbnailUrl ? (
-                                  <img src={clipCard.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                                  <ImageWithFallback
+                                    src={clipCard.thumbnailUrl}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
                                 ) : (
                                   <Video className="h-4 w-4" />
                                 )}

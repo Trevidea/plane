@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 import type { StaticImageData } from "next/image";
-import Image from "next/image";
 import { X } from "lucide-react";
 // plane imports
 import { PRODUCT_TOUR_TRACKER_ELEMENTS } from "@plane/constants";
 import { Button } from "@plane/propel/button";
 import { PlaneLockup } from "@plane/propel/icons";
+import Image from "@/components/common/image-with-fallback";
 // helpers
 import { captureClick } from "@/helpers/event-tracker.helper";
 // hooks

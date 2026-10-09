@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
 // plane imports
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -14,6 +13,7 @@ import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TPage, TPageNavigationTabs } from "@plane/types";
 import { EUserProjectRoles } from "@plane/types";
+import Image from "@/components/common/image-with-fallback";
 // components
 import { DetailedEmptyState } from "@/components/empty-state/detailed-empty-state-root";
 import { PageLoader } from "@/components/pages/loaders/page-loader";

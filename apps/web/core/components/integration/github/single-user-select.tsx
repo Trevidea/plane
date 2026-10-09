@@ -5,7 +5,7 @@ import useSWR from "swr";
 // plane types
 import type { IGithubRepoCollaborator } from "@plane/types";
 // plane ui
-import { Avatar, CustomSelect, CustomSearchSelect, Input } from "@plane/ui";
+import { ImageWithFallback, Avatar, CustomSelect, CustomSearchSelect, Input } from "@plane/ui";
 // constants
 import { getFileURL } from "@plane/utils";
 import { WORKSPACE_MEMBERS } from "@/constants/fetch-keys";
@@ -74,7 +74,7 @@ export const SingleUserSelect: React.FC<Props> = ({ collaborator, index, users, 
     <div className="grid grid-cols-3 items-center gap-2 rounded-md bg-custom-background-80 px-2 py-3">
       <div className="flex items-center gap-2">
         <div className="relative h-8 w-8 flex-shrink-0 rounded">
-          <img
+          <ImageWithFallback
             src={collaborator.avatar_url}
             className="absolute left-0 top-0 h-full w-full rounded object-cover"
             alt={`${collaborator.login} GitHub user`}

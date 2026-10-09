@@ -1,5 +1,5 @@
 import React from "react";
-import Image from "next/image";
+import Image from "@/components/common/image-with-fallback";
 // image
 import ZipFileIcon from "@/public/attachment/zip-icon.png";
 // type

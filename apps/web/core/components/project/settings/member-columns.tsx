@@ -7,7 +7,7 @@ import { Disclosure } from "@headlessui/react";
 import { ROLE, EUserPermissions, MEMBER_TRACKER_ELEMENTS } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { EUserProjectRoles, IUser, IWorkspaceMember, TProjectMembership } from "@plane/types";
-import { CustomMenu, CustomSelect } from "@plane/ui";
+import { ImageWithFallback, CustomMenu, CustomSelect } from "@plane/ui";
 import { getFileURL } from "@plane/utils";
 // hooks
 import { useMember } from "@/hooks/store/use-member";
@@ -46,7 +46,7 @@ export const NameColumn: React.FC<NameProps> = (props) => {
               {avatar_url && avatar_url.trim() !== "" ? (
                 <Link href={`/${workspaceSlug}/profile/${id}`}>
                   <span className="relative flex size-4 items-center justify-center rounded-full capitalize text-white">
-                    <img
+                    <ImageWithFallback
                       src={getFileURL(avatar_url)}
                       className="absolute left-0 top-0 h-full w-full rounded-full object-cover"
                       alt={display_name || email}

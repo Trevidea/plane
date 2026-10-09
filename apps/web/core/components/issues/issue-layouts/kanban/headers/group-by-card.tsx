@@ -46,7 +46,6 @@ interface IHeaderGroupByCard {
 
 export const HeaderGroupByCard: FC<IHeaderGroupByCard> = observer((props) => {
   const {
-    cardStageConfig,
     group_by,
     sub_group_by,
     column_id,
@@ -68,9 +67,6 @@ export const HeaderGroupByCard: FC<IHeaderGroupByCard> = observer((props) => {
   const storeType = useIssueStoreType();
   // router
   const { workspaceSlug, projectId, moduleId, cycleId } = useParams();
-
-  const displayTitle =
-    group_by === "state" ? (cardStageConfig?.stages.find((stage) => stage.id === column_id)?.name ?? title) : title;
 
   const renderExistingIssueModal = moduleId || cycleId;
   const ExistingIssuesListModalPayload = moduleId ? { module: moduleId.toString() } : { cycle: true };
@@ -139,7 +135,7 @@ export const HeaderGroupByCard: FC<IHeaderGroupByCard> = observer((props) => {
               verticalAlignPosition ? `vertical-lr max-h-[400px]` : ``
             }`}
           >
-            {displayTitle}
+            {title}
           </div>
           <div
             className={`flex-shrink-0 text-sm font-medium text-custom-text-300 ${verticalAlignPosition ? `pr-0.5` : `pl-2`}`}

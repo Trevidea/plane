@@ -1,7 +1,7 @@
 import React from "react";
-import Image from "next/image";
-// plane package imports
 import { cn } from "@plane/utils";
+import Image from "@/components/common/image-with-fallback";
+// plane package imports
 import { useResolvedAssetPath } from "@/hooks/use-resolved-asset-path";
 
 type Props = {

@@ -1,8 +1,8 @@
 "use client";
 
 import type { FC } from "react";
-import Image from "next/image";
 import { useTheme } from "next-themes";
+import Image from "@/components/common/image-with-fallback";
 // layouts
 import DefaultLayout from "@/layouts/default-layout";
 // components

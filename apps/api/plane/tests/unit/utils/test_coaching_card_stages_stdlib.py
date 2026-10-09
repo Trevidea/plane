@@ -28,6 +28,25 @@ class CoachingCardStageTests(unittest.TestCase):
         self.assertEqual(next_stage_id(config, "a"), "b")
         self.assertIsNone(next_stage_id(config, "b"))
 
+    def test_stage_order_matches_settings_groups_before_sequence(self):
+        config = build_stage_config(
+            "American Football",
+            [
+                {"id": "assigned", "name": "Assigned", "group": "backlog", "sequence": 9000},
+                {"id": "film", "name": "Film Tagged", "group": "unstarted", "sequence": 1},
+                {"id": "practice", "name": "Practice Check", "group": "started", "sequence": 10},
+                {"id": "identified", "name": "Identified", "group": "backlog", "sequence": 5000},
+                {"id": "verified", "name": "Verified on Film", "group": "completed", "sequence": 1},
+                {"id": "reviewed", "name": "Player Reviewed", "group": "started", "sequence": 5},
+            ],
+        )
+        self.assertEqual(
+            [stage["name"] for stage in config["stages"]],
+            ["Identified", "Assigned", "Film Tagged", "Player Reviewed", "Practice Check", "Verified on Film"],
+        )
+        self.assertEqual(config["initial_stage_id"], "identified")
+        self.assertEqual(next_stage_id(config, "assigned"), "film")
+
     def test_invalid_configuration_is_rejected(self):
         with self.assertRaises(ValueError):
             build_stage_config("", [{"id": "a", "name": "New", "sequence": 1}])

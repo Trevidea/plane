@@ -73,6 +73,7 @@ class IssueArchiveViewSet(BaseViewSet):
                     FileAsset.objects.filter(
                         issue_id=OuterRef("id"),
                         entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+                        is_uploaded=True,
                     )
                     .values("issue_id")
                     .annotate(count=Count("id"))

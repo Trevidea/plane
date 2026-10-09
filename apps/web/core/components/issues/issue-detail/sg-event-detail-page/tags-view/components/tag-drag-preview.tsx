@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Video } from "lucide-react";
+import Image from "@/components/common/image-with-fallback";
 import type { SgTagRow, SportTableKind } from "../../types";
 import { getClipDuration } from "../utils/tags-panel-model";
 

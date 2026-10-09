@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
@@ -11,6 +10,7 @@ import { ArrowLeft, Check, List, Settings, Users } from "lucide-react";
 // types
 import { Button } from "@plane/propel/button";
 import type { IJiraImporterForm } from "@plane/types";
+import Image from "@/components/common/image-with-fallback";
 // ui
 // fetch keys
 import { IMPORTER_SERVICES_LIST } from "@/constants/fetch-keys";

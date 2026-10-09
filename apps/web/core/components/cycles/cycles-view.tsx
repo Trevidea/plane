@@ -1,8 +1,8 @@
 import type { FC } from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
-// components
 import { useTranslation } from "@plane/i18n";
+import Image from "@/components/common/image-with-fallback";
+// components
 import { CyclesList } from "@/components/cycles/list";
 // ui
 import { CycleModuleListLayoutLoader } from "@/components/ui/loader/cycle-module-list-loader";

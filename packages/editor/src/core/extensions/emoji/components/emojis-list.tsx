@@ -3,6 +3,7 @@ import { SuggestionKeyDownProps, type SuggestionProps } from "@tiptap/suggestion
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 // plane imports
 import { useOutsideClickDetector } from "@plane/hooks";
+import { ImageWithFallback } from "@plane/ui";
 import { cn } from "@plane/utils";
 
 export type EmojiItem = {
@@ -151,7 +152,7 @@ export const EmojisListDropdown = forwardRef<EmojiListRef, EmojisListDropdownPro
               >
                 <span className="size-5 grid place-items-center flex-shrink-0 text-base">
                   {item.fallbackImage ? (
-                    <img src={item.fallbackImage} alt={item.name} className="size-4 object-contain" />
+                    <ImageWithFallback src={item.fallbackImage} alt={item.name} className="size-4 object-contain" />
                   ) : (
                     item.emoji
                   )}

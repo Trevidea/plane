@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { Video } from "lucide-react";
 import type { IRosterPlayer } from "@plane/types";
+import { ImageWithFallback } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { formatCardDuration, formatCardPlayer } from "./create-card-model";
 import type { CardClip, CardContextValues, CardPlaylist, CardPriority, CardType } from "./create-card-model";
@@ -16,7 +15,6 @@ export const CardClipThumbnail = ({
   className?: string;
   showLabel?: boolean;
 }) => {
-  const [failedSource, setFailedSource] = useState("");
   const source = clip?.thumbnail?.startsWith("/") ? clip.thumbnail : buildCustomPlaylistThumbnailUrl(clip?.thumbnail);
   return (
     <div
@@ -25,13 +23,7 @@ export const CardClipThumbnail = ({
         className
       )}
     >
-      {source && failedSource !== source ? (
-        <img src={source} alt="" className="h-full w-full object-cover" onError={() => setFailedSource(source)} />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-custom-text-300">
-          <Video className="h-5 w-5" />
-        </div>
-      )}
+      <ImageWithFallback src={source} alt="Clip thumbnail" className="h-full w-full object-cover" />
       {showLabel && clip && (
         <span className="absolute inset-x-0 bottom-0 truncate bg-black/70 px-1 py-0.5 text-[9px] uppercase text-white">
           {clip.title}

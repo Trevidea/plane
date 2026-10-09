@@ -1,5 +1,6 @@
 import { Download } from "lucide-react";
 import type { IExportData } from "@plane/types";
+import { ImageWithFallback } from "@plane/ui";
 import { getDate, getFileURL, renderFormattedDate } from "@plane/utils";
 
 type RowData = IExportData;
@@ -22,7 +23,7 @@ export const useExportColumns = () => {
             <div>
               {avatar_url && avatar_url.trim() !== "" ? (
                 <span className="relative flex h-4 w-4 items-center justify-center rounded-full capitalize text-white">
-                  <img
+                  <ImageWithFallback
                     src={getFileURL(avatar_url)}
                     className="absolute left-0 top-0 h-full w-full rounded-full object-cover"
                     alt={display_name || email}

@@ -1,12 +1,12 @@
 "use client";
 
 import type { FC } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { GOD_MODE_URL } from "@plane/constants";
 import { Button } from "@plane/propel/button";
 import { PlaneLockup } from "@plane/propel/icons";
+import Image from "@/components/common/image-with-fallback";
 // helpers
 // images
 // assets

@@ -1,11 +1,11 @@
 import { observer } from "mobx-react";
-import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
 // components
 import { EUserPermissionsLevel, MODULE_TRACKER_ELEMENTS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { EUserProjectRoles } from "@plane/types";
 import { ContentWrapper, Row, ERowVariant } from "@plane/ui";
+import Image from "@/components/common/image-with-fallback";
 import { ListLayout } from "@/components/core/list";
 import { ComicBoxButton } from "@/components/empty-state/comic-box-button";
 import { DetailedEmptyState } from "@/components/empty-state/detailed-empty-state-root";

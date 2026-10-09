@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useTheme } from "next-themes";
 // layouts
 import { Button } from "@plane/propel/button";
+import Image from "@/components/common/image-with-fallback";
 import { useAppRouter } from "@/hooks/use-app-router";
 import DefaultLayout from "@/layouts/default-layout";
 // images

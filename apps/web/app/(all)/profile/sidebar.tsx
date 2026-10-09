@@ -23,6 +23,7 @@ import { useOutsideClickDetector } from "@plane/hooks";
 import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
+import { ImageWithFallback } from "@plane/ui";
 import { cn, getFileURL } from "@plane/utils";
 // components
 import { SidebarNavItem } from "@/components/sidebar/sidebar-navigation";
@@ -213,7 +214,7 @@ export const ProfileLayoutSidebar = observer(() => {
                       }`}
                     >
                       {workspace?.logo_url && workspace.logo_url !== "" ? (
-                        <img
+                        <ImageWithFallback
                           src={getFileURL(workspace.logo_url)}
                           className="absolute left-0 top-0 h-full w-full rounded object-cover"
                           alt="Workspace Logo"

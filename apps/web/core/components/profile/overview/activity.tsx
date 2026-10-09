@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import useSWR from "swr";
 // ui
 import { useTranslation } from "@plane/i18n";
-import { Loader, Card } from "@plane/ui";
+import { ImageWithFallback, Loader, Card } from "@plane/ui";
 import { calculateTimeAgo, getFileURL } from "@plane/utils";
 // components
 import { ActivityMessage, IssueLink } from "@/components/core/activity";
@@ -49,7 +49,7 @@ export const ProfileActivity = observer(() => {
                 <div key={activity.id} className="flex gap-3">
                   <div className="flex-shrink-0 grid place-items-center overflow-hidden rounded h-6 w-6">
                     {activity.actor_detail?.avatar_url && activity.actor_detail?.avatar_url !== "" ? (
-                      <img
+                      <ImageWithFallback
                         src={getFileURL(activity.actor_detail?.avatar_url)}
                         alt={activity.actor_detail?.display_name}
                         className="rounded"

@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import useSWR, { mutate } from "swr";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IWorkspaceIntegration } from "@plane/types";
+import Image from "@/components/common/image-with-fallback";
 // components
 import { SelectRepository, SelectChannel } from "@/components/integration";
 // constants

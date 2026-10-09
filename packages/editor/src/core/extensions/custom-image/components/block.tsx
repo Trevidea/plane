@@ -1,5 +1,6 @@
 import { NodeSelection } from "@tiptap/pm/state";
 import React, { useRef, useState, useCallback, useLayoutEffect, useEffect } from "react";
+import { ImageWithFallback } from "@plane/ui";
 // plane imports
 import { cn } from "@plane/utils";
 // local imports
@@ -237,7 +238,7 @@ export const CustomImageBlock: React.FC<CustomImageBlockProps> = (props) => {
             style={{ width: size.width, height: size.height }}
           />
         )}
-        <img
+        <ImageWithFallback
           ref={imageRef}
           src={displayedImageSrc}
           onLoad={handleImageLoad}

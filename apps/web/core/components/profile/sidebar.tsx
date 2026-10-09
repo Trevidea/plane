@@ -16,7 +16,7 @@ import { useTranslation } from "@plane/i18n";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IUserProfileProjectSegregation } from "@plane/types";
 // plane ui
-import { Loader } from "@plane/ui";
+import { ImageWithFallback, Loader } from "@plane/ui";
 import { cn, renderFormattedDate, getFileURL } from "@plane/utils";
 // components
 import { Logo } from "@/components/common/logo";
@@ -103,7 +103,7 @@ export const ProfileSidebar: FC<TProfileSidebar> = observer((props) => {
                 </Link>
               </div>
             )}
-            <img
+            <ImageWithFallback
               src={
                 userData?.cover_image_url
                   ? getFileURL(userData?.cover_image_url)
@@ -114,7 +114,7 @@ export const ProfileSidebar: FC<TProfileSidebar> = observer((props) => {
             />
             <div className="absolute -bottom-[26px] left-5 h-[52px] w-[52px] rounded">
               {userData?.avatar_url && userData?.avatar_url !== "" ? (
-                <img
+                <ImageWithFallback
                   src={getFileURL(userData?.avatar_url)}
                   alt={userData?.display_name}
                   className="h-full w-full rounded object-cover"

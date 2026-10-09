@@ -18,6 +18,7 @@ import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useKanbanView } from "@/hooks/store/use-kanban-view";
 import { useProject } from "@/hooks/store/use-project";
+import { useProjectState } from "@/hooks/store/use-project-state";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useGroupIssuesDragNDrop } from "@/hooks/use-group-dragndrop";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
@@ -33,6 +34,7 @@ import type { IQuickActionProps, TRenderQuickActions } from "../list/list-view-t
 import type { GroupDropLocation } from "../utils";
 import { getSourceFromDropPayload } from "../utils";
 import { CoachingCardStageContext } from "./coaching-card-stage-context";
+import { alignCardStageConfig } from "./coaching-card-stage-model";
 import { CoachingCardStageRequestContext } from "./coaching-card-stage-request-context";
 import { CoachingSwimlaneBoard } from "./coaching-swimlane-board";
 import { getSwimlaneLaneUpdate } from "./coaching-swimlane-model";
@@ -77,6 +79,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
   const { issueMap, issuesFilter, issues } = useIssues(storeType);
   const { issues: projectIssues } = useIssues(EIssuesStoreType.PROJECT);
   const { getProjectById } = useProject();
+  const { getProjectStates } = useProjectState();
   const {
     issue: { getIssueById },
   } = useIssueDetail(isEpic ? EIssueServiceType.EPICS : EIssueServiceType.ISSUES);
@@ -143,13 +146,15 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
   }, [group_by, sub_group_by, isCoachingBoard, projectId, updateFilters]);
   const cardService = useMemo(() => new IssueService(), []);
   const {
-    data: cardStageConfig,
+    data: fetchedCardStageConfig,
     error: cardConfigError,
     mutate: refreshCardConfig,
   } = useSWR(
     isCoachingBoard && workspaceSlug && projectId ? ["coaching-card-config", workspaceSlug, projectId] : null,
     () => cardService.getCoachingCardConfig(workspaceSlug.toString(), projectId.toString())
   );
+
+  const cardStageConfig = alignCardStageConfig(fetchedCardStageConfig, getProjectStates(projectId?.toString()));
 
   useEffect(() => {
     if (!isCoachingBoard) return;
@@ -223,6 +228,14 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
           { ...source, subGroupId: "null", columnId: `${source.groupId}__null` },
           { ...destination, subGroupId: "null", columnId: `${destination.groupId}__null` }
         );
+        return;
+      }
+      if (swimlaneView === "coach") {
+        setToast({
+          type: TOAST_TYPE.WARNING,
+          title: "Coach is the card creator",
+          message: "Cards cannot be moved between creator lanes. Move them between stages within the same coach lane.",
+        });
         return;
       }
       if (swimlaneView === "aging" || swimlaneView === "stage") {

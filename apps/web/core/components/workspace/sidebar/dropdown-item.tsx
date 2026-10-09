@@ -8,6 +8,7 @@ import { Menu } from "@headlessui/react";
 import { EUserPermissions } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import type { IWorkspace } from "@plane/types";
+import { ImageWithFallback } from "@plane/ui";
 import { cn, getFileURL, getUserRole } from "@plane/utils";
 // plane web imports
 import { SubscriptionPill } from "@/plane-web/components/common/subscription/subscription-pill";
@@ -52,7 +53,7 @@ const SidebarDropdownItem = observer((props: TProps) => {
               }`}
             >
               {workspace?.logo_url && workspace.logo_url !== "" ? (
-                <img
+                <ImageWithFallback
                   src={getFileURL(workspace.logo_url)}
                   className="absolute left-0 top-0 h-full w-full rounded object-cover"
                   alt={t("workspace_logo")}

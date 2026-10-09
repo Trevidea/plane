@@ -2,9 +2,9 @@
 
 import React from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
-// utils
 import { cn } from "@plane/utils";
+import Image from "@/components/common/image-with-fallback";
+// utils
 
 type EmptyStateSize = "sm" | "lg";
 

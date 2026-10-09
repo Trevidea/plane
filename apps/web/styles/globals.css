@@ -1179,3 +1179,10 @@ div.web-view-spinner div.bar12 {
     border-radius: 4px;
   }
 }
+
+/* Theme only the generated placeholder; keep actual photos unchanged. */
+[data-theme="dark"] img[data-image-fallback="true"],
+[data-theme="dark-contrast"] img[data-image-fallback="true"],
+.dark img[data-image-fallback="true"] {
+  filter: invert(1) brightness(1.6);
+}

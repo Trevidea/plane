@@ -3,6 +3,7 @@ import type { SwimlaneView, TIssue } from "@plane/types";
 export type { SwimlaneView } from "@plane/types";
 
 type SwimlaneCard = Pick<TIssue, "id" | "state_id" | "assignee_ids" | "created_at"> & {
+  created_by?: string | null;
   start_date?: string | null;
   position_group?: string | null;
   priority?: string | null;
@@ -12,6 +13,7 @@ type SwimlaneCard = Pick<TIssue, "id" | "state_id" | "assignee_ids" | "created_a
     position_group?: string | null;
     card_type?: string;
     priority?: string;
+    metadata?: { author?: { id: string; name?: string } };
   } | null;
 };
 
@@ -69,10 +71,19 @@ const ageLane = (issue: SwimlaneCard, now: Date): string => {
 const cardLanes = (issue: SwimlaneCard, view: Exclude<SwimlaneView, "stage">, now: Date): LaneCandidate[] => {
   const card = issue.coaching_card_data;
   switch (view) {
-    case "coach":
-      return issue.assignee_ids.length
-        ? issue.assignee_ids.map((id) => ({ id: `coach-${id}`, value: id, label: id }))
+    case "coach": {
+      const author = card?.metadata?.author;
+      const creatorId = issue.created_by || author?.id;
+      return creatorId
+        ? [
+            {
+              id: `coach-${creatorId}`,
+              value: creatorId,
+              label: author?.id === creatorId ? author.name || creatorId : creatorId,
+            },
+          ]
         : [{ id: "coach-unassigned", value: "", label: "Unassigned coach" }];
+    }
     case "player":
       if (card?.position_group || issue.position_group) {
         const position = card?.position_group || issue.position_group || "";
@@ -173,7 +184,7 @@ export const getSwimlaneLaneUpdate = (
   view: Exclude<SwimlaneView, "stage">,
   sourceLane: string,
   targetLane: string,
-  assigneeIds: string[],
+  _assigneeIds: string[],
   recipientIds: string[] = []
 ):
   | { issuePatch: { assignee_ids: string[] }; cardPatch?: never }
@@ -182,12 +193,7 @@ export const getSwimlaneLaneUpdate = (
       issuePatch?: never;
     } => {
   if (view === "coach") {
-    const previousCoach = sourceLane.startsWith("coach-") ? sourceLane.slice(6) : "";
-    const nextCoach = targetLane.startsWith("coach-") ? targetLane.slice(6) : "";
-    if (!nextCoach || nextCoach === "unassigned") throw new Error("Select an assigned coach lane.");
-    const nextAssignees = assigneeIds.filter((id) => id !== previousCoach);
-    if (!nextAssignees.includes(nextCoach)) nextAssignees.push(nextCoach);
-    return { issuePatch: { assignee_ids: nextAssignees } };
+    throw new Error("Coach lanes are based on who created the card and cannot be reassigned.");
   }
   if (view === "player") {
     if (targetLane.startsWith("player-") && targetLane !== "player-unassigned") {

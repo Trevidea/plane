@@ -9,7 +9,7 @@ import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssueServiceType } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
 // ui
-import { CustomMenu } from "@plane/ui";
+import { ImageWithFallback, CustomMenu } from "@plane/ui";
 import { calculateTimeAgo, copyTextToClipboard } from "@plane/utils";
 // helpers
 // hooks
@@ -54,7 +54,7 @@ export const IssueLinkItem: FC<TIssueLinkItem> = observer((props) => {
       >
         <div className="flex items-center gap-2.5 truncate flex-grow">
           {faviconUrl ? (
-            <img src={faviconUrl} alt="favicon" className="size-4" />
+            <ImageWithFallback src={faviconUrl} alt="favicon" className="size-4" />
           ) : (
             <Link className="size-4 text-custom-text-350 group-hover:text-custom-text-100" />
           )}

@@ -1,7 +1,7 @@
 import { observer } from "mobx-react";
-import Image from "next/image";
-// plane imports
 import { useTranslation } from "@plane/i18n";
+import Image from "@/components/common/image-with-fallback";
+// plane imports
 // components
 import { SingleProgressStats } from "@/components/core/sidebar/single-progress-stats";
 // public

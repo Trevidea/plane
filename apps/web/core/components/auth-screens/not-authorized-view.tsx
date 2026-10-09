@@ -1,6 +1,6 @@
 import React from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
+import Image from "@/components/common/image-with-fallback";
 // layouts
 import DefaultLayout from "@/layouts/default-layout";
 // images

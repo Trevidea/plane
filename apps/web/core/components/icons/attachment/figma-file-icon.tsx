@@ -1,5 +1,5 @@
 import React from "react";
-import Image from "next/image";
+import Image from "@/components/common/image-with-fallback";
 // image
 import FigmaFileIcon from "@/public/attachment/figma-icon.png";
 // type

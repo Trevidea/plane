@@ -1,6 +1,7 @@
 import { Download, ExternalLink, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+import { ImageWithFallback } from "@plane/ui";
 // plane imports
 import { cn } from "@plane/utils";
 
@@ -214,7 +215,7 @@ const ImageFullScreenModalWithoutPortal = (props: Props) => {
         >
           <X className="size-8 text-white/60 hover:text-white transition-colors" />
         </button>
-        <img
+        <ImageWithFallback
           ref={setImageRef}
           src={src}
           className="read-only-image rounded-lg"

@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useTheme } from "next-themes";
 // plane imports
 import { HEADER_GITHUB_ICON, GITHUB_REDIRECTED_TRACKER_EVENT } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
+import Image from "@/components/common/image-with-fallback";
 // helpers
 import { captureElementAndEvent } from "@/helpers/event-tracker.helper";
 // public imports

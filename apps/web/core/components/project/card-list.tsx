@@ -1,9 +1,9 @@
 import { observer } from "mobx-react";
-import Image from "next/image";
 // plane imports
 import { EUserPermissionsLevel, EUserPermissions, PROJECT_TRACKER_ELEMENTS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { ContentWrapper } from "@plane/ui";
+import Image from "@/components/common/image-with-fallback";
 // components
 import { ComicBoxButton } from "@/components/empty-state/comic-box-button";
 import { DetailedEmptyState } from "@/components/empty-state/detailed-empty-state-root";

@@ -2,6 +2,7 @@ import { useTheme } from "next-themes";
 // plane imports
 import type { TBillingFrequency } from "@plane/types";
 import { EProductSubscriptionEnum } from "@plane/types";
+import { ImageWithFallback } from "@plane/ui";
 import { cn } from "@plane/utils";
 
 type TDiscountInfoProps = {
@@ -41,7 +42,7 @@ export const DiscountInfo = ({ className, currency, frequency, price, subscripti
     <>
       {actualPrice != price && (
         <span className={cn("relative", className)}>
-          <img
+          <ImageWithFallback
             src={
               resolvedTheme === "dark"
                 ? "https://images.plane.so/pricing/hero/scribble-white.svg"

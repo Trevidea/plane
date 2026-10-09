@@ -2,7 +2,6 @@
 
 import type { FC, ReactNode } from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -17,6 +16,7 @@ import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 // components
 import { cn } from "@plane/utils";
+import Image from "@/components/common/image-with-fallback";
 import { LogoSpinner } from "@/components/common/logo-spinner";
 // hooks
 import { useFavorite } from "@/hooks/store/use-favorite";

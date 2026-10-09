@@ -17,7 +17,7 @@ import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IWorkspace } from "@plane/types";
-import { CustomSelect, Input } from "@plane/ui";
+import { ImageWithFallback, CustomSelect, Input } from "@plane/ui";
 import { WORKSPACE_DATE_FORMAT_OPTIONS, copyUrlToClipboard, getFileURL } from "@plane/utils";
 // components
 import { LogoSpinner } from "@/components/common/logo-spinner";
@@ -165,7 +165,7 @@ export const WorkspaceDetails: FC = observer(() => {
             <button type="button" onClick={() => setIsImageUploadModalOpen(true)} disabled={!isAdmin}>
               {workspaceLogo && workspaceLogo !== "" ? (
                 <div className="relative mx-auto flex h-14 w-14">
-                  <img
+                  <ImageWithFallback
                     src={getFileURL(workspaceLogo)}
                     className="absolute left-0 top-0 h-full w-full rounded-md object-cover"
                     alt="Workspace Logo"

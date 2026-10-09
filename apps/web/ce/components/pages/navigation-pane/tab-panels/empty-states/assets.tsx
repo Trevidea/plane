@@ -1,6 +1,6 @@
-import Image from "next/image";
-// plane imports
 import { useTranslation } from "@plane/i18n";
+import Image from "@/components/common/image-with-fallback";
+// plane imports
 // hooks
 import { useResolvedAssetPath } from "@/hooks/use-resolved-asset-path";
 

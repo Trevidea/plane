@@ -4,7 +4,7 @@ import type { FC } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
-import { Link2, MoveDiagonal, MoveRight, UploadCloud } from "lucide-react";
+import { Link2, MoveDiagonal, MoveRight, UploadCloud, X } from "lucide-react";
 // plane imports
 import { API_BASE_URL, WORK_ITEM_TRACKER_EVENTS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
@@ -13,7 +13,7 @@ import { TOAST_TYPE, setToast, updateToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssueAttachment, TNameDescriptionLoader } from "@plane/types";
 import { EIssuesStoreType } from "@plane/types";
-import { AlertModalCore, CustomSelect } from "@plane/ui";
+import { AlertModalCore, Badge, CustomSelect } from "@plane/ui";
 import { copyUrlToClipboard, generateWorkItemLink, getAssetIdFromUrl, getFileName, getFileURL } from "@plane/utils";
 // helpers
 import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
@@ -21,6 +21,7 @@ import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useMember } from "@/hooks/store/use-member";
 import { useProject } from "@/hooks/store/use-project";
+import { useProjectState } from "@/hooks/store/use-project-state";
 import { useUser } from "@/hooks/store/user";
 // hooks
 import { usePlatformOS } from "@/hooks/use-platform-os";
@@ -42,6 +43,7 @@ import {
 } from "../issue-detail-widgets/action-buttons";
 import { WorkItemDetailQuickActions } from "../issue-layouts/quick-action-dropdowns";
 import { NameDescriptionUpdateStatus } from "../issue-update-status";
+import { cardPeekUrl } from "./coaching-card/model";
 
 export type TPeekModes = "side-peek" | "modal" | "full-screen";
 
@@ -296,7 +298,10 @@ const fetchInlineImageResponse = async (url: string) => {
   const apiOrigin = getApiOrigin();
   const parsedUrl = typeof window !== "undefined" ? new URL(url, window.location.origin) : null;
   const isApiAssetUrl =
-    parsedUrl && apiOrigin && parsedUrl.origin === apiOrigin && parsedUrl.pathname.includes("/api/assets/v2/workspaces/");
+    parsedUrl &&
+    apiOrigin &&
+    parsedUrl.origin === apiOrigin &&
+    parsedUrl.pathname.includes("/api/assets/v2/workspaces/");
 
   const initialUrl = isApiAssetUrl ? appendJsonResponseParam(url) : url;
   const response = await fetch(initialUrl, {
@@ -350,13 +355,17 @@ const resolveInlineManifestCleanupArtifacts = ({
       .filter((entry) => entry && !entry.startsWith("data:"))
   );
   const inlineAssetIds = new Set(candidates.map(({ url }) => resolveInlineAssetId(url)).filter(Boolean));
-  const currentInlineSourceKeys = new Set(currentDescriptionImages.map((url) => normalizeInlineSourceKey(url)).filter(Boolean));
+  const currentInlineSourceKeys = new Set(
+    currentDescriptionImages.map((url) => normalizeInlineSourceKey(url)).filter(Boolean)
+  );
   const currentInlineUrlKeys = new Set(
     currentDescriptionImages
       .map((url) => normalizeUrlForCompare(resolveInlineAssetUrl(url)))
       .filter((entry) => entry && !entry.startsWith("data:"))
   );
-  const currentInlineAssetIds = new Set(currentDescriptionImages.map((url) => resolveInlineAssetId(url)).filter(Boolean));
+  const currentInlineAssetIds = new Set(
+    currentDescriptionImages.map((url) => resolveInlineAssetId(url)).filter(Boolean)
+  );
   const artifactNameCandidates = new Set<string>();
   candidates.forEach(({ url, index }) => {
     resolveInlineArtifactNames(url, index).forEach((name) => artifactNameCandidates.add(name));
@@ -462,6 +471,7 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
   const { getUserDetails } = useMember();
   const { isMobile } = usePlatformOS();
   const { getProjectIdentifierById } = useProject();
+  const { getStateById } = useProjectState();
   const [isAddingToMediaLibrary, setIsAddingToMediaLibrary] = useState(false);
   const [isInlineCleanupModalOpen, setIsInlineCleanupModalOpen] = useState(false);
   const [isInlineCleanupSubmitting, setIsInlineCleanupSubmitting] = useState(false);
@@ -474,6 +484,8 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
   // derived values
   const issueDetails = getIssueById(issueId);
+  const isCoachingCard =
+    issueDetails?.category === "Coaching Card" && issueDetails.coaching_card_data?.kind === "coaching_card";
   const currentMode = PEEK_OPTIONS.find((m) => m.key === peekMode);
   const projectIdentifier = getProjectIdentifierById(issueDetails?.project_id);
   const {
@@ -482,7 +494,7 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
   const createdByDetails = issueDetails?.created_by ? getUserDetails(issueDetails.created_by) : undefined;
   const createdByName = createdByDetails?.display_name?.includes("-intake")
     ? "Plane"
-    : createdByDetails?.display_name ?? issueDetails?.created_by ?? "";
+    : (createdByDetails?.display_name ?? issueDetails?.created_by ?? "");
   const baseEventMeta = useMemo(() => buildEventMeta(issueDetails, createdByName), [issueDetails, createdByName]);
   const attachmentIds = attachment.getAttachmentsByIssueId(issueId) ?? [];
   const attachmentCount = issueDetails?.attachment_count ?? attachmentIds.length;
@@ -645,7 +657,9 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
   const handleCopyText = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     e.preventDefault();
-    copyUrlToClipboard(workItemLink).then(() => {
+    copyUrlToClipboard(
+      isCoachingCard ? `${window.location.origin}${cardPeekUrl(window.location.href, issueId)}` : workItemLink
+    ).then(() => {
       setToast({
         type: TOAST_TYPE.SUCCESS,
         title: t("common.link_copied"),
@@ -1010,7 +1024,8 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
         content={
           <>
             You removed {inlineCleanupCandidates.length} inline image
-            {inlineCleanupCandidates.length === 1 ? "" : "s"} from the description. Do you also want to remove from the media library?
+            {inlineCleanupCandidates.length === 1 ? "" : "s"} from the description. Do you also want to remove from the
+            media library?
           </>
         }
       />
@@ -1019,53 +1034,72 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
           currentMode?.key === "full-screen" ? "border-b border-custom-border-200" : ""
         }`}
       >
-        <div className="flex items-center gap-4">
-          <Tooltip tooltipContent={t("common.close_peek_view")} isMobile={isMobile}>
-            <button onClick={removeRoutePeekId}>
-              <MoveRight className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-            </button>
-          </Tooltip>
-
-          <Tooltip tooltipContent={t("issue.open_in_full_screen")} isMobile={isMobile}>
-            <Link href={workItemLink} onClick={() => removeRoutePeekId()}>
-              <MoveDiagonal className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-            </Link>
-          </Tooltip>
-          {currentMode && embedIssue === false && (
-            <div className="flex flex-shrink-0 items-center gap-2">
-              <CustomSelect
-                value={currentMode}
-                onChange={(val: any) => setPeekMode(val)}
-                customButton={
-                  <Tooltip tooltipContent={t("common.toggle_peek_view_layout")} isMobile={isMobile}>
-                    <button type="button" className="">
-                      <currentMode.icon className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-                    </button>
-                  </Tooltip>
-                }
-              >
-                {PEEK_OPTIONS.map((mode) => (
-                  <CustomSelect.Option key={mode.key} value={mode.key}>
-                    <div
-                      className={`flex items-center gap-1.5 ${
-                        currentMode.key === mode.key
-                          ? "text-custom-text-200"
-                          : "text-custom-text-400 hover:text-custom-text-200"
-                      }`}
-                    >
-                      <mode.icon className="-my-1 h-4 w-4 flex-shrink-0" />
-                      {t(mode.i18n_title)}
-                    </div>
-                  </CustomSelect.Option>
-                ))}
-              </CustomSelect>
+        <div className="flex min-w-0 items-center gap-3">
+          {isCoachingCard ? (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-custom-text-300">
+              <span className="font-medium">
+                {projectIdentifier
+                  ? `${projectIdentifier}-${issueDetails.sequence_id}`
+                  : `#${issueDetails.sequence_id}`}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="truncate text-custom-text-200">
+                {issueDetails.coaching_card_data?.card_type || "Coaching card"}
+              </span>
+              <Badge size="sm" variant="neutral">
+                {getStateById(issueDetails.state_id)?.name || "Stage unavailable"}
+              </Badge>
             </div>
+          ) : (
+            <>
+              <Tooltip tooltipContent={t("common.close_peek_view")} isMobile={isMobile}>
+                <button onClick={removeRoutePeekId}>
+                  <MoveRight className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
+                </button>
+              </Tooltip>
+
+              <Tooltip tooltipContent={t("issue.open_in_full_screen")} isMobile={isMobile}>
+                <Link href={workItemLink} onClick={() => removeRoutePeekId()}>
+                  <MoveDiagonal className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
+                </Link>
+              </Tooltip>
+              {currentMode && embedIssue === false && (
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <CustomSelect
+                    value={currentMode}
+                    onChange={(val: any) => setPeekMode(val)}
+                    customButton={
+                      <Tooltip tooltipContent={t("common.toggle_peek_view_layout")} isMobile={isMobile}>
+                        <button type="button" className="">
+                          <currentMode.icon className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
+                        </button>
+                      </Tooltip>
+                    }
+                  >
+                    {PEEK_OPTIONS.map((mode) => (
+                      <CustomSelect.Option key={mode.key} value={mode.key}>
+                        <div
+                          className={`flex items-center gap-1.5 ${
+                            currentMode.key === mode.key
+                              ? "text-custom-text-200"
+                              : "text-custom-text-400 hover:text-custom-text-200"
+                          }`}
+                        >
+                          <mode.icon className="-my-1 h-4 w-4 flex-shrink-0" />
+                          {t(mode.i18n_title)}
+                        </div>
+                      </CustomSelect.Option>
+                    ))}
+                  </CustomSelect>
+                </div>
+              )}
+            </>
           )}
         </div>
         <div className="flex items-center gap-x-4">
           <NameDescriptionUpdateStatus isSubmitting={isSubmitting} />
           <div className="flex items-center gap-4">
-            {currentUser && !isArchived && (
+            {currentUser && !isArchived && !isCoachingCard && (
               <IssueSubscription workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} />
             )}
             {hasMediaAssets && (
@@ -1105,6 +1139,18 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
                 toggleEditIssueModal={toggleEditIssueModal}
                 isPeekMode
               />
+            )}
+            {isCoachingCard && (
+              <Tooltip tooltipContent="Close coaching card" isMobile={isMobile}>
+                <button
+                  type="button"
+                  aria-label="Close coaching card"
+                  onClick={removeRoutePeekId}
+                  className="rounded p-1 text-custom-text-300 hover:bg-custom-background-80 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>

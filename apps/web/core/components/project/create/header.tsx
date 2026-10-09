@@ -7,6 +7,7 @@ import { useTranslation } from "@plane/i18n";
 import { EmojiPicker, EmojiIconPickerTypes } from "@plane/propel/emoji-icon-picker";
 // plane types
 import type { IProject } from "@plane/types";
+import { ImageWithFallback } from "@plane/ui";
 // plane ui
 import { getFileURL, getTabIndex } from "@plane/utils";
 // components
@@ -32,7 +33,7 @@ const ProjectCreateHeader: React.FC<Props> = (props) => {
   return (
     <div className="group relative h-44 w-full rounded-lg bg-custom-background-80">
       {coverImage && (
-        <img
+        <ImageWithFallback
           src={getFileURL(coverImage)}
           className="absolute left-0 top-0 h-full w-full rounded-lg object-cover"
           alt={t("project_cover_image_alt")}

@@ -11,7 +11,7 @@ import { useTranslation } from "@plane/i18n";
 import { Button, getButtonStyling } from "@plane/propel/button";
 import { TOAST_TYPE, setPromiseToast, setToast } from "@plane/propel/toast";
 import type { IUser, TUserProfile } from "@plane/types";
-import { Input } from "@plane/ui";
+import { ImageWithFallback, Input } from "@plane/ui";
 import { cn, getFileURL } from "@plane/utils";
 // components
 import { DeactivateAccountModal } from "@/components/account/deactivate-account-modal";
@@ -185,7 +185,7 @@ export const ProfileForm = observer((props: TProfileFormProps) => {
       <form onSubmit={handleSubmit(onSubmit)} className="w-full">
         <div className="flex w-full flex-col gap-6">
           <div className="relative h-44 w-full">
-            <img
+            <ImageWithFallback
               src={userCover ? getFileURL(userCover) : "https://images.unsplash.com/photo-1506383796573-caf02b4a79ab"}
               className="h-44 w-full rounded-lg object-cover"
               alt={currentUser?.first_name ?? "Cover image"}
@@ -200,7 +200,7 @@ export const ProfileForm = observer((props: TProfileFormProps) => {
                       </div>
                     ) : (
                       <div className="relative h-16 w-16 overflow-hidden">
-                        <img
+                        <ImageWithFallback
                           src={getFileURL(userAvatar)}
                           className="absolute left-0 top-0 h-full w-full rounded-lg object-cover"
                           onClick={() => setIsImageUploadModalOpen(true)}

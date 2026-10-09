@@ -4,6 +4,7 @@ import type { FC } from "react";
 import { observer } from "mobx-react";
 import { Trash } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
+import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssueServiceType } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
@@ -19,6 +20,8 @@ import { getFileIcon } from "@/components/icons";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useMember } from "@/hooks/store/use-member";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import { resolveAttachmentDownloadUrl } from "../issue-detail-widgets/media-library-utils";
+import { openAttachment } from "./open-attachment";
 
 type TIssueAttachmentsListItem = {
   attachmentId: string;
@@ -53,7 +56,15 @@ export const IssueAttachmentsListItem: FC<TIssueAttachmentsListItem> = observer(
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          window.open(fileURL, "_blank");
+          void openAttachment(fileURL, () => window.open("about:blank", "_blank"), resolveAttachmentDownloadUrl).catch(
+            (error) => {
+              setToast({
+                type: TOAST_TYPE.ERROR,
+                title: "Unable to open attachment",
+                message: error instanceof Error ? error.message : "Please try again.",
+              });
+            }
+          );
         }}
       >
         <div className="group flex items-center justify-between gap-3 h-11 hover:bg-custom-background-90 pl-9 pr-2">

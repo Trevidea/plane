@@ -11,6 +11,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IUser } from "@plane/types";
 import { EOnboardingSteps } from "@plane/types";
+import { ImageWithFallback } from "@plane/ui";
 import { cn, getFileURL, getPasswordStrength } from "@plane/utils";
 // components
 import { UserImageUploadModal } from "@/components/core/modals/user-image-upload-modal";
@@ -177,7 +178,7 @@ export const ProfileSetupStep: FC<Props> = observer(({ handleStepChange }) => {
           onClick={() => setIsImageUploadModalOpen(true)}
         >
           {userAvatar ? (
-            <img
+            <ImageWithFallback
               src={getFileURL(userAvatar ?? "")}
               onClick={() => setIsImageUploadModalOpen(true)}
               alt={user?.display_name}

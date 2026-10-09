@@ -4,6 +4,7 @@ import type { FC } from "react";
 import { useState } from "react";
 import { observer } from "mobx-react";
 import { Menu, Transition } from "@headlessui/react";
+import { ImageWithFallback } from "@plane/ui";
 // ui
 import { cn, getFileURL } from "@plane/utils";
 // helpers
@@ -38,7 +39,7 @@ export const SwitchAccountDropdown: FC<TSwitchAccountDropdownProps> = observer((
         <Menu.Button className="flex items-center gap-x-2.5 px-2 py-1.5 rounded-lg bg-custom-background-90 z-10">
           <div className="size-6 rounded-full bg-green-700 flex items-center justify-center text-white font-semibold text-sm capitalize">
             {user?.avatar_url ? (
-              <img
+              <ImageWithFallback
                 src={getFileURL(user?.avatar_url)}
                 alt={user?.display_name}
                 className="w-full h-full rounded-full object-cover"

@@ -67,7 +67,7 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
 
   const minDate = new Date();
   minDate?.setDate(minDate.getDate());
-  const isReadOnly = disabled;
+  const isReadOnly = disabled || issue.category === "Coaching Card";
   const isDateTimeLocked = isReadOnly || isDateTimePast(issue.start_date, issue.start_time);
   const isSportLocked = isReadOnly || !!projectSport;
 

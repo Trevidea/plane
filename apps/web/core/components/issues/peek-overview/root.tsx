@@ -19,6 +19,7 @@ import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { useWorkItemProperties } from "@/plane-web/hooks/use-issue-properties";
 // local imports
 import type { TIssueOperations } from "../issue-detail";
+import { useCoachingPeekUrl } from "./coaching-card/use-coaching-peek-url";
 import { IssueView } from "./view";
 
 export const IssuePeekOverview: FC<IWorkItemPeekOverview> = observer((props) => {
@@ -31,6 +32,7 @@ export const IssuePeekOverview: FC<IWorkItemPeekOverview> = observer((props) => 
   const { t } = useTranslation();
   // router
   const pathname = usePathname();
+  useCoachingPeekUrl(!embedIssue);
   // store hook
   const { allowPermissions } = useUserPermissions();
 

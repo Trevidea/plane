@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { ArrowLeft, Check, Download, FileText, FileWarning, Pencil } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import { ImageFullScreenModal } from "@plane/editor";
-import { Button, EModalWidth, ModalCore } from "@plane/ui";
+import { ImageWithFallback, Button, EModalWidth, ModalCore } from "@plane/ui";
 import { LogoSpinner } from "@/components/common/logo-spinner";
 import type { TMediaItem } from "../types/media-library.types";
 import {
@@ -507,7 +507,7 @@ export const MediaDetailPreview = ({
             >
               {effectiveImageSrc ? (
                 imagePreviewAvailable ? (
-                  <img
+                  <ImageWithFallback
                     src={effectiveImageSrc}
                     alt={displayTitle}
                     loading="lazy"

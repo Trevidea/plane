@@ -40,7 +40,38 @@ export type TOppositionTeam = {
   logo: string;
 };
 
+export type TCoachingClipType =
+  | "original"
+  | "game_film"
+  | "practice_check"
+  | "verified_on_film"
+  | "coach_added"
+  | "player_submitted"
+  | "reference"
+  | "teaching"
+  | "scout"
+  | "comparison";
+
 export type TCoachingCardClip = {
+  association_id?: string;
+  clip_type?: TCoachingClipType | (string & {});
+  source_type?: string;
+  source_name?: string;
+  event_name?: string;
+  stream_id?: string;
+  start_segment?: number | null;
+  end_segment?: number | null;
+  playback_mode?: "source" | "clip";
+  source_start_seconds?: number | null;
+  source_media?: { package_id: string; artifact_id: string } | null;
+  period?: string;
+  game_clock?: string;
+  created_by?: { id: string; name: string };
+  created_at?: string;
+  note?: string;
+  tags?: string[];
+  player_ids?: string[];
+  position_group_ids?: string[];
   media_id?: string;
   source_url?: string;
   event_id?: string;
@@ -118,6 +149,7 @@ export type TCoachingCardData = {
   progress_status?: string;
   playlists: TCoachingCardPlaylist[];
   primary_clip?: {
+    association_id?: string;
     playlist_id: string;
     clip_id: string;
     media_id: string;
@@ -125,7 +157,7 @@ export type TCoachingCardData = {
     source_url: string;
     start_seconds: number | null;
     end_seconds: number | null;
-  };
+  } | null;
   metadata?: {
     serial_number: string;
     sport: string;

@@ -30,6 +30,7 @@ from plane.app.views import (
     CoachingCardBulkCreateEndpoint,
     CoachingCardConfigEndpoint,
     CoachingCardDetailEndpoint,
+    CoachingCardClipsEndpoint,
     CoachingCardTransitionEndpoint,
     CoachingCardStageHistoryEndpoint,
     CoachingCardReviewCompleteEndpoint,
@@ -37,6 +38,15 @@ from plane.app.views import (
 )
 
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/clips/",
+        CoachingCardClipsEndpoint.as_view(), name="project-coaching-card-clips",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/clips/<str:association_id>/",
+        CoachingCardClipsEndpoint.as_view(), name="project-coaching-card-clip",
+    ),
+
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/issues/list/",
         IssueListEndpoint.as_view(),

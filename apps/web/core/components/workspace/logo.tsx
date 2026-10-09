@@ -1,6 +1,7 @@
 import { observer } from "mobx-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
+import { ImageWithFallback } from "@plane/ui";
 import { cn, getFileURL } from "@plane/utils";
 
 type Props = {
@@ -22,7 +23,7 @@ export const WorkspaceLogo = observer((props: Props) => {
       )}
     >
       {props.logo && props.logo !== "" ? (
-        <img
+        <ImageWithFallback
           src={getFileURL(props.logo)}
           className="absolute left-0 top-0 h-full w-full rounded-md object-cover"
           alt={t("aria_labels.projects_sidebar.workspace_logo")}

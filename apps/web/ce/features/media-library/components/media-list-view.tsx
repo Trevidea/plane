@@ -3,18 +3,9 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import Link from "next/link";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  File,
-  FolderOpen,
-  Image,
-  ImageOff,
-  LoaderCircle,
-  PencilLine,
-  Video,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, File, FolderOpen, Image, LoaderCircle, PencilLine, Video } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@plane/propel/table";
+import { ImageWithFallback } from "@plane/ui";
 import type { TMediaItem, TMediaSection } from "../types/media-library.types";
 import { getDisplayMediaTitle } from "../utils/media-detail-utils";
 import { isEventMediaItem } from "../utils/media-event";
@@ -49,9 +40,9 @@ const MediaListRow = ({
     ? getItemTypeLabel(item)
     : item.mediaType === "collection"
       ? "folder"
-    : isEventItem
-      ? "event"
-      : (item.linkedMediaType ?? item.mediaType);
+      : isEventItem
+        ? "event"
+        : (item.linkedMediaType ?? item.mediaType);
   const dateLabel = isEventItem ? item.eventDateLabel || item.createdAt : item.createdAt;
   const showLinkedTypeIndicator = item.mediaType === "image" && Boolean(item.link) && Boolean(item.linkedMediaType);
   const isLinkedDocumentThumbnail = item.mediaType === "image" && item.linkedMediaType === "document";
@@ -102,7 +93,11 @@ const MediaListRow = ({
   };
   const renderItemLink = (children: ReactNode, className: string) =>
     isDetailDisabled ? (
-      <div className={`${className} cursor-not-allowed opacity-95`} aria-disabled="true" title="Transcoding in progress">
+      <div
+        className={`${className} cursor-not-allowed opacity-95`}
+        aria-disabled="true"
+        title="Transcoding in progress"
+      >
         {children}
       </div>
     ) : (
@@ -111,10 +106,7 @@ const MediaListRow = ({
       </Link>
     );
   const thumbnailUnavailableFallback = (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-custom-text-300">
-      <ImageOff className="h-6 w-6" strokeWidth={2.5} />
-      <span className="sr-only">Thumbnail unavailable</span>
-    </div>
+    <ImageWithFallback alt="Thumbnail unavailable" className="h-full w-full object-cover" />
   );
 
   return (
@@ -128,7 +120,7 @@ const MediaListRow = ({
                 <span className="text-[10px]">{item.itemsCount} files</span>
               </div>
             ) : !isThumbnailUnavailable ? (
-              <img
+              <ImageWithFallback
                 src={item.thumbnail}
                 alt={displayTitle}
                 onError={() => setIsThumbnailUnavailable(true)}
