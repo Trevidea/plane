@@ -38,6 +38,11 @@ execFileSync("ffmpeg", [
   path.join(temp, "film.m3u8"),
 ]);
 await writeFile(path.join(temp, "i18n.ts"), "export const useTranslation = () => ({ t: (value) => value });");
+// The standalone esbuild fixture needs Next's named component export.
+await writeFile(
+  path.join(temp, "next-image.ts"),
+  `export { Image as default } from ${JSON.stringify(require.resolve("next/dist/client/image-component"))};`
+);
 await writeFile(
   path.join(temp, "store.ts"),
   `export const useIssueDetail = () => ({ issue: { fetchIssue: async () => {} }, fetchActivities: async () => {} });`
@@ -97,6 +102,7 @@ const bundle = await build({
     "@/plane-web": path.join(web, "ce"),
     ce: path.join(web, "ce"),
     "@plane/i18n": path.join(temp, "i18n.ts"),
+    "next/image": path.join(temp, "next-image.ts"),
     "@/hooks/store/use-issue-detail": path.join(temp, "store.ts"),
     "@/services/issue/issue.service": path.join(temp, "services.ts"),
     "ce/features/media-library/hooks/use-media-library-item": path.join(temp, "media.ts"),
@@ -248,7 +254,12 @@ try {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
-  await page.waitForFunction(() => document.querySelector("video")?.readyState >= 2);
+  try {
+    await page.waitForFunction(() => document.querySelector("video")?.readyState >= 2);
+  } catch (error) {
+    console.error("Player startup:", errors, await page.locator("body").innerText());
+    throw error;
+  }
   assert.equal(await page.locator("video").count(), 1);
   if (viewOnly) {
     for (const label of [
@@ -347,6 +358,121 @@ try {
     await page.screenshot({ path: path.join(temp, "filmstrip-desktop.png") });
     await page.getByRole("button", { name: "Close card", exact: true }).click();
     await page.waitForFunction(() => window.hlsCount === 0);
+    // Two selected playlists stay separate and play in their saved order.
+    const originalPlaylists = data.playlists;
+    const originalPrimary = data.primary_clip;
+    data.primary_clip = null;
+    data.playlists = [
+      {
+        id: "run",
+        name: "Run Goal",
+        clips: [
+          {
+            id: "run",
+            title: "Run",
+            source_url: "/film.m3u8",
+            start_seconds: 4,
+            end_seconds: 5,
+            duration_seconds: 1,
+            playback_mode: "source",
+          },
+          {
+            id: "goal",
+            title: "Field Goal",
+            source_url: "/film.m3u8",
+            start_seconds: 2,
+            end_seconds: 3,
+            duration_seconds: 1,
+            playback_mode: "source",
+          },
+        ],
+      },
+      {
+        id: "pass",
+        name: "Pass Complete",
+        clips: [
+          {
+            id: "pass-1",
+            title: "Pass 1",
+            source_url: "/practice.m3u8",
+            start_seconds: 1,
+            end_seconds: 2,
+            duration_seconds: 1,
+            playback_mode: "source",
+          },
+          {
+            id: "pass-2",
+            title: "Pass 2",
+            source_url: "/practice.m3u8",
+            start_seconds: 3,
+            end_seconds: 4,
+            duration_seconds: 1,
+            playback_mode: "source",
+          },
+        ],
+      },
+    ];
+    await page.getByRole("button", { name: "Reopen card", exact: true }).click();
+    await page.waitForFunction(() => document.querySelector("video")?.readyState >= 2);
+    assert.equal(await page.getByRole("list", { name: "Run Goal clips", exact: true }).count(), 1);
+    const runDropdown = page.getByRole("button", { name: "Toggle playlist: Run Goal", exact: true });
+    const passDropdown = page.getByRole("button", { name: "Toggle playlist: Pass Complete", exact: true });
+    assert.equal(await runDropdown.count(), 1);
+    assert.equal(await runDropdown.getAttribute("aria-expanded"), "true");
+    assert.equal(await passDropdown.getAttribute("aria-expanded"), "false");
+    await runDropdown.click();
+    assert.equal(await page.getByRole("list", { name: "Run Goal clips", exact: true }).count(), 0);
+    await runDropdown.click();
+    await passDropdown.click();
+    assert.equal(await page.getByRole("list", { name: "Pass Complete clips", exact: true }).count(), 1);
+    assert.deepEqual(
+      await page
+        .locator('button[aria-label^="Play clip:"]')
+        .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))),
+      ["Play clip: Run", "Play clip: Field Goal", "Play clip: Pass 1", "Play clip: Pass 2"]
+    );
+    assert.equal(await page.getByRole("button", { name: "Next playlist", exact: true }).count(), 0);
+    await page.getByRole("button", { name: "Play playlist: Pass Complete", exact: true }).click();
+    await page.waitForFunction(() => {
+      const video = document.querySelector("video");
+      return (
+        document.querySelector('button[aria-label="Play clip: Pass 1"]')?.getAttribute("aria-pressed") === "true" &&
+        !video.paused
+      );
+    });
+    await page.getByRole("button", { name: "Play playlist: Run Goal", exact: true }).click();
+    await page.waitForFunction(() => {
+      const video = document.querySelector("video");
+      return (
+        document.querySelector('button[aria-label="Play clip: Run"]')?.getAttribute("aria-pressed") === "true" &&
+        !video.paused
+      );
+    });
+    await page.evaluate(() => {
+      document.querySelector("video").currentTime = 4.95;
+    });
+    await page.waitForFunction(
+      () =>
+        document.querySelector('button[aria-label="Play clip: Field Goal"]')?.getAttribute("aria-pressed") === "true" &&
+        !document.querySelector("video").paused
+    );
+    await page.evaluate(() => {
+      document.querySelector("video").currentTime = 2.95;
+    });
+    await page.waitForFunction(
+      () =>
+        document.querySelector('button[aria-label="Play clip: Pass 1"]')?.getAttribute("aria-pressed") === "true" &&
+        !document.querySelector("video").paused
+    );
+    assert.equal(await page.evaluate(() => window.hlsMax), 1);
+    await page.getByRole("button", { name: "Pause clip", exact: true }).click();
+    assert.equal(await passDropdown.getAttribute("aria-expanded"), "true");
+    assert.equal(await runDropdown.getAttribute("aria-expanded"), "false");
+    await page.screenshot({ path: path.join(temp, "separate-playlists.png"), fullPage: true });
+    await page.getByRole("button", { name: "Close card", exact: true }).click();
+    await page.waitForFunction(() => window.hlsCount === 0);
+    data.playlists = originalPlaylists;
+    data.primary_clip = originalPrimary;
     // Legacy cards retain recording timestamps while both entries point to
     // one combined playlist. The second entry must start at its own offset.
     data.primary_clip = null;

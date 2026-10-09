@@ -55,8 +55,36 @@ export type CoachingCardDetailClip = {
   endSegment?: number | null;
 };
 
+export type CoachingCardDetailPlaylist = {
+  id: string;
+  name: string;
+  clips: CoachingCardDetailClip[];
+};
+
 const validSeconds = (value: number | null | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+
+export const groupCoachingCardPlaylists = (
+  card: TCoachingCardData,
+  clips: CoachingCardDetailClip[]
+): CoachingCardDetailPlaylist[] => {
+  const byKey = new Map(clips.map((clip) => [clip.key, clip]));
+  const groups = (card.playlists ?? [])
+    .map((playlist, playlistIndex) => ({
+      id: playlist.id,
+      name: playlist.name?.trim() || "Playlist",
+      clips: (playlist.clips ?? []).flatMap((clip, index) => {
+        const key = clip.association_id || `legacy:${playlistIndex}:${index}`;
+        const detail = byKey.get(key);
+        if (!detail) return [];
+        byKey.delete(key);
+        return [detail];
+      }),
+    }))
+    .filter((playlist) => playlist.clips.length > 0);
+  if (byKey.size) groups.push({ id: "unassigned-clips", name: "Clips", clips: [...byKey.values()] });
+  return groups;
+};
 
 export const buildCoachingCardClips = (
   card: TCoachingCardData,
@@ -158,7 +186,7 @@ export const buildCoachingCardClips = (
     const startSeconds = validSeconds(primary.start_seconds) ?? 0;
     const endSeconds = validSeconds(primary.end_seconds);
     clips.unshift({
-      key: primary.association_id || "legacy:0:0",
+      key: primary.association_id || "legacy:primary",
       associationId: primary.association_id || "legacy:0:0",
       slot: 0,
       title: card.summary?.primary_clip_title || "Original Clip",
