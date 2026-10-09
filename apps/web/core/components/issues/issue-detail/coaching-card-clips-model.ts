@@ -11,7 +11,7 @@ export const resolveCoachingStreamLink = (source: string) => {
       if (upstream && /^https?:\/\//i.test(upstream)) return upstream;
     }
   } catch {
-    // Preserve sources that are not valid URLs.
+    console.error("Failed to parse coaching clip source URL:", source);
   }
   return source;
 };
