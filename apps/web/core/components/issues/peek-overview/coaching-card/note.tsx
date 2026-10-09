@@ -44,7 +44,7 @@ export const CoachingCardNote = ({
   return (
     <section aria-label="Coaching note" className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-custom-text-100">Coaching note</h3>
+        <h3 className="text-base font-semibold text-custom-text-100">Coaching note</h3>
         {!disabled && !editing && (
           <Button
             variant="link-primary"

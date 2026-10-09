@@ -872,8 +872,9 @@ class TestCoachingCardLifecycle:
 
 @pytest.mark.contract
 @pytest.mark.django_db
-def test_rejects_missing_card_context(session_client, workspace, create_user):
-    project = Project.objects.create(name="Basketball", identifier="BALL", workspace=workspace, sport="Basketball")
+@pytest.mark.parametrize("project_sport", ["Basketball", ""])
+def test_creates_event_card_without_card_context(session_client, workspace, create_user, project_sport):
+    project = Project.objects.create(name="Basketball", identifier="BALL", workspace=workspace, sport=project_sport)
     ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
     state = State.objects.create(name="Scheduled", color="#333", group="unstarted", project=project)
     source = Issue.objects.create(name="Game", project=project, state=state, sg_event_id=445)
@@ -892,6 +893,8 @@ def test_rejects_missing_card_context(session_client, workspace, create_user):
         payload,
         format="json",
     )
-    assert response.status_code == 400
-    assert "level" in response.json() and "season" in response.json()
-    assert not Issue.objects.filter(project=project, category="Coaching Card").exists()
+    assert response.status_code == 201
+    created = Issue.objects.get(project=project, category="Coaching Card")
+    assert created.coaching_card_data["metadata"]["level"] in (None, "")
+    assert created.coaching_card_data["metadata"]["program"] in (None, "")
+    assert created.coaching_card_data["metadata"]["season"] in (None, "")
