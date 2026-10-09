@@ -89,6 +89,76 @@ const card = (overrides: Partial<TCoachingCardData> = {}): TCoachingCardData => 
   ...overrides,
 });
 
+const savedClip = (id: string, title: string, start: number) => ({
+  id,
+  key: id,
+  title,
+  thumbnail: null,
+  start_seconds: start,
+  end_seconds: start + 8,
+  duration_seconds: 8,
+  timecode: "",
+  team: "",
+  detail: "",
+  result: "",
+  secondary_detail: "",
+  group: "",
+});
+
+test("card playlists keep their saved order and clip order despite recording time and primary selection", () => {
+  const data = card({
+    playlists: [
+      {
+        id: "run",
+        name: "Run Goal",
+        clips: [savedClip("run", "Run", 317), savedClip("goal", "Field Goal", 363)],
+      },
+      {
+        id: "pass",
+        name: "Pass Complete",
+        clips: [savedClip("pass-2", "Pass 2", 283), savedClip("pass-1", "Pass 1", 206)],
+      },
+    ],
+    primary_clip: {
+      playlist_id: "pass",
+      clip_id: "pass-1",
+      source_url: "film.m3u8",
+      media_id: "",
+      event_id: "",
+      start_seconds: 206,
+      end_seconds: 214,
+    },
+  });
+  assert.equal(typeof clipModel.groupCoachingCardPlaylists, "function", "Playlist grouping must be available");
+  const groups = clipModel.groupCoachingCardPlaylists(data, buildCoachingCardClips(data, "2026-10-09"));
+  assert.deepEqual(
+    groups.map((group) => [group.id, group.name, group.clips.map((clip) => clip.title)]),
+    [
+      ["run", "Run Goal", ["Run", "Field Goal"]],
+      ["pass", "Pass Complete", ["Pass 2", "Pass 1"]],
+    ]
+  );
+});
+
+test("an unlisted legacy primary remains playable alongside a saved playlist", () => {
+  const data = card({
+    playlists: [{ id: "saved", name: "Saved", clips: [savedClip("first", "Playlist first", 1)] }],
+    primary_clip: {
+      playlist_id: "missing",
+      clip_id: "primary",
+      source_url: "primary.m3u8",
+      media_id: "",
+      event_id: "",
+      start_seconds: 0,
+      end_seconds: 8,
+    },
+  });
+  const clips = buildCoachingCardClips(data, "2026-10-09");
+  const groups = clipModel.groupCoachingCardPlaylists(data, clips);
+  assert.equal(groups.flatMap((playlist) => playlist.clips).length, 2);
+  assert.equal(new Set(clips.map((clip) => clip.key)).size, 2);
+});
+
 test("the saved primary m3u8 source appears in slot zero without a playlist entry", () => {
   const clips = buildCoachingCardClips(
     card({
