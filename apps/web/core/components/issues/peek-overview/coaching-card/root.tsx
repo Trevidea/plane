@@ -153,36 +153,53 @@ export const CoachingCardPeekContent = observer(
           {!configError && !configLoading && !progress.length && (
             <p className="text-sm text-custom-text-300">No workflow stages configured.</p>
           )}
-          <ol className="flex gap-1" aria-label="Coaching card stages">
-            {progress.map((stage) => (
+          <ol className="flex overflow-x-auto pb-2 pt-1" aria-label="Coaching card stages" tabIndex={0}>
+            {progress.map((stage, index) => (
               <li
                 key={stage.id}
                 aria-current={stage.status === "current" ? "step" : undefined}
-                className="min-w-0 flex-1 text-center"
+                className="min-w-[96px] flex-1 text-center"
               >
-                <div className="relative flex h-5 items-center justify-center">
-                  <span className="absolute inset-x-0 h-px bg-custom-border-200" aria-hidden="true" />
+                <div className="relative flex h-7 items-center justify-center">
+                  {index > 0 && (
+                    <span
+                      className={cn(
+                        "absolute left-0 right-1/2 h-0.5",
+                        stage.status === "future" ? "bg-custom-border-300" : "bg-custom-primary-100"
+                      )}
+                      aria-hidden="true"
+                    />
+                  )}
+                  {index < progress.length - 1 && (
+                    <span
+                      className={cn(
+                        "absolute left-1/2 right-0 h-0.5",
+                        stage.status === "completed" ? "bg-custom-primary-100" : "bg-custom-border-300"
+                      )}
+                      aria-hidden="true"
+                    />
+                  )}
                   <span
                     className={cn(
-                      "relative flex h-4 w-4 items-center justify-center rounded-full border bg-custom-background-100",
-                      stage.status === "future"
-                        ? "border-custom-border-300"
-                        : "border-custom-primary-100 text-custom-primary-100",
-                      stage.status === "current" && "ring-2 ring-custom-primary-100/20"
+                      "relative flex h-6 w-6 items-center justify-center rounded-full border-2",
+                      stage.status === "completed" && "border-custom-primary-100 bg-custom-primary-100 text-white",
+                      stage.status === "future" && "border-custom-border-300 bg-custom-background-100",
+                      stage.status === "current" &&
+                        "border-custom-primary-100 bg-custom-background-100 text-custom-primary-100 ring-4 ring-custom-primary-100/20"
                     )}
                     aria-hidden="true"
                   >
                     {stage.status === "completed" ? (
-                      <Check className="h-2.5 w-2.5" />
+                      <Check className="h-3.5 w-3.5" />
                     ) : stage.status === "current" ? (
-                      <span className="h-1.5 w-1.5 rounded-full bg-custom-primary-100" />
+                      <span className="h-2 w-2 rounded-full bg-custom-primary-100" />
                     ) : null}
                   </span>
                 </div>
                 <span
                   className={cn(
-                    "mt-1 block break-words text-[10px] leading-4",
-                    stage.status === "current" ? "font-medium text-custom-text-100" : "text-custom-text-300"
+                    "mt-2 block break-words px-2 text-[12px] leading-4",
+                    stage.status === "current" ? "font-semibold text-custom-text-100" : "text-custom-text-200"
                   )}
                 >
                   {stage.name}
