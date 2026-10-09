@@ -7,6 +7,19 @@ import * as clipModel from "../coaching-card-clips-model.ts";
 
 const { buildCoachingCardClips, getClipPlaybackRange, resolveCoachingClipSource } = clipModel;
 
+test("saved API thumbnails resolve against the API server instead of the web origin", () => {
+  const path =
+    "/api/workspaces/sport-work/projects/project/media-library/packages/package/artifacts/video-thumbnail/file/";
+  assert.equal(clipModel.resolveCoachingClipThumbnail(path, "http://localhost:8000/"), `http://localhost:8000${path}`);
+  assert.equal(clipModel.resolveCoachingClipThumbnail(path, ""), path);
+  assert.equal(
+    clipModel.resolveCoachingClipThumbnail("https://media.example/poster.jpg", "http://localhost:8000"),
+    "https://media.example/poster.jpg"
+  );
+  assert.equal(clipModel.resolveCoachingClipThumbnail("poster.jpg", "http://localhost:8000"), "poster.jpg");
+  assert.equal(clipModel.resolveCoachingClipThumbnail(null, "http://localhost:8000"), "");
+});
+
 const card = (overrides: Partial<TCoachingCardData> = {}): TCoachingCardData => ({
   schema_version: 2,
   kind: "coaching_card",
@@ -156,7 +169,7 @@ test("uploaded clips resolve their saved artifact when no source URL exists", ()
             key: "video",
             id: "video 1.mov",
             title: "Practice",
-            thumbnail: null,
+            thumbnail: "/api/workspaces/sport-work/old-thumbnail/file/",
             duration_seconds: 30,
             timecode: "",
             team: "",
@@ -169,6 +182,13 @@ test("uploaded clips resolve their saved artifact when no source URL exists", ()
       },
     ],
   });
+  const resolvedPoster = "http://localhost:1437/api/blobs/media/upload/thumbnails/poster.jpg";
+  const resolvedClips = buildCoachingCardClips(data, "2026-10-01", {
+    workspaceSlug: "sport work",
+    projectId: "project",
+    uploadedThumbnail: resolvedPoster,
+  });
+  assert.equal(resolvedClips[0].thumbnail, resolvedPoster);
   const clips = buildCoachingCardClips(data, "2026-10-01", {
     workspaceSlug: "sport work",
     projectId: "project",

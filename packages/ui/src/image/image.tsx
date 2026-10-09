@@ -1,6 +1,7 @@
 "use client";
 
 import React, { forwardRef, useState } from "react";
+import Image from "next/image";
 
 // Inline SVG stays available even when a remote image or the asset server is unavailable.
 export const DEFAULT_IMAGE = `data:image/svg+xml,${encodeURIComponent(
@@ -21,15 +22,19 @@ export const useImageFallback = (source?: string, sourceSet?: string) => {
 };
 
 export const ImageWithFallback = forwardRef<HTMLImageElement, React.ImgHTMLAttributes<HTMLImageElement>>(
-  ({ src, srcSet, onError, ...props }, ref) => {
+  ({ src, srcSet, onError, alt = "", width = 160, height = 120, ...props }, ref) => {
     const fallback = useImageFallback(src, srcSet);
     return (
-      <img
+      <Image
         {...props}
+        alt={alt}
+        width={Number(width) || 160}
+        height={Number(height) || 120}
+        unoptimized
         ref={ref}
         data-image-fallback={fallback.isFallback || undefined}
-        src={fallback.isFallback ? DEFAULT_IMAGE : src}
-        srcSet={fallback.isFallback ? undefined : srcSet}
+        src={fallback.isFallback ? DEFAULT_IMAGE : src!}
+        {...{ srcSet: fallback.isFallback ? undefined : srcSet }}
         onError={(event) => {
           fallback.onError();
           onError?.(event);

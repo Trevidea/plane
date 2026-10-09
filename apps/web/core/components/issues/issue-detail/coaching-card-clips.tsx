@@ -19,6 +19,7 @@ import type { CoachingCardDetailClip, ClipGroup, ClipSort } from "./coaching-car
 import {
   buildCoachingCardClips,
   resolveCoachingClipSource,
+  resolveCoachingClipThumbnail,
   clipTypeConfig,
   filterAndSortClips,
   clipMutationPayload,
@@ -72,9 +73,10 @@ const CoachingCardClipManager = ({
             projectId,
             apiBaseUrl: API_BASE_URL,
             uploadedSourceUrl,
+            uploadedThumbnail: mediaItem?.thumbnail,
           })
         : [],
-    [cardData, issue.created_at, workspaceSlug, projectId, uploadedSourceUrl]
+    [cardData, issue.created_at, workspaceSlug, projectId, uploadedSourceUrl, mediaItem?.thumbnail]
   );
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [autoPlay, setAutoPlay] = useState(false);
@@ -221,7 +223,7 @@ const CoachingCardClipManager = ({
     : "";
   const poster = activeClip?.thumbnail
     ? activeClip.thumbnail.startsWith("/")
-      ? activeClip.thumbnail
+      ? resolveCoachingClipThumbnail(activeClip.thumbnail, API_BASE_URL)
       : buildCustomPlaylistThumbnailUrl(activeClip.thumbnail)
     : (activeClip?.sourceMedia ? selectedMedia?.thumbnail : mediaItem?.thumbnail) || undefined;
   return (
@@ -446,7 +448,7 @@ const CoachingCardClipManager = ({
                       <ImageWithFallback
                         src={
                           clip.thumbnail.startsWith("/")
-                            ? clip.thumbnail
+                            ? resolveCoachingClipThumbnail(clip.thumbnail, API_BASE_URL)
                             : buildCustomPlaylistThumbnailUrl(clip.thumbnail)
                         }
                         alt=""

@@ -1,5 +1,10 @@
 import type { TCoachingCardData } from "@plane/types";
 
+export const resolveCoachingClipThumbnail = (value: string | null | undefined, apiBaseUrl: string) => {
+  const thumbnail = value?.trim() || "";
+  return thumbnail.startsWith("/api/") ? `${apiBaseUrl.replace(/\/+$/, "")}${thumbnail}` : thumbnail;
+};
+
 export type CoachingCardDetailClip = {
   key: string;
   slot: number;
@@ -40,7 +45,13 @@ const validSeconds = (value: number | null | undefined) =>
 export const buildCoachingCardClips = (
   card: TCoachingCardData,
   createdAt: string,
-  context?: { workspaceSlug: string; projectId: string; apiBaseUrl?: string; uploadedSourceUrl?: string }
+  context?: {
+    workspaceSlug: string;
+    projectId: string;
+    apiBaseUrl?: string;
+    uploadedSourceUrl?: string;
+    uploadedThumbnail?: string | null;
+  }
 ): CoachingCardDetailClip[] => {
   const primary = card.primary_clip;
   const addedAt = card.metadata?.created_at || createdAt;
@@ -65,7 +76,11 @@ export const buildCoachingCardClips = (
             ? context.uploadedSourceUrl?.trim() ||
               `${(context.apiBaseUrl || "").replace(/\/+$/, "")}/api/workspaces/${encodeURIComponent(context.workspaceSlug)}/projects/${encodeURIComponent(context.projectId)}/media-library/packages/${encodeURIComponent(card.source_media.package_id)}/artifacts/${encodeURIComponent(card.source_media.artifact_id)}/file/`
             : ""),
-        thumbnail: clip.thumbnail || (isPrimary ? card.summary?.primary_thumbnail : null) || null,
+        thumbnail:
+          (card.source_media?.artifact_id === clip.id ? context?.uploadedThumbnail : null) ||
+          clip.thumbnail ||
+          (isPrimary ? card.summary?.primary_thumbnail : null) ||
+          null,
         startSeconds,
         endSeconds: endSeconds !== null && endSeconds > startSeconds ? endSeconds : null,
         durationSeconds:

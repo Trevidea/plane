@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import Image from "next/image";
 import { observer } from "mobx-react";
 import { Controller, useForm } from "react-hook-form";
 import { Check, MessageSquare, MoreVertical, X } from "lucide-react";
@@ -62,9 +63,9 @@ export const CommentCard: React.FC<Props> = observer((props) => {
     <div className="relative flex items-start space-x-3">
       <div className="relative px-1">
         {comment.actor_detail.avatar_url && comment.actor_detail.avatar_url !== "" ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={getFileURL(comment.actor_detail.avatar_url)}
+          <Image
+            src={getFileURL(comment.actor_detail.avatar_url)!}
+            unoptimized
             alt={
               comment.actor_detail.is_bot ? comment.actor_detail.first_name + " Bot" : comment.actor_detail.display_name
             }

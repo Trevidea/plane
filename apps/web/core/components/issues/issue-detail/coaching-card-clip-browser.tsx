@@ -12,7 +12,12 @@ import { ImageWithFallback, Loader, ScrollArea } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { getSgEventMediaReferenceAnnotations, normalizePlaylistAnnotations } from "@/components/annotation";
 import { MediaLibraryService } from "@/services/media-library.service";
-import { buildCoachingCardClips, clipTypeConfig, resolveCoachingClipSource } from "./coaching-card-clips-model";
+import {
+  buildCoachingCardClips,
+  clipTypeConfig,
+  resolveCoachingClipSource,
+  resolveCoachingClipThumbnail,
+} from "./coaching-card-clips-model";
 import { formatCardDuration } from "./sg-event-detail-page/create-card-model";
 import { loadSgMediaPayload } from "./sg-event-detail-page/data";
 import {
@@ -30,7 +35,11 @@ const CoachingCardClipPlayer = dynamic(
 const mediaLibraryService = new MediaLibraryService();
 
 const thumbnailUrl = (thumbnail?: string | null) =>
-  thumbnail ? (thumbnail.startsWith("/") ? thumbnail : buildCustomPlaylistThumbnailUrl(thumbnail)) : undefined;
+  thumbnail
+    ? thumbnail.startsWith("/")
+      ? resolveCoachingClipThumbnail(thumbnail, API_BASE_URL)
+      : buildCustomPlaylistThumbnailUrl(thumbnail)
+    : undefined;
 
 export const CoachingCardClipBrowser = ({
   issue,
@@ -57,9 +66,10 @@ export const CoachingCardClipBrowser = ({
           projectId,
           apiBaseUrl: API_BASE_URL,
           uploadedSourceUrl,
+          uploadedThumbnail: mediaItem?.thumbnail,
         }).sort((a, b) => (lifecycle[a.clipType || ""] ?? 3) - (lifecycle[b.clipType || ""] ?? 3))
       : [];
-  }, [card, issue.created_at, workspaceSlug, projectId, uploadedSourceUrl]);
+  }, [card, issue.created_at, workspaceSlug, projectId, uploadedSourceUrl, mediaItem?.thumbnail]);
   const [selection, setSelection] = useState<{ cardId: string; key: string } | null>(null);
   const [playRequest, setPlayRequest] = useState(0);
   const activeClip = clips.find((clip) => selection?.cardId === issue.id && clip.key === selection.key) ?? clips[0];

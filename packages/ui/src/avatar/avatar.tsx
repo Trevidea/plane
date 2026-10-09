@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 // ui
 import { Tooltip } from "@plane/propel/tooltip";
 import { useImageFallback } from "../image/image";
@@ -160,8 +161,11 @@ export const Avatar: React.FC<Props> = (props) => {
             {name?.trim()?.[0]?.toUpperCase() || fallbackText || "?"}
           </div>
         ) : (
-          <img
-            src={src}
+          <Image
+            src={src!}
+            width={typeof size === "number" ? size : { sm: 16, md: 20, base: 24, lg: 28 }[size]}
+            height={typeof size === "number" ? size : { sm: 16, md: 20, base: 24, lg: 28 }[size]}
+            unoptimized
             className={cn("h-full w-full object-cover", getBorderRadius(shape), className)}
             alt={name || fallbackText || "Profile photo"}
             onError={fallback.onError}
