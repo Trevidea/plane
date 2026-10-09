@@ -18,6 +18,7 @@ interface SettingsSidebarProps {
   actionIcons?: (props: { type: string; size?: number; className?: string }) => React.ReactNode;
   appendItemsToTitle?: (key: string) => React.ReactNode;
   renderChildren?: (key: string) => React.ReactNode;
+  footer?: React.ReactNode;
 }
 
 export const SettingsSidebar = observer((props: SettingsSidebarProps) => {
@@ -32,6 +33,7 @@ export const SettingsSidebar = observer((props: SettingsSidebarProps) => {
     actionIcons,
     appendItemsToTitle,
     renderChildren,
+    footer,
   } = props;
   // hooks
   const { t } = useTranslation();
@@ -71,6 +73,7 @@ export const SettingsSidebar = observer((props: SettingsSidebarProps) => {
             </div>
           );
         })}
+        {footer}
       </div>
     </div>
   );
