@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { FileText, Image as ImageIcon, Video, X } from "lucide-react";
+import { ImageWithFallback } from "@plane/ui";
 import { useMember } from "@/hooks/store/use-member";
 import type { TMediaItem } from "../types/media-library.types";
 import { getStructuredEventTags, isEventMediaItem } from "../utils/media-event";
@@ -48,7 +49,7 @@ const buildPreview = (item: TMediaItem, onPlay: () => void): ReactNode => {
         className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md border border-custom-border-200 bg-custom-background-100 text-left"
       >
         {item.thumbnail ? (
-          <img src={item.thumbnail} alt={item.title} className="h-full w-full object-cover" />
+          <ImageWithFallback src={item.thumbnail} alt={item.title} className="h-full w-full object-cover" />
         ) : (
           <div className="flex flex-col items-center gap-1 text-[10px] text-custom-text-300">
             <Video className="h-4 w-4" />
@@ -62,7 +63,7 @@ const buildPreview = (item: TMediaItem, onPlay: () => void): ReactNode => {
   if (item.mediaType === "image") {
     return item.thumbnail ? (
       <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md border border-custom-border-200 bg-custom-background-100">
-        <img src={item.thumbnail} alt={item.title} className="h-full w-full object-cover" />
+        <ImageWithFallback src={item.thumbnail} alt={item.title} className="h-full w-full object-cover" />
       </div>
     ) : (
       <div className="flex h-24 w-full flex-col items-center justify-center gap-1 rounded-md border border-custom-border-200 bg-custom-background-100 text-[10px] text-custom-text-300">
@@ -74,7 +75,7 @@ const buildPreview = (item: TMediaItem, onPlay: () => void): ReactNode => {
 
   return item.thumbnail ? (
     <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md border border-custom-border-200 bg-custom-background-100">
-      <img src={item.thumbnail} alt={item.title} className="h-14 w-14 object-contain" />
+      <ImageWithFallback src={item.thumbnail} alt={item.title} className="h-14 w-14 object-contain" />
     </div>
   ) : (
     <div className="flex h-24 w-full flex-col items-center justify-center gap-1 rounded-md border border-custom-border-200 bg-custom-background-100 text-[10px] text-custom-text-300">

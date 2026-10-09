@@ -22,6 +22,7 @@ type Props = TDropdownProps & {
   icon?: React.ReactNode;
   clearIconClassName?: string;
   dropdownClassName?: string;
+  isClearable?: boolean;
 };
 
 export const ProgramDropdown: React.FC<Props> = observer((props) => {
@@ -40,6 +41,7 @@ export const ProgramDropdown: React.FC<Props> = observer((props) => {
     value,
     onChange,
     dropdownClassName = "",
+    isClearable = true,
   } = props;
 
   const [programs, setPrograms] = useState<string[]>([]);
@@ -83,9 +85,7 @@ export const ProgramDropdown: React.FC<Props> = observer((props) => {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredPrograms = programs.filter((p) =>
-    p.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredPrograms = programs.filter((p) => p.toLowerCase().includes(search.toLowerCase()));
 
   const handleSelect = (program: string | null) => {
     console.log("[ProgramDropdown] selected:", program);
@@ -128,7 +128,7 @@ export const ProgramDropdown: React.FC<Props> = observer((props) => {
           <span className="flex-grow truncate ">{displayValue}</span>
         )}
 
-        {!!value && !disabled && (
+        {!!value && !disabled && isClearable && (
           <X
             className={cn("h-2.5 w-2.5 flex-shrink-0", clearIconClassName)}
             onClick={(e) => {
@@ -155,6 +155,7 @@ export const ProgramDropdown: React.FC<Props> = observer((props) => {
       {isOpen &&
         createPortal(
           <div
+            data-prevent-outside-click
             ref={setPopperElement}
             style={styles.popper}
             {...attributes.popper}
@@ -177,17 +178,19 @@ export const ProgramDropdown: React.FC<Props> = observer((props) => {
             </div>
 
             {/* None */}
-            <div
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleSelect(null);
-              }}
-              className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-custom-background-80"
-            >
-              <Ban className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs text-gray-400">None</span>
-            </div>
+            {isClearable && (
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelect(null);
+                }}
+                className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-custom-background-80"
+              >
+                <Ban className="w-3.5 h-3.5 text-gray-400" />
+                <span className="text-xs text-gray-400">None</span>
+              </div>
+            )}
 
             {loading && <div className="px-2 py-1 text-xs">Loading…</div>}
             {loadError && <div className="px-2 py-1 text-xs text-red-500">Failed to load</div>}

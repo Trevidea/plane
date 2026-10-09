@@ -140,6 +140,9 @@ export const resolveAttachmentDownloadUrl = async (rawUrl: string) => {
   url.searchParams.set("response", "json");
   const response = await fetch(url.toString(), { credentials: "include" });
   if (!response.ok) {
+    if (response.status === 400 || response.status === 404) {
+      throw new Error("This attachment is unavailable or its upload did not finish. Please upload the file again.");
+    }
     throw new Error("Unable to access attachment.");
   }
   const contentType = response.headers.get("content-type") ?? "";

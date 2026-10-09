@@ -22,6 +22,7 @@ type Props = TDropdownProps & {
   icon?: React.ReactNode;
   clearIconClassName?: string;
   dropdownClassName?: string;
+  isClearable?: boolean;
 };
 
 export const LevelDropdown: React.FC<Props> = observer((props) => {
@@ -40,6 +41,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
     value,
     onChange,
     dropdownClassName = "",
+    isClearable = true,
   } = props;
 
   const [levels, setLevels] = useState<string[]>([]);
@@ -49,10 +51,8 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const [referenceElement, setReferenceElement] =
-    useState<HTMLButtonElement | null>(null);
-  const [popperElement, setPopperElement] =
-    useState<HTMLDivElement | null>(null);
+  const [referenceElement, setReferenceElement] = useState<HTMLButtonElement | null>(null);
+  const [popperElement, setPopperElement] = useState<HTMLDivElement | null>(null);
 
   const { styles, attributes } = usePopper(referenceElement, popperElement, {
     placement: "bottom-start",
@@ -78,9 +78,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
         const block = data?.["Gateway Response"]?.result?.[0] ?? [];
         const values = block.find((i: any) => i?.field === "values")?.value;
 
-        const cleanValues = Array.isArray(values)
-          ? values.filter((v) => typeof v === "string").sort()
-          : [];
+        const cleanValues = Array.isArray(values) ? values.filter((v) => typeof v === "string").sort() : [];
 
         setLevels(cleanValues);
       })
@@ -88,9 +86,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredLevels = levels.filter((l) =>
-    l.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredLevels = levels.filter((l) => l.toLowerCase().includes(search.toLowerCase()));
 
   /* ─────────────── ✅ FIXED SELECT HANDLER ─────────────── */
   const handleSelect = (level: string | null) => {
@@ -100,8 +96,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
     referenceElement?.blur();
   };
 
-  const displayValue =
-    typeof value === "string" && value.length > 0 ? value : placeholder;
+  const displayValue = typeof value === "string" && value.length > 0 ? value : placeholder;
 
   /* ─────────────── Button ─────────────── */
   const comboButton = (
@@ -112,9 +107,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
       disabled={disabled}
       className={cn(
         "clickable block h-full max-w-full outline-none",
-        disabled
-          ? "cursor-default text-custom-text-200"
-          : "cursor-pointer",
+        disabled ? "cursor-default text-custom-text-200" : "cursor-pointer",
         buttonContainerClassName
       )}
     >
@@ -130,12 +123,10 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
         {!hideIcon && icon}
 
         {BUTTON_VARIANTS_WITH_TEXT.includes(buttonVariant) && (
-          <span className="flex-grow truncate  min-w-0">
-            {displayValue}
-          </span>
+          <span className="flex-grow truncate  min-w-0">{displayValue}</span>
         )}
 
-        {!!value && !disabled && (
+        {!!value && !disabled && isClearable && (
           <X
             className={cn("h-2.5 w-2.5 flex-shrink-0", clearIconClassName)}
             onMouseDown={(e) => {
@@ -162,6 +153,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
       {isOpen &&
         createPortal(
           <div
+            data-prevent-outside-click
             ref={setPopperElement}
             style={styles.popper}
             {...attributes.popper}
@@ -184,28 +176,24 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
             </div>
 
             {/* None */}
-            <div
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleSelect(null);
-              }}
-              className="flex items-center gap-2 px-2 py-1
+            {isClearable && (
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelect(null);
+                }}
+                className="flex items-center gap-2 px-2 py-1
                          cursor-pointer hover:bg-custom-background-80"
-            >
-              <Ban className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-xs text-gray-400">None</span>
-            </div>
-
-            {loading && (
-              <div className="px-2 py-1 text-xs">Loading…</div>
-            )}
-
-            {loadError && (
-              <div className="px-2 py-1 text-xs text-red-500">
-                Failed to load
+              >
+                <Ban className="w-3.5 h-3.5 text-gray-400" />
+                <span className="text-xs text-gray-400">None</span>
               </div>
             )}
+
+            {loading && <div className="px-2 py-1 text-xs">Loading…</div>}
+
+            {loadError && <div className="px-2 py-1 text-xs text-red-500">Failed to load</div>}
 
             {!loading &&
               !loadError &&
@@ -220,8 +208,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
                   className={cn(
                     "px-2 py-1 cursor-pointer text-xs",
                     "hover:bg-custom-background-80",
-                    value === level &&
-                      "bg-custom-background-80 font-medium"
+                    value === level && "bg-custom-background-80 font-medium"
                   )}
                 >
                   {level}

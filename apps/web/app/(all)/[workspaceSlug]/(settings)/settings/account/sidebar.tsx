@@ -3,6 +3,7 @@ import { useParams, usePathname } from "next/navigation";
 import { CircleUser, Activity, Bell, CircleUserRound, KeyRound, Settings2, Blocks, Lock } from "lucide-react";
 // plane imports
 import { GROUPED_PROFILE_SETTINGS, PROFILE_SETTINGS_CATEGORIES } from "@plane/constants";
+import { ImageWithFallback } from "@plane/ui";
 import { getFileURL } from "@plane/utils";
 // components
 import { SettingsSidebar } from "@/components/settings/sidebar";
@@ -54,7 +55,7 @@ export const ProfileSidebar = observer((props: TProfileSidebarProps) => {
               </div>
             ) : (
               <div className="relative h-8 w-8 overflow-hidden">
-                <img
+                <ImageWithFallback
                   src={getFileURL(currentUser?.avatar_url)}
                   className="absolute left-0 top-0 h-full w-full rounded-lg object-cover"
                   alt={currentUser?.display_name}

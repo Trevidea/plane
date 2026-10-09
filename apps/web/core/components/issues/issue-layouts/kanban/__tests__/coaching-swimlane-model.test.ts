@@ -8,6 +8,7 @@ const cards = {
     id: "a",
     state_id: "identified",
     assignee_ids: ["john", "mike"],
+    created_by: "john",
     created_at: "2026-09-20T12:00:00Z",
     coaching_card_data: {
       player: { id: "p1", name: "Cody Simon", jersey_number: "10", position: "ILB" },
@@ -19,6 +20,7 @@ const cards = {
     id: "b",
     state_id: "assigned",
     assignee_ids: ["john"],
+    created_by: "mike",
     created_at: "2026-09-23T12:00:00Z",
     coaching_card_data: {
       player: null,
@@ -42,14 +44,51 @@ const cards = {
 const stages = { identified: ["a", "c"], assigned: ["b"] };
 const now = new Date("2026-09-29T12:00:00Z");
 
-test("includes a card in each assigned coach lane", () => {
+test("coach lanes group by the creator rather than assignees, without duplicating cards", () => {
   const groups = groupCardsBySwimlane(stages, cards, "coach", now);
   assert.deepEqual(groups.find((group) => group.id === "coach-john")?.cardsByStage, {
     identified: ["a"],
+    assigned: [],
+  });
+  assert.deepEqual(groups.find((group) => group.id === "coach-mike")?.cardsByStage, {
+    identified: [],
     assigned: ["b"],
   });
-  assert.equal(groups.find((group) => group.id === "coach-mike")?.cardCount, 1);
   assert.deepEqual(groups.find((group) => group.id === "coach-unassigned")?.cardsByStage.identified, ["c"]);
+  assert.equal(
+    groups.reduce((count, group) => count + group.cardCount, 0),
+    3
+  );
+});
+
+test("unassigned cards appear under their creator, with legacy author metadata as a fallback", () => {
+  const creatorCards = {
+    a: { ...cards.a, assignee_ids: [] },
+    c: {
+      ...cards.c,
+      coaching_card_data: { ...cards.c.coaching_card_data, metadata: { author: { id: "alex", name: "Alex Coach" } } },
+    },
+  };
+  const groups = groupCardsBySwimlane({ identified: ["a", "c"] }, creatorCards, "coach", now);
+  assert.deepEqual(groups.find((group) => group.id === "coach-john")?.cardsByStage.identified, ["a"]);
+  assert.equal(groups.find((group) => group.id === "coach-alex")?.label, "Alex Coach");
+  assert.equal(
+    groups.some((group) => group.id === "coach-unassigned"),
+    false
+  );
+});
+
+test("the issue creator takes precedence over older metadata and uses the member's display name", () => {
+  const issue = {
+    ...cards.b,
+    coaching_card_data: { ...cards.b.coaching_card_data, metadata: { author: { id: "john", name: "John Coach" } } },
+  };
+  const groups = groupCardsBySwimlane({ assigned: ["b"] }, { b: issue }, "coach", now, [
+    { id: "coach-mike", value: "mike", label: "Mike Coach" },
+  ]);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].label, "Mike Coach");
+  assert.deepEqual(groups[0].cardsByStage.assigned, ["b"]);
 });
 
 test("does not group cards absent from the filtered stage results", () => {
@@ -114,10 +153,8 @@ test("aging is recalculated from start date or creation date with no overlap at 
   assert.deepEqual(groups.find((group) => group.id === "fresh")?.cardsByStage.identified, ["c"]);
 });
 
-test("moving between coach lanes keeps other assignees", () => {
-  assert.deepEqual(getSwimlaneLaneUpdate("coach", "coach-john", "coach-alex", ["john", "mike"]), {
-    issuePatch: { assignee_ids: ["mike", "alex"] },
-  });
+test("moving across creator lanes cannot reassign a coach or change the author", () => {
+  assert.throws(() => getSwimlaneLaneUpdate("coach", "coach-john", "coach-alex", ["john", "mike"]), /created/);
 });
 
 test("player and type lane moves use coaching card update fields", () => {

@@ -1,12 +1,12 @@
 import type { FC } from "react";
 import React, { useEffect, useState } from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 // plane imports
 import { API_BASE_URL } from "@plane/constants";
 import { OAuthOptions } from "@plane/ui";
+import Image from "@/components/common/image-with-fallback";
 // assets
 import GithubLightLogo from "/public/logos/github-black.png";
 import GithubDarkLogo from "/public/logos/github-dark.svg";

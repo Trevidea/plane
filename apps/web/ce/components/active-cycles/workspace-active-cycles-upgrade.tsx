@@ -2,7 +2,6 @@
 
 import React from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
 import { AlertOctagon, BarChart4, CircleDashed, Folder, Microscope, Search } from "lucide-react";
 // plane imports
 import { MARKETING_PRICING_PAGE_LINK } from "@plane/constants";
@@ -10,6 +9,7 @@ import { useTranslation } from "@plane/i18n";
 import { getButtonStyling } from "@plane/propel/button";
 import { ContentWrapper } from "@plane/ui";
 import { cn } from "@plane/utils";
+import Image from "@/components/common/image-with-fallback";
 // components
 import { ProIcon } from "@/components/common/pro-icon";
 // hooks

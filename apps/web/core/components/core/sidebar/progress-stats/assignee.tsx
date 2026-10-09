@@ -1,9 +1,9 @@
 import { observer } from "mobx-react";
-import Image from "next/image";
 // plane imports
 import { useTranslation } from "@plane/i18n";
-import { Avatar } from "@plane/ui";
+import { ImageWithFallback, Avatar } from "@plane/ui";
 import { getFileURL } from "@plane/utils";
+import Image from "@/components/common/image-with-fallback";
 // components
 import { SingleProgressStats } from "@/components/core/sidebar/single-progress-stats";
 // public
@@ -56,7 +56,13 @@ export const AssigneeStatComponent = observer((props: TAssigneeStatComponent) =>
                 title={
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 rounded-full border-2 border-custom-border-200 bg-custom-background-80">
-                      <img src="/user.png" height="100%" width="100%" className="rounded-full" alt="User" />
+                      <ImageWithFallback
+                        src="/user.png"
+                        height="100%"
+                        width="100%"
+                        className="rounded-full"
+                        alt="User"
+                      />
                     </div>
                     <span>{t("no_assignee")}</span>
                   </div>

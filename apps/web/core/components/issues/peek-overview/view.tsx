@@ -13,8 +13,10 @@ import useKeypress from "@/hooks/use-keypress";
 import usePeekOverviewOutsideClickDetector from "@/hooks/use-peek-overview-outside-click";
 // local imports
 import type { TIssueOperations } from "../issue-detail";
+import { CoachingCardClips } from "../issue-detail/coaching-card-clips";
 import { IssueActivity } from "../issue-detail/issue-activity";
 import { IssueDetailWidgets } from "../issue-detail-widgets";
+import { CoachingCardPeekContent } from "./coaching-card/root";
 import { IssuePeekOverviewError } from "./error";
 import type { TPeekModes } from "./header";
 import { IssuePeekOverviewHeader } from "./header";
@@ -41,7 +43,11 @@ const resolveDescriptionImageSrc = (value: string, workspaceSlug: string, projec
   return getFileURL(trimmed) ?? trimmed;
 };
 
-const extractDescriptionImageUrls = (descriptionHtml: string | null | undefined, workspaceSlug: string, projectId: string) => {
+const extractDescriptionImageUrls = (
+  descriptionHtml: string | null | undefined,
+  workspaceSlug: string,
+  projectId: string
+) => {
   if (!descriptionHtml) return [];
   const sources = new Set<string>();
 
@@ -114,6 +120,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
   const [isEditIssueModalOpen, setIsEditIssueModalOpen] = useState(false);
   const [isInlineCleanupModalOpen, setIsInlineCleanupModalOpen] = useState(false);
   const [isWebhookVideoModalOpen, setIsWebhookVideoModalOpen] = useState(false);
+  const [isCoachingModalOpen, setIsCoachingModalOpen] = useState(false);
   const [descriptionHtmlOverride, setDescriptionHtmlOverride] = useState<string | null>(null);
   // ref
   const issuePeekOverviewRef = useRef<HTMLDivElement>(null);
@@ -127,6 +134,12 @@ export const IssueView: FC<IIssueView> = observer((props) => {
   } = useIssueDetail();
   const { isAnyModalOpen: isAnyEpicModalOpen } = useIssueDetail(EIssueServiceType.EPICS);
   const issue = getIssueById(issueId);
+  const isCoachingCard = issue?.category === "Coaching Card" && issue.coaching_card_data?.kind === "coaching_card";
+  // A refresh after an inline edit must not unmount the tabs or discard drafts.
+  const showLoader = isLoading && !(isCoachingCard && issue.description_html !== undefined);
+  useEffect(() => {
+    if (isCoachingCard) issuePeekOverviewRef.current?.focus({ preventScroll: true });
+  }, [issueId, isCoachingCard]);
   useEffect(() => {
     setDescriptionHtmlOverride(null);
   }, [issueId]);
@@ -142,6 +155,11 @@ export const IssueView: FC<IIssueView> = observer((props) => {
   const removeRoutePeekId = () => {
     setPeekIssue(undefined);
     if (embedIssue && embedRemoveCurrentNotification) embedRemoveCurrentNotification();
+    if (isCoachingCard) {
+      document
+        .querySelector<HTMLAnchorElement>(`[data-coaching-card-id="${issueId}"] a`)
+        ?.focus({ preventScroll: true });
+    }
   };
 
   const isLocalDBIssueDescription = getIsLocalDBIssueDescription(issueId);
@@ -160,6 +178,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
   const isAnyLocalModalOpenWithInline =
     isAnyLocalModalOpen ||
     isInlineCleanupModalOpen ||
+    isCoachingModalOpen ||
     isWebhookVideoModalOpen ||
     Date.now() < webhookVideoModalCloseGuardRef.current;
 
@@ -180,7 +199,21 @@ export const IssueView: FC<IIssueView> = observer((props) => {
     const editorImageFullScreenModalElement = document.querySelector(".editor-image-full-screen-modal");
     const dropdownElement = document.activeElement?.tagName === "INPUT";
     const isAnyDropbarOpen = editorRef.current?.isAnyDropbarOpen();
-    if (!isAnyModalOpen && !dropdownElement && !isAnyDropbarOpen && !editorImageFullScreenModalElement) {
+    const isDialogOpen = Array.from(document.querySelectorAll("[role='dialog']")).some(
+      (dialog) => dialog !== issuePeekOverviewRef.current
+    );
+    const isEditing =
+      document.activeElement?.tagName === "TEXTAREA" || (document.activeElement as HTMLElement)?.isContentEditable;
+    if (
+      !isAnyModalOpen &&
+      !isAnyEpicModalOpen &&
+      !isAnyLocalModalOpenWithInline &&
+      !isDialogOpen &&
+      !isEditing &&
+      !dropdownElement &&
+      !isAnyDropbarOpen &&
+      !editorImageFullScreenModalElement
+    ) {
       removeRoutePeekId();
       const issueElement = document.getElementById(`issue-${issueId}`);
       if (issueElement) issueElement?.focus();
@@ -215,6 +248,9 @@ export const IssueView: FC<IIssueView> = observer((props) => {
       {issueId && (
         <div
           ref={issuePeekOverviewRef}
+          role={isCoachingCard ? "dialog" : undefined}
+          aria-label={isCoachingCard ? "Coaching card details" : undefined}
+          tabIndex={isCoachingCard ? -1 : undefined}
           className={peekOverviewIssueClassName}
           style={{
             boxShadow:
@@ -223,12 +259,15 @@ export const IssueView: FC<IIssueView> = observer((props) => {
         >
           {isError ? (
             <div className="relative h-screen w-full overflow-hidden">
-              <IssuePeekOverviewError removeRoutePeekId={removeRoutePeekId} />
+              <IssuePeekOverviewError
+                removeRoutePeekId={removeRoutePeekId}
+                onRetry={() => void issueOperations.fetch(workspaceSlug, projectId, issueId)}
+              />
             </div>
           ) : (
-            isLoading && <IssuePeekOverviewLoader removeRoutePeekId={removeRoutePeekId} />
+            showLoader && <IssuePeekOverviewLoader removeRoutePeekId={removeRoutePeekId} />
           )}
-          {!isLoading && !isError && issue && (
+          {!showLoader && !isError && issue && (
             <>
               {/* header */}
               <IssuePeekOverviewHeader
@@ -252,7 +291,20 @@ export const IssueView: FC<IIssueView> = observer((props) => {
               />
               {/* content */}
               <div className="vertical-scrollbar scrollbar-md relative h-full w-full overflow-hidden overflow-y-auto">
-                {["side-peek", "modal"].includes(peekMode) ? (
+                {isCoachingCard ? (
+                  <CoachingCardPeekContent
+                    key={issue.id}
+                    issue={issue}
+                    workspaceSlug={workspaceSlug}
+                    projectId={projectId}
+                    disabled={disabled || is_archived}
+                    issueOperations={issueOperations}
+                    editorRef={editorRef}
+                    isSubmitting={isSubmitting}
+                    setIsSubmitting={setIsSubmitting}
+                    onModalChange={setIsCoachingModalOpen}
+                  />
+                ) : ["side-peek", "modal"].includes(peekMode) ? (
                   <div className="relative flex flex-col gap-3 px-8 py-5 space-y-3">
                     <PeekOverviewIssueDetails
                       editorRef={editorRef}
@@ -285,6 +337,15 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                         confirmManifestOnDelete
                       />
                     </div>
+
+                    {issue && (
+                      <CoachingCardClips
+                        key={issue.id}
+                        issue={issue}
+                        workspaceSlug={workspaceSlug}
+                        projectId={projectId}
+                      />
+                    )}
 
                     <PeekOverviewProperties
                       workspaceSlug={workspaceSlug}
@@ -336,6 +397,15 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                             confirmManifestOnDelete
                           />
                         </div>
+
+                        {issue && (
+                          <CoachingCardClips
+                            key={issue.id}
+                            issue={issue}
+                            workspaceSlug={workspaceSlug}
+                            projectId={projectId}
+                          />
+                        )}
 
                         <IssueActivity
                           workspaceSlug={workspaceSlug}

@@ -1,4 +1,5 @@
 import { observer } from "mobx-react";
+import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 // plane internal packages
 import { WEB_BASE_URL } from "@plane/constants";
@@ -32,8 +33,11 @@ export const WorkspaceListItem = observer(({ workspaceId }: TWorkspaceListItemPr
           }`}
         >
           {workspace?.logo_url && workspace.logo_url !== "" ? (
-            <img
-              src={getFileURL(workspace.logo_url)}
+            <Image
+              src={getFileURL(workspace.logo_url)!}
+              width={32}
+              height={32}
+              unoptimized
               className="absolute left-0 top-0 h-full w-full rounded object-cover"
               alt="Workspace Logo"
             />

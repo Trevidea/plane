@@ -2,6 +2,7 @@
 
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Pencil } from "lucide-react";
+import { ImageWithFallback } from "@plane/ui";
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import type { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
 import {
@@ -385,7 +386,7 @@ export const VideoAnnotationPropertiesPanel = ({
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Image</div>
               {annotationImageContent ? (
                 <div className="flex h-20 items-center justify-center overflow-hidden rounded-[5px] border border-custom-border-200 bg-custom-background-90">
-                  <img
+                  <ImageWithFallback
                     src={annotationImageContent}
                     alt=""
                     className="max-h-full max-w-full object-contain"

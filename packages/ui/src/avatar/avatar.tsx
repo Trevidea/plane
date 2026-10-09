@@ -1,6 +1,8 @@
 import React from "react";
+import Image from "next/image";
 // ui
 import { Tooltip } from "@plane/propel/tooltip";
+import { useImageFallback } from "../image/image";
 // helpers
 import { cn } from "../utils";
 
@@ -116,8 +118,8 @@ export const isAValidNumber = (value: any) => typeof value === "number" && !isNa
 export const Avatar: React.FC<Props> = (props) => {
   const {
     name,
-    fallbackBackgroundColor,
     fallbackText,
+    fallbackBackgroundColor,
     fallbackTextColor,
     showTooltip = true,
     size = "md",
@@ -125,6 +127,7 @@ export const Avatar: React.FC<Props> = (props) => {
     src,
     className = "",
   } = props;
+  const fallback = useImageFallback(src);
 
   // get size details based on the size prop
   const sizeInfo = getSizeInfo(size);
@@ -145,9 +148,7 @@ export const Avatar: React.FC<Props> = (props) => {
         }
         tabIndex={-1}
       >
-        {src ? (
-          <img src={src} className={cn("h-full w-full", getBorderRadius(shape), className)} alt={name} />
-        ) : (
+        {fallback.isFallback ? (
           <div
             className={cn(
               sizeInfo.fontSize,
@@ -155,13 +156,20 @@ export const Avatar: React.FC<Props> = (props) => {
               getBorderRadius(shape),
               className
             )}
-            style={{
-              backgroundColor: fallbackBackgroundColor ?? "#028375",
-              color: fallbackTextColor ?? "#ffffff",
-            }}
+            style={{ backgroundColor: fallbackBackgroundColor ?? "#028375", color: fallbackTextColor ?? "#ffffff" }}
           >
-            {name?.[0]?.toUpperCase() ?? fallbackText ?? "?"}
+            {name?.trim()?.[0]?.toUpperCase() || fallbackText || "?"}
           </div>
+        ) : (
+          <Image
+            src={src!}
+            width={typeof size === "number" ? size : { sm: 16, md: 20, base: 24, lg: 28 }[size]}
+            height={typeof size === "number" ? size : { sm: 16, md: 20, base: 24, lg: 28 }[size]}
+            unoptimized
+            className={cn("h-full w-full object-cover", getBorderRadius(shape), className)}
+            alt={name || fallbackText || "Profile photo"}
+            onError={fallback.onError}
+          />
         )}
       </div>
     </Tooltip>

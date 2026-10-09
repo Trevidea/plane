@@ -122,3 +122,81 @@ test("later stages permit one step forward but reject jumps", () => {
   assert.equal(getCardTransitionIntent(coachingConfig, "s2", "s2").kind, "unchanged");
   assert.equal(getCardTransitionIntent(undefined, "s2", "s3").kind, "blocked");
 });
+
+test("board columns preserve the current settings order even when cached coaching stages disagree", () => {
+  const columns = [
+    { id: "identified", group: "backlog", sequence: 5000 },
+    { id: "assigned", group: "backlog", sequence: 9000 },
+    { id: "film", group: "unstarted", sequence: 1 },
+    { id: "reviewed", group: "started", sequence: 5 },
+    { id: "practice", group: "started", sequence: 10 },
+    { id: "verified", group: "completed", sequence: 1 },
+    { id: "cancelled", group: "cancelled", sequence: 1 },
+  ];
+  const staleConfig = {
+    ...config,
+    stages: columns
+      .slice()
+      .reverse()
+      .map((column, order) => ({
+        id: column.id,
+        name: column.id,
+        order,
+        abbreviation: "",
+        allowed_next_stage_ids: [],
+      })),
+  };
+  assert.deepEqual(
+    orderCardColumns(
+      [columns[0], columns[3], columns[1], columns[4], columns[2], columns[5], columns[6]],
+      staleConfig
+    ).map((column) => column.id),
+    ["identified", "assigned", "film", "reviewed", "practice", "verified", "cancelled"]
+  );
+});
+
+test("next actions follow settings order instead of stale lifecycle order", () => {
+  const states = [
+    { id: "identified", name: "Identified", group: "backlog", sequence: 5 },
+    { id: "assigned", name: "Assigned", group: "backlog", sequence: 10 },
+    { id: "film", name: "Film Tagged", group: "unstarted", sequence: 1 },
+    { id: "reviewed", name: "Player Reviewed", group: "started", sequence: 1 },
+    { id: "practice", name: "Practice Check", group: "started", sequence: 5 },
+  ];
+  const stale = {
+    ...config,
+    stages: [states[0], states[3], states[1], states[4], states[2]].map((state, order, all) => ({
+      id: state.id,
+      name: state.name,
+      order,
+      abbreviation: "",
+      allowed_next_stage_ids: all.filter((_, index) => Math.abs(index - order) === 1).map((state) => state.id),
+    })),
+  };
+  const aligned = cardStages.alignCardStageConfig(stale, states);
+  assert.equal(getCardStageActions(aligned, "identified").next?.name, "Assigned");
+  assert.equal(getCardStageActions(aligned, "assigned").next?.name, "Film Tagged");
+  assert.equal(getCardStageActions(aligned, "film").next?.name, "Player Reviewed");
+  assert.equal(getCardTransitionIntent(aligned, "assigned", "film").kind, "move");
+  assert.equal(getCardTransitionIntent(aligned, "assigned", "practice").kind, "blocked");
+  assert.equal(getCardStageActions(aligned, "practice").next, null);
+  assert.equal(
+    cardStages.alignCardStageConfig(coachingConfig, [])!.stages[1].allowed_next_stage_ids.includes("s2"),
+    false
+  );
+});
+
+test("settings alignment retains automatic review restrictions", () => {
+  const states = coachingConfig.stages.map((stage, sequence) => ({ ...stage, group: "backlog", sequence }));
+  const aligned = cardStages.alignCardStageConfig(coachingConfig, states);
+  assert.equal(getCardStageActions(aligned, "s1").next, null);
+  const reordered = cardStages.alignCardStageConfig(
+    {
+      ...coachingConfig,
+      stages: coachingConfig.stages.map((stage, index) => ({ ...stage, order: 4 - index })),
+    },
+    states
+  );
+  assert.equal(getCardStageActions(reordered, "s1").next, null);
+  assert.equal(getCardStageActions(reordered, "s2").next?.id, "s3");
+});

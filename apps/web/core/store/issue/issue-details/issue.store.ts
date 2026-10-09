@@ -159,6 +159,9 @@ export class IssueStore implements IIssueStore {
   };
 
   addIssueToStore = (issue: TIssue) => {
+    // Plane's SQLite issue cache does not contain Kanavio assignment or card data.
+    // Keep the board's metadata until a response explicitly supplies these fields.
+    const existingIssue = this.getIssueById(issue.id);
     const issuePayload: TIssue = {
       id: issue?.id,
       sequence_id: issue?.sequence_id,
@@ -189,6 +192,10 @@ export class IssueStore implements IIssueStore {
       program: issue?.program,
       year: issue?.year,
       category: issue?.category,
+      coaching_card_data:
+        issue.coaching_card_data === undefined ? existingIssue?.coaching_card_data : issue.coaching_card_data,
+      roster_player_id: issue.roster_player_id === undefined ? existingIssue?.roster_player_id : issue.roster_player_id,
+      position_group: issue.position_group === undefined ? existingIssue?.position_group : issue.position_group,
       target_date: issue?.target_date,
       completed_at: issue?.completed_at,
       archived_at: issue?.archived_at,

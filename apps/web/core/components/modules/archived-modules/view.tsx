@@ -1,6 +1,6 @@
 import type { FC } from "react";
 import { observer } from "mobx-react";
-import Image from "next/image";
+import Image from "@/components/common/image-with-fallback";
 // components
 import { ModuleListItem, ModulePeekOverview } from "@/components/modules";
 // ui

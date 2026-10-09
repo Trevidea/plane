@@ -64,11 +64,57 @@ export const getCardStageActions = (config: TCoachingCardStageConfig | undefined
   return { available, next: available.find((stage) => stage.id === next?.id) ?? null };
 };
 
-export const orderCardColumns = <T extends { id: string }>(columns: T[], config: TCoachingCardStageConfig): T[] => {
+export const orderCardColumns = <T extends { id: string; group?: string; sequence?: number }>(
+  columns: T[],
+  config: TCoachingCardStageConfig
+): T[] => {
+  // Sequence values are local to a workflow group, just as in States settings.
+  const groups = ["backlog", "unstarted", "started", "completed", "cancelled"];
+  if (
+    columns.every((column) => column.group && typeof column.sequence === "number" && Number.isFinite(column.sequence))
+  ) {
+    return [...columns].sort(
+      (a, b) => groups.indexOf(a.group!) - groups.indexOf(b.group!) || a.sequence! - b.sequence!
+    );
+  }
   const byId = new Map(columns.map((column) => [column.id, column]));
   const stageIds = new Set(config.stages.map((stage) => stage.id));
   const configuredColumns = [...config.stages]
     .sort((a, b) => a.order - b.order)
     .flatMap((stage) => byId.get(stage.id) ?? []);
   return [...configuredColumns, ...columns.filter((column) => !stageIds.has(column.id))];
+};
+
+// Use the same project-state order for buttons, drag/drop and board columns.
+export const alignCardStageConfig = (
+  config: TCoachingCardStageConfig | undefined,
+  states: Array<{ id: string; name: string; group: string; sequence: number }> | undefined
+): TCoachingCardStageConfig | undefined => {
+  if (!config || !states?.length) return config;
+  const byId = new Map(states.map((state) => [state.id, state]));
+  if (config.stages.some((stage) => !byId.has(stage.id))) return config;
+  const ordered = orderCardColumns(
+    config.stages.map((stage) => byId.get(stage.id)!),
+    config
+  );
+  const previous = [...config.stages].sort((a, b) => a.order - b.order);
+  const reordered = ordered.some((state, index) => state.id !== previous[index].id);
+  const automaticReview =
+    ordered[1]?.name.toLowerCase() === "assigned" &&
+    ["player reviewed", "in work"].includes(ordered[2]?.name.toLowerCase());
+  return {
+    ...config,
+    initial_stage_id: ordered[0]?.id ?? config.initial_stage_id,
+    stages: ordered.map((state, order) => ({
+      ...config.stages.find((stage) => stage.id === state.id)!,
+      name: state.name,
+      order,
+      // Rebuild adjacency when settings changed, matching the server lifecycle contract.
+      allowed_next_stage_ids: reordered
+        ? ordered
+            .filter((_, index) => Math.abs(index - order) === 1 && !(automaticReview && order === 1 && index === 2))
+            .map((state) => state.id)
+        : previous[order].allowed_next_stage_ids,
+    })),
+  };
 };

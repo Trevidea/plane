@@ -11,9 +11,18 @@ type THlsVideoProps = {
   autoPlay?: boolean;
   controls?: boolean;
   videoRef?: RefObject<HTMLVideoElement>;
+  onError?: () => void;
 };
 
-export const HlsVideo = ({ src, poster, className, autoPlay = false, controls = true, videoRef }: THlsVideoProps) => {
+export const HlsVideo = ({
+  src,
+  poster,
+  className,
+  autoPlay = false,
+  controls = true,
+  videoRef,
+  onError,
+}: THlsVideoProps) => {
   const fallbackRef = useRef<HTMLVideoElement | null>(null);
   const targetRef = videoRef ?? fallbackRef;
 
@@ -21,14 +30,13 @@ export const HlsVideo = ({ src, poster, className, autoPlay = false, controls = 
     const video = targetRef.current;
     if (!video || !src) return;
 
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = src;
-      video.load();
-      return;
-    }
-
+    // Prefer MediaSource playback: Chrome can advertise native HLS support
+    // but reject the proxied playlist with MEDIA_ERR_SRC_NOT_SUPPORTED.
     if (Hls.isSupported()) {
       const hls = new Hls();
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) onError?.();
+      });
       hls.loadSource(src);
       hls.attachMedia(video);
       return () => {
@@ -38,7 +46,12 @@ export const HlsVideo = ({ src, poster, className, autoPlay = false, controls = 
 
     video.src = src;
     video.load();
-  }, [src, targetRef]);
+    return () => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [src, targetRef, onError]);
 
   return (
     <video
@@ -49,6 +62,7 @@ export const HlsVideo = ({ src, poster, className, autoPlay = false, controls = 
       playsInline
       preload="metadata"
       className={className}
+      onError={onError}
     />
   );
 };

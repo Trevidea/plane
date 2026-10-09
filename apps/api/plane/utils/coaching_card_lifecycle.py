@@ -65,7 +65,7 @@ def get_project_card_stage_config(project):
     try:
         return build_stage_config(
             project.sport,
-            [{"id": state.id, "name": state.name, "sequence": state.sequence} for state in states],
+            [{"id": state.id, "name": state.name, "sequence": state.sequence, "group": state.group} for state in states],
         )
     except ValueError as exc:
         raise serializers.ValidationError({"stages": [str(exc)]}) from exc

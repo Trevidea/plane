@@ -1,4 +1,5 @@
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
+import { ImageWithFallback } from "@plane/ui";
 
 export const LinkEmbedPreview = ({ node }: NodeViewProps) => {
   const { url, title, description, image, favicon } = node.attrs;
@@ -16,7 +17,11 @@ export const LinkEmbedPreview = ({ node }: NodeViewProps) => {
         {/* LEFT IMAGE – FULL HEIGHT */}
         {image && (
           <div className="w-52 h-32 flex-shrink-0">
-            <img src={image} alt={title || "Preview"} className="w-full h-full object-cover rounded-l-lg" />
+            <ImageWithFallback
+              src={image}
+              alt={title || "Preview"}
+              className="w-full h-full object-cover rounded-l-lg"
+            />
           </div>
         )}
 
@@ -43,7 +48,7 @@ export const LinkEmbedPreview = ({ node }: NodeViewProps) => {
           {/* URL */}
           <div className="flex items-center gap-1 text-xs text-custom-text-400 mt-1">
             {favicon && (
-              <img
+              <ImageWithFallback
                 src={favicon}
                 alt=""
                 className="w-4 h-4"

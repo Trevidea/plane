@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Star, Trash2 } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
+import { ImageWithFallback } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { SURFACE_CLASS } from "../../constants";
 import { getDraggedPlaylistTagIds, writePlaylistTagDragData } from "../../playlist-draft";
@@ -441,7 +442,12 @@ export const SgEventTagsPanel = ({
                   </button>
                   <div className="h-10 w-[74px] overflow-hidden rounded bg-custom-background-80">
                     {rowThumbnailUrl ? (
-                      <img src={rowThumbnailUrl} alt="" className="h-full w-full object-cover" draggable={false} />
+                      <ImageWithFallback
+                        src={rowThumbnailUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        draggable={false}
+                      />
                     ) : (
                       <div className="h-full w-full bg-custom-background-90" />
                     )}

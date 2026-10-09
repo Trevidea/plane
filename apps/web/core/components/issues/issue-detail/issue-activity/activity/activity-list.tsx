@@ -28,6 +28,7 @@ import {
   IssueArchivedAtActivity,
   IssueInboxActivity,
 } from "./actions";
+import { CoachingClipActivity } from "./actions/coaching-clip";
 
 type TIssueActivityItem = {
   activityId: string;
@@ -80,6 +81,8 @@ export const IssueActivityItem: FC<TIssueActivityItem> = observer((props) => {
       return <IssueLabelActivity {...componentDefaultProps} showIssue={false} />;
     case "link":
       return <IssueLinkActivity {...componentDefaultProps} showIssue={false} />;
+    case "coaching_clip":
+      return <CoachingClipActivity {...componentDefaultProps} />;
     case "attachment":
       return <IssueAttachmentActivity {...componentDefaultProps} showIssue={false} />;
     case "archived_at":

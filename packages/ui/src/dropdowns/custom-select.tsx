@@ -126,7 +126,7 @@ const CustomSelect = (props: ICustomSelectProps) => {
               </div>
             </div>
           </Combobox.Options>,
-          document.body
+          document.fullscreenElement?.contains(referenceElement) ? document.fullscreenElement : document.body
         )}
     </Combobox>
   );

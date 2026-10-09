@@ -15,12 +15,14 @@ from plane.app.permissions import ROLE, allow_permission
 from plane.db.models import (
     CardStageHistory,
     Issue,
+    IssueActivity,
     Project,
     RosterPlayer,
     State,
     WorkspaceMember,
 )
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY, COACHING_CARD_KIND
+from plane.utils.coaching_card_clips import CLIP_TYPES, mutate_card_clips
 from plane.utils.coaching_card_media import build_uploaded_video_card_source, choose_card_context_value
 from plane.utils.media_library import manifest_path, read_manifest, resolve_artifact_metadata, validate_segment
 from plane.utils.coaching_card_lifecycle import (
@@ -621,6 +623,113 @@ class CoachingCardDetailEndpoint(BaseAPIView):
             if review_stages and str(card.state_id) == config["initial_stage_id"]:
                 transition_coaching_card(card, review_stages[0], request.user)
         return Response(_card_response(card))
+
+
+
+class CoachingEvidenceSerializer(serializers.Serializer):
+    request_id = serializers.UUIDField(required=False)
+    title = serializers.CharField(max_length=255)
+    clip_type = serializers.ChoiceField(choices=CLIP_TYPES, required=False)
+    source_url = serializers.CharField(max_length=2048, required=False)
+    source_media = CoachingCardMediaSourceSerializer(required=False, allow_null=True)
+    source_type = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    source_name = serializers.CharField(max_length=255, allow_blank=True, required=False)
+    event_id = serializers.CharField(max_length=255, allow_blank=True, required=False)
+    event_name = serializers.CharField(max_length=255, allow_blank=True, required=False)
+    stream_id = serializers.CharField(max_length=255, allow_blank=True, required=False)
+    start_segment = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    end_segment = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    start_seconds = serializers.FloatField(min_value=0, required=False, allow_null=True)
+    end_seconds = serializers.FloatField(min_value=0, required=False, allow_null=True)
+    source_start_seconds = serializers.FloatField(min_value=0, required=False, allow_null=True)
+    playback_mode = serializers.ChoiceField(choices=("source", "clip"), required=False)
+    period = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    game_clock = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    thumbnail = serializers.CharField(max_length=2048, allow_blank=True, allow_null=True, required=False)
+    note = serializers.CharField(max_length=10000, allow_blank=True, required=False)
+    tags = serializers.ListField(child=serializers.CharField(max_length=100), max_length=50, required=False)
+    player_ids = serializers.ListField(child=serializers.UUIDField(), max_length=200, required=False)
+    position_group_ids = serializers.ListField(child=serializers.CharField(max_length=100), max_length=100, required=False)
+
+
+class CoachingCardClipsEndpoint(BaseAPIView):
+    def _card(self, slug, project_id, card_id):
+        card = (Issue.issue_objects.select_for_update(of=("self",)).select_related("project")
+                .filter(pk=card_id, project_id=project_id, project__workspace__slug=slug,
+                        category=COACHING_CARD_CATEGORY).first())
+        if card is None:
+            raise NotFound("Coaching card not found.")
+        return card
+
+    def _mutate(self, request, slug, project_id, card_id, operation, association_id=None):
+        card = self._card(slug, project_id, card_id)
+        values = {}
+        if operation != "remove":
+            serializer = CoachingEvidenceSerializer(data=request.data, partial=operation == "edit")
+            serializer.is_valid(raise_exception=True)
+            values = dict(serializer.validated_data)
+            if operation == "add" and "request_id" not in values:
+                raise serializers.ValidationError({"request_id": "A retry identity is required."})
+            if "request_id" in values:
+                values["request_id"] = str(values["request_id"])
+            if "player_ids" in values:
+                ids = values["player_ids"]
+                if RosterPlayer.objects.filter(project_id=project_id, id__in=ids).count() != len(set(ids)):
+                    raise serializers.ValidationError({"player_ids": "Players must belong to this program."})
+                values["player_ids"] = [str(value) for value in ids]
+            if values.get("source_media"):
+                source = _resolve_media_source(card.project, slug, values["source_media"])
+                clip = source["playlists"][0]["clips"][0]
+                values["source_name"] = values.get("source_name") or source["source_media"]["title"]
+                values["thumbnail"] = clip.get("thumbnail")
+                values["source_url"] = clip.get("source_url") or (
+                    f"/api/workspaces/{quote(slug, safe='')}/projects/{project_id}/media-library/packages/"
+                    f"{quote(values['source_media']['package_id'], safe='')}/artifacts/"
+                    f"{quote(values['source_media']['artifact_id'], safe='')}/file/"
+                )
+            source_url = values.get("source_url", "")
+            if "/api/workspaces/" in source_url and f"/projects/{project_id}/" not in source_url:
+                raise serializers.ValidationError({"source_url": "Choose a source from this program."})
+            if "event_id" in values and values["event_id"]:
+                event_id = values["event_id"]
+                if not Issue.issue_objects.filter(project_id=project_id).filter(
+                    Q(sg_event_id=event_id) if event_id.isdigit() else Q(id=event_id)
+                ).exists():
+                    raise serializers.ValidationError({"event_id": "Event must belong to this program."})
+        previous = card.coaching_card_data
+        try:
+            updated = mutate_card_clips(previous, operation, values,
+                                        {"id": str(request.user.id), "name": request.user.display_name or request.user.first_name or request.user.email},
+                                        timezone.now().isoformat(), association_id)
+        except KeyError:
+            raise NotFound("Clip not found on this card.")
+        except ValueError as error:
+            raise serializers.ValidationError({"detail": str(error)})
+        if updated != previous:
+            card.coaching_card_data = updated
+            card.save(update_fields=["coaching_card_data", "updated_at"])
+            IssueActivity.objects.create(
+                issue=card, project=card.project, workspace=card.workspace, actor=request.user,
+                field="coaching_clip", verb={"add": "created", "edit": "updated", "remove": "deleted"}[operation],
+                new_value=values.get("title", "Clip"), old_value=association_id or "",
+                comment={"add": "Added a coaching clip", "edit": "Updated a coaching clip", "remove": "Removed a coaching clip"}[operation],
+            )
+        return Response(_card_response(card), status=201 if operation == "add" else 200)
+
+    @allow_permission([ROLE.ADMIN, ROLE.MEMBER])
+    @transaction.atomic
+    def post(self, request, slug, project_id, card_id):
+        return self._mutate(request, slug, project_id, card_id, "add")
+
+    @allow_permission([ROLE.ADMIN, ROLE.MEMBER])
+    @transaction.atomic
+    def patch(self, request, slug, project_id, card_id, association_id):
+        return self._mutate(request, slug, project_id, card_id, "edit", association_id)
+
+    @allow_permission([ROLE.ADMIN, ROLE.MEMBER])
+    @transaction.atomic
+    def delete(self, request, slug, project_id, card_id, association_id):
+        return self._mutate(request, slug, project_id, card_id, "remove", association_id)
 
 
 class CoachingCardTransitionEndpoint(BaseAPIView):
