@@ -1,5 +1,21 @@
 import type { TCoachingCardData } from "@plane/types";
 
+export const sortCoachingClipsByTime = <T extends { startSeconds: number; sourceStartSeconds?: number }>(clips: T[]) =>
+  [...clips].sort((a, b) => (a.sourceStartSeconds ?? a.startSeconds) - (b.sourceStartSeconds ?? b.startSeconds));
+
+export const resolveCoachingStreamLink = (source: string) => {
+  try {
+    const url = new URL(source, "http://localhost");
+    if (url.pathname === "/api/hls") {
+      const upstream = url.searchParams.get("url");
+      if (upstream && /^https?:\/\//i.test(upstream)) return upstream;
+    }
+  } catch {
+    // Preserve sources that are not valid URLs.
+  }
+  return source;
+};
+
 export const resolveCoachingClipThumbnail = (value: string | null | undefined, apiBaseUrl: string) => {
   const thumbnail = value?.trim() || "";
   return thumbnail.startsWith("/api/") ? `${apiBaseUrl.replace(/\/+$/, "")}${thumbnail}` : thumbnail;
@@ -189,7 +205,7 @@ export const getClipPlaybackRange = (
     clip.playbackMode === "clip"
       ? Math.max(0, clip.startSeconds - (clip.sourceStartSeconds ?? clip.startSeconds))
       : sourceDuration !== null && clip.startSeconds >= sourceDuration
-        ? clip.playlistDurationSeconds && clip.playlistDurationSeconds <= sourceDuration + 0.1
+        ? clip.playlistDurationSeconds && (clip.playlistStartSeconds ?? 0) < sourceDuration
           ? (clip.playlistStartSeconds ?? 0)
           : 0
         : clip.startSeconds;

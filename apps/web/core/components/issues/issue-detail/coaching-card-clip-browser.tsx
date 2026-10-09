@@ -12,11 +12,13 @@ import { ImageWithFallback, Loader, ScrollArea } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { getSgEventMediaReferenceAnnotations, normalizePlaylistAnnotations } from "@/components/annotation";
 import { MediaLibraryService } from "@/services/media-library.service";
+import { CoachingCardStreamLink } from "./coaching-card-stream-link";
 import {
   buildCoachingCardClips,
   clipTypeConfig,
   resolveCoachingClipSource,
   resolveCoachingClipThumbnail,
+  sortCoachingClipsByTime,
 } from "./coaching-card-clips-model";
 import { formatCardDuration } from "./sg-event-detail-page/create-card-model";
 import { loadSgMediaPayload } from "./sg-event-detail-page/data";
@@ -59,15 +61,16 @@ export const CoachingCardClipBrowser = ({
     normalizedAction: (mediaItem?.action ?? "").toLowerCase(),
   });
   const clips = useMemo(() => {
-    const lifecycle: Record<string, number> = { original: 0, practice_check: 1, verified_on_film: 2 };
     return card
-      ? buildCoachingCardClips(card, issue.created_at, {
-          workspaceSlug,
-          projectId,
-          apiBaseUrl: API_BASE_URL,
-          uploadedSourceUrl,
-          uploadedThumbnail: mediaItem?.thumbnail,
-        }).sort((a, b) => (lifecycle[a.clipType || ""] ?? 3) - (lifecycle[b.clipType || ""] ?? 3))
+      ? sortCoachingClipsByTime(
+          buildCoachingCardClips(card, issue.created_at, {
+            workspaceSlug,
+            projectId,
+            apiBaseUrl: API_BASE_URL,
+            uploadedSourceUrl,
+            uploadedThumbnail: mediaItem?.thumbnail,
+          })
+        )
       : [];
   }, [card, issue.created_at, workspaceSlug, projectId, uploadedSourceUrl, mediaItem?.thumbnail]);
   const [selection, setSelection] = useState<{ cardId: string; key: string } | null>(null);
@@ -164,6 +167,7 @@ export const CoachingCardClipBrowser = ({
           No clips added yet.
         </div>
       )}
+      {!isLoading && <CoachingCardStreamLink source={source} />}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-medium text-custom-text-100">Clips</h3>

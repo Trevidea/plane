@@ -7,6 +7,62 @@ import * as clipModel from "../coaching-card-clips-model.ts";
 
 const { buildCoachingCardClips, getClipPlaybackRange, resolveCoachingClipSource } = clipModel;
 
+test("clip display follows recording time rather than primary or card lifecycle order", () => {
+  const clips = [
+    { key: "run", startSeconds: 317, clipType: "original", playlistStartSeconds: 0 },
+    { key: "field-goal", startSeconds: 363, clipType: "game_film", playlistStartSeconds: 8 },
+    { key: "pass-1", startSeconds: 206, clipType: "game_film", playlistStartSeconds: 16 },
+    { key: "pass-2", startSeconds: 283, clipType: "game_film", playlistStartSeconds: 24 },
+  ];
+  const sorted = clipModel.sortCoachingClipsByTime(clips);
+  assert.deepEqual(
+    sorted.map((clip) => clip.key),
+    ["pass-1", "pass-2", "run", "field-goal"]
+  );
+  assert.equal(sorted[0].playlistStartSeconds, 16);
+  assert.equal(clips[0].key, "run");
+  assert.deepEqual(
+    clipModel
+      .sortCoachingClipsByTime([
+        { key: "later", startSeconds: 0, sourceStartSeconds: 283 },
+        { key: "earlier", startSeconds: 0, sourceStartSeconds: 206 },
+      ])
+      .map((clip) => clip.key),
+    ["earlier", "later"]
+  );
+});
+
+test("combined playlists retain the second clip offset when HLS segments are shorter than saved durations", () => {
+  const range = getClipPlaybackRange(
+    {
+      startSeconds: 283,
+      endSeconds: 291,
+      durationSeconds: 8,
+      playlistStartSeconds: 8,
+      playlistDurationSeconds: 16,
+    },
+    15.099
+  );
+  assert.equal(range.start, 8);
+  assert.equal(range.end, 15.099);
+  assert.ok(range.duration > 7);
+});
+
+test("stream links expose the original manifest instead of the encoded HLS proxy", () => {
+  const manifest = "http://localhost:1437/api/blobs/media/upload/master.m3u8?token=a%2Fb&quality=high";
+  assert.equal(clipModel.resolveCoachingStreamLink(`/api/hls?url=${encodeURIComponent(manifest)}`), manifest);
+  assert.equal(
+    clipModel.resolveCoachingStreamLink(`https://app.example/api/hls?url=${encodeURIComponent(manifest)}`),
+    manifest
+  );
+  assert.equal(clipModel.resolveCoachingStreamLink(manifest), manifest);
+  assert.equal(
+    clipModel.resolveCoachingStreamLink("https://media.example/video.mp4"),
+    "https://media.example/video.mp4"
+  );
+  assert.equal(clipModel.resolveCoachingStreamLink("/api/hls?url="), "/api/hls?url=");
+});
+
 test("saved API thumbnails resolve against the API server instead of the web origin", () => {
   const path =
     "/api/workspaces/sport-work/projects/project/media-library/packages/package/artifacts/video-thumbnail/file/";
