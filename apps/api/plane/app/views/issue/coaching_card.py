@@ -740,7 +740,16 @@ class CoachingCardTransitionEndpoint(BaseAPIView):
         if "sort_order" in values:
             card.sort_order = values["sort_order"]
             card.save(update_fields=["sort_order", "updated_at"])
-        return Response({"id": str(card.id), "stage_id": str(card.state_id)})
+        return Response(
+            {
+                "id": str(card.id),
+                "stage_id": str(card.state_id),
+                "state_id": str(card.state_id),
+                "coaching_card_data": card.coaching_card_data,
+                "roster_player_id": card.roster_player_id,
+                "position_group": card.position_group,
+            }
+        )
 
 
 class CoachingCardReviewCompleteEndpoint(BaseAPIView):

@@ -179,3 +179,18 @@ test("aging and unassigned player lanes reject manual reassignment", () => {
   assert.throws(() => getSwimlaneLaneUpdate("aging", "fresh", "stale", []));
   assert.throws(() => getSwimlaneLaneUpdate("player", "player-p1", "player-unassigned", []));
 });
+
+test("returning to Identified bypasses player-lane assignment, including the unassigned lane", () => {
+  for (const source of ["player-p1", "position-Guard"])
+    for (const target of ["player-unassigned", "player-p2", "position-Forward"])
+      assert.equal(getSwimlaneLaneUpdate("player", source, target, [], ["p1", "p2"], true), null);
+});
+
+test("returning to Identified still allows unrelated card-type and priority lane updates", () => {
+  assert.deepEqual(getSwimlaneLaneUpdate("card_type", "type-Correction", "type-Opponent Scout", [], [], true), {
+    cardPatch: { card_type: "Opponent Scout" },
+  });
+  assert.deepEqual(getSwimlaneLaneUpdate("priority", "priority-Standard", "priority-Developmental", [], [], true), {
+    cardPatch: { priority: "Developmental" },
+  });
+});

@@ -8,11 +8,10 @@ const usePeekOverviewOutsideClickDetector = (
 ) => {
   const handleClick = (event: MouseEvent) => {
     if (ref.current && !ref.current.contains(event.target as Node)) {
-      // check for the closest element with attribute name data-prevent-outside-click
+      // Cards protect peek switching without suppressing unrelated menu dismissal.
       const preventOutsideClickElement = (event.target as HTMLElement | undefined)?.closest(
-        "[data-prevent-outside-click]"
+        "[data-prevent-outside-click], [data-prevent-peek-outside-click]"
       );
-      // if the closest element with attribute name data-prevent-outside-click is found, return
       if (preventOutsideClickElement) {
         return;
       }

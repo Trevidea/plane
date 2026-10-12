@@ -185,8 +185,10 @@ export const getSwimlaneLaneUpdate = (
   sourceLane: string,
   targetLane: string,
   _assigneeIds: string[],
-  recipientIds: string[] = []
+  recipientIds: string[] = [],
+  returnToInitialStage = false
 ):
+  | null
   | { issuePatch: { assignee_ids: string[] }; cardPatch?: never }
   | {
       cardPatch: { player_ids?: string[]; position_group?: string; card_type?: string; priority?: string };
@@ -196,6 +198,8 @@ export const getSwimlaneLaneUpdate = (
     throw new Error("Coach lanes are based on who created the card and cannot be reassigned.");
   }
   if (view === "player") {
+    // The stage transition atomically unassigns all players; a lane patch must not reassign them.
+    if (returnToInitialStage) return null;
     if (targetLane.startsWith("player-") && targetLane !== "player-unassigned") {
       const nextId = targetLane.slice(7);
       const previousId = sourceLane.startsWith("player-") ? sourceLane.slice(7) : "";
