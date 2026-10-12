@@ -136,7 +136,7 @@ export const CoachingCardPeekContent = observer(
     const overview = (
       <div className="space-y-6 py-4">
         <section aria-label="Workflow progress" className="space-y-3">
-          <h3 className="text-sm font-medium text-custom-text-100">Workflow</h3>
+          <h3 className="text-base font-semibold text-custom-text-100">Workflow</h3>
           {configLoading && (
             <Loader>
               <Loader.Item height="42px" width="100%" />
@@ -158,7 +158,7 @@ export const CoachingCardPeekContent = observer(
               <li
                 key={stage.id}
                 aria-current={stage.status === "current" ? "step" : undefined}
-                className="min-w-[96px] flex-1 text-center"
+                className="min-w-[112px] flex-1 text-center"
               >
                 <div className="relative flex h-7 items-center justify-center">
                   {index > 0 && (
@@ -198,7 +198,7 @@ export const CoachingCardPeekContent = observer(
                 </div>
                 <span
                   className={cn(
-                    "mt-2 block break-words px-2 text-[12px] leading-4",
+                    "mt-2 block break-words px-2 text-sm font-medium leading-5",
                     stage.status === "current" ? "font-semibold text-custom-text-100" : "text-custom-text-200"
                   )}
                 >
@@ -225,12 +225,11 @@ export const CoachingCardPeekContent = observer(
           config={config}
           onSave={save}
           onAssign={() => setAssigning(true)}
-          onStageChange={move}
         />
 
         {!disabled && (
           <div className="flex flex-wrap items-center gap-2 border-t border-custom-border-200 pt-4">
-            {!recipients.length && (
+            {!recipients.length && !card.position_group && (
               <Button variant="primary" size="sm" disabled={saving} onClick={() => setAssigning(true)}>
                 Assign to player
               </Button>
@@ -254,7 +253,7 @@ export const CoachingCardPeekContent = observer(
                 </Button>
               ))}
             {config?.stages.find((stage) => stage.id === issue.state_id)?.name.toLowerCase() === "assigned" &&
-              !next && <p className="text-xs text-custom-text-300">Advances automatically after player review.</p>}
+              !next && <p className="text-sm text-custom-text-200">Advances automatically after player review.</p>}
           </div>
         )}
       </div>
@@ -279,15 +278,15 @@ export const CoachingCardPeekContent = observer(
             <Avatar name={first?.name || "Unassigned"} size="md" />
           )}
           <div className="min-w-0 flex-1">
-            <p className="break-words text-sm font-medium text-custom-text-100">{assignment}</p>
-            <p className="text-xs text-custom-text-300">
+            <p className="break-words text-base font-semibold text-custom-text-100">{assignment}</p>
+            <p className="text-sm text-custom-text-200">
               {card.position_group ? "Position group" : first?.position || "No player assigned"}
               {recipients.length > 1 && ` · ${recipients.length} recipients`}
             </p>
           </div>
-          {!disabled && (
+          {!disabled && !recipients.length && !card.position_group && (
             <Button variant="link-primary" size="sm" disabled={saving} onClick={() => setAssigning(true)}>
-              {first ? "Edit" : "Assign player"}
+              Assign player
             </Button>
           )}
         </div>
@@ -296,7 +295,7 @@ export const CoachingCardPeekContent = observer(
           storeInLocalStorage={false}
           defaultTab={searchParams.get("clip") ? "coaching-clips" : "coaching-overview"}
           size="sm"
-          tabClassName="text-custom-text-100 hover:text-custom-text-100 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
+          tabClassName="text-sm font-medium text-custom-text-100 hover:text-custom-text-100 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
           tabListContainerClassName="sticky top-0 z-10 bg-custom-background-100 py-2"
           tabs={[
             { key: "coaching-overview", label: "Overview", content: overview },
@@ -318,7 +317,7 @@ export const CoachingCardPeekContent = observer(
             },
             {
               key: "coaching-discussion",
-              label: "Discussion",
+              label: "Audit",
               content: (
                 <CoachingCardDiscussion
                   issue={issue}
@@ -344,7 +343,7 @@ export const CoachingCardPeekContent = observer(
             },
           ]}
         />
-        {assigning && (
+        {assigning && !recipients.length && !card.position_group && (
           <AssignmentDialog
             issue={issue}
             workspaceSlug={workspaceSlug}

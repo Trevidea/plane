@@ -345,7 +345,7 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
             "level", source_context, selected_context, getattr(source_issue, "level", None)
         )
         program = choose_card_context_value(
-            "program", source_context, selected_context, getattr(source_issue, "program", None) or project.name
+            "program", source_context, selected_context, getattr(source_issue, "program", None)
         )
         season = choose_card_context_value(
             "season", source_context, selected_context, getattr(source_issue, "year", None)
@@ -387,22 +387,10 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
             ("" if media_source else payload["sport_label"]) or project.sport or getattr(source_issue, "sport", None),
         )
         if not media_source:
-            if not project.sport:
-                return Response({"sport": ["The program needs a sport before cards can be created."]}, status=400)
-            sport = project.sport
-            if payload["sport_label"] and project.sport.casefold() != payload["sport_label"].casefold():
+            sport = project.sport or sport
+            if project.sport and payload["sport_label"] and project.sport.casefold() != payload["sport_label"].casefold():
                 return Response({"sport_label": ["The card sport must match the program sport."]}, status=400)
-            missing_context = [
-                key
-                for key, value in (("sport", sport), ("program", program), ("level", level), ("season", season))
-                if not value
-            ]
-            if missing_context:
-                return Response(
-                    {key: ["This card context is required."] for key in missing_context},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        state = _get_initial_coaching_state(project, assigned=bool(recipients), allow_missing_sport=bool(media_source))
+        state = _get_initial_coaching_state(project, assigned=bool(recipients), allow_missing_sport=True)
         recipient_snapshots = [_player_snapshot(player) for player in recipients]
         assigned_at = timezone.now() if recipients and state.name.casefold() == "assigned" else None
         card_data = {

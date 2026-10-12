@@ -58,7 +58,6 @@ export const UploadedVideoCreateCard = ({ item, workspaceSlug, projectId, durati
   };
   return (
     <CreateCardModal
-      requireContext={false}
       playlists={playlists}
       rows={[]}
       rosterPlayers={players ?? []}

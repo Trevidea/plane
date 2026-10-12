@@ -7,6 +7,62 @@ import * as clipModel from "../coaching-card-clips-model.ts";
 
 const { buildCoachingCardClips, getClipPlaybackRange, resolveCoachingClipSource } = clipModel;
 
+test("clip display follows recording time rather than primary or card lifecycle order", () => {
+  const clips = [
+    { key: "run", startSeconds: 317, clipType: "original", playlistStartSeconds: 0 },
+    { key: "field-goal", startSeconds: 363, clipType: "game_film", playlistStartSeconds: 8 },
+    { key: "pass-1", startSeconds: 206, clipType: "game_film", playlistStartSeconds: 16 },
+    { key: "pass-2", startSeconds: 283, clipType: "game_film", playlistStartSeconds: 24 },
+  ];
+  const sorted = clipModel.sortCoachingClipsByTime(clips);
+  assert.deepEqual(
+    sorted.map((clip) => clip.key),
+    ["pass-1", "pass-2", "run", "field-goal"]
+  );
+  assert.equal(sorted[0].playlistStartSeconds, 16);
+  assert.equal(clips[0].key, "run");
+  assert.deepEqual(
+    clipModel
+      .sortCoachingClipsByTime([
+        { key: "later", startSeconds: 0, sourceStartSeconds: 283 },
+        { key: "earlier", startSeconds: 0, sourceStartSeconds: 206 },
+      ])
+      .map((clip) => clip.key),
+    ["earlier", "later"]
+  );
+});
+
+test("combined playlists retain the second clip offset when HLS segments are shorter than saved durations", () => {
+  const range = getClipPlaybackRange(
+    {
+      startSeconds: 283,
+      endSeconds: 291,
+      durationSeconds: 8,
+      playlistStartSeconds: 8,
+      playlistDurationSeconds: 16,
+    },
+    15.099
+  );
+  assert.equal(range.start, 8);
+  assert.equal(range.end, 15.099);
+  assert.ok(range.duration > 7);
+});
+
+test("stream links expose the original manifest instead of the encoded HLS proxy", () => {
+  const manifest = "http://localhost:1437/api/blobs/media/upload/master.m3u8?token=a%2Fb&quality=high";
+  assert.equal(clipModel.resolveCoachingStreamLink(`/api/hls?url=${encodeURIComponent(manifest)}`), manifest);
+  assert.equal(
+    clipModel.resolveCoachingStreamLink(`https://app.example/api/hls?url=${encodeURIComponent(manifest)}`),
+    manifest
+  );
+  assert.equal(clipModel.resolveCoachingStreamLink(manifest), manifest);
+  assert.equal(
+    clipModel.resolveCoachingStreamLink("https://media.example/video.mp4"),
+    "https://media.example/video.mp4"
+  );
+  assert.equal(clipModel.resolveCoachingStreamLink("/api/hls?url="), "/api/hls?url=");
+});
+
 test("saved API thumbnails resolve against the API server instead of the web origin", () => {
   const path =
     "/api/workspaces/sport-work/projects/project/media-library/packages/package/artifacts/video-thumbnail/file/";
@@ -31,6 +87,76 @@ const card = (overrides: Partial<TCoachingCardData> = {}): TCoachingCardData => 
   playlists: [],
   summary: { playlist_count: 1, clip_count: 1, primary_thumbnail: null, primary_clip_title: "Pass complete" },
   ...overrides,
+});
+
+const savedClip = (id: string, title: string, start: number) => ({
+  id,
+  key: id,
+  title,
+  thumbnail: null,
+  start_seconds: start,
+  end_seconds: start + 8,
+  duration_seconds: 8,
+  timecode: "",
+  team: "",
+  detail: "",
+  result: "",
+  secondary_detail: "",
+  group: "",
+});
+
+test("card playlists keep their saved order and clip order despite recording time and primary selection", () => {
+  const data = card({
+    playlists: [
+      {
+        id: "run",
+        name: "Run Goal",
+        clips: [savedClip("run", "Run", 317), savedClip("goal", "Field Goal", 363)],
+      },
+      {
+        id: "pass",
+        name: "Pass Complete",
+        clips: [savedClip("pass-2", "Pass 2", 283), savedClip("pass-1", "Pass 1", 206)],
+      },
+    ],
+    primary_clip: {
+      playlist_id: "pass",
+      clip_id: "pass-1",
+      source_url: "film.m3u8",
+      media_id: "",
+      event_id: "",
+      start_seconds: 206,
+      end_seconds: 214,
+    },
+  });
+  assert.equal(typeof clipModel.groupCoachingCardPlaylists, "function", "Playlist grouping must be available");
+  const groups = clipModel.groupCoachingCardPlaylists(data, buildCoachingCardClips(data, "2026-10-09"));
+  assert.deepEqual(
+    groups.map((group) => [group.id, group.name, group.clips.map((clip) => clip.title)]),
+    [
+      ["run", "Run Goal", ["Run", "Field Goal"]],
+      ["pass", "Pass Complete", ["Pass 2", "Pass 1"]],
+    ]
+  );
+});
+
+test("an unlisted legacy primary remains playable alongside a saved playlist", () => {
+  const data = card({
+    playlists: [{ id: "saved", name: "Saved", clips: [savedClip("first", "Playlist first", 1)] }],
+    primary_clip: {
+      playlist_id: "missing",
+      clip_id: "primary",
+      source_url: "primary.m3u8",
+      media_id: "",
+      event_id: "",
+      start_seconds: 0,
+      end_seconds: 8,
+    },
+  });
+  const clips = buildCoachingCardClips(data, "2026-10-09");
+  const groups = clipModel.groupCoachingCardPlaylists(data, clips);
+  assert.equal(groups.flatMap((playlist) => playlist.clips).length, 2);
+  assert.equal(new Set(clips.map((clip) => clip.key)).size, 2);
 });
 
 test("the saved primary m3u8 source appears in slot zero without a playlist entry", () => {

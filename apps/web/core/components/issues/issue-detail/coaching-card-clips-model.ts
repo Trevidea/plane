@@ -1,5 +1,21 @@
 import type { TCoachingCardData } from "@plane/types";
 
+export const sortCoachingClipsByTime = <T extends { startSeconds: number; sourceStartSeconds?: number }>(clips: T[]) =>
+  [...clips].sort((a, b) => (a.sourceStartSeconds ?? a.startSeconds) - (b.sourceStartSeconds ?? b.startSeconds));
+
+export const resolveCoachingStreamLink = (source: string) => {
+  try {
+    const url = new URL(source, "http://localhost");
+    if (url.pathname === "/api/hls") {
+      const upstream = url.searchParams.get("url");
+      if (upstream && /^https?:\/\//i.test(upstream)) return upstream;
+    }
+  } catch {
+    console.error("Failed to parse coaching clip source URL:", source);
+  }
+  return source;
+};
+
 export const resolveCoachingClipThumbnail = (value: string | null | undefined, apiBaseUrl: string) => {
   const thumbnail = value?.trim() || "";
   return thumbnail.startsWith("/api/") ? `${apiBaseUrl.replace(/\/+$/, "")}${thumbnail}` : thumbnail;
@@ -39,8 +55,36 @@ export type CoachingCardDetailClip = {
   endSegment?: number | null;
 };
 
+export type CoachingCardDetailPlaylist = {
+  id: string;
+  name: string;
+  clips: CoachingCardDetailClip[];
+};
+
 const validSeconds = (value: number | null | undefined) =>
   typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+
+export const groupCoachingCardPlaylists = (
+  card: TCoachingCardData,
+  clips: CoachingCardDetailClip[]
+): CoachingCardDetailPlaylist[] => {
+  const byKey = new Map(clips.map((clip) => [clip.key, clip]));
+  const groups = (card.playlists ?? [])
+    .map((playlist, playlistIndex) => ({
+      id: playlist.id,
+      name: playlist.name?.trim() || "Playlist",
+      clips: (playlist.clips ?? []).flatMap((clip, index) => {
+        const key = clip.association_id || `legacy:${playlistIndex}:${index}`;
+        const detail = byKey.get(key);
+        if (!detail) return [];
+        byKey.delete(key);
+        return [detail];
+      }),
+    }))
+    .filter((playlist) => playlist.clips.length > 0);
+  if (byKey.size) groups.push({ id: "unassigned-clips", name: "Clips", clips: [...byKey.values()] });
+  return groups;
+};
 
 export const buildCoachingCardClips = (
   card: TCoachingCardData,
@@ -142,7 +186,7 @@ export const buildCoachingCardClips = (
     const startSeconds = validSeconds(primary.start_seconds) ?? 0;
     const endSeconds = validSeconds(primary.end_seconds);
     clips.unshift({
-      key: primary.association_id || "legacy:0:0",
+      key: primary.association_id || "legacy:primary",
       associationId: primary.association_id || "legacy:0:0",
       slot: 0,
       title: card.summary?.primary_clip_title || "Original Clip",
@@ -189,7 +233,7 @@ export const getClipPlaybackRange = (
     clip.playbackMode === "clip"
       ? Math.max(0, clip.startSeconds - (clip.sourceStartSeconds ?? clip.startSeconds))
       : sourceDuration !== null && clip.startSeconds >= sourceDuration
-        ? clip.playlistDurationSeconds && clip.playlistDurationSeconds <= sourceDuration + 0.1
+        ? clip.playlistDurationSeconds && (clip.playlistStartSeconds ?? 0) < sourceDuration
           ? (clip.playlistStartSeconds ?? 0)
           : 0
         : clip.startSeconds;

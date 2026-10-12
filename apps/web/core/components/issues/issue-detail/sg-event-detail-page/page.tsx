@@ -1304,7 +1304,7 @@ export const SgEventDetailPage = ({
           initialContext={{
             sport: issue?.sport || resolvedSport || null,
             level: issue?.level || eventDetails?.level || toText(mediaMeta.level) || null,
-            program: issue?.program || eventDetails?.program || toText(mediaMeta.program) || projectName || null,
+            program: issue?.program || eventDetails?.program || toText(mediaMeta.program) || null,
             season: issue?.year || eventDetails?.year || toText(mediaMeta.season) || toText(mediaMeta.year) || null,
           }}
         />

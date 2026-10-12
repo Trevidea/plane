@@ -15,6 +15,7 @@ import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { IssueService } from "@/services/issue/issue.service";
 import { CoachingCardAddClip } from "./coaching-card-add-clip";
 import { CoachingCardClipBrowser } from "./coaching-card-clip-browser";
+import { CoachingCardStreamLink } from "./coaching-card-stream-link";
 import type { CoachingCardDetailClip, ClipGroup, ClipSort } from "./coaching-card-clips-model";
 import {
   buildCoachingCardClips,
@@ -278,6 +279,7 @@ const CoachingCardClipManager = ({
               {menus(activeClip)}
             </div>
           </div>
+          <CoachingCardStreamLink source={source} />
           <div ref={playerContainer}>
             {source ? (
               <CoachingCardClipPlayer

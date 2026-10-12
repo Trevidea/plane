@@ -32,7 +32,6 @@ type Props = {
   onClose: () => void;
   onSubmit?: (values: CardFormValues) => Promise<void>;
   initialContext: CardContextValues;
-  requireContext?: boolean;
 };
 
 export const CreateCardModal = ({
@@ -45,7 +44,6 @@ export const CreateCardModal = ({
   onClose,
   onSubmit,
   initialContext,
-  requireContext = true,
 }: Props) => {
   const groups = useMemo(() => buildCardPlaylists(playlists, rows), [playlists, rows]);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(() => groups[0]?.id ?? null);
@@ -79,7 +77,6 @@ export const CreateCardModal = ({
   const canSubmit =
     Boolean(onSubmit) &&
     (assignmentType === "player" || Boolean(positionGroup)) &&
-    (!requireContext || Boolean(context.sport && context.program && context.level && context.season)) &&
     title.trim().length > 0 &&
     totalTags > 0 &&
     (assignmentType === "player" || (!isRosterLoading && !hasRosterError)) &&
