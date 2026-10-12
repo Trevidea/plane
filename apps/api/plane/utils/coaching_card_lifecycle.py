@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from datetime import timedelta
+from django.db import transaction
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 
@@ -71,6 +72,7 @@ def get_project_card_stage_config(project):
         raise serializers.ValidationError({"stages": [str(exc)]}) from exc
 
 
+@transaction.atomic
 def transition_coaching_card(card, target_stage_id, actor, reason=""):
     config = get_project_card_stage_config(card.project)
     data = dict(card.coaching_card_data or {})
@@ -98,7 +100,13 @@ def transition_coaching_card(card, target_stage_id, actor, reason=""):
             "viewed_by": {},
         }
     elif str(target.id) == config["initial_stage_id"]:
+        data["recipient_ids"] = []
+        data["recipients"] = []
+        data["player"] = None
+        data["position_group"] = None
         data["review"] = {"assigned_at": None, "deadline_at": None, "viewed_by": {}}
+        card.roster_player = None
+        card.position_group = None
     card.state = target
     card.coaching_card_data = data
     card.save()

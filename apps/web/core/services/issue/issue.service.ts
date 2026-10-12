@@ -62,14 +62,16 @@ export class IssueService extends APIService {
     stageId: string,
     reason?: string,
     sortOrder?: number
-  ): Promise<void> {
-    await this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/transition/`, {
+  ): Promise<Pick<TIssue, "id" | "state_id" | "coaching_card_data" | "roster_player_id" | "position_group">> {
+    return this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/transition/`, {
       stage_id: stageId,
       ...(reason ? { reason } : {}),
       ...(sortOrder === undefined ? {} : { sort_order: sortOrder }),
-    }).catch((error) => {
-      throw error?.response?.data;
-    });
+    })
+      .then((response) => response.data)
+      .catch((error) => {
+        throw error?.response?.data;
+      });
   }
 
   async updateCoachingCard(

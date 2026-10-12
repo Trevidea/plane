@@ -33,6 +33,8 @@ import type { IQuickActionProps, TRenderQuickActions } from "../list/list-view-t
 //components
 import type { GroupDropLocation } from "../utils";
 import { getSourceFromDropPayload } from "../utils";
+import { isCoachingCardIssue } from "./coaching-card-details";
+import { CoachingCardMenu } from "./coaching-card-menu";
 import { CoachingCardStageContext } from "./coaching-card-stage-context";
 import { alignCardStageConfig } from "./coaching-card-stage-model";
 import { CoachingCardStageRequestContext } from "./coaching-card-stage-request-context";
@@ -258,7 +260,8 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
           targetLane,
           issue.assignee_ids,
           issue.coaching_card_data?.recipient_ids ??
-            (issue.coaching_card_data?.player ? [issue.coaching_card_data.player.id] : [])
+            (issue.coaching_card_data?.player ? [issue.coaching_card_data.player.id] : []),
+          stageRequest !== null && stageRequest.stageId === cardStageConfig?.initial_stage_id
         );
       } catch (error) {
         setToast({
@@ -281,11 +284,11 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
           );
           stageMoved = true;
         }
-        if (laneUpdate.issuePatch) {
+        if (laneUpdate?.issuePatch) {
           if (!updateIssue) throw new Error("Coach assignment is unavailable.");
           await updateIssue(issue.project_id, issue.id, laneUpdate.issuePatch);
         }
-        if (laneUpdate.cardPatch) await cardService.updateCoachingCard(slug, boardId, issue.id, laneUpdate.cardPatch);
+        if (laneUpdate?.cardPatch) await cardService.updateCoachingCard(slug, boardId, issue.id, laneUpdate.cardPatch);
       } catch (error) {
         setToast({
           type: TOAST_TYPE.ERROR,
@@ -316,6 +319,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
       handleOnDrop,
       swimlaneView,
       requestStageChange,
+      cardStageConfig,
       cardService,
       projectIssues,
       updateIssue,
@@ -367,21 +371,33 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
   }, [setIsDragOverDelete, setDraggedIssueId, setDeleteIssueModal]);
 
   const renderQuickActions: TRenderQuickActions = useCallback(
-    ({ issue, parentRef, customActionButton }) => (
-      <QuickActions
-        parentRef={parentRef}
-        customActionButton={customActionButton}
-        issue={issue}
-        handleDelete={async () => removeIssue(issue.project_id, issue.id)}
-        handleUpdate={async (data) => updateIssue && updateIssue(issue.project_id, issue.id, data)}
-        handleRemoveFromView={async () => removeIssueFromView && removeIssueFromView(issue.project_id, issue.id)}
-        handleArchive={async () => archiveIssue && archiveIssue(issue.project_id, issue.id)}
-        handleRestore={async () => restoreIssue && restoreIssue(issue.project_id, issue.id)}
-        readOnly={!canEditProperties(issue.project_id ?? undefined) || isCompletedCycle}
-      />
-    ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isCompletedCycle, canEditProperties, removeIssue, updateIssue, removeIssueFromView, archiveIssue, restoreIssue]
+    ({ issue, parentRef, customActionButton }) => {
+      const CardQuickActions = isCoachingBoard && isCoachingCardIssue(issue) ? CoachingCardMenu : QuickActions;
+      return (
+        <CardQuickActions
+          parentRef={parentRef}
+          customActionButton={customActionButton}
+          issue={issue}
+          handleDelete={async () => removeIssue(issue.project_id, issue.id)}
+          handleUpdate={async (data) => updateIssue && updateIssue(issue.project_id, issue.id, data)}
+          handleRemoveFromView={async () => removeIssueFromView && removeIssueFromView(issue.project_id, issue.id)}
+          handleArchive={async () => archiveIssue && archiveIssue(issue.project_id, issue.id)}
+          handleRestore={async () => restoreIssue && restoreIssue(issue.project_id, issue.id)}
+          readOnly={!canEditProperties(issue.project_id ?? undefined) || isCompletedCycle}
+        />
+      );
+    },
+    [
+      isCompletedCycle,
+      canEditProperties,
+      removeIssue,
+      updateIssue,
+      removeIssueFromView,
+      archiveIssue,
+      restoreIssue,
+      isCoachingBoard,
+      QuickActions,
+    ]
   );
 
   const handleDeleteIssue = async () => {

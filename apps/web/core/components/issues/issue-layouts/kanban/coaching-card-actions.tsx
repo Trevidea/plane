@@ -1,6 +1,6 @@
-import { useContext, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { ArrowRight, ListFilter, UsersRound, X } from "lucide-react";
+import { ArrowRight, UsersRound, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
@@ -12,21 +12,10 @@ import { CreateCardRosterPicker } from "@/components/issues/issue-detail/sg-even
 import { IssueService } from "@/services/issue/issue.service";
 import { RosterService } from "@/services/roster.service";
 import { getCardStageActions } from "./coaching-card-stage-model";
-import { CoachingCardStageRequestContext } from "./coaching-card-stage-request-context";
+import { coachingCardErrorMessage, useCoachingCardStageAction } from "./use-coaching-card-stage-action";
 
 const issueService = new IssueService();
 const rosterService = new RosterService();
-
-const messageFromError = (error: unknown, fallback: string): string => {
-  if (error instanceof Error) return error.message;
-  if (error && typeof error === "object") {
-    for (const value of Object.values(error)) {
-      if (typeof value === "string") return value;
-      if (Array.isArray(value) && typeof value[0] === "string") return value[0];
-    }
-  }
-  return fallback;
-};
 
 type ActionProps = {
   issue: TIssue;
@@ -97,7 +86,7 @@ export const AssignmentDialog = ({
       onChanged();
       setToast({ type: TOAST_TYPE.SUCCESS, title: "Recipients updated", message: "The coaching board is up to date." });
     } catch (saveError) {
-      setSubmitError(messageFromError(saveError, "Could not update recipients. Please try again."));
+      setSubmitError(coachingCardErrorMessage(saveError, "Could not update recipients. Please try again."));
     } finally {
       setIsSaving(false);
     }
@@ -232,9 +221,14 @@ export const AssignmentDialog = ({
 };
 
 export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, onChanged }: ActionProps) => {
-  const requestStageChange = useContext(CoachingCardStageRequestContext);
-  const [dialog, setDialog] = useState<"recipients" | "stages" | null>(null);
-  const [isMoving, setIsMoving] = useState(false);
+  const [dialog, setDialog] = useState<"recipients" | null>(null);
+  const { moveToStage, isMoving, canRequestStageChange } = useCoachingCardStageAction({
+    issue,
+    config,
+    workspaceSlug,
+    projectId,
+    onChanged,
+  });
   const card = issue.coaching_card_data;
   const recipientCount = card?.recipient_ids?.length ?? card?.recipients?.length ?? (card?.player ? 1 : 0);
   const { available, next } = getCardStageActions(config, issue.state_id);
@@ -243,33 +237,8 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
   const needsAssignment = issue.state_id === config?.initial_stage_id && next?.name.toLowerCase() === "assigned";
   const awaitsReview =
     config?.stages.find((stage) => stage.id === issue.state_id)?.name.toLowerCase() === "assigned" && !nextStage;
-  const currentName = config?.stages.find((stage) => stage.id === issue.state_id)?.name ?? "Current stage";
 
-  const moveToStage = async (stageId: string, stageName: string) => {
-    if (isMoving) return;
-    setDialog(null);
-    const request = requestStageChange ? await requestStageChange(issue, stageId) : null;
-    if (!request) return;
-    setIsMoving(true);
-    try {
-      await issueService.transitionCoachingCard(workspaceSlug, projectId, issue.id, request.stageId, request.reason);
-      setDialog(null);
-      onChanged();
-      setToast({
-        type: TOAST_TYPE.SUCCESS,
-        title: `Moved to ${config?.stages.find((stage) => stage.id === request.stageId)?.name ?? stageName}`,
-        message: "The coaching board is up to date.",
-      });
-    } catch (moveError) {
-      setToast({
-        type: TOAST_TYPE.ERROR,
-        title: "Stage change failed",
-        message: messageFromError(moveError, "Please try again."),
-      });
-    } finally {
-      setIsMoving(false);
-    }
-  };
+  if (issue.state_id === config?.initial_stage_id) return null;
 
   return (
     <>
@@ -315,8 +284,8 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
           <Button
             unstyled
             type="button"
-            onClick={() => void moveToStage(nextStage.id, nextStage.name)}
-            disabled={isMoving}
+            onClick={() => void moveToStage(nextStage.id)}
+            disabled={isMoving || !canRequestStageChange}
             title={`Move to ${nextStage.name}`}
             aria-label={`Move to ${nextStage.name}`}
             className="inline-flex h-6 min-w-0 max-w-full items-center gap-1 rounded-md bg-custom-primary-100 px-2.5 text-[11px] font-medium text-white hover:opacity-90 focus-visible:ring-2 focus-visible:ring-custom-primary-100 disabled:opacity-50"
@@ -331,21 +300,6 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
           <span className="truncate text-[11px] text-custom-text-300">Awaiting player review</span>
         </Tooltip>
       )}
-      {stageOptions.length > 0 && (
-        <Tooltip tooltipContent="Choose stage">
-          <Button
-            unstyled
-            type="button"
-            onClick={() => setDialog("stages")}
-            disabled={isMoving}
-            aria-label="Choose coaching card stage"
-            title="Choose stage"
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-custom-border-200 bg-custom-background-80 text-custom-text-200 hover:text-custom-text-100 focus-visible:ring-2 focus-visible:ring-custom-primary-100 disabled:opacity-50"
-          >
-            <ListFilter className="h-3 w-3" aria-hidden="true" />
-          </Button>
-        </Tooltip>
-      )}
       {dialog === "recipients" && (
         <AssignmentDialog
           issue={issue}
@@ -356,48 +310,6 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
           onClose={() => setDialog(null)}
           advanceOnSave={needsAssignment}
         />
-      )}
-      {dialog === "stages" && (
-        <ModalCore
-          isOpen
-          handleClose={() => !isMoving && setDialog(null)}
-          width={EModalWidth.MD}
-          className="border border-custom-border-300"
-        >
-          <div className="space-y-4 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <Dialog.Title as="h2" className="text-base font-semibold text-custom-text-100">
-                Move card
-              </Dialog.Title>
-              <Button
-                unstyled
-                type="button"
-                aria-label="Close stage selection"
-                onClick={() => setDialog(null)}
-                disabled={isMoving}
-                className="flex h-8 w-8 items-center justify-center rounded border border-custom-border-300 text-custom-text-300"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-custom-text-300">Current stage: {currentName}</p>
-            <div className="space-y-1.5">
-              {stageOptions.map((stage) => (
-                <Button
-                  key={stage.id}
-                  unstyled
-                  type="button"
-                  onClick={() => void moveToStage(stage.id, stage.name)}
-                  disabled={isMoving}
-                  className="flex min-h-10 w-full items-center justify-between rounded border border-custom-border-300 px-3 text-left text-sm text-custom-text-100 hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-custom-primary-100 disabled:opacity-50"
-                >
-                  {stage.name}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              ))}
-            </div>
-          </div>
-        </ModalCore>
       )}
     </>
   );

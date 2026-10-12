@@ -219,7 +219,26 @@ export class ProjectIssues extends BaseIssuesStore implements IProjectIssues {
     await this.issueUpdate(workspaceSlug, projectId, issueId, changes, false);
 
     try {
-      await this.issueService.transitionCoachingCard(workspaceSlug, projectId, issueId, stageId, reason, sortOrder);
+      const response = await this.issueService.transitionCoachingCard(
+        workspaceSlug,
+        projectId,
+        issueId,
+        stageId,
+        reason,
+        sortOrder
+      );
+      await this.issueUpdate(
+        workspaceSlug,
+        projectId,
+        issueId,
+        {
+          state_id: response.state_id,
+          coaching_card_data: response.coaching_card_data,
+          roster_player_id: response.roster_player_id,
+          position_group: response.position_group,
+        },
+        false
+      );
     } catch (error) {
       await this.issueUpdate(workspaceSlug, projectId, issueId, previous, false);
       throw error;

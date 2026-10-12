@@ -49,6 +49,7 @@ const Portal: React.FC<PortalProps> = ({ children, container, asChild = false })
 const MenuContext = React.createContext<{
   closeAllSubmenus: () => void;
   registerSubmenu: (closeSubmenu: () => void) => () => void;
+  onSelect?: () => void;
 } | null>(null);
 
 const CustomMenu = (props: ICustomMenuDropdownProps) => {
@@ -85,6 +86,7 @@ const CustomMenu = (props: ICustomMenuDropdownProps) => {
   // refs
   const dropdownRef = React.useRef<HTMLDivElement | null>(null);
   const submenuClosersRef = React.useRef<Set<() => void>>(new Set());
+  const isOpenRef = React.useRef(false);
 
   const { styles, attributes } = usePopper(referenceElement, popperElement, {
     placement: placement ?? "auto",
@@ -102,17 +104,19 @@ const CustomMenu = (props: ICustomMenuDropdownProps) => {
   }, []);
 
   const openDropdown = () => {
+    isOpenRef.current = true;
     setIsOpen(true);
     if (referenceElement) referenceElement.focus();
   };
 
   const closeDropdown = React.useCallback(() => {
-    if (isOpen) {
+    if (isOpenRef.current) {
+      isOpenRef.current = false;
       closeAllSubmenus();
       onMenuClose?.();
     }
     setIsOpen(false);
-  }, [isOpen, closeAllSubmenus, onMenuClose]);
+  }, [closeAllSubmenus, onMenuClose]);
 
   const selectActiveItem = () => {
     const activeItem: HTMLElement | undefined | null = dropdownRef.current?.querySelector(
@@ -157,8 +161,9 @@ const CustomMenu = (props: ICustomMenuDropdownProps) => {
 
   // Custom handler for submenu portal clicks
   React.useEffect(() => {
-    const handleDocumentClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
+    const handleDocumentClick = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
       const isSubmenuClick = target.closest('[data-prevent-outside-click="true"]');
       const isMainMenuClick = dropdownRef.current?.contains(target);
 
@@ -175,9 +180,15 @@ const CustomMenu = (props: ICustomMenuDropdownProps) => {
 
     if (isOpen) {
       document.addEventListener("mousedown", handleDocumentClick, useCaptureForOutsideClick);
+      if (useCaptureForOutsideClick) {
+        document.addEventListener("focusin", handleDocumentClick, true);
+        document.addEventListener("contextmenu", handleDocumentClick, true);
+      }
 
       return () => {
         document.removeEventListener("mousedown", handleDocumentClick, useCaptureForOutsideClick);
+        document.removeEventListener("focusin", handleDocumentClick, true);
+        document.removeEventListener("contextmenu", handleDocumentClick, true);
       };
     }
   }, [isOpen, closeDropdown, useCaptureForOutsideClick]);
@@ -206,7 +217,11 @@ const CustomMenu = (props: ICustomMenuDropdownProps) => {
         style={styles.popper}
         {...attributes.popper}
       >
-        <MenuContext.Provider value={{ closeAllSubmenus, registerSubmenu }}>{children}</MenuContext.Provider>
+        <MenuContext.Provider
+          value={{ closeAllSubmenus, registerSubmenu, onSelect: closeOnSelect ? closeDropdown : undefined }}
+        >
+          {children}
+        </MenuContext.Provider>
       </div>
     </Menu.Items>
   );
@@ -451,6 +466,7 @@ const SubMenu: React.FC<ICustomSubMenuProps> = (props) => {
 const MenuItem: React.FC<ICustomMenuItemProps> = (props) => {
   const { children, disabled = false, onClick, className } = props;
   const submenuContext = useSubMenu();
+  const menuContext = React.useContext(MenuContext);
 
   return (
     <Menu.Item as="div" disabled={disabled}>
@@ -466,6 +482,8 @@ const MenuItem: React.FC<ICustomMenuItemProps> = (props) => {
             className
           )}
           onClick={(e) => {
+            // Close the visible menu before actions open a dialog, peek panel or route.
+            menuContext?.onSelect?.();
             close();
             onClick?.(e);
             // Close submenu if this item is inside a submenu

@@ -10,6 +10,7 @@ from plane.db.models import CardStageHistory, Issue, Project, ProjectMember, Ros
 from plane.bgtasks.coaching_card_review_task import advance_expired_coaching_card_reviews
 from plane.utils.coaching_card_lifecycle import default_project_state_definitions
 from plane.utils.coaching_card_lifecycle import advance_card_after_review
+from plane.utils.coaching_card_lifecycle import transition_coaching_card
 
 
 def _clip(clip_id="clip-1"):
@@ -670,6 +671,10 @@ class TestCoachingCardLifecycle:
                 session_client.post(url, {"stage_id": str(stages[0].id), "reason": reason}, format="json").status_code
                 == 400
             )
+        card.refresh_from_db()
+        assert card.state_id == stages[1].id
+        assert card.coaching_card_data["recipient_ids"] == [str(player.id)]
+        assert card.roster_player_id == player.id
         reopened = session_client.post(
             url, {"stage_id": str(stages[0].id), "reason": "  Wrong recipients  ", "sort_order": 42.5}, format="json"
         )
@@ -677,7 +682,18 @@ class TestCoachingCardLifecycle:
         card.refresh_from_db()
         assert card.state_id == stages[0].id
         assert card.sort_order == 42.5
+        assert card.coaching_card_data["recipient_ids"] == []
+        assert card.coaching_card_data["recipients"] == []
+        assert card.coaching_card_data["player"] is None
+        assert card.coaching_card_data["position_group"] is None
+        assert card.roster_player_id is None
+        assert card.position_group is None
         assert card.coaching_card_data["review"]["deadline_at"] is None
+        assert reopened.data["state_id"] == str(stages[0].id)
+        assert reopened.data["stage_id"] == str(stages[0].id)
+        assert reopened.data["coaching_card_data"] == card.coaching_card_data
+        assert reopened.data["roster_player_id"] is None
+        assert reopened.data["position_group"] is None
         history = session_client.get(f"{root}/stage-history/").json()
         assert history[-1]["reason"] == "Wrong recipients"
         assert history[-1]["changed_by_id"] == str(create_user.id)
@@ -699,6 +715,141 @@ class TestCoachingCardLifecycle:
             session_client.post(url, {"stage_id": str(stages[3].id), "reason": "Needs work"}, format="json").status_code
             == 200
         )
+
+    @pytest.mark.django_db
+    @pytest.mark.parametrize("assignment", ["single", "multiple", "position_group", "legacy"])
+    def test_reopen_to_identified_clears_all_recipient_representations(
+        self, session_client, workspace, create_user, assignment
+    ):
+        project = Project.objects.create(name="Football", identifier="FOOT", workspace=workspace, sport="Football")
+        ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
+        stages = [
+            State.objects.create(name=name, color="#333", group="started", sequence=index * 1000, project=project)
+            for index, name in enumerate(["Identified", "Assigned", "In Work"])
+        ]
+        players = [
+            RosterPlayer.objects.create(project=project, player_name=name, position="Guard")
+            for name in ("Jordan", "Taylor")
+        ]
+        recipients = players if assignment in ("multiple", "position_group") else players[:1]
+        snapshots = [
+            {"id": str(player.id), "name": player.player_name, "jersey_number": "", "position": "Guard"}
+            for player in recipients
+        ]
+        group = "Guard" if assignment == "position_group" else None
+        data = {
+            "kind": "coaching_card",
+            "player": snapshots[0] if len(recipients) == 1 else None,
+            "position_group": group,
+            "review": {
+                "assigned_at": timezone.now().isoformat(),
+                "deadline_at": (timezone.now() + timedelta(days=3)).isoformat(),
+                "viewed_by": {str(players[0].id): timezone.now().isoformat()},
+                "completed_at": timezone.now().isoformat(),
+                "completion_reason": "all_viewed",
+            },
+            "playlists": [{"id": "playlist", "clips": [_clip()]}],
+            "feedback": "Keep your balance",
+        }
+        if assignment != "legacy":
+            data.update({"recipient_ids": [snapshot["id"] for snapshot in snapshots], "recipients": snapshots})
+        card = Issue.objects.create(
+            name="Pass protection",
+            project=project,
+            state=stages[1],
+            category="Coaching Card",
+            roster_player=recipients[0] if len(recipients) == 1 else None,
+            position_group=group,
+            coaching_card_data=data,
+        )
+        root = f"/api/workspaces/{workspace.slug}/projects/{project.id}/coaching-cards/{card.id}"
+        moved = session_client.post(
+            f"{root}/transition/",
+            {"stage_id": str(stages[0].id), "reason": "Moved back to Identified and unassigned all players."},
+            format="json",
+        )
+        assert moved.status_code == 200, moved.data
+        card.refresh_from_db()
+        assert card.state_id == stages[0].id
+        assert card.roster_player_id is None
+        assert card.position_group is None
+        assert card.coaching_card_data["recipient_ids"] == []
+        assert card.coaching_card_data["recipients"] == []
+        assert card.coaching_card_data["player"] is None
+        assert card.coaching_card_data["position_group"] is None
+        assert card.coaching_card_data["review"] == {"assigned_at": None, "deadline_at": None, "viewed_by": {}}
+        assert card.coaching_card_data["playlists"] == data["playlists"]
+        assert card.coaching_card_data["feedback"] == data["feedback"]
+        detail = session_client.get(f"{root}/")
+        assert detail.status_code == 200
+        assert detail.data["coaching_card_data"] == card.coaching_card_data
+        assert CardStageHistory.objects.get(issue=card).reason == "Moved back to Identified and unassigned all players."
+
+        reassigned = session_client.patch(f"{root}/", {"player_ids": [str(players[1].id)]}, format="json")
+        assert reassigned.status_code == 200, reassigned.data
+        card.refresh_from_db()
+        assert card.state_id == stages[1].id
+        assert card.coaching_card_data["recipient_ids"] == [str(players[1].id)]
+        assert card.coaching_card_data["review"]["viewed_by"] == {}
+        assert card.coaching_card_data["review"]["deadline_at"] is not None
+
+    @pytest.mark.django_db
+    def test_reopen_to_other_stages_keeps_recipients(self, session_client, workspace, create_user):
+        project = Project.objects.create(name="Football", identifier="FOOT", workspace=workspace, sport="Football")
+        ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
+        stages = [
+            State.objects.create(name=name, color="#333", group="started", sequence=index * 1000, project=project)
+            for index, name in enumerate(["Identified", "Assigned", "In Work", "Ready for Coach Review"])
+        ]
+        player = RosterPlayer.objects.create(project=project, player_name="Jordan")
+        card = Issue.objects.create(
+            name="Pass protection",
+            project=project,
+            state=stages[3],
+            category="Coaching Card",
+            roster_player=player,
+            coaching_card_data={"recipient_ids": [str(player.id)]},
+        )
+        response = session_client.post(
+            f"/api/workspaces/{workspace.slug}/projects/{project.id}/coaching-cards/{card.id}/transition/",
+            {"stage_id": str(stages[2].id), "reason": "Needs more practice"},
+            format="json",
+        )
+        assert response.status_code == 200, response.data
+        card.refresh_from_db()
+        assert card.state_id == stages[2].id
+        assert card.roster_player_id == player.id
+        assert card.coaching_card_data["recipient_ids"] == [str(player.id)]
+
+    @pytest.mark.django_db
+    def test_recipient_cleanup_and_stage_change_roll_back_if_audit_fails(self, workspace, create_user, monkeypatch):
+        project = Project.objects.create(name="Football", identifier="FOOT", workspace=workspace, sport="Football")
+        initial = State.objects.create(name="Identified", color="#333", group="backlog", project=project)
+        assigned = State.objects.create(name="Assigned", color="#333", group="unstarted", project=project)
+        player = RosterPlayer.objects.create(project=project, player_name="Jordan")
+        data = {"recipient_ids": [str(player.id)], "position_group": "Guard"}
+        card = Issue.objects.create(
+            name="Pass protection",
+            project=project,
+            state=assigned,
+            category="Coaching Card",
+            roster_player=player,
+            position_group="Guard",
+            coaching_card_data=data,
+        )
+
+        def fail_audit(**kwargs):
+            raise RuntimeError("Audit unavailable")
+
+        monkeypatch.setattr(CardStageHistory.objects, "create", fail_audit)
+        with pytest.raises(RuntimeError, match="Audit unavailable"):
+            transition_coaching_card(card, initial.id, create_user, "Unassign players")
+        card.refresh_from_db()
+        assert card.state_id == assigned.id
+        assert card.coaching_card_data == data
+        assert card.roster_player_id == player.id
+        assert card.position_group == "Guard"
+        assert not CardStageHistory.objects.filter(issue=card).exists()
 
     @pytest.mark.django_db
     def test_linked_player_review_advances_shared_card(self, session_client, workspace, create_user):

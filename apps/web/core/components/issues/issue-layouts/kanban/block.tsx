@@ -295,7 +295,7 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
       <DropIndicator isVisible={!isCurrentBlockDragging && isDraggingOverBlock} />
       <div
         data-coaching-card-id={isCoachingCard ? issue.id : undefined}
-        data-prevent-outside-click={isCoachingCard ? true : undefined}
+        data-prevent-peek-outside-click={isCoachingCard ? true : undefined}
         id={isCoachingCard ? getIssueBlockId(issueId, groupId, subGroupId) : `issue-${issueId}`}
         ref={cardContainerRef}
         // make Z-index higher at the beginning of drag, to have a issue drag image of issue block without any overlaps

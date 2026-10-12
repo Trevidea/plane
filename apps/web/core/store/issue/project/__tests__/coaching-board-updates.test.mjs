@@ -90,7 +90,7 @@ const setup = () => {
   const calls = [];
   store.issueService.transitionCoachingCard = (...args) => {
     calls.push(args);
-    return api.promise;
+    return api.promise.then((response) => response ?? { ...cards.card, state_id: args[3] });
   };
   store.issueService.patchIssue = async (...args) => calls.push(args);
   return { store, cards, api, calls };
@@ -133,6 +133,56 @@ test("a reopen sends its audit reason with the atomic stage and ordering update"
   assert.equal(cards.card.sort_order, 150);
   assert.deepEqual(calls, [["school", "project", "card", "next", "Needs more practice", 150]]);
   assert.deepEqual([...store.getIssueIds("next")], ["card", "other"]);
+});
+
+test("a confirmed reopen applies authoritative recipient cleanup without waiting for a board refresh", async () => {
+  const { store, cards, api } = setup();
+  cards.card.roster_player_id = "player";
+  cards.card.position_group = "Guard";
+  cards.card.coaching_card_data = {
+    recipient_ids: ["player"],
+    recipients: [{ id: "player", name: "Jordan" }],
+    player: { id: "player", name: "Jordan" },
+    position_group: "Guard",
+    review: { assigned_at: "2026-10-01", deadline_at: "2026-10-04", viewed_by: { player: "2026-10-02" } },
+  };
+  const pending = store.transitionCoachingCard("school", "project", "card", "next", undefined, "Unassign players");
+  const cleared = {
+    recipient_ids: [],
+    recipients: [],
+    player: null,
+    position_group: null,
+    review: { assigned_at: null, deadline_at: null, viewed_by: {} },
+  };
+  api.resolve({
+    id: "card",
+    state_id: "next",
+    stage_id: "next",
+    coaching_card_data: cleared,
+    roster_player_id: null,
+    position_group: null,
+  });
+  await pending;
+  assert.deepEqual(cards.card.coaching_card_data, cleared);
+  assert.equal(cards.card.roster_player_id, null);
+  assert.equal(cards.card.position_group, null);
+  assert.equal(cards.card.stage_id, undefined);
+  assert.equal(store.getIssueLoader(), undefined);
+});
+
+test("a failed reopen retains all assignments and restores the original stage", async () => {
+  const { store, cards, api } = setup();
+  const assigned = { recipient_ids: ["player"], recipients: [{ id: "player", name: "Jordan" }] };
+  cards.card.coaching_card_data = assigned;
+  cards.card.roster_player_id = "player";
+  cards.card.position_group = "Guard";
+  const pending = store.transitionCoachingCard("school", "project", "card", "next", undefined, "Unassign players");
+  api.reject(new Error("Network unavailable"));
+  await assert.rejects(pending, /Network unavailable/);
+  assert.equal(cards.card.state_id, "old");
+  assert.deepEqual(cards.card.coaching_card_data, assigned);
+  assert.equal(cards.card.roster_player_id, "player");
+  assert.equal(cards.card.position_group, "Guard");
 });
 
 test("background refresh keeps the board mounted and preserves cards on failure", async () => {

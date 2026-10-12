@@ -8,9 +8,10 @@ import { getCardTransitionIntent } from "./coaching-card-stage-model";
 import type { CardStageRequest, RequestCardStageChange } from "./coaching-card-stage-request-context";
 
 type PendingRequest = {
-  kind: "assign" | "reopen";
+  kind: "assign" | "reopen" | "unassign";
   issue: TIssue;
   stage: TCoachingCardStageConfig["stages"][number];
+  recipientCount: number;
   resolve: (result: CardStageRequest | null) => void;
 };
 
@@ -43,9 +44,21 @@ export const useCoachingCardStageRequest = (
         return null;
       }
       if (intent.kind === "move") return { stageId: intent.stage.id };
-      const kind = intent.kind;
+      const card = issue.coaching_card_data;
+      const recipientCount = new Set(
+        [
+          ...(card?.recipient_ids ?? []),
+          ...(card?.recipients?.map((recipient) => recipient.id) ?? []),
+          card?.player?.id,
+          issue.roster_player_id,
+        ].filter((id): id is string => Boolean(id))
+      ).size;
+      const kind =
+        intent.kind === "reopen" && intent.stage.id === config?.initial_stage_id && recipientCount > 0
+          ? "unassign"
+          : intent.kind;
       return new Promise<CardStageRequest | null>((resolve) => {
-        const request: PendingRequest = { kind, issue, stage: intent.stage, resolve };
+        const request: PendingRequest = { kind, issue, stage: intent.stage, recipientCount, resolve };
         pendingRef.current = request;
         setReason("");
         setPending(request);
@@ -64,6 +77,42 @@ export const useCoachingCardStageRequest = (
         onChanged={onAssigned}
         onClose={() => settle(null)}
       />
+    ) : pending?.kind === "unassign" ? (
+      <ModalCore
+        isOpen
+        handleClose={() => settle(null)}
+        width={EModalWidth.MD}
+        className="border border-custom-border-300"
+      >
+        <div className="space-y-4 p-5">
+          <Dialog.Title as="h2" className="break-words text-base font-semibold text-custom-text-100">
+            Move card back to {pending.stage.name}?
+          </Dialog.Title>
+          <Dialog.Description className="text-sm text-custom-text-300">
+            This card is currently assigned to {pending.recipientCount}{" "}
+            {pending.recipientCount === 1 ? "player" : "players"}. Cards in {pending.stage.name} cannot have assigned
+            players. Moving this card will remove those player assignments.
+          </Dialog.Description>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="neutral-primary" size="sm" type="button" onClick={() => settle(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              onClick={() =>
+                settle({
+                  stageId: pending.stage.id,
+                  reason: `Moved back to ${pending.stage.name} and unassigned all players.`,
+                })
+              }
+            >
+              Move &amp; Unassign Players
+            </Button>
+          </div>
+        </div>
+      </ModalCore>
     ) : pending?.kind === "reopen" ? (
       <ModalCore
         isOpen

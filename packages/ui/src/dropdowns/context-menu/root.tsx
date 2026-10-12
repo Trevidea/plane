@@ -165,8 +165,9 @@ const ContextMenuWithoutPortal: React.FC<ContextMenuProps> = (props) => {
 
   // Custom handler for nested menu portal clicks
   React.useEffect(() => {
-    const handleDocumentClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
+    const handleDocumentClick = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
 
       // Check if the click is on a nested menu element
       const isNestedMenuClick = target.closest('[data-context-submenu="true"]');
@@ -189,8 +190,12 @@ const ContextMenuWithoutPortal: React.FC<ContextMenuProps> = (props) => {
     if (isOpen) {
       // Use capture phase to ensure we handle the event before other handlers
       document.addEventListener("mousedown", handleDocumentClick, true);
+      document.addEventListener("focusin", handleDocumentClick, true);
+      document.addEventListener("contextmenu", handleDocumentClick, true);
       return () => {
         document.removeEventListener("mousedown", handleDocumentClick, true);
+        document.removeEventListener("focusin", handleDocumentClick, true);
+        document.removeEventListener("contextmenu", handleDocumentClick, true);
       };
     }
   }, [isOpen, handleClose]);
