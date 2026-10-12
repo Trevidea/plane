@@ -249,7 +249,7 @@ export const CoachingCardPeekContent = observer(
                   disabled={saving}
                   onClick={() => void move(stage.id)}
                 >
-                  {stage.name}
+                  Reopen...
                 </Button>
               ))}
             {config?.stages.find((stage) => stage.id === issue.state_id)?.name.toLowerCase() === "assigned" &&

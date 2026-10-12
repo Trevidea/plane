@@ -11,7 +11,7 @@ import { getPositionGroups } from "@/components/issues/issue-detail/sg-event-det
 import { CreateCardRosterPicker } from "@/components/issues/issue-detail/sg-event-detail-page/create-card-roster-picker";
 import { IssueService } from "@/services/issue/issue.service";
 import { RosterService } from "@/services/roster.service";
-import { getCardStageActions } from "./coaching-card-stage-model";
+import { getCardStageActions, getCardTransitionIntent } from "./coaching-card-stage-model";
 import { CoachingCardStageRequestContext } from "./coaching-card-stage-request-context";
 
 const issueService = new IssueService();
@@ -391,7 +391,7 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
                   disabled={isMoving}
                   className="flex min-h-10 w-full items-center justify-between rounded border border-custom-border-300 px-3 text-left text-sm text-custom-text-100 hover:bg-custom-background-90 focus-visible:ring-2 focus-visible:ring-custom-primary-100 disabled:opacity-50"
                 >
-                  {stage.name}
+                  {getCardTransitionIntent(config, issue.state_id, stage.id).kind === "reopen" ? "Reopen..." : stage.name}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               ))}
