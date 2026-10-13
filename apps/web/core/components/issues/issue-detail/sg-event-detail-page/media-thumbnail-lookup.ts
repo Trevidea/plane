@@ -1,36 +1,13 @@
-import { API_BASE_URL } from "@plane/constants";
 import type { IRosterPlayer } from "@plane/types";
 import type { TMediaArtifact } from "@/services/media-library.service";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
+import { resolveArtifactSource } from "../../../../../ce/features/media-library/utils/media-artifact-url";
 import type { SgTagRow } from "./types";
-import { joinApiPath } from "./page-url";
 
 type TThumbnailLookupContext = {
   packageId?: string;
   projectId: string;
   workspaceSlug: string;
-};
-
-const buildManifestArtifactFileUrl = (context: TThumbnailLookupContext, artifactName: string) => {
-  const normalizedArtifactName = artifactName.trim();
-
-  if (!context.workspaceSlug || !context.projectId || !context.packageId || !normalizedArtifactName) {
-    return "";
-  }
-
-  return joinApiPath(
-    API_BASE_URL,
-    `/api/workspaces/${context.workspaceSlug}/projects/${context.projectId}/media-library/packages/${context.packageId}/artifacts/${encodeURIComponent(
-      normalizedArtifactName
-    )}/file/`
-  );
-};
-
-const resolveFallbackUrl = (value: string | null | undefined) => {
-  const normalizedValue = (value ?? "").trim();
-  if (!normalizedValue) return "";
-  if (/^https?:\/\//i.test(normalizedValue)) return normalizedValue;
-  return `/${normalizedValue.replace(/^\/+/, "")}`;
 };
 
 const getJerseyNumberKeys = (value: string | null | undefined) => {
@@ -181,6 +158,7 @@ export const buildMediaThumbnailLookup = (
     });
   };
   const artifactByKey = new Map<string, TMediaArtifact>();
+  const itemById = new Map((items ?? []).map((item) => [item.id.toLowerCase(), item]));
   const addArtifactLookupKeys = (artifact: TMediaArtifact, thumbnail: string) => {
     addLookup(artifact.name, thumbnail);
     addLookup(artifact.path, thumbnail);
@@ -208,12 +186,15 @@ export const buildMediaThumbnailLookup = (
   (manifestArtifacts ?? []).forEach((artifact) => {
     if (!isManifestThumbnailArtifact(artifact)) return;
 
-    const thumbnailUrl = buildManifestArtifactFileUrl(context, artifact.name) || resolveFallbackUrl(artifact.path);
+    const linkedArtifact = resolveArtifactByValue(artifact.link);
+    const thumbnailUrl =
+      (linkedArtifact && itemById.get(linkedArtifact.name.toLowerCase())?.thumbnail) ||
+      itemById.get(artifact.name.toLowerCase())?.thumbnail ||
+      resolveArtifactSource(artifact, context);
     if (!thumbnailUrl) return;
 
     addArtifactLookupKeys(artifact, thumbnailUrl);
 
-    const linkedArtifact = resolveArtifactByValue(artifact.link);
     if (linkedArtifact) {
       addArtifactLookupKeys(linkedArtifact, thumbnailUrl);
     }

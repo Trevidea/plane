@@ -20,7 +20,7 @@ from html import unescape
 from types import SimpleNamespace
 
 # Third party imports
-from django.http import FileResponse, HttpResponse, StreamingHttpResponse
+from django.http import FileResponse, HttpResponse, HttpResponseRedirect, StreamingHttpResponse
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -1655,6 +1655,15 @@ class MediaArtifactFileAPIView(BaseAPIView):
             or action_value in {"play_streaming", "play_hls", "play", "open_mp4"}
         )
         if not file_path or not file_path.exists():
+            if (
+                artifact_path is None
+                and not download_requested
+                and format_value in _IMAGE_FORMATS
+                and isinstance(raw_path, str)
+                and (external_url or re.match(r"^/(?:(?:sports/)?api/)?blobs/media/", raw_path))
+            ):
+                # Existing card snapshots may still reference this authenticated endpoint.
+                return HttpResponseRedirect(raw_path)
             if external_url and download_requested and artifact_path is None and is_video:
                 mp4_path = package_root(project_id_str, package_id) / "artifacts" / f"{artifact_id}.mp4"
                 if not mp4_path.exists():
