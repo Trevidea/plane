@@ -19,6 +19,8 @@ import { ContentWrapper } from "@plane/ui";
 import RenderIfVisible from "@/components/core/render-if-visible-HOC";
 import { KanbanColumnLoader } from "@/components/ui/loader/layouts/kanban-layout-loader";
 // hooks
+import { getProgramStateColumns } from "@/helpers/program-states";
+import type { TProgramStateGroups } from "@/helpers/program-states";
 import { useKanbanView } from "@/hooks/store/use-kanban-view";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 // types
@@ -28,12 +30,13 @@ import type { TRenderQuickActions } from "../list/list-view-types";
 import type { GroupDropLocation } from "../utils";
 import { getGroupByColumns, isWorkspaceLevel, getApproximateCardHeight } from "../utils";
 // components
+import { orderCardColumns } from "./coaching-card-stage-model";
 import { HeaderGroupByCard } from "./headers/group-by-card";
 import { KanbanGroup } from "./kanban-group";
-import { orderCardColumns } from "./coaching-card-stage-model";
 
 export interface IKanBan {
   cardStageConfig?: TCoachingCardStageConfig;
+  programStateGroups?: TProgramStateGroups;
   issuesMap: IIssueMap;
   groupedIssueIds: TGroupedIssues | TSubGroupedIssues;
   getGroupIssueCount: (
@@ -70,6 +73,7 @@ export const KanBan: React.FC<IKanBan> = observer((props) => {
   const {
     issuesMap,
     cardStageConfig,
+    programStateGroups,
     groupedIssueIds,
     getGroupIssueCount,
     displayProperties,
@@ -110,9 +114,11 @@ export const KanBan: React.FC<IKanBan> = observer((props) => {
     isEpic: isEpic,
   });
   const list =
-    stateColumns && cardStageConfig && group_by === "state"
-      ? orderCardColumns(stateColumns, cardStageConfig)
-      : stateColumns;
+    stateColumns && programStateGroups && group_by === "state"
+      ? getProgramStateColumns(stateColumns, programStateGroups)
+      : stateColumns && cardStageConfig && group_by === "state"
+        ? orderCardColumns(stateColumns, cardStageConfig)
+        : stateColumns;
 
   if (!list) return null;
 
@@ -216,6 +222,7 @@ export const KanBan: React.FC<IKanBan> = observer((props) => {
                   )}
                   <KanbanGroup
                     groupId={subList.id}
+                    paginationGroupIds={programStateGroups?.[subList.id]}
                     issuesMap={issuesMap}
                     groupedIssueIds={groupedIssueIds}
                     displayProperties={displayProperties}

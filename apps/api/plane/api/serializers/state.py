@@ -1,5 +1,6 @@
 # Module imports
 from .base import BaseSerializer
+from rest_framework import serializers
 from plane.db.models import State
 
 
@@ -12,6 +13,10 @@ class StateSerializer(BaseSerializer):
     """
 
     def validate(self, data):
+        role = getattr(self.instance, "lifecycle_role", "")
+        required_group = {"verified": "completed", "closed": "cancelled"}.get(role)
+        if required_group and "group" in data and data["group"] != required_group:
+            raise serializers.ValidationError({"group": "This lifecycle state must retain its terminal group."})
         # If the default is being provided then make all other states default False
         if data.get("default", False):
             State.objects.filter(project_id=self.context.get("project_id")).update(default=False)
@@ -30,6 +35,7 @@ class StateSerializer(BaseSerializer):
             "project",
             "deleted_at",
             "slug",
+            "lifecycle_role",
         ]
 
 
@@ -43,5 +49,5 @@ class StateLiteSerializer(BaseSerializer):
 
     class Meta:
         model = State
-        fields = ["id", "name", "color", "group"]
+        fields = ["id", "name", "color", "group", "lifecycle_role"]
         read_only_fields = fields

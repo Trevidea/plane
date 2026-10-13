@@ -9,6 +9,19 @@ from .project import ProjectBaseModel
 
 class State(ProjectBaseModel):
     name = models.CharField(max_length=255, verbose_name="State Name")
+    lifecycle_role = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        choices=[
+            ("identified", "Identified"),
+            ("assigned", "Assigned"),
+            ("reviewed", "Player reviewed"),
+            ("practice", "Practice check"),
+            ("verified", "Verified"),
+            ("closed", "Closed"),
+        ],
+    )
     description = models.TextField(verbose_name="State Description", blank=True)
     color = models.CharField(max_length=255, verbose_name="State Color")
     slug = models.SlugField(max_length=100, blank=True)

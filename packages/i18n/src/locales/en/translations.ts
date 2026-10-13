@@ -1682,8 +1682,8 @@ export default {
       },
     },
     states: {
-      heading: "States",
-      description: "Define and customize workflow states to track the progress of your work items.",
+      heading: "Program states",
+      description: "Define and customize program states to track the progress of your work items.",
       describe_this_state_for_your_members: "Describe this state for your members.",
       empty_state: {
         title: "No states available for the {groupKey} group",

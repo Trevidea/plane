@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { TGroupedIssues } from "@plane/types";
 import { Avatar } from "@plane/ui";
+import { getProgramStateColumns } from "@/helpers/program-states";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 import { RosterService } from "@/services/roster.service";
@@ -26,7 +27,8 @@ type Props = IKanBan & {
 const rosterService = new RosterService();
 
 export const CoachingSwimlaneBoard: React.FC<Props> = observer((props) => {
-  const { view, preferenceKey, groupedIssueIds, issuesMap, cardStageConfig, getGroupIssueCount } = props;
+  const { view, preferenceKey, groupedIssueIds, issuesMap, cardStageConfig, programStateGroups, getGroupIssueCount } =
+    props;
   const storeType = useIssueStoreType();
   const { issues } = useIssues(storeType);
   const { workspaceSlug, projectId } = useParams();
@@ -57,7 +59,12 @@ export const CoachingSwimlaneBoard: React.FC<Props> = observer((props) => {
     includeNone: false,
     isWorkspaceLevel: isWorkspaceLevel(storeType),
   });
-  const orderedColumns = columns && cardStageConfig ? orderCardColumns(columns, cardStageConfig) : columns;
+  const orderedColumns =
+    columns && programStateGroups
+      ? getProgramStateColumns(columns, programStateGroups)
+      : columns && cardStageConfig
+        ? orderCardColumns(columns, cardStageConfig)
+        : columns;
   const stageIds = orderedColumns?.map((column) => column.id) ?? [];
   const stageIssueIds = Object.fromEntries(
     stageIds.map((stageId) => [stageId, ((groupedIssueIds as TGroupedIssues)?.[stageId] as string[]) ?? []])
@@ -65,11 +72,13 @@ export const CoachingSwimlaneBoard: React.FC<Props> = observer((props) => {
   const loadedCounts = stageIds.map((stageId) => stageIssueIds[stageId].length).join(":");
   useEffect(() => {
     for (const stageId of stageIds) {
-      if (
-        issues.getPaginationData(stageId, undefined)?.nextPageResults &&
-        issues.getIssueLoader(stageId) !== "pagination"
-      ) {
-        props.loadMoreIssues(stageId);
+      for (const sourceId of programStateGroups?.[stageId] ?? [stageId]) {
+        if (
+          issues.getPaginationData(sourceId, undefined)?.nextPageResults &&
+          issues.getIssueLoader(sourceId) !== "pagination"
+        ) {
+          props.loadMoreIssues(sourceId);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -8,7 +8,7 @@ import useSWR from "swr";
 import { EUserPermissionsLevel } from "@plane/constants";
 import type { IState, TStateOperationsCallbacks } from "@plane/types";
 import { EUserProjectRoles } from "@plane/types";
-import { ProjectStateLoader, GroupList } from "@/components/project-states";
+import { ProjectStateLoader, LifecycleStateList } from "@/components/project-states";
 // hooks
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { useUserPermissions } from "@/hooks/store/user";
@@ -65,7 +65,7 @@ export const ProjectStateRoot: FC<TProjectState> = observer((props) => {
 
   return (
     <div className="py-3">
-      <GroupList
+      <LifecycleStateList
         groupedStates={groupedProjectStates}
         stateOperationsCallbacks={stateOperationsCallbacks}
         isEditable={isEditable}

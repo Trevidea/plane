@@ -74,12 +74,12 @@ export const CreateCardModal = ({
   const includedPlaylists = useMemo(() => groups.filter((group) => group.clips.length > 0), [groups]);
   const positionGroups = useMemo(() => getPositionGroups(rosterPlayers), [rosterPlayers]);
   const totalTags = includedPlaylists.reduce((total, group) => total + group.clips.length, 0);
+  const hasPositionGroup = assignmentType === "group" && Boolean(positionGroup.trim());
   const canSubmit =
     Boolean(onSubmit) &&
-    (assignmentType === "player" || Boolean(positionGroup)) &&
     title.trim().length > 0 &&
     totalTags > 0 &&
-    (assignmentType === "player" || (!isRosterLoading && !hasRosterError)) &&
+    (!hasPositionGroup || (!isRosterLoading && !hasRosterError)) &&
     !isSubmitting;
   const handleClose = () => {
     if (!isSubmitting) onClose();
@@ -386,7 +386,7 @@ export const CreateCardModal = ({
               {assignmentType === "group"
                 ? positionGroup
                   ? `Recipient: ${positionGroup} group`
-                  : "Choose a position group from the roster."
+                  : "No recipients yet. This card will stay in the first stage."
                 : selectedPlayers.length
                   ? `Recipients: ${selectedPlayers.map(formatCardPlayer).join(", ")}`
                   : "No recipients yet. This card will stay in the first stage."}

@@ -68,6 +68,7 @@ interface IKanbanGroup {
   isEpic?: boolean;
   issueIdsOverride?: string[];
   disablePagination?: boolean;
+  paginationGroupIds?: string[];
 }
 
 export const KanbanGroup = observer((props: IKanbanGroup) => {
@@ -94,6 +95,7 @@ export const KanbanGroup = observer((props: IKanbanGroup) => {
     isEpic = false,
     issueIdsOverride,
     disablePagination = false,
+    paginationGroupIds,
   } = props;
   // i18n
   const { t } = useTranslation();
@@ -101,7 +103,7 @@ export const KanbanGroup = observer((props: IKanbanGroup) => {
   const projectState = useProjectState();
 
   const {
-    issues: { getGroupIssueCount, getPaginationData, getIssueLoader },
+    issues: { getGroupIssueCount, getPaginationData, getIssueLoader, getIssueIds },
   } = useIssuesStore();
 
   const [intersectionElement, setIntersectionElement] = useState<HTMLSpanElement | null>(null);
@@ -110,10 +112,19 @@ export const KanbanGroup = observer((props: IKanbanGroup) => {
   const containerRef = sub_group_by && scrollableContainerRef ? scrollableContainerRef : columnRef;
 
   const loadMoreIssuesInThisGroup = useCallback(() => {
-    loadMoreIssues(groupId, sub_group_id === "null" ? undefined : sub_group_id);
-  }, [loadMoreIssues, groupId, sub_group_id]);
+    const subGroupId = sub_group_id === "null" ? undefined : sub_group_id;
+    for (const sourceId of paginationGroupIds ?? [groupId]) {
+      if (paginationGroupIds) {
+        const next = getPaginationData(sourceId, subGroupId)?.nextPageResults;
+        const loaded = getIssueIds(sourceId, subGroupId)?.length ?? 0;
+        const count = getGroupIssueCount(sourceId, subGroupId, false) ?? 0;
+        if (next === false || (next === undefined && loaded >= count)) continue;
+      }
+      loadMoreIssues(sourceId, subGroupId);
+    }
+  }, [loadMoreIssues, groupId, sub_group_id, paginationGroupIds, getPaginationData, getIssueIds, getGroupIssueCount]);
 
-  const isPaginating = !!getIssueLoader(groupId, sub_group_id);
+  const isPaginating = (paginationGroupIds ?? [groupId]).some((id) => !!getIssueLoader(id, sub_group_id));
 
   useIntersectionObserver(
     containerRef,
@@ -255,7 +266,10 @@ export const KanbanGroup = observer((props: IKanbanGroup) => {
       ? ((groupedIssueIds as TSubGroupedIssues)?.[groupId]?.[sub_group_id] ?? [])
       : ((groupedIssueIds as TGroupedIssues)?.[groupId] ?? []));
 
-  const groupIssueCount = getGroupIssueCount(groupId, sub_group_id, false) ?? 0;
+  const groupIssueCount = (paginationGroupIds ?? [groupId]).reduce(
+    (count, id) => count + (getGroupIssueCount(id, sub_group_id, false) ?? 0),
+    0
+  );
 
   const nextPageResults = getPaginationData(groupId, sub_group_id)?.nextPageResults;
 
@@ -271,7 +285,17 @@ export const KanbanGroup = observer((props: IKanbanGroup) => {
   );
 
   const shouldLoadMore =
-    !disablePagination && (nextPageResults === undefined ? issueIds?.length < groupIssueCount : !!nextPageResults);
+    !disablePagination &&
+    (paginationGroupIds
+      ? paginationGroupIds.some((id) => {
+          const next = getPaginationData(id, sub_group_id)?.nextPageResults;
+          return next === undefined
+            ? (getIssueIds(id, sub_group_id)?.length ?? 0) < (getGroupIssueCount(id, sub_group_id, false) ?? 0)
+            : !!next;
+        })
+      : nextPageResults === undefined
+        ? issueIds?.length < groupIssueCount
+        : !!nextPageResults);
   const canOverlayBeVisible = isWorkflowDropDisabled || orderBy !== "sort_order" || isDropDisabled;
   const shouldOverlayBeVisible = isDraggingOverColumn && canOverlayBeVisible;
   const canDragIssuesInCurrentGrouping =

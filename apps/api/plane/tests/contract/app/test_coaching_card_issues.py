@@ -367,7 +367,7 @@ class TestCoachingCardIssues:
             "In Work",
             "Ready for Coach Review",
             "Resolved",
-            "Cancelled",
+            "Closed",
         ]
 
     @pytest.mark.django_db
@@ -388,12 +388,12 @@ class TestCoachingCardIssues:
             ("In Work", "started", False),
             ("Ready for Coach Review", "started", False),
             ("Resolved", "completed", False),
-            ("Cancelled", "cancelled", False),
+            ("Closed", "cancelled", False),
         ]
 
         config_url = f"/api/workspaces/{workspace.slug}/projects/{project.id}/coaching-card-config/"
         config = session_client.get(config_url).json()
-        assert [stage["name"] for stage in config["stages"]] == [name for name, _, _ in states[:-1]]
+        assert [stage["name"] for stage in config["stages"]] == [name for name, _, _ in states]
         assert session_client.patch(config_url, {"stages": []}, format="json").status_code == 405
         response = session_client.post(
             f"/api/workspaces/{workspace.slug}/projects/",

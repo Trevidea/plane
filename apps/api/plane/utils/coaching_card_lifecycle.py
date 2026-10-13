@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from datetime import timedelta
 from django.db import transaction
+from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 
-from plane.db.models import CardStageHistory, State
+from plane.db.models import CardStageHistory, Project, State
 from plane.utils.coaching_card_stages import build_stage_config, review_stage_ids, validate_stage_transition
 
 
@@ -39,19 +40,37 @@ def default_project_state_definitions(project):
             "sequence": first_sequence + index * 10000,
             "group": groups[index],
             "default": index == 0,
+            "lifecycle_role": ("identified", "assigned", "reviewed", "practice", "verified")[index]
+            if project.sport
+            else "",
         }
         for index, name in enumerate(names)
     ]
     states.append(
         {
-            "name": "Cancelled",
+            "name": "Closed" if project.sport else "Cancelled",
             "color": "#9AA4BC",
             "sequence": first_sequence + len(names) * 10000,
             "group": "cancelled",
             "default": False,
+            "lifecycle_role": "closed" if project.sport else "",
         }
     )
     return states
+
+
+@transaction.atomic
+def ensure_project_card_states(project, actor=None):
+    """Initialize an empty program only during an explicit card-creation write."""
+    Project.objects.select_for_update().get(pk=project.pk)
+    if State.objects.filter(project=project, is_triage=False, deleted_at__isnull=True).exists():
+        return
+    State.objects.bulk_create(
+        [
+            State(project=project, workspace_id=project.workspace_id, created_by=actor, **definition)
+            for definition in default_project_state_definitions(project)
+        ]
+    )
 
 
 def get_project_card_stage_config(project):
@@ -60,13 +79,22 @@ def get_project_card_stage_config(project):
 
     states = list(
         State.objects.filter(project=project, is_triage=False, deleted_at__isnull=True)
-        .exclude(group="cancelled")
+        .filter(~Q(group="cancelled") | Q(lifecycle_role="closed"))
         .order_by("sequence", "id")
     )
     try:
         return build_stage_config(
             project.sport,
-            [{"id": state.id, "name": state.name, "sequence": state.sequence, "group": state.group} for state in states],
+            [
+                {
+                    "id": state.id,
+                    "name": state.name,
+                    "sequence": state.sequence,
+                    "group": state.group,
+                    "lifecycle_role": state.lifecycle_role,
+                }
+                for state in states
+            ],
         )
     except ValueError as exc:
         raise serializers.ValidationError({"stages": [str(exc)]}) from exc

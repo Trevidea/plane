@@ -14,6 +14,7 @@ import {
 } from "@/components/annotation";
 import type { TCustomPlaylistAnnotation } from "@/components/annotation";
 import { useProject } from "@/hooks/store/use-project";
+import { useProjectState } from "@/hooks/store/use-project-state";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useAppRouter } from "@/hooks/use-app-router";
 import { IssueService } from "@/services/issue/issue.service";
@@ -306,6 +307,7 @@ export const SgEventDetailPage = ({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { getProjectById } = useProject();
+  const { fetchProjectStates } = useProjectState();
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
   const rosterService = useMemo(() => new RosterService(), []);
   const issueService = useMemo(() => new IssueService(), []);
@@ -612,6 +614,7 @@ export const SgEventDetailPage = ({
       });
 
       if (typeof window !== "undefined") {
+        await fetchProjectStates(workspaceSlug, projectId).catch(() => undefined);
         window.dispatchEvent(new CustomEvent("coaching-card-created", { detail: { projectId } }));
       }
       setToast({
@@ -620,7 +623,7 @@ export const SgEventDetailPage = ({
         message: `One card added to the coaching board${values.playerIds.length ? ` for ${values.playerIds.length} players` : ""}.`,
       });
     },
-    [createCardContext, issueService, projectId, resolvedWorkItemId, workspaceSlug]
+    [createCardContext, issueService, projectId, resolvedWorkItemId, workspaceSlug, fetchProjectStates]
   );
 
   const handleCreateCustomPlaylist = useCallback(

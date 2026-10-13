@@ -18,6 +18,15 @@ export const getCardTransitionIntent = (
   if (current < 0 || target < 0)
     return { kind: "blocked", title: "Stage unavailable", message: "Select a stage on this coaching board." };
   if (current === target) return { kind: "unchanged" };
+  if (stages[target].lifecycle_role === "closed") {
+    if (stages[current].lifecycle_role === "verified" && canTransitionCard(config, currentStageId, targetStageId))
+      return { kind: "move", stage: stages[target] };
+    return { kind: "blocked", title: "Verification required", message: "Verify the card before closing it." };
+  }
+  if (stages[current].lifecycle_role === "closed") {
+    const verified = stages.find((stage) => stage.lifecycle_role === "verified");
+    if (verified && canTransitionCard(config, currentStageId, verified.id)) return { kind: "reopen", stage: verified };
+  }
   if (target < current) {
     const previous = stages[current - 1];
     if (canTransitionCard(config, currentStageId, previous.id)) return { kind: "reopen", stage: previous };
@@ -60,7 +69,10 @@ export const getCardStageActions = (config: TCoachingCardStageConfig | undefined
       canTransitionCard(config, currentStageId, stage.id)
     );
   });
-  const next = stages[currentIndex + 1];
+  const next =
+    stages[currentIndex]?.lifecycle_role === "verified"
+      ? stages.find((stage) => stage.lifecycle_role === "closed")
+      : stages[currentIndex + 1];
   return { available, next: available.find((stage) => stage.id === next?.id) ?? null };
 };
 
@@ -102,19 +114,36 @@ export const alignCardStageConfig = (
   const automaticReview =
     ordered[1]?.name.toLowerCase() === "assigned" &&
     ["player reviewed", "in work"].includes(ordered[2]?.name.toLowerCase());
+  const verified = config.stages.find((stage) => stage.lifecycle_role === "verified");
+  const closed = config.stages.find((stage) => stage.lifecycle_role === "closed");
   return {
     ...config,
-    initial_stage_id: ordered[0]?.id ?? config.initial_stage_id,
+    initial_stage_id:
+      config.stages.find((stage) => stage.lifecycle_role === "identified")?.id ??
+      ordered[0]?.id ??
+      config.initial_stage_id,
     stages: ordered.map((state, order) => ({
       ...config.stages.find((stage) => stage.id === state.id)!,
       name: state.name,
       order,
       // Rebuild adjacency when settings changed, matching the server lifecycle contract.
-      allowed_next_stage_ids: reordered
-        ? ordered
-            .filter((_, index) => Math.abs(index - order) === 1 && !(automaticReview && order === 1 && index === 2))
-            .map((state) => state.id)
-        : previous[order].allowed_next_stage_ids,
+      allowed_next_stage_ids:
+        state.id === closed?.id && verified
+          ? [verified.id]
+          : state.id === verified?.id && closed
+            ? [
+                ...new Set([
+                  ...(config.stages.find((stage) => stage.id === state.id)?.allowed_next_stage_ids ?? []),
+                  closed.id,
+                ]),
+              ]
+            : reordered
+              ? ordered
+                  .filter(
+                    (_, index) => Math.abs(index - order) === 1 && !(automaticReview && order === 1 && index === 2)
+                  )
+                  .map((state) => state.id)
+              : previous[order].allowed_next_stage_ids,
     })),
   };
 };

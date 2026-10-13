@@ -7,6 +7,7 @@ export interface IState {
   description: string;
   group: TStateGroups;
   name: string;
+  lifecycle_role?: "" | "identified" | "assigned" | "reviewed" | "practice" | "verified" | "closed";
   project_id: string;
   sequence: number;
   workspace_id: string;
@@ -18,6 +19,7 @@ export interface IStateLite {
   group: TStateGroups;
   id: string;
   name: string;
+  lifecycle_role?: IState["lifecycle_role"];
 }
 
 export interface IStateResponse {

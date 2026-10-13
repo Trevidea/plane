@@ -234,7 +234,7 @@ export const CoachingCardPeekContent = observer(
                 Assign to player
               </Button>
             )}
-            {next && (
+            {next && (next.lifecycle_role || next.name.toLowerCase()) !== "assigned" && (
               <Button variant="primary" size="sm" disabled={saving} onClick={() => void move(next.id)}>
                 {next.name}
               </Button>
