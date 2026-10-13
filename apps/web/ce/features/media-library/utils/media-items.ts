@@ -1,10 +1,10 @@
 "use client";
 
-import { API_BASE_URL } from "@plane/constants";
 import { renderWorkspaceDate } from "@plane/utils";
 
 import type { TMediaArtifact } from "@/services/media-library.service";
 import type { TMediaItem, TMediaSection } from "../types/media-library.types";
+import { buildArtifactFileUrl, resolveArtifactPath, resolveArtifactSource } from "./media-artifact-url";
 import { getDisplayMediaTitle } from "./media-detail-utils";
 import { formatMediaDurationLabel } from "./media-duration";
 import { getEventMediaContextLabel, getEventMediaDateLabel, getEventMediaDetails } from "./media-event";
@@ -83,33 +83,6 @@ const ACTIVE_TRANSCODE_STATUSES = new Set([
   "RETRY_PENDING",
 ]);
 const FAILED_TRANSCODE_STATUSES = new Set(["FAILED", "QUEUE_FAILED", "CANCELLED"]);
-
-const resolveArtifactPath = (path: string) => {
-  if (!path) return "";
-  if (/^https?:\/\//i.test(path)) return path;
-  return `/${path.replace(/^\/+/, "")}`;
-};
-
-const joinApiPath = (base: string, path: string) => `${base?.replace(/\/$/, "") ?? ""}${path}`;
-
-const buildArtifactFileUrl = (context: TArtifactContext, artifactName: string) =>
-  joinApiPath(
-    API_BASE_URL,
-    `/api/workspaces/${context.workspaceSlug}/projects/${context.projectId}/media-library/packages/${context.packageId}/artifacts/${encodeURIComponent(
-      artifactName
-    )}/file/`
-  );
-
-const resolveArtifactSource = (artifact: TMediaArtifact, context?: TArtifactContext) => {
-  const rawPath = artifact.path ?? "";
-  if (rawPath && /^https?:\/\//i.test(rawPath)) return rawPath;
-  const action = (artifact.action ?? "").toLowerCase();
-  if (rawPath && action === "play_hls") return resolveArtifactPath(rawPath);
-  if (context && artifact.name) {
-    return buildArtifactFileUrl(context, artifact.name);
-  }
-  return resolveArtifactPath(rawPath);
-};
 
 const formatDateLabel = (value: string, dateFormat?: string | null) => renderWorkspaceDate(value, dateFormat) ?? value;
 
@@ -659,7 +632,11 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
         ? resolvedPath
         : planeCoachThumbnail || (mediaType === "document" ? getDocumentThumbnailPath(format) : "");
     const thumbnail = resolveArtifactPath(
-      artifactThumbnail || resolveThumbnailHint(metaThumbnail) || planeCoachThumbnail || fallbackThumbnail
+      (mediaType === "video" ? resolveThumbnailHint(metaThumbnail) : "") ||
+        artifactThumbnail ||
+        resolveThumbnailHint(metaThumbnail) ||
+        planeCoachThumbnail ||
+        fallbackThumbnail
     );
 
     return {

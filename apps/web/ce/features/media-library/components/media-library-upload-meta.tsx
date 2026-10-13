@@ -2,13 +2,13 @@
 
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
+import { CustomSelect } from "@plane/ui";
 import { CategoryDropdown } from "@/components/dropdowns/category-property";
 import { LevelDropdown } from "@/components/dropdowns/level-property";
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 import { ProgramDropdown } from "@/components/dropdowns/program-property";
 import SportDropdown from "@/components/dropdowns/sport-property";
 import { YearRangeDropdown } from "@/components/dropdowns/year-property";
-import { CustomSelect } from "@plane/ui";
 import { UPLOAD_MODAL_TEXT_CLASS } from "./media-library-upload-style-classes";
 import type { TMetaFieldChange, TMetaFormState, TUploadTarget } from "./media-library-upload-types";
 
@@ -18,6 +18,7 @@ type Props = {
   workItemSelector: ReactNode;
   meta: TMetaFormState;
   isLocked: boolean;
+  isSportLocked: boolean;
   onFieldChange: TMetaFieldChange;
   tagDraft: string;
   onTagDraftChange: (value: string) => void;
@@ -37,6 +38,7 @@ export const MediaLibraryUploadMetaForm = ({
   workItemSelector,
   meta,
   isLocked,
+  isSportLocked,
   onFieldChange,
   tagDraft,
   onTagDraftChange,
@@ -97,12 +99,12 @@ export const MediaLibraryUploadMetaForm = ({
           placeholder="Select sport"
           buttonVariant="border-with-text"
           className="h-8"
-          buttonContainerClassName={getFieldButtonContainerClassName(isLocked)}
+          buttonContainerClassName={getFieldButtonContainerClassName(isLocked || isSportLocked)}
           buttonClassName={getFieldButtonClassName(Boolean(meta.sport))}
           hideIcon
           clearIconClassName="h-3 w-3"
           dropdownClassName="z-[70]"
-          disabled={isLocked}
+          disabled={isLocked || isSportLocked}
         />
       </div>
       <div className={`flex flex-col gap-1 text-[11px] ${UPLOAD_MODAL_TEXT_CLASS.label}`}>
