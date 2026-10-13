@@ -7,12 +7,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Render the real uploaded-video modal and exercise its HTTP submission/retry flow.
-// Only the surrounding project store and HTTP server are fixtures.
+// The surrounding project/state stores, HTTP server and Next image adapter are fixtures.
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const require = createRequire(path.join(web, "package.json"));
 const { build } = require(process.env.ESBUILD_PACKAGE_PATH || "esbuild");
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE_PATH || "playwright");
 const temp = await mkdtemp(path.join(tmpdir(), "uploaded-card-browser-"));
+await writeFile(
+  path.join(temp, "next-image.tsx"),
+  `export default function Image({fill, priority, unoptimized, ...props}) { return <img {...props}/>; }`
+);
+await writeFile(
+  path.join(temp, "states.ts"),
+  `export const useProjectState=()=>({fetchProjectStates:async(slug,project)=>fetch('/api/workspaces/'+slug+'/projects/'+project+'/states/').then(response=>response.json())});`
+);
 await writeFile(
   path.join(temp, "project.ts"),
   'export const useProject = () => ({ getProjectById: () => ({ name: "Basketball", sport: "" }) });'
@@ -45,6 +53,8 @@ const bundle = await build({
     "@/helpers": path.join(web, "helpers"),
     "@/plane-web": path.join(web, "ce"),
     "@/hooks/store/use-project": path.join(temp, "project.ts"),
+    "@/hooks/store/use-project-state": path.join(temp, "states.ts"),
+    "next/image": path.join(temp, "next-image.tsx"),
   },
   nodePaths: [path.join(web, "node_modules"), path.resolve(web, "../../node_modules")],
   define: {
@@ -56,9 +66,14 @@ const bundle = await build({
 });
 const submissions = [];
 let rosterRequests = 0;
+let stateRequests = 0;
 const server = createServer(async (req, res) => {
   const json = (status, value) =>
     res.writeHead(status, { "Content-Type": "application/json" }).end(JSON.stringify(value));
+  if (req.url.endsWith("/states/")) {
+    stateRequests++;
+    return json(200, [{ id: "initial", name: "First state", group: "backlog", lifecycle_role: "identified" }]);
+  }
   if (req.url.endsWith("/roster/")) {
     rosterRequests++;
     if (rosterRequests === 1) return json(500, { error: "Temporary roster failure" });
@@ -93,7 +108,10 @@ try {
   });
   const page = await browser.newPage();
   const errors = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", (error) => {
+    errors.push(error.message);
+    console.error("Browser error:", error.message);
+  });
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.getByRole("heading", { name: "Create Card", exact: true }).waitFor();
   await page.getByRole("button", { name: /retry/i }).click();
@@ -104,7 +122,7 @@ try {
   await page.getByLabel("Feedback", { exact: true }).fill("Keep your shoulders square.");
   const send = page.getByRole("button", { name: /^Save & Send/ });
   await send.click();
-  await page.getByText(/Unable to send this card/).waitFor();
+  await page.getByText(/Temporary save failure|Unable to send this card/).waitFor();
   assert.equal(await page.getByLabel("Title", { exact: false }).inputValue(), "Practice feedback");
   assert.match(await page.locator("body").innerText(), /Alex Morgan/);
   await send.click();
@@ -122,8 +140,22 @@ try {
   assert.equal(submissions[1].title, "Practice feedback");
   assert.equal(submissions[1].source_issue_id, undefined);
   assert.equal(submissions[1].playlists, undefined);
+  await page.goto(`http://127.0.0.1:${server.address().port}/?unassigned`);
+  await page.getByRole("heading", { name: "Create Card", exact: true }).waitFor();
+  await page.getByLabel("Title", { exact: false }).fill("Unassigned media card");
+  await page.getByText("Position Group", { exact: true }).click();
+  const saveUnassigned = page.getByRole("button", { name: /^Save Card/ });
+  assert.equal(await saveUnassigned.isEnabled(), true, "An empty position selection must allow an unassigned card");
+  await saveUnassigned.click();
+  await page.getByText("Card created", { exact: true }).waitFor();
+  assert.equal(submissions.length, 3);
+  assert.deepEqual(submissions[2].player_ids, []);
+  assert.equal(submissions[2].position_group, "");
+  assert.equal(stateRequests, 2, "Successful saves refresh program states before closing the modal");
   assert.deepEqual(errors, []);
-  console.log("PASS: uploaded-video card without metadata, roster retry, retained inputs, idempotent submission, success close");
+  console.log(
+    "PASS: uploaded-video card, retry, unassigned position-group submission, state refresh and success close"
+  );
 } finally {
   await browser?.close();
   await new Promise((resolve) => server.close(resolve));

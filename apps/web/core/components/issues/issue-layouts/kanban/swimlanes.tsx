@@ -16,14 +16,16 @@ import type {
 // UI
 import { Row } from "@plane/ui";
 // hooks
+import { getProgramStateColumns } from "@/helpers/program-states";
+import type { TProgramStateGroups } from "@/helpers/program-states";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
 // components
 import { useWorkFlowFDragNDrop } from "@/plane-web/components/workflow";
 import type { TRenderQuickActions } from "../list/list-view-types";
 import type { GroupDropLocation } from "../utils";
 import { getGroupByColumns, isWorkspaceLevel } from "../utils";
-import { KanBan } from "./default";
 import { orderCardColumns } from "./coaching-card-stage-model";
+import { KanBan } from "./default";
 import { HeaderGroupByCard } from "./headers/group-by-card";
 import { HeaderSubGroupByCard } from "./headers/sub-group-by-card";
 // types
@@ -31,6 +33,7 @@ import { HeaderSubGroupByCard } from "./headers/sub-group-by-card";
 
 interface ISubGroupSwimlaneHeader {
   cardStageConfig?: TCoachingCardStageConfig;
+  programStateGroups?: TProgramStateGroups;
   getGroupIssueCount: (
     groupId: string | undefined,
     subGroupId: string | undefined,
@@ -135,6 +138,7 @@ const SubGroupSwimlane: React.FC<ISubGroupSwimlane> = observer((props) => {
   const {
     issuesMap,
     cardStageConfig,
+    programStateGroups,
     isDropDisabled,
     dropErrorMessage,
     groupedIssueIds,
@@ -205,6 +209,7 @@ const SubGroupSwimlane: React.FC<ISubGroupSwimlane> = observer((props) => {
                   <KanBan
                     issuesMap={issuesMap}
                     cardStageConfig={cardStageConfig}
+                    programStateGroups={programStateGroups}
                     groupedIssueIds={groupedIssueIds}
                     getGroupIssueCount={getGroupIssueCount}
                     displayProperties={displayProperties}
@@ -240,6 +245,7 @@ const SubGroupSwimlane: React.FC<ISubGroupSwimlane> = observer((props) => {
 
 export interface IKanBanSwimLanes {
   cardStageConfig?: TCoachingCardStageConfig;
+  programStateGroups?: TProgramStateGroups;
   isDropDisabled?: boolean;
   dropErrorMessage?: string;
   issuesMap: IIssueMap;
@@ -272,6 +278,7 @@ export const KanBanSwimLanes: React.FC<IKanBanSwimLanes> = observer((props) => {
   const {
     issuesMap,
     cardStageConfig,
+    programStateGroups,
     isDropDisabled,
     dropErrorMessage,
     groupedIssueIds,
@@ -303,9 +310,11 @@ export const KanBanSwimLanes: React.FC<IKanBanSwimLanes> = observer((props) => {
     isWorkspaceLevel: isWorkspaceLevel(storeType),
   });
   const groupByList =
-    defaultGroupByList && cardStageConfig && group_by === "state"
-      ? orderCardColumns(defaultGroupByList, cardStageConfig)
-      : defaultGroupByList;
+    defaultGroupByList && programStateGroups && group_by === "state"
+      ? getProgramStateColumns(defaultGroupByList, programStateGroups)
+      : defaultGroupByList && cardStageConfig && group_by === "state"
+        ? orderCardColumns(defaultGroupByList, cardStageConfig)
+        : defaultGroupByList;
   const subGroupByList = getGroupByColumns({
     groupBy: sub_group_by as GroupByColumnTypes,
     includeNone: true,
@@ -333,6 +342,7 @@ export const KanBanSwimLanes: React.FC<IKanBanSwimLanes> = observer((props) => {
         <SubGroupSwimlane
           issuesMap={issuesMap}
           cardStageConfig={cardStageConfig}
+          programStateGroups={programStateGroups}
           isDropDisabled={isDropDisabled}
           dropErrorMessage={dropErrorMessage}
           list={subGroupByList}

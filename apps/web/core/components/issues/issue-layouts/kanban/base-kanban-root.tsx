@@ -14,6 +14,7 @@ import { EIssueServiceType, EIssueLayoutTypes, EIssuesStoreType } from "@plane/t
 //constants
 //hooks
 import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
+import { getProgramStateGroups, mergeProgramStateIssues } from "@/helpers/program-states";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useKanbanView } from "@/hooks/store/use-kanban-view";
@@ -119,7 +120,22 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
     [fetchNextIssues, issues]
   );
 
-  const groupedIssueIds = issues?.groupedIssueIds;
+  const rawGroupedIssueIds = issues?.groupedIssueIds;
+  const programStates = getProjectStates(projectId?.toString());
+  const isProgramStateBoard = storeType === EIssuesStoreType.PROJECT && group_by === "state" && !isEpic;
+  const programStateGroups =
+    isProgramStateBoard && programStates?.length ? getProgramStateGroups(programStates) : undefined;
+  const groupedIssueIds = programStateGroups
+    ? mergeProgramStateIssues(rawGroupedIssueIds ?? {}, programStateGroups, (ids) =>
+        issues.issuesSortWithOrderBy(ids, orderBy ?? "sort_order")
+      )
+    : rawGroupedIssueIds;
+  const getBoardGroupIssueCount: typeof issues.getGroupIssueCount = (groupId, subGroupId, cumulative) => {
+    const sourceIds = groupId ? programStateGroups?.[groupId] : undefined;
+    return sourceIds
+      ? sourceIds.reduce((count, id) => count + (issues.getGroupIssueCount(id, subGroupId, cumulative) ?? 0), 0)
+      : issues.getGroupIssueCount(groupId, subGroupId, cumulative);
+  };
 
   const userDisplayFilters = displayFilters || null;
 
@@ -156,7 +172,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
     () => cardService.getCoachingCardConfig(workspaceSlug.toString(), projectId.toString())
   );
 
-  const cardStageConfig = alignCardStageConfig(fetchedCardStageConfig, getProjectStates(projectId?.toString()));
+  const cardStageConfig = alignCardStageConfig(fetchedCardStageConfig, programStates);
 
   useEffect(() => {
     if (!isCoachingBoard) return;
@@ -213,7 +229,14 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
     group_by,
     isCoachingBoard ? undefined : sub_group_by,
     cardStageConfig,
-    isCoachingBoard ? requestStageChange : undefined
+    isCoachingBoard ? requestStageChange : undefined,
+    programStateGroups
+      ? (groupId, subGroupId) => {
+          const value = groupId ? groupedIssueIds?.[groupId] : undefined;
+          if (Array.isArray(value)) return value;
+          return subGroupId ? value?.[subGroupId] : undefined;
+        }
+      : undefined
   );
 
   const handleSwimlaneDrop = useCallback(
@@ -446,10 +469,11 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
   const boardProps = {
     issuesMap: issueMap,
     cardStageConfig,
+    programStateGroups,
     isDropDisabled: isCoachingBoard && !cardStageConfig,
     dropErrorMessage: "Coaching stage configuration is unavailable.",
     groupedIssueIds: groupedIssueIds ?? {},
-    getGroupIssueCount: issues.getGroupIssueCount,
+    getGroupIssueCount: getBoardGroupIssueCount,
     displayProperties,
     sub_group_by: isCoachingBoard ? null : sub_group_by,
     group_by,
@@ -459,7 +483,7 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
     handleCollapsedGroups,
     collapsedGroups,
     enableQuickIssueCreate: isCoachingBoard ? false : enableQuickAdd,
-    showEmptyGroup: isCoachingBoard || (userDisplayFilters?.show_empty_groups ?? true),
+    showEmptyGroup: isProgramStateBoard || isCoachingBoard || (userDisplayFilters?.show_empty_groups ?? true),
     quickAddCallback: quickAddIssue,
     disableIssueCreation: isCoachingBoard || !enableIssueCreation || !isEditingAllowed || isCompletedCycle,
     canEditProperties,

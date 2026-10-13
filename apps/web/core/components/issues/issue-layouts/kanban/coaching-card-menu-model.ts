@@ -9,7 +9,12 @@ export const getCoachingCardMenuStages = (
   const index = stages.findIndex((stage) => stage.id === currentStageId);
   const current = stages[index];
   const following = index >= 0 ? stages[index + 1] : undefined;
-  const preceding = index > 0 ? stages[index - 1] : undefined;
+  const preceding =
+    current?.lifecycle_role === "closed"
+      ? stages.find((stage) => stage.lifecycle_role === "verified")
+      : index > 0
+        ? stages[index - 1]
+        : undefined;
   const { available, next } = getCardStageActions(config, currentStageId);
   const previous = available.find((stage) => stage.id === preceding?.id);
   const assignment = index === 0 && next?.name.toLowerCase() === "assigned";

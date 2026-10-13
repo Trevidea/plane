@@ -1,4 +1,5 @@
 import { TIssuePriorities } from "../issues";
+import type { IState } from "../state";
 import { TIssuePublicComment } from "./activity/issue_comment";
 import { TIssueAttachment } from "./issue_attachment";
 import { TIssueLink } from "./issue_link";
@@ -190,6 +191,7 @@ export type TCoachingCardStageConfig = {
     name: string;
     order: number;
     abbreviation: string;
+    lifecycle_role?: IState["lifecycle_role"];
     allowed_next_stage_ids: string[];
   }>;
 };

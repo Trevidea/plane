@@ -5,6 +5,7 @@ import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { CreateCardModal } from "@/components/issues/issue-detail/sg-event-detail-page/create-card-modal";
 import type { CardFormValues } from "@/components/issues/issue-detail/sg-event-detail-page/create-card-model";
 import { useProject } from "@/hooks/store/use-project";
+import { useProjectState } from "@/hooks/store/use-project-state";
 import { IssueService } from "@/services/issue/issue.service";
 import { RosterService } from "@/services/roster.service";
 import type { TMediaItem } from "../types/media-library.types";
@@ -23,6 +24,7 @@ export const UploadedVideoCreateCard = ({ item, workspaceSlug, projectId, durati
   const issueService = useMemo(() => new IssueService(), []);
   const rosterService = useMemo(() => new RosterService(), []);
   const { getProjectById } = useProject();
+  const { fetchProjectStates } = useProjectState();
   const project = getProjectById(projectId);
   const {
     data: players,
@@ -49,6 +51,8 @@ export const UploadedVideoCreateCard = ({ item, workspaceSlug, projectId, durati
       sport_label: values.context.sport ?? "",
       context: values.context,
     });
+    await fetchProjectStates(workspaceSlug, projectId).catch(() => undefined);
+    window.dispatchEvent(new CustomEvent("coaching-card-created", { detail: { projectId } }));
     const count = response.cards.length;
     setToast({
       type: TOAST_TYPE.SUCCESS,

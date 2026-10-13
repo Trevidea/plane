@@ -3,11 +3,11 @@ import { observer } from "mobx-react";
 import { GripVertical, Pencil } from "lucide-react";
 // plane imports
 import { EIconSize, STATE_TRACKER_ELEMENTS } from "@plane/constants";
-import { StateGroupIcon } from "@plane/propel/icons";
 import type { IState, TStateOperationsCallbacks } from "@plane/types";
 // local imports
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { StateDelete, StateMarksAsDefault } from "./options";
+import { ProgramStateIcon } from "./program-state-icon";
 
 type TBaseStateItemTitleProps = {
   stateCount: number;
@@ -47,7 +47,7 @@ export const StateItemTitle = observer((props: TStateItemTitleProps) => {
         )}
         {/* state icon */}
         <div className="flex-shrink-0">
-          <StateGroupIcon stateGroup={state.group} color={state.color} size={EIconSize.XL} percentage={percentage} />
+          <ProgramStateIcon state={state} size={EIconSize.XL} percentage={percentage} />
         </div>
         {/* state title and description */}
         <div className="text-sm px-2 min-h-5">
@@ -68,6 +68,8 @@ export const StateItemTitle = observer((props: TStateItemTitleProps) => {
           {/* state edit options */}
           <div className="flex items-center gap-1 transition-all">
             <button
+              type="button"
+              aria-label={`Rename ${state.name}`}
               className="flex-shrink-0 w-5 h-5 rounded flex justify-center items-center overflow-hidden transition-colors hover:bg-custom-background-80 cursor-pointer text-custom-text-200 hover:text-custom-text-100"
               onClick={() => setUpdateStateModal(true)}
               data-ph-element={STATE_TRACKER_ELEMENTS.STATE_LIST_EDIT_BUTTON}

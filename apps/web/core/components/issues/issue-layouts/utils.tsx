@@ -28,6 +28,7 @@ import { Avatar } from "@plane/ui";
 import { renderFormattedDate, getFileURL } from "@plane/utils";
 // components
 import { Logo } from "@/components/common/logo";
+import { ProgramStateIcon } from "@/components/project-states/program-state-icon";
 // helpers
 // store
 import { store } from "@/lib/store-context";
@@ -215,7 +216,7 @@ const getStateColumns = ({ projectId }: TGetColumns): IGroupByColumn[] | undefin
     name: state.name,
     icon: (
       <div className="size-4 rounded-full">
-        <StateGroupIcon stateGroup={state.group} color={state.color} size={EIconSize.LG} percentage={state.order} />
+        <ProgramStateIcon state={state} size={EIconSize.LG} percentage={state.order} />
       </div>
     ),
     group: state.group,

@@ -36,7 +36,8 @@ export const useGroupIssuesDragNDrop = (
   groupBy: TIssueGroupByOptions | undefined,
   subGroupBy?: TIssueGroupByOptions,
   cardStageConfig?: TCoachingCardStageConfig,
-  requestCardStageChange?: RequestCardStageChange
+  requestCardStageChange?: RequestCardStageChange,
+  getDisplayedIssueIds?: (groupId?: string, subGroupId?: string) => string[] | undefined
 ) => {
   const { workspaceSlug } = useParams();
 
@@ -186,7 +187,7 @@ export const useGroupIssuesDragNDrop = (
       source,
       destination,
       getIssueById,
-      getIssueIds,
+      (groupId, subGroupId) => getDisplayedIssueIds?.(groupId, subGroupId) ?? getIssueIds(groupId, subGroupId),
       (boardId, issueId, data, updates) => updateIssueOnDrop(boardId, issueId, data, updates, request?.reason),
       groupBy,
       subGroupBy,

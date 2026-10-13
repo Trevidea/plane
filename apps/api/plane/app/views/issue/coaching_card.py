@@ -27,6 +27,7 @@ from plane.utils.coaching_card_media import build_uploaded_video_card_source, ch
 from plane.utils.media_library import manifest_path, read_manifest, resolve_artifact_metadata, validate_segment
 from plane.utils.coaching_card_lifecycle import (
     advance_card_after_review,
+    ensure_project_card_states,
     get_project_card_stage_config,
     review_stage_ids,
     transition_coaching_card,
@@ -135,6 +136,18 @@ class CoachingCardBulkCreateSerializer(serializers.Serializer):
         return attrs
 
 
+def _card_source_queryset(project):
+    # A database state reset can leave valid saved events without an assignment.
+    # Retain the same intake/draft/archive visibility checks as IssueManager.
+    return (
+        Issue.objects.filter(
+            project=project, archived_at__isnull=True, is_draft=False, project__archived_at__isnull=True
+        )
+        .filter(Q(issue_intake__status__in=(1, -1, 2)) | Q(issue_intake__isnull=True))
+        .filter(Q(state__is_triage=False) | Q(state__isnull=True))
+    )
+
+
 def _resolve_media_source(project, slug, source):
     package_id, artifact_id = source["package_id"], source["artifact_id"]
     path = manifest_path(str(project.id), package_id)
@@ -171,7 +184,7 @@ def _resolve_media_source(project, slug, source):
         linked_id = UUID(str(linked_id)) if linked_id else None
     except (ValueError, TypeError, AttributeError):
         linked_id = None
-    resolved["source_issue"] = Issue.issue_objects.filter(project=project, pk=linked_id).first() if linked_id else None
+    resolved["source_issue"] = _card_source_queryset(project).filter(pk=linked_id).first() if linked_id else None
     return resolved
 
 
@@ -308,11 +321,12 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
         project = Project.objects.select_for_update().get(pk=project_id, workspace__slug=slug)
         request_id = str(payload["request_id"])
         existing_cards = list(
-            Issue.issue_objects.filter(
-                project=project,
+            _card_source_queryset(project)
+            .filter(
                 category=COACHING_CARD_CATEGORY,
                 coaching_card_data__request_id=request_id,
-            ).order_by("sequence_id")
+            )
+            .order_by("sequence_id")
         )
         if existing_cards:
             return Response(
@@ -330,7 +344,7 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
         source_issue = (
             media_source["source_issue"]
             if media_source
-            else Issue.issue_objects.filter(project=project, pk=payload["source_issue_id"]).first()
+            else _card_source_queryset(project).filter(pk=payload["source_issue_id"]).first()
         )
         if not media_source and source_issue is None:
             return Response(
@@ -388,11 +402,20 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
         )
         if not media_source:
             sport = project.sport or sport
-            if project.sport and payload["sport_label"] and project.sport.casefold() != payload["sport_label"].casefold():
+            if (
+                project.sport
+                and payload["sport_label"]
+                and project.sport.casefold() != payload["sport_label"].casefold()
+            ):
                 return Response({"sport_label": ["The card sport must match the program sport."]}, status=400)
+        ensure_project_card_states(project, request.user)
         state = _get_initial_coaching_state(project, assigned=bool(recipients), allow_missing_sport=True)
         recipient_snapshots = [_player_snapshot(player) for player in recipients]
-        assigned_at = timezone.now() if recipients and state.name.casefold() == "assigned" else None
+        assigned_at = (
+            timezone.now()
+            if recipients and (state.lifecycle_role == "assigned" or state.name.casefold() == "assigned")
+            else None
+        )
         card_data = {
             "schema_version": 3,
             "kind": COACHING_CARD_KIND,
@@ -613,7 +636,6 @@ class CoachingCardDetailEndpoint(BaseAPIView):
         return Response(_card_response(card))
 
 
-
 class CoachingEvidenceSerializer(serializers.Serializer):
     request_id = serializers.UUIDField(required=False)
     title = serializers.CharField(max_length=255)
@@ -637,14 +659,19 @@ class CoachingEvidenceSerializer(serializers.Serializer):
     note = serializers.CharField(max_length=10000, allow_blank=True, required=False)
     tags = serializers.ListField(child=serializers.CharField(max_length=100), max_length=50, required=False)
     player_ids = serializers.ListField(child=serializers.UUIDField(), max_length=200, required=False)
-    position_group_ids = serializers.ListField(child=serializers.CharField(max_length=100), max_length=100, required=False)
+    position_group_ids = serializers.ListField(
+        child=serializers.CharField(max_length=100), max_length=100, required=False
+    )
 
 
 class CoachingCardClipsEndpoint(BaseAPIView):
     def _card(self, slug, project_id, card_id):
-        card = (Issue.issue_objects.select_for_update(of=("self",)).select_related("project")
-                .filter(pk=card_id, project_id=project_id, project__workspace__slug=slug,
-                        category=COACHING_CARD_CATEGORY).first())
+        card = (
+            Issue.issue_objects.select_for_update(of=("self",))
+            .select_related("project")
+            .filter(pk=card_id, project_id=project_id, project__workspace__slug=slug, category=COACHING_CARD_CATEGORY)
+            .first()
+        )
         if card is None:
             raise NotFound("Coaching card not found.")
         return card
@@ -680,15 +707,25 @@ class CoachingCardClipsEndpoint(BaseAPIView):
                 raise serializers.ValidationError({"source_url": "Choose a source from this program."})
             if "event_id" in values and values["event_id"]:
                 event_id = values["event_id"]
-                if not Issue.issue_objects.filter(project_id=project_id).filter(
-                    Q(sg_event_id=event_id) if event_id.isdigit() else Q(id=event_id)
-                ).exists():
+                if (
+                    not Issue.issue_objects.filter(project_id=project_id)
+                    .filter(Q(sg_event_id=event_id) if event_id.isdigit() else Q(id=event_id))
+                    .exists()
+                ):
                     raise serializers.ValidationError({"event_id": "Event must belong to this program."})
         previous = card.coaching_card_data
         try:
-            updated = mutate_card_clips(previous, operation, values,
-                                        {"id": str(request.user.id), "name": request.user.display_name or request.user.first_name or request.user.email},
-                                        timezone.now().isoformat(), association_id)
+            updated = mutate_card_clips(
+                previous,
+                operation,
+                values,
+                {
+                    "id": str(request.user.id),
+                    "name": request.user.display_name or request.user.first_name or request.user.email,
+                },
+                timezone.now().isoformat(),
+                association_id,
+            )
         except KeyError:
             raise NotFound("Clip not found on this card.")
         except ValueError as error:
@@ -697,10 +734,19 @@ class CoachingCardClipsEndpoint(BaseAPIView):
             card.coaching_card_data = updated
             card.save(update_fields=["coaching_card_data", "updated_at"])
             IssueActivity.objects.create(
-                issue=card, project=card.project, workspace=card.workspace, actor=request.user,
-                field="coaching_clip", verb={"add": "created", "edit": "updated", "remove": "deleted"}[operation],
-                new_value=values.get("title", "Clip"), old_value=association_id or "",
-                comment={"add": "Added a coaching clip", "edit": "Updated a coaching clip", "remove": "Removed a coaching clip"}[operation],
+                issue=card,
+                project=card.project,
+                workspace=card.workspace,
+                actor=request.user,
+                field="coaching_clip",
+                verb={"add": "created", "edit": "updated", "remove": "deleted"}[operation],
+                new_value=values.get("title", "Clip"),
+                old_value=association_id or "",
+                comment={
+                    "add": "Added a coaching clip",
+                    "edit": "Updated a coaching clip",
+                    "remove": "Removed a coaching clip",
+                }[operation],
             )
         return Response(_card_response(card), status=201 if operation == "add" else 200)
 

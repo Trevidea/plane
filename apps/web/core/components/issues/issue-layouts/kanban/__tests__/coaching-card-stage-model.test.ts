@@ -5,6 +5,70 @@ import * as cardStages from "../coaching-card-stage-model.ts";
 
 const { canTransitionCard, getCardStageActions, getCardTransitionIntent, orderCardColumns } = cardStages;
 
+test("the board keeps the designated first state when an older intake state precedes it", () => {
+  const stages = [
+    { id: "legacy", name: "Legacy intake", group: "backlog", sequence: 1 },
+    { id: "initial", name: "Coach intake", group: "backlog", sequence: 2 },
+  ];
+  const roleConfig = {
+    sport: "Football",
+    initial_stage_id: "initial",
+    stages: stages.map((state, order) => ({
+      id: state.id,
+      name: state.name,
+      order,
+      abbreviation: "I",
+      lifecycle_role: state.id === "initial" ? ("identified" as const) : ("" as const),
+      allowed_next_stage_ids: [],
+    })),
+  };
+  assert.equal(cardStages.alignCardStageConfig(roleConfig, stages)?.initial_stage_id, "initial");
+});
+
+test("verification closes a card by its role even after arbitrary renaming or a legacy extra stage", () => {
+  const terminalConfig = {
+    sport: "Football",
+    initial_stage_id: "practice",
+    stages: [
+      {
+        id: "practice",
+        name: "Drill",
+        lifecycle_role: "practice" as const,
+        order: 0,
+        abbreviation: "D",
+        allowed_next_stage_ids: ["verified"],
+      },
+      {
+        id: "verified",
+        name: "Coach approved",
+        lifecycle_role: "verified" as const,
+        order: 1,
+        abbreviation: "C",
+        allowed_next_stage_ids: ["legacy", "closed"],
+      },
+      { id: "legacy", name: "Legacy completion", order: 2, abbreviation: "L", allowed_next_stage_ids: [] },
+      {
+        id: "closed",
+        name: "Filed",
+        lifecycle_role: "closed" as const,
+        order: 3,
+        abbreviation: "F",
+        allowed_next_stage_ids: ["verified"],
+      },
+    ],
+  };
+  assert.equal(getCardTransitionIntent(terminalConfig, "practice", "closed").kind, "blocked");
+  assert.deepEqual(getCardTransitionIntent(terminalConfig, "verified", "closed"), {
+    kind: "move",
+    stage: terminalConfig.stages[3],
+  });
+  assert.equal(getCardStageActions(terminalConfig, "verified").next?.id, "closed");
+  assert.deepEqual(getCardTransitionIntent(terminalConfig, "closed", "practice"), {
+    kind: "reopen",
+    stage: terminalConfig.stages[1],
+  });
+});
+
 const config = {
   sport: "Basketball",
   initial_stage_id: "new",

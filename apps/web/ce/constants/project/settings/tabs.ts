@@ -32,7 +32,7 @@ export const PROJECT_SETTINGS = {
   },
   states: {
     key: "states",
-    i18n_label: "common.states",
+    i18n_label: "project_settings.states.heading",
     href: `/states`,
     access: [EUserPermissions.ADMIN, EUserPermissions.MEMBER],
     highlight: (pathname: string, baseUrl: string) => pathname === `${baseUrl}/states/`,

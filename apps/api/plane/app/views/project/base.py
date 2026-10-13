@@ -280,6 +280,7 @@ class ProjectViewSet(BaseViewSet):
                         workspace=serializer.instance.workspace,
                         group=state["group"],
                         default=state.get("default", False),
+                        lifecycle_role=state.get("lifecycle_role", ""),
                         created_by=request.user,
                     )
                     for state in states
