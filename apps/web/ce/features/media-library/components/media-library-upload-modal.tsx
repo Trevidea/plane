@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 import { AlertTriangle, FileImage, FileText, FileVideo, Trash2, UploadCloud, X } from "lucide-react";
 import type { ISearchIssueResponse, TIssue } from "@plane/types";
 import { Button, Checkbox } from "@plane/ui";
 import { useInstance } from "@/hooks/store/use-instance";
+import { useProject } from "@/hooks/store/use-project";
 import { useUser } from "@/hooks/store/user";
 import { IssueService } from "@/services/issue";
 import { ProjectService } from "@/services/project";
@@ -37,11 +39,11 @@ type TUploadItem = {
   error?: string;
 };
 
-const createDefaultMeta = (createdByMemberId: string | null = null): TMetaFormState => ({
+const createDefaultMeta = (createdByMemberId: string | null = null, sport: string | null = null): TMetaFormState => ({
   category: null,
   location: null,
   createdByMemberId,
-  sport: null,
+  sport,
   program: null,
   level: null,
   season: null,
@@ -111,17 +113,19 @@ const buildMetaPayload = (
 
 const projectService = new ProjectService();
 
-export const MediaLibraryUploadModal = () => {
+export const MediaLibraryUploadModal = observer(() => {
   const { isUploadOpen, closeUpload, pendingUploadFiles, setPendingUploadFiles, enqueueUploadBatch, uploadJobs } =
     useMediaLibrary();
   const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
   const { config } = useInstance();
+  const { getProjectById } = useProject();
+  const projectSport = getProjectById(projectId)?.sport?.trim() || null;
   const { data: currentUser } = useUser();
   const currentUserId = currentUser?.id ?? null;
   const [isDragging, setIsDragging] = useState(false);
   const [uploads, setUploads] = useState<TUploadItem[]>([]);
   const [selectionError, setSelectionError] = useState<string | null>(null);
-  const [metaState, setMetaState] = useState<TMetaFormState>(() => createDefaultMeta(currentUserId));
+  const [metaState, setMetaState] = useState<TMetaFormState>(() => createDefaultMeta(currentUserId, projectSport));
   const [workItemResults, setWorkItemResults] = useState<ISearchIssueResponse[]>([]);
   const [workItemQuery, setWorkItemQuery] = useState("");
   const [isWorkItemSelectorEnabled, setIsWorkItemSelectorEnabled] = useState(false);
@@ -160,6 +164,11 @@ export const MediaLibraryUploadModal = () => {
   }, [currentUserId, isUploadOpen, selectedWorkItem]);
 
   useEffect(() => {
+    if (!isUploadOpen || !projectSport) return;
+    setMetaState((prev) => (prev.sport === projectSport ? prev : { ...prev, sport: projectSport }));
+  }, [isUploadOpen, metaState.sport, projectSport]);
+
+  useEffect(() => {
     if (!isUploadOpen || !workspaceSlug || !projectId || !isWorkItemSelectorEnabled) return;
     let isMounted = true;
     setIsWorkItemLoading(true);
@@ -193,7 +202,7 @@ export const MediaLibraryUploadModal = () => {
       category: issueData.category ?? "Work items",
       location: null,
       createdByMemberId: createdByMemberId || null,
-      sport: issueData.sport ?? null,
+      sport: projectSport ?? issueData.sport ?? null,
       program: issueData.program ?? null,
       level: issueData.level ?? null,
       season: issueData.year ?? null,
@@ -224,7 +233,7 @@ export const MediaLibraryUploadModal = () => {
   const handleClearWorkItem = () => {
     setSelectedWorkItem(null);
     setWorkItemQuery("");
-    setMetaState(createDefaultMeta(currentUserId));
+    setMetaState(createDefaultMeta(currentUserId, projectSport));
     setTagDraft("");
   };
 
@@ -326,7 +335,7 @@ export const MediaLibraryUploadModal = () => {
     setIsDragging(false);
     setSelectionError(null);
     setIsWorkItemSelectorEnabled(false);
-    setMetaState(createDefaultMeta(currentUserId));
+    setMetaState(createDefaultMeta(currentUserId, projectSport));
     setSelectedWorkItem(null);
     setWorkItemResults([]);
     setIsWorkItemDetailsLoading(false);
@@ -334,7 +343,7 @@ export const MediaLibraryUploadModal = () => {
     setTagDraft("");
     setModalUploadJobIds([]);
     if (inputRef.current) inputRef.current.value = "";
-  }, [currentUserId]);
+  }, [currentUserId, projectSport]);
 
   useEffect(() => {
     if (!shouldAutoCloseAfterUpload) return;
@@ -476,6 +485,7 @@ export const MediaLibraryUploadModal = () => {
             }
             meta={metaState}
             isLocked={isWorkItemMetaLocked}
+            isSportLocked={Boolean(projectSport)}
             onFieldChange={updateMetaField}
             tagDraft={tagDraft}
             onTagDraftChange={updateTagDraft}
@@ -637,4 +647,4 @@ export const MediaLibraryUploadModal = () => {
       </div>
     </div>
   );
-};
+});
