@@ -40,10 +40,10 @@ export const ProjectStateRoot: FC<TProjectState> = observer((props) => {
   );
 
   // Fetching all project states
-  useSWR(
+  const { isLoading } = useSWR(
     workspaceSlug && projectId ? `PROJECT_STATES_${workspaceSlug}_${projectId}` : null,
     workspaceSlug && projectId ? () => fetchProjectStates(workspaceSlug.toString(), projectId.toString()) : null,
-    { revalidateIfStale: false, revalidateOnFocus: false }
+    { revalidateOnFocus: false }
   );
 
   // State operations callbacks
@@ -61,7 +61,7 @@ export const ProjectStateRoot: FC<TProjectState> = observer((props) => {
   );
 
   // Loader
-  if (!groupedProjectStates) return <ProjectStateLoader />;
+  if (isLoading || !groupedProjectStates) return <ProjectStateLoader />;
 
   return (
     <div className="py-3">

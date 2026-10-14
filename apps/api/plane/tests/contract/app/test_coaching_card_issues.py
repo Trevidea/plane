@@ -356,17 +356,18 @@ class TestCoachingCardIssues:
         assert session_client.get(config_url(projects[1])).json()["stages"][0]["name"] == "New"
 
     @pytest.mark.django_db
-    def test_new_sport_program_uses_coaching_names_as_default_states(self, workspace):
+    @pytest.mark.parametrize("sport", ["American Football", "Basketball", "Cricket", "Football"])
+    def test_new_sport_program_uses_coaching_names_as_default_states(self, workspace, sport):
         project = Project.objects.create(
-            name="American Football", identifier="FOO", workspace=workspace, sport="American Football"
+            name=sport, identifier="FOO", workspace=workspace, sport=sport
         )
         names = [state["name"] for state in default_project_state_definitions(project)]
         assert names == [
-            "Identified",
-            "Assigned",
-            "In Work",
-            "Ready for Coach Review",
-            "Resolved",
+            "Identify",
+            "To Review",
+            "Action Required",
+            "In Progress",
+            "Verified",
             "Closed",
         ]
 
@@ -383,11 +384,11 @@ class TestCoachingCardIssues:
             State.objects.filter(project=project).order_by("sequence").values_list("name", "group", "default")
         )
         assert states == [
-            ("Identified", "backlog", True),
-            ("Assigned", "unstarted", False),
-            ("In Work", "started", False),
-            ("Ready for Coach Review", "started", False),
-            ("Resolved", "completed", False),
+            ("Identify", "backlog", True),
+            ("To Review", "unstarted", False),
+            ("Action Required", "started", False),
+            ("In Progress", "started", False),
+            ("Verified", "completed", False),
             ("Closed", "cancelled", False),
         ]
 
@@ -402,7 +403,7 @@ class TestCoachingCardIssues:
         )
         assert response.status_code == 201, response.data
         second = Project.objects.get(identifier="SFP", workspace=workspace)
-        assert State.objects.filter(project=second, default=True).get().name == "Identified"
+        assert State.objects.filter(project=second, default=True).get().name == "Identify"
 
     @pytest.mark.django_db
     def test_rejects_roster_players_from_another_project(self, session_client, workspace, create_user):

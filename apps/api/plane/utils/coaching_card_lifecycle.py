@@ -10,11 +10,11 @@ from plane.utils.coaching_card_stages import build_stage_config, review_stage_id
 
 
 DEFAULT_COACHING_NAMES = (
-    "Identified",
-    "Assigned",
-    "In Work",
-    "Ready for Coach Review",
-    "Resolved",
+    "Identify",
+    "To Review",
+    "Action Required",
+    "In Progress",
+    "Verified",
 )
 
 
