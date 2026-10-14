@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { observer } from "mobx-react";
 import useSWR from "swr";
 import { ArrowRight, UsersRound, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
@@ -6,11 +7,11 @@ import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IRosterPlayer, TCoachingCardStageConfig, TIssue } from "@plane/types";
 import { Button, EModalWidth, ModalCore } from "@plane/ui";
-import { cn } from "@plane/utils";
 import { getPositionGroups } from "@/components/issues/issue-detail/sg-event-detail-page/create-card-model";
 import { CreateCardRosterPicker } from "@/components/issues/issue-detail/sg-event-detail-page/create-card-roster-picker";
 import { IssueService } from "@/services/issue/issue.service";
 import { RosterService } from "@/services/roster.service";
+import { canEditCoachingCardRecipients } from "./coaching-card-recipient-policy";
 import { getCardStageActions } from "./coaching-card-stage-model";
 import { coachingCardErrorMessage, useCoachingCardStageAction } from "./use-coaching-card-stage-action";
 
@@ -25,15 +26,21 @@ type ActionProps = {
   onChanged: () => void;
 };
 
-export const AssignmentDialog = ({
+export const AssignmentDialog = observer(function AssignmentDialog({
   issue,
+  config,
   workspaceSlug,
   projectId,
   onChanged,
   onClose,
   advanceOnSave = false,
-}: ActionProps & { onClose: () => void; advanceOnSave?: boolean }) => {
+}: ActionProps & { onClose: () => void; advanceOnSave?: boolean }) {
   const card = issue.coaching_card_data;
+  const initialStage = config?.stages.find((stage) => stage.id === config.initial_stage_id);
+  const canEditRecipients = !issue.archived_at && canEditCoachingCardRecipients(config, issue.state_id);
+  useEffect(() => {
+    if (!canEditRecipients) onClose();
+  }, [canEditRecipients, onClose]);
   const originalIds =
     card?.recipient_ids ?? card?.recipients?.map((recipient) => recipient.id) ?? (card?.player ? [card.player.id] : []);
   const originalGroup = card?.position_group ?? "";
@@ -48,7 +55,7 @@ export const AssignmentDialog = ({
     isLoading,
     mutate,
   } = useSWR<IRosterPlayer[]>(
-    ["coaching-card-roster", workspaceSlug, projectId],
+    canEditRecipients ? ["coaching-card-roster", workspaceSlug, projectId] : null,
     () => rosterService.getRoster(workspaceSlug, projectId),
     { revalidateOnFocus: false }
   );
@@ -65,6 +72,7 @@ export const AssignmentDialog = ({
         selectedIds.length !== originalIds.length ||
         selectedIds.some((id) => !originalIds.includes(id));
   const canSave =
+    canEditRecipients &&
     !isLoading &&
     !error &&
     !isSaving &&
@@ -76,21 +84,32 @@ export const AssignmentDialog = ({
     setIsSaving(true);
     setSubmitError("");
     try {
-      await issueService.updateCoachingCard(
+      const updatedCard = await issueService.updateCoachingCard(
         workspaceSlug,
         projectId,
         issue.id,
         mode === "group" ? { position_group: group } : { player_ids: selectedIds }
       );
+      const updatedStage = config?.stages.find((stage) => stage.id === updatedCard.state_id);
+      const message =
+        updatedStage && updatedCard.state_id !== issue.state_id
+          ? `Card moved to ${updatedStage.name}.`
+          : "The coaching board is up to date.";
       onClose();
       onChanged();
-      setToast({ type: TOAST_TYPE.SUCCESS, title: "Recipients updated", message: "The coaching board is up to date." });
+      setToast({
+        type: TOAST_TYPE.SUCCESS,
+        title: "Recipients updated",
+        message,
+      });
     } catch (saveError) {
       setSubmitError(coachingCardErrorMessage(saveError, "Could not update recipients. Please try again."));
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (!canEditRecipients) return null;
 
   return (
     <ModalCore
@@ -189,7 +208,11 @@ export const AssignmentDialog = ({
           </label>
         )}
         {mode === "players" && selectedIds.length === 0 && originalIds.length > 0 && (
-          <p className="text-xs text-custom-text-300">Saving without recipients will leave this card unassigned.</p>
+          <p className="text-xs text-custom-text-300">
+            {issue.state_id !== config?.initial_stage_id
+              ? `Removing all recipients will move this card back to ${initialStage?.name ?? "Identified"}.`
+              : "Saving without recipients will keep this card unassigned."}
+          </p>
         )}
         {submitError && (
           <p role="alert" className="text-xs text-red-500">
@@ -218,9 +241,9 @@ export const AssignmentDialog = ({
       </form>
     </ModalCore>
   );
-};
+});
 
-export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, onChanged }: ActionProps) => {
+export const CoachingCardActions = observer(({ issue, config, workspaceSlug, projectId, onChanged }: ActionProps) => {
   const [dialog, setDialog] = useState<"recipients" | null>(null);
   const { moveToStage, isMoving, canRequestStageChange } = useCoachingCardStageAction({
     issue,
@@ -238,48 +261,24 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
   const awaitsReview =
     config?.stages.find((stage) => stage.id === issue.state_id)?.name.toLowerCase() === "assigned" && !nextStage;
 
-  if (issue.state_id === config?.initial_stage_id) return null;
+  const canEditRecipients = !issue.archived_at && canEditCoachingCardRecipients(config, issue.state_id);
 
   return (
     <>
-      <Tooltip
-        tooltipContent={
-          recipientCount && !needsAssignment
-            ? "Edit recipients"
-            : needsAssignment
-              ? `Next: ${next?.name} — assign players`
-              : "Assign to Player"
-        }
-      >
-        <Button
-          unstyled
-          type="button"
-          onClick={() => setDialog("recipients")}
-          aria-label={
-            recipientCount && !needsAssignment
-              ? "Edit recipients"
-              : needsAssignment
-                ? `Next: ${next?.name} — assign players`
-                : "Assign to Player"
-          }
-          className={cn(
-            "inline-flex h-6 shrink-0 items-center justify-center gap-1.5 rounded-md text-[11px] font-medium focus-visible:ring-2 focus-visible:ring-custom-primary-100",
-            recipientCount && !needsAssignment
-              ? "w-6 border border-custom-border-200 bg-custom-background-80 text-custom-text-200 hover:text-custom-text-100"
-              : "bg-custom-primary-100 px-2.5 text-white hover:opacity-90"
-          )}
-        >
-          <span className="shrink-0">
-            {needsAssignment ? (
-              <ArrowRight className="h-3 w-3" aria-hidden="true" />
-            ) : (
-              <UsersRound className="h-3 w-3" aria-hidden="true" />
-            )}
-          </span>
-          {(!recipientCount || needsAssignment) && (needsAssignment ? `Next: ${next?.name}` : "Assign to Player")}
-        </Button>
-      </Tooltip>
-      {nextStage && !needsAssignment && (
+      {canEditRecipients && (
+        <Tooltip tooltipContent="Edit recipients">
+          <Button
+            unstyled
+            type="button"
+            onClick={() => setDialog("recipients")}
+            aria-label="Edit recipients"
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-custom-border-200 bg-custom-background-80 text-custom-text-200 hover:text-custom-text-100 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
+          >
+            <UsersRound className="h-3 w-3" aria-hidden="true" />
+          </Button>
+        </Tooltip>
+      )}
+      {nextStage && issue.state_id !== config?.initial_stage_id && !needsAssignment && (
         <Tooltip tooltipContent={`Move to ${nextStage.name}`}>
           <Button
             unstyled
@@ -313,4 +312,4 @@ export const CoachingCardActions = ({ issue, config, workspaceSlug, projectId, o
       )}
     </>
   );
-};
+});

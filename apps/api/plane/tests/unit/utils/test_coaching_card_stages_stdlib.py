@@ -12,6 +12,31 @@ validate_stage_transition = stages.validate_stage_transition
 
 
 class CoachingCardStageTests(unittest.TestCase):
+    def test_recipient_editing_uses_first_two_stages_for_legacy_programs(self):
+        config = self.coaching_config()
+        config["stages"].reverse()
+        self.assertEqual(
+            [stages.can_edit_card_recipients(config, str(index)) for index in range(5)],
+            [True, True, False, False, False],
+        )
+        self.assertFalse(stages.can_edit_card_recipients(config, "missing"))
+
+    def test_recipient_editing_uses_lifecycle_roles_after_renaming(self):
+        roles = ("identified", "assigned", "reviewed", "practice", "verified", "closed")
+        config = build_stage_config(
+            "Football",
+            [
+                {"id": str(index), "name": "Renamed", "lifecycle_role": role, "sequence": 6 - index}
+                for index, role in enumerate(roles)
+            ],
+        )
+        self.assertEqual(
+            [stages.can_edit_card_recipients(config, str(index)) for index in range(6)],
+            [True, True, False, False, False, False],
+        )
+        config["stages"].insert(0, {"id": "legacy", "order": -1})
+        self.assertFalse(stages.can_edit_card_recipients(config, "legacy"))
+
     def test_config_uses_stable_ids_and_order(self):
         config = build_stage_config(
             "Basketball",

@@ -36,9 +36,10 @@ import type { TRenderQuickActions } from "../list/list-view-types";
 import { IssueProperties } from "../properties/all-properties";
 import { WithDisplayPropertiesHOC } from "../properties/with-display-properties-HOC";
 import { CoachingCardActions } from "./coaching-card-actions";
-import { CoachingCardKanbanDetails, getCoachingCardAccent, isCoachingCardIssue } from "./coaching-card-details";
+import { CoachingCardKanbanDetails, isCoachingCardIssue } from "./coaching-card-details";
 import { CoachingCardFooter } from "./coaching-card-footer";
 import { CoachingCardStageContext } from "./coaching-card-stage-context";
+import { getCoachingCardBorderBackground } from "./coaching-card-types";
 
 interface IssueBlockProps {
   issueId: string;
@@ -224,7 +225,10 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
   const isDragAllowed = canDragIssuesInCurrentGrouping && !issue?.tempId && canEditIssueProperties;
   const projectIdentifier = getProjectIdentifierById(issue?.project_id);
   const isCoachingCard = Boolean(issue && isCoachingCardIssue(issue));
-  const coachingCardAccent = getCoachingCardAccent(issue?.coaching_card_data?.card_type);
+  const coachingCardBorder = getCoachingCardBorderBackground(
+    issue?.coaching_card_data?.card_type,
+    issue?.coaching_card_data?.position_group
+  );
   const showCoachingActions = Boolean(isCoachingCard && canEditIssueProperties && workspaceSlug && issue?.project_id);
   const cardStageConfig = useContext(CoachingCardStageContext);
 
@@ -325,11 +329,7 @@ export const KanbanIssueBlock: React.FC<IssueBlockProps> = observer((props) => {
           <span
             aria-hidden="true"
             className="pointer-events-none absolute inset-y-px left-px z-[1] w-[3px] rounded-l-md"
-            style={{
-              background: issue.coaching_card_data?.position_group
-                ? `linear-gradient(180deg, ${coachingCardAccent} 50%, #7a4488 50%)`
-                : coachingCardAccent,
-            }}
+            style={{ background: coachingCardBorder }}
           />
         )}
         <ControlLink
