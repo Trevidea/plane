@@ -5,6 +5,131 @@ from plane.db.models import CardStageHistory, Issue, Project, State
 from plane.utils.coaching_card_lifecycle import get_project_card_stage_config, transition_coaching_card
 
 
+def migrate_default_labels():
+    import importlib
+    from django.db import connection
+    from django.db.migrations.loader import MigrationLoader
+    from django.test import override_settings
+
+    with override_settings(MIGRATION_MODULES={}):
+        apps = MigrationLoader(None).project_state([("db", "0132_program_state_defaults")]).apps
+    migration = importlib.import_module("plane.db.migrations.0132_program_state_defaults")
+    with connection.schema_editor() as editor:
+        migration.update_program_state_defaults(apps, editor)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "names",
+    [
+        ["Identified", "Assigned", "In Work", "Ready for Coach Review", "Resolved", "Closed"],
+        ["To Review", "Action Required", "In Progress", "Practice check", "Verified", "Closed"],
+    ],
+)
+def test_default_labels_migrate_without_changing_roles_or_card_references(workspace, names):
+    project = Project.objects.create(name="Program", identifier="LABELS", sport="Basketball", workspace=workspace)
+    roles = ["identified", "assigned", "reviewed", "practice", "verified", "closed"]
+    groups = ["backlog", "unstarted", "started", "started", "completed", "cancelled"]
+    states = [
+        State.objects.create(
+            project=project, name=name, group=group, lifecycle_role=role, color="#333", default=index == 0
+        )
+        for index, (name, role, group) in enumerate(zip(names, roles, groups))
+    ]
+    cards = [
+        Issue.objects.create(project=project, state=state, name=state.name, category="Coaching Card")
+        for state in states
+    ]
+    snapshot = list(State.objects.filter(project=project).values_list("id", "group", "lifecycle_role", "default"))
+
+    migrate_default_labels()
+    migrate_default_labels()
+
+    assert list(State.objects.filter(project=project).order_by("sequence").values_list("name", "slug")) == [
+        ("Identify", "identify"),
+        ("To Review", "to-review"),
+        ("Action Required", "action-required"),
+        ("In Progress", "in-progress"),
+        ("Verified", "verified"),
+        ("Closed", "closed"),
+    ]
+    assert list(State.objects.filter(project=project).values_list("id", "group", "lifecycle_role", "default")) == snapshot
+    for card, state in zip(cards, states):
+        card.refresh_from_db()
+        assert card.state_id == state.id
+    assert not CardStageHistory.objects.filter(issue__project=project).exists()
+
+
+@pytest.mark.django_db
+def test_default_label_migration_preserves_custom_names_and_programs_without_a_sport(workspace):
+    project = Project.objects.create(name="Program", identifier="CUSTOM", sport="Football", workspace=workspace)
+    custom = State.objects.create(
+        project=project, name="Film intake", group="backlog", lifecycle_role="identified", color="#333"
+    )
+    assigned = State.objects.create(
+        project=project, name="Assigned", group="unstarted", lifecycle_role="assigned", color="#333"
+    )
+    other = Project.objects.create(name="General", identifier="GENERAL", workspace=workspace)
+    generic = State.objects.create(project=other, name="Backlog", group="backlog", color="#333")
+
+    migrate_default_labels()
+
+    custom.refresh_from_db()
+    assigned.refresh_from_db()
+    generic.refresh_from_db()
+    assert custom.name == "Film intake"
+    assert assigned.name == "To Review"
+    assert generic.name == "Backlog"
+
+
+@pytest.mark.django_db
+def test_default_label_migration_leaves_conflicting_custom_states_untouched(workspace):
+    project = Project.objects.create(name="Program", identifier="CONFLICT", sport="Football", workspace=workspace)
+    initial = State.objects.create(
+        project=project, name="Identified", group="backlog", lifecycle_role="identified", color="#333"
+    )
+    custom = State.objects.create(project=project, name="Identify", group="backlog", color="#333")
+
+    migrate_default_labels()
+
+    initial.refresh_from_db()
+    custom.refresh_from_db()
+    assert initial.name == "Identified"
+    assert custom.name == "Identify"
+
+
+@pytest.mark.django_db
+def test_five_state_program_receives_all_six_defaults_through_migrations(workspace):
+    import importlib
+    from django.db import connection
+    from django.apps import apps
+
+    project = Project.objects.create(name="Basketball", identifier="FIVE", sport="Basketball", workspace=workspace)
+    for name, group in [
+        ("To Review", "backlog"),
+        ("Action Required", "unstarted"),
+        ("In Progress", "started"),
+        ("Verified", "completed"),
+        ("Closed", "cancelled"),
+    ]:
+        State.objects.create(project=project, name=name, group=group, color="#333", default=group == "backlog")
+    original_state = State.objects.get(project=project, name="In Progress")
+    card = Issue.objects.create(project=project, state=original_state, name="Existing card", category="Coaching Card")
+    migration = importlib.import_module("plane.db.migrations.0131_program_state_roles")
+    with connection.schema_editor() as editor:
+        migration.bind_program_roles(apps, editor)
+
+    migrate_default_labels()
+
+    config = get_project_card_stage_config(project)
+    assert [stage["name"] for stage in config["stages"]] == [
+        "Identify", "To Review", "Action Required", "In Progress", "Verified", "Closed"
+    ]
+    assert State.objects.filter(project=project).count() == 6
+    card.refresh_from_db()
+    assert card.state_id == original_state.id
+
+
 @pytest.mark.django_db
 def test_card_can_close_only_after_verification_even_when_states_are_renamed(workspace, create_user):
     project = Project.objects.create(name="Program", identifier="CLOSE", sport="Football", workspace=workspace)
