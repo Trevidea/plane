@@ -15,7 +15,11 @@ import type { TIssueOperations } from "../../issue-detail";
 import { CoachingCardClips } from "../../issue-detail/coaching-card-clips";
 import { AssignmentDialog } from "../../issue-layouts/kanban/coaching-card-actions";
 import { canEditCoachingCardRecipients } from "../../issue-layouts/kanban/coaching-card-recipient-policy";
-import { alignCardStageConfig, getCardStageActions } from "../../issue-layouts/kanban/coaching-card-stage-model";
+import {
+  alignCardStageConfig,
+  getCardStageActions,
+  getCardStageRole,
+} from "../../issue-layouts/kanban/coaching-card-stage-model";
 import { useCoachingCardStageRequest } from "../../issue-layouts/kanban/use-coaching-card-stage-request";
 import { IssueTitleInput } from "../../title-input";
 import { CoachingCardDiscussion } from "./discussion";
@@ -236,7 +240,7 @@ export const CoachingCardPeekContent = observer(
                 Assign to player
               </Button>
             )}
-            {next && (next.lifecycle_role || next.name.toLowerCase()) !== "assigned" && (
+            {next && getCardStageRole(next) !== "assigned" && (
               <Button variant="primary" size="sm" disabled={saving} onClick={() => void move(next.id)}>
                 {next.name}
               </Button>
@@ -254,8 +258,9 @@ export const CoachingCardPeekContent = observer(
                   Reopen...
                 </Button>
               ))}
-            {config?.stages.find((stage) => stage.id === issue.state_id)?.name.toLowerCase() === "assigned" &&
-              !next && <p className="text-sm text-custom-text-200">Advances automatically after player review.</p>}
+            {getCardStageRole(config?.stages.find((stage) => stage.id === issue.state_id)) === "assigned" && !next && (
+              <p className="text-sm text-custom-text-200">Advances automatically after player review.</p>
+            )}
           </div>
         )}
       </div>

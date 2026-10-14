@@ -24,7 +24,7 @@ from plane.db.models import (
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY, COACHING_CARD_KIND
 from plane.utils.coaching_card_clips import CLIP_TYPES, mutate_card_clips
 from plane.utils.coaching_card_media import build_uploaded_video_card_source, choose_card_context_value
-from plane.utils.coaching_card_stages import can_edit_card_recipients
+from plane.utils.coaching_card_stages import assigned_stage_id, can_edit_card_recipients
 from plane.utils.media_library import manifest_path, read_manifest, resolve_artifact_metadata, validate_segment
 from plane.utils.coaching_card_lifecycle import (
     advance_card_after_review,
@@ -414,7 +414,10 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
         recipient_snapshots = [_player_snapshot(player) for player in recipients]
         assigned_at = (
             timezone.now()
-            if recipients and (state.lifecycle_role == "assigned" or state.name.casefold() == "assigned")
+            if recipients
+            and (
+                state.lifecycle_role == "assigned" or (not state.lifecycle_role and state.name.casefold() == "assigned")
+            )
             else None
         )
         card_data = {
@@ -595,6 +598,7 @@ class CoachingCardDetailEndpoint(BaseAPIView):
         assignment_changed = any(key in values for key in ("player_id", "player_ids", "position_group"))
         if assignment_changed:
             config = get_project_card_stage_config(card.project)
+            is_assigned = str(card.state_id) == assigned_stage_id(config)
             if card.archived_at or not can_edit_card_recipients(config, card.state_id):
                 return Response(
                     {"detail": "Recipients can only be edited on active cards in the first two lifecycle stages."},
@@ -619,7 +623,7 @@ class CoachingCardDetailEndpoint(BaseAPIView):
             old_ids = data.get("recipient_ids") or ([data["player"]["id"]] if data.get("player") else [])
             new_ids = [snapshot["id"] for snapshot in snapshots]
             if old_ids != new_ids or (card.position_group or "") != group:
-                assigned_at = timezone.now() if snapshots and card.state.name.casefold() == "assigned" else None
+                assigned_at = timezone.now() if snapshots and is_assigned else None
                 data["review"] = {
                     "assigned_at": assigned_at.isoformat() if assigned_at else None,
                     "deadline_at": (assigned_at + timedelta(days=3)).isoformat() if assigned_at else None,
@@ -639,14 +643,10 @@ class CoachingCardDetailEndpoint(BaseAPIView):
             review_stages = review_stage_ids(config)
             if data.get("recipient_ids") and review_stages and str(card.state_id) == config["initial_stage_id"]:
                 transition_coaching_card(card, review_stages[0], request.user)
-            elif not data.get("recipient_ids"):
-                current_stage = next(stage for stage in config["stages"] if stage["id"] == str(card.state_id))
-                if current_stage.get("lifecycle_role") == "assigned" or (
-                    not current_stage.get("lifecycle_role") and current_stage["name"].casefold() == "assigned"
-                ):
-                    transition_coaching_card(
-                        card, config["initial_stage_id"], request.user, reason="All recipients removed."
-                    )
+            elif not data.get("recipient_ids") and is_assigned:
+                transition_coaching_card(
+                    card, config["initial_stage_id"], request.user, reason="All recipients removed."
+                )
         return Response(_card_response(card))
 
 

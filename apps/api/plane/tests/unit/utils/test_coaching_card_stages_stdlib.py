@@ -12,6 +12,52 @@ validate_stage_transition = stages.validate_stage_transition
 
 
 class CoachingCardStageTests(unittest.TestCase):
+    def test_renamed_role_stages_preserve_assignment_and_automatic_review_rules(self):
+        roles = ("identified", "assigned", "reviewed", "practice", "verified", "closed")
+        for names in (
+            ("Identify", "To Review", "Action Required", "In Progress", "Verified", "Closed"),
+            ("Intake", "Delivered", "Seen", "Drill", "Approved", "Filed"),
+        ):
+            with self.subTest(names=names):
+                config = build_stage_config(
+                    "Football",
+                    [
+                        {"id": str(index), "name": name, "lifecycle_role": roles[index], "sequence": index}
+                        for index, name in enumerate(names)
+                    ],
+                )
+                self.assertEqual(stages.assigned_stage_id(config), "1")
+                self.assertEqual(stages.review_stage_ids(config), ("1", "2"))
+                with self.assertRaisesRegex(ValueError, "Assign at least one"):
+                    validate_stage_transition(config, "0", "1", [], "")
+                with self.assertRaisesRegex(ValueError, "automatic"):
+                    validate_stage_transition(config, "1", "2", ["player"], "")
+                validate_stage_transition(config, "1", "2", ["player"], "", is_system=True)
+
+    def test_explicit_roles_override_conflicting_legacy_names(self):
+        config = build_stage_config(
+            "Football",
+            [
+                {"id": "0", "name": "Identify", "lifecycle_role": "identified", "sequence": 0},
+                {"id": "1", "name": "Assigned", "lifecycle_role": "practice", "sequence": 1},
+                {"id": "2", "name": "In Work", "sequence": 2},
+            ],
+        )
+        self.assertIsNone(stages.assigned_stage_id(config))
+        self.assertIsNone(stages.review_stage_ids(config))
+        validate_stage_transition(config, "0", "1", [], "")
+
+    def test_two_stage_legacy_assignment_is_recognized_without_a_review_stage(self):
+        config = build_stage_config(
+            "Football",
+            [
+                {"id": str(index), "name": name, "sequence": index}
+                for index, name in enumerate(("Identified", "Assigned"))
+            ],
+        )
+        self.assertEqual(stages.assigned_stage_id(config), "1")
+        self.assertIsNone(stages.review_stage_ids(config))
+
     def test_recipient_editing_uses_first_two_stages_for_legacy_programs(self):
         config = self.coaching_config()
         config["stages"].reverse()

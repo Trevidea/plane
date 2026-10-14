@@ -12,7 +12,7 @@ import { CreateCardRosterPicker } from "@/components/issues/issue-detail/sg-even
 import { IssueService } from "@/services/issue/issue.service";
 import { RosterService } from "@/services/roster.service";
 import { canEditCoachingCardRecipients } from "./coaching-card-recipient-policy";
-import { getCardStageActions } from "./coaching-card-stage-model";
+import { getCardStageActions, getCardStageRole } from "./coaching-card-stage-model";
 import { coachingCardErrorMessage, useCoachingCardStageAction } from "./use-coaching-card-stage-action";
 
 const issueService = new IssueService();
@@ -255,11 +255,12 @@ export const CoachingCardActions = observer(({ issue, config, workspaceSlug, pro
   const card = issue.coaching_card_data;
   const recipientCount = card?.recipient_ids?.length ?? card?.recipients?.length ?? (card?.player ? 1 : 0);
   const { available, next } = getCardStageActions(config, issue.state_id);
-  const stageOptions = available.filter((stage) => recipientCount > 0 || stage.name.toLowerCase() !== "assigned");
+  const stageOptions = available.filter((stage) => recipientCount > 0 || getCardStageRole(stage) !== "assigned");
   const nextStage = stageOptions.find((stage) => stage.id === next?.id);
-  const needsAssignment = issue.state_id === config?.initial_stage_id && next?.name.toLowerCase() === "assigned";
+  const needsAssignment =
+    issue.state_id === config?.initial_stage_id && getCardStageRole(next ?? undefined) === "assigned";
   const awaitsReview =
-    config?.stages.find((stage) => stage.id === issue.state_id)?.name.toLowerCase() === "assigned" && !nextStage;
+    getCardStageRole(config?.stages.find((stage) => stage.id === issue.state_id)) === "assigned" && !nextStage;
 
   const canEditRecipients = !issue.archived_at && canEditCoachingCardRecipients(config, issue.state_id);
 

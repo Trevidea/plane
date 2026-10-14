@@ -1,5 +1,5 @@
 import type { TCoachingCardStageConfig } from "@plane/types";
-import { getCardStageActions } from "./coaching-card-stage-model";
+import { getCardReviewStages, getCardStageActions, getCardStageRole } from "./coaching-card-stage-model";
 
 export const getCoachingCardMenuStages = (
   config: TCoachingCardStageConfig | undefined,
@@ -17,11 +17,10 @@ export const getCoachingCardMenuStages = (
         : undefined;
   const { available, next } = getCardStageActions(config, currentStageId);
   const previous = available.find((stage) => stage.id === preceding?.id);
-  const assignment = index === 0 && next?.name.toLowerCase() === "assigned";
-  const automatic =
-    current?.name.toLowerCase() === "assigned" &&
-    ["player reviewed", "in work"].includes(following?.name.toLowerCase() ?? "") &&
-    !next;
+  const assignment = currentStageId === config?.initial_stage_id && getCardStageRole(next ?? undefined) === "assigned";
+  const reviewStages = getCardReviewStages(config);
+  const automatic = Boolean(current && current.id === reviewStages?.assigned.id && !next);
+  const automaticTarget = reviewStages?.reviewed ?? following;
 
   return {
     current,
@@ -31,7 +30,7 @@ export const getCoachingCardMenuStages = (
     primaryLabel: assignment
       ? "Assign to Player"
       : automatic
-        ? `Move to ${following!.name}`
+        ? `Move to ${automaticTarget!.name}`
         : next
           ? `Mark ${next.name}`
           : current

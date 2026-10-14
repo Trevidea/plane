@@ -7,6 +7,7 @@ import { cn } from "@plane/utils";
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { useAppRouter } from "@/hooks/use-app-router";
 import { getCoachingCardSource } from "./coaching-card-source";
+import { getCardStageRole } from "./coaching-card-stage-model";
 
 const formatClipDuration = (durationSeconds?: number | null) => {
   if (durationSeconds === null || durationSeconds === undefined || !Number.isFinite(durationSeconds)) return "";
@@ -41,22 +42,20 @@ export const CoachingCardFooter = ({
   const canOpenEvidence = hasDirectEvidence || Boolean(source.href);
   const recipients = card.recipients ?? (card.player ? [card.player] : []);
   const viewedCount = recipients.filter((recipient) => Boolean(card.review?.viewed_by?.[recipient.id])).length;
-  const stageName = (
-    config?.stages.find((stage) => stage.id === issue.state_id)?.name ||
-    getStateById(issue.state_id)?.name ||
-    ""
-  ).toLowerCase();
-  const isResolved = stageName === "resolved" || stageName === "verified on film";
+  const stageRole = getCardStageRole(
+    config?.stages.find((stage) => stage.id === issue.state_id) ?? getStateById(issue.state_id)
+  );
+  const isResolved = stageRole === "verified";
   const statusLabel =
     recipients.length === 0
       ? children
         ? ""
         : "Awaiting assignee"
-      : stageName === "assigned"
+      : stageRole === "assigned"
         ? viewedCount === 0
           ? "Unopened"
           : `${viewedCount} of ${recipients.length} viewed`
-        : stageName === "player reviewed" || card.review?.completion_reason === "all_viewed"
+        : stageRole === "reviewed" || card.review?.completion_reason === "all_viewed"
           ? "Reviewed"
           : "";
   const createdAt = new Date(issue.created_at).getTime();
@@ -104,7 +103,7 @@ export const CoachingCardFooter = ({
         <span
           className={cn(
             "inline-flex h-[22px] shrink-0 items-center gap-1 rounded-[5px] px-2 text-[10.5px] font-medium",
-            recipients.length === 0 || (stageName === "assigned" && viewedCount === 0)
+            recipients.length === 0 || (stageRole === "assigned" && viewedCount === 0)
               ? "bg-[#fd9038]/15 text-[#9a4800] dark:text-[#fd9038]"
               : isResolved
                 ? "bg-[#3edbb0]/15 text-[#006e54] dark:text-[#3edbb0]"
@@ -112,7 +111,7 @@ export const CoachingCardFooter = ({
           )}
         >
           {statusLabel}
-          {stageName === "assigned" && viewedCount === 0 && <span className="opacity-75">· 0 viewed</span>}
+          {stageRole === "assigned" && viewedCount === 0 && <span className="opacity-75">· 0 viewed</span>}
         </span>
       )}
       {children}
