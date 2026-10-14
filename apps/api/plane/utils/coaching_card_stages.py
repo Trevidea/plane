@@ -72,6 +72,17 @@ def review_stage_ids(config):
     return None
 
 
+def can_edit_card_recipients(config, current_stage_id):
+    stages = config.get("stages", [])
+    current = next((stage for stage in stages if stage["id"] == str(current_stage_id)), None)
+    if current is None:
+        return False
+    early_roles = {"identified", "assigned"}
+    if current.get("lifecycle_role") or any(stage.get("lifecycle_role") in early_roles for stage in stages):
+        return current.get("lifecycle_role") in early_roles
+    return current in sorted(stages, key=lambda stage: stage["order"])[:2]
+
+
 def validate_stage_transition(config, current_stage_id, target_stage_id, recipient_ids, reason, is_system=False):
     stages = config["stages"]
     indexes = {stage["id"]: index for index, stage in enumerate(stages)}

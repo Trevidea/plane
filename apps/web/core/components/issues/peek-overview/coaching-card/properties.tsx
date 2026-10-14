@@ -7,6 +7,7 @@ import { useMember } from "@/hooks/store/use-member";
 import { useProject } from "@/hooks/store/use-project";
 import { useProjectState } from "@/hooks/store/use-project-state";
 import type { IssueService } from "@/services/issue/issue.service";
+import { canEditCoachingCardRecipients } from "../../issue-layouts/kanban/coaching-card-recipient-policy";
 
 export type CoachingCardUpdate = Parameters<IssueService["updateCoachingCard"]>[3];
 const Property = ({ label, children }: { label: string; children: ReactNode }) => (
@@ -65,6 +66,7 @@ export const CoachingCardProperties = observer(
     const { getStateById } = useProjectState();
     const card = issue.coaching_card_data!;
     const recipients = card.recipients ?? (card.player ? [card.player] : []);
+    const canEditRecipients = !issue.archived_at && canEditCoachingCardRecipients(config, issue.state_id);
     const stageName =
       config?.stages.find((stage) => stage.id === issue.state_id)?.name ||
       getStateById(issue.state_id)?.name ||
@@ -109,19 +111,22 @@ export const CoachingCardProperties = observer(
         </div>
         <div className="space-y-1">
           <Property label="Assignee">
-            {card.position_group || recipients.length ? (
-              <span>{card.position_group || recipients.map((player) => player.name).join(", ")}</span>
-            ) : (
-              <Button
-                variant="link-primary"
-                size="sm"
-                className="px-0 text-sm font-semibold"
-                disabled={disabled}
-                onClick={onAssign}
-              >
-                Unassigned · Assign…
-              </Button>
-            )}
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="min-w-0 break-words">
+                {card.position_group || recipients.map((player) => player.name).join(", ") || "Unassigned"}
+              </span>
+              {canEditRecipients && (
+                <Button
+                  variant="link-primary"
+                  size="sm"
+                  className="px-0 text-sm font-semibold"
+                  disabled={disabled}
+                  onClick={onAssign}
+                >
+                  Edit recipients
+                </Button>
+              )}
+            </div>
           </Property>
           <Property label="Program">
             {[

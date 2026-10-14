@@ -24,6 +24,7 @@ from plane.db.models import (
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY, COACHING_CARD_KIND
 from plane.utils.coaching_card_clips import CLIP_TYPES, mutate_card_clips
 from plane.utils.coaching_card_media import build_uploaded_video_card_source, choose_card_context_value
+from plane.utils.coaching_card_stages import can_edit_card_recipients
 from plane.utils.media_library import manifest_path, read_manifest, resolve_artifact_metadata, validate_segment
 from plane.utils.coaching_card_lifecycle import (
     advance_card_after_review,
@@ -593,6 +594,12 @@ class CoachingCardDetailEndpoint(BaseAPIView):
                 metadata[field] = values[field]
         assignment_changed = any(key in values for key in ("player_id", "player_ids", "position_group"))
         if assignment_changed:
+            config = get_project_card_stage_config(card.project)
+            if card.archived_at or not can_edit_card_recipients(config, card.state_id):
+                return Response(
+                    {"detail": "Recipients can only be edited on active cards in the first two lifecycle stages."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             player_ids = values.get("player_ids", [values["player_id"]] if "player_id" in values else [])
             players_by_id = {
                 player.id: player for player in RosterPlayer.objects.filter(project=card.project, id__in=player_ids)
@@ -628,11 +635,18 @@ class CoachingCardDetailEndpoint(BaseAPIView):
         data["metadata"] = metadata
         card.coaching_card_data = data
         card.save()
-        if assignment_changed and data.get("recipient_ids"):
-            config = get_project_card_stage_config(card.project)
+        if assignment_changed:
             review_stages = review_stage_ids(config)
-            if review_stages and str(card.state_id) == config["initial_stage_id"]:
+            if data.get("recipient_ids") and review_stages and str(card.state_id) == config["initial_stage_id"]:
                 transition_coaching_card(card, review_stages[0], request.user)
+            elif not data.get("recipient_ids"):
+                current_stage = next(stage for stage in config["stages"] if stage["id"] == str(card.state_id))
+                if current_stage.get("lifecycle_role") == "assigned" or (
+                    not current_stage.get("lifecycle_role") and current_stage["name"].casefold() == "assigned"
+                ):
+                    transition_coaching_card(
+                        card, config["initial_stage_id"], request.user, reason="All recipients removed."
+                    )
         return Response(_card_response(card))
 
 

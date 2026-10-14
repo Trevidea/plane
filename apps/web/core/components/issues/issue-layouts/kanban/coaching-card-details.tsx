@@ -4,27 +4,12 @@ import type { TCoachingCardStageConfig, TIssue } from "@plane/types";
 import { cn, renderFormattedDate } from "@plane/utils";
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { getCoachingCardSource } from "./coaching-card-source";
+import { COACHING_CARD_TYPES } from "./coaching-card-types";
 
-const CARD_TYPES: Record<string, { label: string; accent: string; textClass: string }> = {
-  Correction: { label: "Correction", accent: "#2893cc", textClass: "text-[#006b9a] dark:text-[#44b5f0]" },
-  "Positive Reinforcement": {
-    label: "Reinforcement",
-    accent: "#c5a55a",
-    textClass: "text-[#74520c] dark:text-[#ddbd72]",
-  },
-  "Opponent Scout": { label: "Scout", accent: "#445588", textClass: "text-[#344b83] dark:text-[#92a9dc]" },
-  "S&C Connection": { label: "S&C", accent: "#7a4488", textClass: "text-[#663b7d] dark:text-[#c091d4]" },
-  "Multi-Week Development": {
-    label: "Multi-Week Development",
-    accent: "#2893cc",
-    textClass: "text-[#006b9a] dark:text-[#44b5f0]",
-  },
-};
+export { getCoachingCardAccent } from "./coaching-card-types";
 
 export const isCoachingCardIssue = (issue: TIssue) =>
   issue.category === "Coaching Card" && issue.coaching_card_data?.kind === "coaching_card";
-
-export const getCoachingCardAccent = (cardType?: string) => CARD_TYPES[cardType || ""]?.accent || "#2893cc";
 
 export const CoachingCardKanbanDetails = ({
   issue,
@@ -40,7 +25,7 @@ export const CoachingCardKanbanDetails = ({
   const card = issue.coaching_card_data;
   if (!card) return null;
 
-  const type = CARD_TYPES[card.card_type || ""] || {
+  const type = COACHING_CARD_TYPES[card.card_type || ""] || {
     label: card.card_type || "Coaching card",
     accent: "#2893cc",
     textClass: "text-[#006b9a] dark:text-[#44b5f0]",

@@ -89,12 +89,12 @@ export class IssueService extends APIService {
       level?: string;
       season?: string;
     }
-  ): Promise<void> {
-    await this.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/`, data).catch(
-      (error) => {
+  ): Promise<Pick<TIssue, "id" | "state_id" | "coaching_card_data" | "roster_player_id" | "position_group">> {
+    return this.patch(`/api/workspaces/${workspaceSlug}/projects/${projectId}/coaching-cards/${cardId}/`, data)
+      .then((response) => response.data)
+      .catch((error) => {
         throw error?.response?.data;
-      }
-    );
+      });
   }
 
   async saveCoachingCardClip(
