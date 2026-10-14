@@ -8,6 +8,7 @@ import { Tooltip } from "@plane/propel/tooltip";
 import type { IRosterPlayer, TCoachingCardStageConfig, TIssue } from "@plane/types";
 import { Button, EModalWidth, ModalCore } from "@plane/ui";
 import { getPositionGroups } from "@/components/issues/issue-detail/sg-event-detail-page/create-card-model";
+import { CreateCardPositionGroupPicker } from "@/components/issues/issue-detail/sg-event-detail-page/create-card-position-group-picker";
 import { CreateCardRosterPicker } from "@/components/issues/issue-detail/sg-event-detail-page/create-card-roster-picker";
 import { IssueService } from "@/services/issue/issue.service";
 import { RosterService } from "@/services/roster.service";
@@ -175,37 +176,15 @@ export const AssignmentDialog = observer(function AssignmentDialog({
             onRetry={() => void mutate()}
           />
         ) : (
-          <label className="block text-xs font-medium text-custom-text-200">
-            Position group
-            <select
-              value={group}
-              onChange={(event) => setGroup(event.target.value)}
-              disabled={isLoading || Boolean(error) || isSaving}
-              className="mt-2 h-10 w-full rounded border border-custom-border-300 bg-custom-background-90 px-3 text-sm text-custom-text-100"
-            >
-              <option value="">Select a group</option>
-              {groups.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            {groups.length === 0 && !isLoading && !error && (
-              <span className="mt-2 block text-xs font-normal text-custom-text-300">
-                No position groups are available in this roster.
-              </span>
-            )}
-            {error && (
-              <Button
-                unstyled
-                type="button"
-                onClick={() => void mutate()}
-                className="mt-2 block text-custom-primary-100"
-              >
-                Retry roster
-              </Button>
-            )}
-          </label>
+          <CreateCardPositionGroupPicker
+            groups={groups}
+            selectedGroup={group}
+            onChange={setGroup}
+            isLoading={isLoading}
+            hasError={Boolean(error)}
+            onRetry={() => void mutate()}
+            disabled={isSaving}
+          />
         )}
         {mode === "players" && selectedIds.length === 0 && originalIds.length > 0 && (
           <p className="text-xs text-custom-text-300">
