@@ -132,6 +132,64 @@ const coachingConfig = {
   })),
 };
 
+const roles = ["identified", "assigned", "reviewed", "practice", "verified"] as const;
+for (const names of [
+  ["Identify", "To Review", "Action Required", "In Progress", "Verified"],
+  ["Intake", "Delivered", "Seen", "Drill", "Approved"],
+]) {
+  test(`roles preserve assignment and automatic review after renaming to ${names[1]}`, () => {
+    const renamed = {
+      ...coachingConfig,
+      stages: coachingConfig.stages.map((stage, index) => ({
+        ...stage,
+        name: names[index],
+        lifecycle_role: roles[index],
+      })),
+    };
+    for (const target of ["s1", "s3", "s4"]) {
+      assert.deepEqual(getCardTransitionIntent(renamed, "s0", target), { kind: "assign", stage: renamed.stages[1] });
+      assert.equal(getCardTransitionIntent(renamed, "s1", target === "s1" ? "s2" : target).kind, "blocked");
+    }
+    assert.equal(getCardStageActions(renamed, "s1").next, null);
+    const permissive = {
+      ...renamed,
+      stages: renamed.stages.map((stage) => ({ ...stage, allowed_next_stage_ids: ["s0", "s1", "s2", "s3", "s4"] })),
+    };
+    assert.equal(getCardStageActions(permissive, "s1").next, null);
+    const states = renamed.stages.map((stage, sequence) => ({ ...stage, group: "backlog", sequence }));
+    const reordered = cardStages.alignCardStageConfig(
+      { ...renamed, stages: renamed.stages.map((stage, index) => ({ ...stage, order: 4 - index })) },
+      states
+    );
+    assert.equal(reordered?.stages[1].allowed_next_stage_ids.includes("s2"), false);
+    assert.equal(getCardStageActions(reordered, "s1").next, null);
+  });
+}
+
+test("assignment uses the configured initial state even with an extra legacy intake row", () => {
+  const renamed = {
+    ...coachingConfig,
+    stages: [
+      { id: "legacy", name: "Old intake", order: 0, abbreviation: "O", allowed_next_stage_ids: ["s0"] },
+      ...coachingConfig.stages.map((stage, index) => ({ ...stage, order: index + 1, lifecycle_role: roles[index] })),
+    ],
+  };
+  assert.equal(getCardTransitionIntent(renamed, "s0", "s1").kind, "assign");
+  assert.equal(getCardTransitionIntent(renamed, "s1", "s2").kind, "blocked");
+});
+
+test("explicit stage roles override old labels without inventing automatic review", () => {
+  assert.equal(cardStages.getCardStageRole({ name: "Assigned", lifecycle_role: "practice" }), "practice");
+  assert.equal(cardStages.getCardStageRole({ name: "Delivered", lifecycle_role: "assigned" }), "assigned");
+  assert.equal(cardStages.getCardStageRole({ name: "Assigned" }), "assigned");
+  assert.equal(cardStages.getCardStageRole({ name: "constructor" }), undefined);
+  const incomplete = {
+    ...coachingConfig,
+    stages: coachingConfig.stages.map((stage) => ({ ...stage, lifecycle_role: "practice" as const })),
+  };
+  assert.equal(cardStages.getCardReviewStages(incomplete), undefined);
+});
+
 test("forward drop from the initial stage requests assignment regardless of destination", () => {
   for (const target of ["s1", "s3", "s4"]) {
     assert.deepEqual(getCardTransitionIntent(coachingConfig, "s0", target), {

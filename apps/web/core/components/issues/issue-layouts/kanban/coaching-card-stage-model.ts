@@ -2,6 +2,36 @@ import type { TCoachingCardStageConfig } from "@plane/types";
 
 type CardStage = TCoachingCardStageConfig["stages"][number];
 
+const LEGACY_STAGE_ROLES = new Map<string, NonNullable<CardStage["lifecycle_role"]>>([
+  ["identified", "identified"],
+  ["film tagged", "identified"],
+  ["unassigned", "identified"],
+  ["assigned", "assigned"],
+  ["player reviewed", "reviewed"],
+  ["in work", "reviewed"],
+  ["practice check", "practice"],
+  ["ready for coach review", "practice"],
+  ["resolved", "verified"],
+  ["verified on film", "verified"],
+]);
+
+export const getCardStageRole = (stage?: Pick<CardStage, "name" | "lifecycle_role">) =>
+  stage?.lifecycle_role || LEGACY_STAGE_ROLES.get(stage?.name.toLowerCase() ?? "");
+
+export const getCardReviewStages = (config: TCoachingCardStageConfig | undefined) => {
+  const stages = [...(config?.stages ?? [])].sort((a, b) => a.order - b.order);
+  const assigned = stages.find((stage) => stage.lifecycle_role === "assigned");
+  const reviewed = stages.find((stage) => stage.lifecycle_role === "reviewed");
+  if (assigned && reviewed) return { assigned, reviewed };
+  if (
+    !stages.some((stage) => stage.lifecycle_role) &&
+    getCardStageRole(stages[1]) === "assigned" &&
+    getCardStageRole(stages[2]) === "reviewed"
+  )
+    return { assigned: stages[1], reviewed: stages[2] };
+  return undefined;
+};
+
 export type CardTransitionIntent =
   | { kind: "move" | "reopen" | "assign"; stage: CardStage }
   | { kind: "blocked"; title: string; message: string }
@@ -31,16 +61,15 @@ export const getCardTransitionIntent = (
     const previous = stages[current - 1];
     if (canTransitionCard(config, currentStageId, previous.id)) return { kind: "reopen", stage: previous };
   } else {
-    if (current === 0 && stages[1]?.name.toLowerCase() === "assigned") return { kind: "assign", stage: stages[1] };
-    if (
-      current === 1 &&
-      stages[1]?.name.toLowerCase() === "assigned" &&
-      ["player reviewed", "in work"].includes(stages[2]?.name.toLowerCase())
-    )
+    const following = stages[current + 1];
+    if (currentStageId === config?.initial_stage_id && getCardStageRole(following) === "assigned")
+      return { kind: "assign", stage: following };
+    const reviewStages = getCardReviewStages(config);
+    if (reviewStages && currentStageId === reviewStages.assigned.id)
       return {
         kind: "blocked",
-        title: `Cannot move to ${stages[2].name}`,
-        message: "Player review is automatic. This card cannot be advanced manually from Assigned.",
+        title: `Cannot move to ${reviewStages.reviewed.name}`,
+        message: `Player review is automatic. This card cannot be advanced manually from ${reviewStages.assigned.name}.`,
       };
     if (target === current + 1 && canTransitionCard(config, currentStageId, targetStageId))
       return { kind: "move", stage: stages[target] };
@@ -111,9 +140,12 @@ export const alignCardStageConfig = (
   );
   const previous = [...config.stages].sort((a, b) => a.order - b.order);
   const reordered = ordered.some((state, index) => state.id !== previous[index].id);
-  const automaticReview =
-    ordered[1]?.name.toLowerCase() === "assigned" &&
-    ["player reviewed", "in work"].includes(ordered[2]?.name.toLowerCase());
+  const alignedStages = ordered.map((state, order) => ({
+    ...config.stages.find((stage) => stage.id === state.id)!,
+    name: state.name,
+    order,
+  }));
+  const reviewStages = getCardReviewStages({ ...config, stages: alignedStages });
   const verified = config.stages.find((stage) => stage.lifecycle_role === "verified");
   const closed = config.stages.find((stage) => stage.lifecycle_role === "closed");
   return {
@@ -122,10 +154,8 @@ export const alignCardStageConfig = (
       config.stages.find((stage) => stage.lifecycle_role === "identified")?.id ??
       ordered[0]?.id ??
       config.initial_stage_id,
-    stages: ordered.map((state, order) => ({
-      ...config.stages.find((stage) => stage.id === state.id)!,
-      name: state.name,
-      order,
+    stages: alignedStages.map((state, order) => ({
+      ...state,
       // Rebuild adjacency when settings changed, matching the server lifecycle contract.
       allowed_next_stage_ids:
         state.id === closed?.id && verified
@@ -140,7 +170,13 @@ export const alignCardStageConfig = (
             : reordered
               ? ordered
                   .filter(
-                    (_, index) => Math.abs(index - order) === 1 && !(automaticReview && order === 1 && index === 2)
+                    (candidate, index) =>
+                      Math.abs(index - order) === 1 &&
+                      !(
+                        reviewStages &&
+                        state.id === reviewStages.assigned.id &&
+                        candidate.id === reviewStages.reviewed.id
+                      )
                   )
                   .map((state) => state.id)
               : previous[order].allowed_next_stage_ids,

@@ -28,6 +28,7 @@ const mocks = {
   "@/components/comments/comment-create": `export const CommentCreate = () => null;`,
   "@/hooks/store/use-project": `export const useProject = () => ({getProjectIdentifierById: () => 'FB', getProjectById: () => ({sport: 'Football'})});`,
   "@/hooks/store/use-member": `export const useMember = () => ({getUserDetails: () => ({display_name: 'Coach'})});`,
+  "@/hooks/use-app-router": `export const useAppRouter = () => ({push: () => {}});`,
   swr: `import {fixture} from 'fixture:state'; export default key => { if(key) fixture.rosterKeys.push(key); return {data: [], isLoading: false, mutate: async () => {}}; };`,
   "@/hooks/store/use-project-state": `import {fixture} from 'fixture:state'; export const useProjectState = () => ({getStateById: () => ({name: 'In Work', group: fixture.group})});`,
   "@/hooks/store/user": `import {fixture} from 'fixture:state'; export const useUserPermissions = () => ({allowPermissions: roles => roles.includes(fixture.role)});`,
@@ -50,6 +51,8 @@ const bundle = await build({
     contents: `export {fixture} from 'fixture:state';
       export {CoachingCardMenu} from './core/components/issues/issue-layouts/kanban/coaching-card-menu';
       export {CoachingCardActions, AssignmentDialog} from './core/components/issues/issue-layouts/kanban/coaching-card-actions';
+      export {CoachingCardFooter} from './core/components/issues/issue-layouts/kanban/coaching-card-footer';
+      export {CoachingCardKanbanDetails} from './core/components/issues/issue-layouts/kanban/coaching-card-details';
       export {CoachingCardProperties} from './core/components/issues/peek-overview/coaching-card/properties';
       export {CoachingCardStageContext} from './core/components/issues/issue-layouts/kanban/coaching-card-stage-context';
       export {CoachingCardStageRequestContext} from './core/components/issues/issue-layouts/kanban/coaching-card-stage-request-context';`,
@@ -82,6 +85,8 @@ const {
   CoachingCardMenu,
   CoachingCardActions,
   AssignmentDialog,
+  CoachingCardFooter,
+  CoachingCardKanbanDetails,
   CoachingCardProperties,
   CoachingCardStageContext,
   CoachingCardStageRequestContext,
@@ -113,7 +118,7 @@ const render = (patch = {}, props = {}, component = CoachingCardMenu) =>
   renderToStaticMarkup(
     createElement(
       CoachingCardStageContext.Provider,
-      { value: config },
+      { value: props.config ?? config },
       createElement(
         CoachingCardStageRequestContext.Provider,
         { value: async (_issue, stageId) => (fixture.transition ? { ...fixture.transition, stageId } : null) },
@@ -185,6 +190,58 @@ test("Assigned's automatic menu action stays disabled but reopening remains avai
   assert.equal(item("next").disabled, true);
   assert.equal(item("previous").disabled, false);
 });
+
+for (const names of [
+  ["Identify", "To Review", "Action Required", "In Progress", "Verified"],
+  ["Intake", "Delivered", "Seen", "Drill", "Approved"],
+]) {
+  test(`rendered actions and card status follow roles with ${names[1]} as the assignment label`, () => {
+    const roles = ["identified", "assigned", "reviewed", "practice", "verified"];
+    const renamed = {
+      ...config,
+      stages: config.stages.map((stage, index) => ({ ...stage, name: names[index], lifecycle_role: roles[index] })),
+    };
+    assert.match(render({ state_id: "s0" }, { config: renamed }), /Assign to Player/);
+    const menu = render({ state_id: "s1" }, { config: renamed });
+    assert.ok(menu.includes(`Move to ${names[2]}`));
+    assert.equal(item("next").disabled, true);
+    const actions = render({ state_id: "s1" }, { config: renamed }, CoachingCardActions);
+    assert.match(actions, /Awaiting player review/);
+    assert.doesNotMatch(actions, /Next:/);
+    const card = {
+      ...issue.coaching_card_data,
+      playlists: [],
+      summary: {},
+      recipients: [{ id: "player", name: "Jordan" }],
+      review: { assigned_at: "delivery-date", completed_at: "review-date", viewed_by: {} },
+    };
+    const footer = render({ state_id: "s1", coaching_card_data: card }, { config: renamed }, CoachingCardFooter);
+    assert.match(footer, /Unopened/);
+    assert.match(footer, /0 viewed/);
+    const delivered = render(
+      { state_id: "s1", coaching_card_data: card },
+      { cardStageConfig: renamed },
+      CoachingCardKanbanDetails
+    );
+    assert.match(delivered, /Delivered delivery-date/);
+    const reviewed = render(
+      { state_id: "s2", coaching_card_data: card },
+      { cardStageConfig: renamed },
+      CoachingCardKanbanDetails
+    );
+    assert.match(reviewed, /Advanced review-date/);
+    assert.match(
+      render({ state_id: "s2", coaching_card_data: card }, { config: renamed }, CoachingCardFooter),
+      /Reviewed/
+    );
+    const verified = render(
+      { state_id: "s4", coaching_card_data: card, created_at: "2000-01-01" },
+      { config: renamed },
+      CoachingCardFooter
+    );
+    assert.doesNotMatch(verified, /days since card creation/);
+  });
+}
 
 test("read-only and non-coach users retain Open card but cannot mutate", () => {
   for (const props of [{ readOnly: true }, {}]) {

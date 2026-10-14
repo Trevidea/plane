@@ -57,6 +57,16 @@ def build_stage_config(sport, states):
     return config
 
 
+def assigned_stage_id(config):
+    stages = config["stages"]
+    assigned = next((stage for stage in stages if stage.get("lifecycle_role") == "assigned"), None)
+    if assigned:
+        return assigned["id"]
+    if any(stage.get("lifecycle_role") for stage in stages):
+        return None
+    return next((stage["id"] for stage in stages if stage["name"].casefold() == "assigned"), None)
+
+
 def review_stage_ids(config):
     stages = config["stages"]
     assigned = next((stage for stage in stages if stage.get("lifecycle_role") == "assigned"), None)
@@ -64,7 +74,8 @@ def review_stage_ids(config):
     if assigned and reviewed:
         return assigned["id"], reviewed["id"]
     if (
-        len(stages) >= 3
+        not any(stage.get("lifecycle_role") for stage in stages)
+        and len(stages) >= 3
         and stages[1]["name"].casefold() == "assigned"
         and stages[2]["name"].casefold() in {"player reviewed", "in work"}
     ):
@@ -112,13 +123,13 @@ def validate_stage_transition(config, current_stage_id, target_stage_id, recipie
             raise ValueError("A reason is required to reopen this coaching card.")
         return
     if review_stages and str(current_stage_id) == review_stages[0]:
-        raise ValueError("Player review is automatic. This card cannot be advanced manually from Assigned.")
+        raise ValueError(
+            f"Player review is automatic. This card cannot be advanced manually from {stages[current]['name']}."
+        )
     if target != current + 1:
         raise ValueError(f"One stage at a time. {stages[current + 1]['name']} comes first.")
-    if (
-        stages[target].get("lifecycle_role") == "assigned" or stages[target]["name"].casefold() == "assigned"
-    ) and not recipient_ids:
-        raise ValueError("Assign at least one player or position group before moving to Assigned.")
+    if str(target_stage_id) == assigned_stage_id(config) and not recipient_ids:
+        raise ValueError(f"Assign at least one player or position group before moving to {stages[target]['name']}.")
 
 
 def next_stage_id(config, current_stage_id):

@@ -1,7 +1,9 @@
 from copy import deepcopy
+from datetime import timedelta
 
 import pytest
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from plane.db.models import CardStageHistory, Issue, Project, ProjectMember, RosterPlayer, State
 from plane.utils.coaching_card_lifecycle import default_project_state_definitions
@@ -193,6 +195,10 @@ def test_removing_last_recipient_uses_stage_identity_and_supports_legacy_boards(
         states[1].name = "Delivered"
         states[1].save(update_fields=["name"])
     else:
+        states[0].name = "Identified"
+        states[0].save(update_fields=["name"])
+        states[1].name = "Assigned"
+        states[1].save(update_fields=["name"])
         State.objects.filter(project=card.project).update(lifecycle_role="")
         State.objects.filter(pk__in=[state.id for state in states[2:]]).update(deleted_at=timezone.now())
 
@@ -209,8 +215,11 @@ def test_removing_last_recipient_uses_stage_identity_and_supports_legacy_boards(
 
 @pytest.mark.contract
 @pytest.mark.django_db
-def test_removing_only_some_recipients_keeps_assigned_stage(session_client, recipient_card):
+@pytest.mark.parametrize("assigned_name", ["To Review", "Delivered", "Assigned"])
+def test_removing_only_some_recipients_keeps_assigned_stage(session_client, recipient_card, assigned_name):
     card, states, players, url = recipient_card
+    states[1].name = assigned_name
+    states[1].save(update_fields=["name"])
     card.coaching_card_data["recipient_ids"] = [str(player.id) for player in players]
     card.coaching_card_data["recipients"] = [{"id": str(player.id), "name": player.player_name} for player in players]
     card.roster_player = None
@@ -225,6 +234,21 @@ def test_removing_only_some_recipients_keeps_assigned_stage(session_client, reci
     assert card.roster_player_id == players[1].id
     assert card.coaching_card_data["review"]["viewed_by"] == {}
     assert card.coaching_card_data["review"]["deadline_at"] is not None
+    review = card.coaching_card_data["review"]
+    assert parse_datetime(review["deadline_at"]) - parse_datetime(review["assigned_at"]) == timedelta(days=3)
+    assert not CardStageHistory.objects.filter(issue=card).exists()
+
+
+@pytest.mark.contract
+@pytest.mark.django_db
+def test_renamed_assigned_stage_still_requires_automatic_review(session_client, recipient_card):
+    card, states, _, url = recipient_card
+    response = session_client.post(f"{url}transition/", {"stage_id": str(states[2].id)}, format="json")
+    assert response.status_code == 400
+    assert "automatic" in response.data["stage_id"][0]
+    assert states[1].name in response.data["stage_id"][0]
+    card.refresh_from_db()
+    assert card.state_id == states[1].id
     assert not CardStageHistory.objects.filter(issue=card).exists()
 
 

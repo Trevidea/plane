@@ -46,6 +46,23 @@ test("Assigned exposes the automatic action without a manual transition", () => 
   assert.equal(model.previous.id, "s0");
 });
 
+test("new default and custom labels keep assignment and automatic review menu actions", () => {
+  const roles = ["identified", "assigned", "reviewed", "practice", "verified"];
+  for (const names of [
+    ["Identify", "To Review", "Action Required", "In Progress", "Verified"],
+    ["Intake", "Delivered", "Seen", "Drill", "Approved"],
+  ]) {
+    const config = configuration(names);
+    config.stages = config.stages.map((stage, index) => ({ ...stage, lifecycle_role: roles[index] }));
+    assert.equal(getCoachingCardMenuStages(config, "s0").primaryLabel, "Assign to Player");
+    const automatic = getCoachingCardMenuStages(config, "s1");
+    assert.equal(automatic.primaryLabel, `Move to ${names[2]}`);
+    assert.equal(automatic.primaryHint, "auto - on clip completion");
+    assert.equal(automatic.next, null);
+    assert.equal(automatic.showPrimaryAction, true);
+  }
+});
+
 test("later stages use the current board names and exactly one previous stage", () => {
   const config = configuration();
   const work = getCoachingCardMenuStages(config, "s2");

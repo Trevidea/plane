@@ -4,6 +4,7 @@ import type { TCoachingCardStageConfig, TIssue } from "@plane/types";
 import { cn, renderFormattedDate } from "@plane/utils";
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { getCoachingCardSource } from "./coaching-card-source";
+import { getCardStageRole } from "./coaching-card-stage-model";
 import { COACHING_CARD_TYPES } from "./coaching-card-types";
 
 export { getCoachingCardAccent } from "./coaching-card-types";
@@ -49,16 +50,15 @@ export const CoachingCardKanbanDetails = ({
   ]
     .filter((value): value is string => Boolean(value))
     .join(" · ");
-  const stageName =
-    cardStageConfig?.stages.find((stage) => stage.id === issue.state_id)?.name ||
-    getStateById(issue.state_id)?.name ||
-    "Stage unavailable";
+  const currentStage =
+    cardStageConfig?.stages.find((stage) => stage.id === issue.state_id) ?? getStateById(issue.state_id);
+  const stageName = currentStage?.name || "Stage unavailable";
+  const stageRole = getCardStageRole(currentStage);
   const normalizedStageName = stageName.toLowerCase();
   const isDraft =
     recipients.length === 0 &&
-    (issue.state_id === cardStageConfig?.initial_stage_id ||
-      (!cardStageConfig && (stageName === "Identified" || stageName === "Film Tagged")));
-  const isResolved = normalizedStageName === "resolved" || normalizedStageName === "verified on film";
+    (issue.state_id === cardStageConfig?.initial_stage_id || (!cardStageConfig && stageRole === "identified"));
+  const isResolved = stageRole === "verified";
   const stageBadge = isDraft
     ? "Draft"
     : normalizedStageName === "verified on film"
@@ -72,9 +72,8 @@ export const CoachingCardKanbanDetails = ({
             : stageName;
   const badgeColor = isResolved ? "#3edbb0" : type.accent;
   const qualifier = firstClip?.detail || firstClip?.secondary_detail || firstClip?.group;
-  const reviewDate =
-    normalizedStageName === "player reviewed" || normalizedStageName === "in work" ? card.review?.completed_at : null;
-  const assignmentDate = normalizedStageName === "assigned" ? card.review?.assigned_at : null;
+  const reviewDate = stageRole === "reviewed" ? card.review?.completed_at : null;
+  const assignmentDate = stageRole === "assigned" ? card.review?.assigned_at : null;
   const dateLabel = reviewDate ? "Advanced" : assignmentDate ? "Delivered" : "Created";
   const date = reviewDate || assignmentDate || issue.created_at;
 
