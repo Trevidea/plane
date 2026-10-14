@@ -14,6 +14,7 @@ import { IssueService } from "@/services/issue/issue.service";
 import type { TIssueOperations } from "../../issue-detail";
 import { CoachingCardClips } from "../../issue-detail/coaching-card-clips";
 import { AssignmentDialog } from "../../issue-layouts/kanban/coaching-card-actions";
+import { canEditCoachingCardRecipients } from "../../issue-layouts/kanban/coaching-card-recipient-policy";
 import { alignCardStageConfig, getCardStageActions } from "../../issue-layouts/kanban/coaching-card-stage-model";
 import { useCoachingCardStageRequest } from "../../issue-layouts/kanban/use-coaching-card-stage-request";
 import { IssueTitleInput } from "../../title-input";
@@ -65,6 +66,7 @@ export const CoachingCardPeekContent = observer(
       { revalidateOnFocus: false }
     );
     const config = alignCardStageConfig(fetchedConfig, getProjectStates(projectId));
+    const canEditRecipients = !issue.archived_at && canEditCoachingCardRecipients(config, issue.state_id);
     const refresh = useCallback(
       async (regroup = false) => {
         await fetchIssue(workspaceSlug, projectId, issue.id);
@@ -229,7 +231,7 @@ export const CoachingCardPeekContent = observer(
 
         {!disabled && (
           <div className="flex flex-wrap items-center gap-2 border-t border-custom-border-200 pt-4">
-            {!recipients.length && !card.position_group && (
+            {canEditRecipients && !recipients.length && !card.position_group && (
               <Button variant="primary" size="sm" disabled={saving} onClick={() => setAssigning(true)}>
                 Assign to player
               </Button>
@@ -284,7 +286,7 @@ export const CoachingCardPeekContent = observer(
               {recipients.length > 1 && ` · ${recipients.length} recipients`}
             </p>
           </div>
-          {!disabled && !recipients.length && !card.position_group && (
+          {!disabled && canEditRecipients && !recipients.length && !card.position_group && (
             <Button variant="link-primary" size="sm" disabled={saving} onClick={() => setAssigning(true)}>
               Assign player
             </Button>
@@ -343,9 +345,10 @@ export const CoachingCardPeekContent = observer(
             },
           ]}
         />
-        {assigning && !recipients.length && !card.position_group && (
+        {assigning && (
           <AssignmentDialog
             issue={issue}
+            config={config}
             workspaceSlug={workspaceSlug}
             projectId={projectId}
             onChanged={() => void refresh(true)}

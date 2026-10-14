@@ -10,6 +10,7 @@ import {
   Pencil,
   SquarePlus,
   Trash2,
+  UsersRound,
 } from "lucide-react";
 import { Dialog } from "@headlessui/react";
 import { ARCHIVABLE_STATE_GROUPS, EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
@@ -27,11 +28,13 @@ import { ArchiveIssueModal } from "../../archive-issue-modal";
 import { DeleteIssueModal } from "../../delete-issue-modal";
 import { useCommentOperations } from "../../issue-detail/issue-activity/helper";
 import type { IQuickActionProps } from "../list/list-view-types";
+import { AssignmentDialog } from "./coaching-card-actions";
 import {
   getCoachingCardAgeDays,
   getCoachingCardMenuStages,
   getCoachingCardPriorityChange,
 } from "./coaching-card-menu-model";
+import { canEditCoachingCardRecipients } from "./coaching-card-recipient-policy";
 import { CoachingCardStageContext } from "./coaching-card-stage-context";
 import { coachingCardErrorMessage, useCoachingCardStageAction } from "./use-coaching-card-stage-action";
 
@@ -92,7 +95,7 @@ export const CoachingCardMenu = observer((props: IQuickActionProps) => {
   const { getStateById } = useProjectState();
   const { allowPermissions } = useUserPermissions();
   const { handleRedirection } = useIssuePeekOverviewRedirection();
-  const [dialog, setDialog] = useState<"follow-up" | "archive" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<"recipients" | "follow-up" | "archive" | "delete" | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const identifier = `${getProjectIdentifierById(projectId) || "Card"}-${issue.sequence_id}`;
   const stages = getCoachingCardMenuStages(config, issue.state_id);
@@ -125,6 +128,7 @@ export const CoachingCardMenu = observer((props: IQuickActionProps) => {
     onChanged,
   });
   const busy = isMoving || isUpdating;
+  const canEditRecipients = canEditCoachingCardRecipients(config, issue.state_id);
   const cardPriority = issue.coaching_card_data?.priority;
   const raisedPriority = getCoachingCardPriorityChange(cardPriority, "raise");
   const loweredPriority = getCoachingCardPriorityChange(cardPriority, "lower");
@@ -165,6 +169,16 @@ export const CoachingCardMenu = observer((props: IQuickActionProps) => {
       title: "Open card",
       icon: SquarePlus,
       action: () => handleRedirection(workspaceSlug, issue),
+    },
+    {
+      key: "recipients",
+      section: "card",
+      title: "Edit recipients",
+      icon: UsersRound,
+      disabled: !canEdit || busy,
+      action: () => {
+        if (canEdit && canEditRecipients && !busy) setDialog("recipients");
+      },
     },
     {
       key: "follow-up",
@@ -223,7 +237,10 @@ export const CoachingCardMenu = observer((props: IQuickActionProps) => {
     },
   ];
   const visibleItems = items.filter(
-    ({ key }) => (key !== "previous" || Boolean(stages.previous)) && (key !== "next" || stages.showPrimaryAction)
+    ({ key }) =>
+      (key !== "previous" || Boolean(stages.previous)) &&
+      (key !== "next" || stages.showPrimaryAction) &&
+      (key !== "recipients" || canEditRecipients)
   );
 
   return (
@@ -276,6 +293,16 @@ export const CoachingCardMenu = observer((props: IQuickActionProps) => {
           Every transition is logged with time and actor. Backward moves record a reason.
         </p>
       </CustomMenu>
+      {dialog === "recipients" && canEdit && (
+        <AssignmentDialog
+          issue={issue}
+          config={config}
+          workspaceSlug={workspaceSlug}
+          projectId={projectId}
+          onChanged={onChanged}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === "follow-up" && canEdit && (
         <CoachFollowUpDialog
           workspaceSlug={workspaceSlug}

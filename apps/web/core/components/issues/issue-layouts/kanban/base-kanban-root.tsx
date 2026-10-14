@@ -35,7 +35,9 @@ import type { IQuickActionProps, TRenderQuickActions } from "../list/list-view-t
 import type { GroupDropLocation } from "../utils";
 import { getSourceFromDropPayload } from "../utils";
 import { isCoachingCardIssue } from "./coaching-card-details";
+import { CoachingCardLegend } from "./coaching-card-legend";
 import { CoachingCardMenu } from "./coaching-card-menu";
+import { canEditCoachingCardRecipients } from "./coaching-card-recipient-policy";
 import { CoachingCardStageContext } from "./coaching-card-stage-context";
 import { alignCardStageConfig } from "./coaching-card-stage-model";
 import { CoachingCardStageRequestContext } from "./coaching-card-stage-request-context";
@@ -294,6 +296,18 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
         });
         return;
       }
+      if (
+        laneUpdate?.cardPatch &&
+        ("player_ids" in laneUpdate.cardPatch || "position_group" in laneUpdate.cardPatch) &&
+        !canEditCoachingCardRecipients(cardStageConfig, stageRequest?.stageId ?? issue.state_id)
+      ) {
+        setToast({
+          type: TOAST_TYPE.WARNING,
+          title: "Recipients cannot be changed",
+          message: "Recipients can only be edited in the first two lifecycle stages.",
+        });
+        return;
+      }
       let stageMoved = false;
       try {
         if (stageRequest) {
@@ -521,31 +535,34 @@ export const BaseKanBanRoot: React.FC<IBaseKanBanLayout> = observer((props: IBas
         </div>
       </div>
       <IssueLayoutHOC layout={EIssueLayoutTypes.KANBAN}>
-        {isCoachingBoard && cardConfigError && (
-          <div role="alert" className="border-b border-red-500/30 px-4 py-2 text-sm text-red-500">
-            Coaching stage configuration is unavailable. Card moves are disabled.
-          </div>
-        )}
-        <div
-          className={`horizontal-scrollbar scrollbar-lg relative flex h-full w-full bg-custom-background-90 ${hasCoachingSwimlanes || (sub_group_by && !isCoachingBoard) ? "vertical-scrollbar overflow-y-auto" : "overflow-x-auto overflow-y-hidden"}`}
-          ref={scrollableContainerRef}
-        >
-          <div className="relative h-full w-max min-w-full bg-custom-background-90">
-            <div className="h-full w-max min-w-full">
-              <CoachingCardStageContext.Provider value={cardStageConfig}>
-                <CoachingCardStageRequestContext.Provider value={requestStageChange}>
-                  {hasCoachingSwimlanes ? (
-                    <CoachingSwimlaneBoard
-                      {...boardProps}
-                      view={swimlaneView}
-                      preferenceKey={preferenceKey}
-                      handleOnDrop={handleSwimlaneDrop}
-                    />
-                  ) : (
-                    <KanBanView {...boardProps} handleOnDrop={handleOnDrop} />
-                  )}
-                </CoachingCardStageRequestContext.Provider>
-              </CoachingCardStageContext.Provider>
+        <div className={isCoachingBoard ? "flex h-full min-h-0 w-full flex-col" : "contents"}>
+          {isCoachingBoard && <CoachingCardLegend />}
+          {isCoachingBoard && cardConfigError && (
+            <div role="alert" className="border-b border-red-500/30 px-4 py-2 text-sm text-red-500">
+              Coaching stage configuration is unavailable. Card moves are disabled.
+            </div>
+          )}
+          <div
+            className={`horizontal-scrollbar scrollbar-lg relative flex h-full w-full bg-custom-background-90 ${isCoachingBoard ? "min-h-0 flex-1" : ""} ${hasCoachingSwimlanes || (sub_group_by && !isCoachingBoard) ? "vertical-scrollbar overflow-y-auto" : "overflow-x-auto overflow-y-hidden"}`}
+            ref={scrollableContainerRef}
+          >
+            <div className="relative h-full w-max min-w-full bg-custom-background-90">
+              <div className="h-full w-max min-w-full">
+                <CoachingCardStageContext.Provider value={cardStageConfig}>
+                  <CoachingCardStageRequestContext.Provider value={requestStageChange}>
+                    {hasCoachingSwimlanes ? (
+                      <CoachingSwimlaneBoard
+                        {...boardProps}
+                        view={swimlaneView}
+                        preferenceKey={preferenceKey}
+                        handleOnDrop={handleSwimlaneDrop}
+                      />
+                    ) : (
+                      <KanBanView {...boardProps} handleOnDrop={handleOnDrop} />
+                    )}
+                  </CoachingCardStageRequestContext.Provider>
+                </CoachingCardStageContext.Provider>
+              </div>
             </div>
           </div>
         </div>

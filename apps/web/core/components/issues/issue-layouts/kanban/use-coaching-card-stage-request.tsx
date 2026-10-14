@@ -71,6 +71,7 @@ export const useCoachingCardStageRequest = (
     pending?.kind === "assign" ? (
       <AssignmentDialog
         issue={pending.issue}
+        config={config}
         workspaceSlug={workspaceSlug}
         projectId={projectId}
         advanceOnSave
