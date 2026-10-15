@@ -39,6 +39,7 @@ const mocks = {
   }`,
   "@/services/roster.service": `export class RosterService {}`,
   "@/components/issues/issue-detail/sg-event-detail-page/create-card-model": `export const getPositionGroups = () => [];`,
+  "@/components/issues/issue-detail/sg-event-detail-page/create-card-position-group-picker": `export const CreateCardPositionGroupPicker = () => null;`,
   "@/components/issues/issue-detail/sg-event-detail-page/create-card-roster-picker": `import {createElement} from 'react'; export const CreateCardRosterPicker = ({onChange}) => createElement('button', {type: 'button', onClick: () => onChange([]), 'aria-label': 'Remove all selected players'}, 'Clear players');`,
   "../../archive-issue-modal": `export const ArchiveIssueModal = () => null;`,
   "../../delete-issue-modal": `export const DeleteIssueModal = () => null;`,
