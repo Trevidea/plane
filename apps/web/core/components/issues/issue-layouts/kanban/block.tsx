@@ -113,40 +113,45 @@ const KanbanIssueDetailsBlock: React.FC<IssueDetailsBlockProps> = observer((prop
 
   useOutsideClickDetector(menuActionRef, () => setIsMenuActive(false));
 
+  const cardActions = (
+    <div
+      className={cn(isCoachingCard ? "shrink-0" : "absolute -top-1 right-0", {
+        "hidden group-hover/kanban-block:block": !isMobile && !isCoachingCard,
+        "!block": isMenuActive,
+      })}
+      onClick={handleEventPropagation}
+    >
+      {quickActions({
+        issue,
+        parentRef: cardRef,
+        customActionButton,
+      })}
+    </div>
+  );
+
   return (
     <>
-      <div className="relative">
-        {!isCoachingCard && issue.project_id && (
-          <IssueIdentifier
-            issueId={issue.id}
-            projectId={issue.project_id}
-            textContainerClassName="line-clamp-1 text-xs text-custom-text-300"
-            displayProperties={displayProperties}
-          />
-        )}
-        <div
-          className={cn("absolute right-0", isCoachingCard ? "top-0" : "-top-1", {
-            "hidden group-hover/kanban-block:block": !isMobile && !isCoachingCard,
-            "!block": isMenuActive,
-          })}
-          onClick={handleEventPropagation}
-        >
-          {quickActions({
-            issue,
-            parentRef: cardRef,
-            customActionButton,
-          })}
-        </div>
-      </div>
-
       {isCoachingCard ? (
         <CoachingCardKanbanDetails
           issue={issue}
           projectIdentifier={projectIdentifier}
           cardStageConfig={cardStageConfig}
+          headerActions={cardActions}
         />
       ) : (
         <>
+          <div className="relative">
+            {issue.project_id && (
+              <IssueIdentifier
+                issueId={issue.id}
+                projectId={issue.project_id}
+                textContainerClassName="line-clamp-1 text-xs text-custom-text-300"
+                displayProperties={displayProperties}
+              />
+            )}
+            {cardActions}
+          </div>
+
           <Tooltip tooltipContent={issue.name} isMobile={isMobile} renderByDefault={false}>
             <div className="w-full line-clamp-1 text-sm text-custom-text-100">
               <span>{issue.name}</span>

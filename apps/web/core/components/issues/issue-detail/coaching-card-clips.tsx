@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
-import { useMediaLibraryItem } from "ce/features/media-library/hooks/use-media-library-item";
 import dynamic from "next/dynamic";
 import { Plus, Video, Play, Maximize } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
@@ -13,9 +11,10 @@ import { ImageWithFallback, AlertModalCore, Badge, Button, CustomMenu, CustomSel
 import { cn, renderFormattedDate } from "@plane/utils";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { IssueService } from "@/services/issue/issue.service";
+import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
+import { useMediaLibraryItem } from "ce/features/media-library/hooks/use-media-library-item";
 import { CoachingCardAddClip } from "./coaching-card-add-clip";
 import { CoachingCardClipBrowser } from "./coaching-card-clip-browser";
-import { CoachingCardStreamLink } from "./coaching-card-stream-link";
 import type { CoachingCardDetailClip, ClipGroup, ClipSort } from "./coaching-card-clips-model";
 import {
   buildCoachingCardClips,
@@ -25,6 +24,7 @@ import {
   filterAndSortClips,
   clipMutationPayload,
 } from "./coaching-card-clips-model";
+import { CoachingCardStreamLink } from "./coaching-card-stream-link";
 import { formatCardDuration } from "./sg-event-detail-page/create-card-model";
 import { buildCustomPlaylistThumbnailUrl, formatLooseLabel, getArchivedHlsBaseUrl } from "./sg-event-detail-page/utils";
 const CoachingCardClipPlayer = dynamic(
@@ -541,10 +541,7 @@ const CoachingCardClipManager = ({
 
 export const CoachingCardClips = ({
   viewOnly = false,
+  allowAdding = false,
   ...props
-}: Parameters<typeof CoachingCardClipManager>[0] & { viewOnly?: boolean }) =>
-  viewOnly ? (
-    <CoachingCardClipBrowser issue={props.issue} workspaceSlug={props.workspaceSlug} projectId={props.projectId} />
-  ) : (
-    <CoachingCardClipManager {...props} />
-  );
+}: Parameters<typeof CoachingCardClipManager>[0] & { viewOnly?: boolean; allowAdding?: boolean }) =>
+  viewOnly ? <CoachingCardClipBrowser {...props} allowAdding={allowAdding} /> : <CoachingCardClipManager {...props} />;

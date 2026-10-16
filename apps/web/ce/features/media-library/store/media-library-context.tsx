@@ -719,8 +719,10 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
   return <MediaLibraryContext.Provider value={value}>{children}</MediaLibraryContext.Provider>;
 };
 
+export const useOptionalMediaLibrary = () => useContext(MediaLibraryContext);
+
 export const useMediaLibrary = () => {
-  const context = useContext(MediaLibraryContext);
+  const context = useOptionalMediaLibrary();
   if (!context) throw new Error("useMediaLibrary must be used within MediaLibraryProvider");
   return context;
 };

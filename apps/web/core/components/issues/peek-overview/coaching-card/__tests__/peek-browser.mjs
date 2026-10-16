@@ -75,6 +75,7 @@ import { useIssueDetail } from ${JSON.stringify(path.join(temp, "store.ts"))};
 import { useCoachingPeekUrl } from ${JSON.stringify(path.join(web, "core/components/issues/peek-overview/coaching-card/use-coaching-peek-url"))};
 import { CoachingCardAddClip } from ${JSON.stringify(path.join(web, "core/components/issues/issue-detail/coaching-card-add-clip"))};
 import { CoachingCardNote } from ${JSON.stringify(path.join(web, "core/components/issues/peek-overview/coaching-card/note"))};
+import { CoachingCardPeekTabs } from ${JSON.stringify(path.join(web, "core/components/issues/peek-overview/coaching-card/tabs"))};
 import { IssueStore } from ${JSON.stringify(path.join(web, "core/store/issue/issue-details/issue.store"))};
 let stored;
 const detailStore = new IssueStore({ rootIssueStore: { issues: {
@@ -93,6 +94,11 @@ function Fixture() {
   const [saves, setSaves] = useState(0);
   const open = (issueId) => setPeekIssue({ workspaceSlug: "team", projectId: "project", issueId });
   return <>
+    <div data-testid="peek-tabs"><CoachingCardPeekTabs cardId="layout"
+      overview={<section aria-label="Overview properties">Overview properties and actions</section>}
+      discussion={<section aria-label="Discussion"><textarea aria-label="Discussion comment" /></section>}
+      clips={<section aria-label="Clip panel">Clip panel</section>}
+      audit={<section aria-label="Audit history">Card history</section>} /></div>
     <div id="board" style={{ height: 100, overflow: "auto" }}><div style={{ height: 1000 }}>Coaching board</div></div>
     <button onClick={() => open(${JSON.stringify(card1)})}>First card</button>
     <button onClick={() => open(${JSON.stringify(card2)})}>Second card</button>
@@ -173,6 +179,25 @@ try {
   const expectSelection = (id) =>
     page.waitForFunction((value) => document.querySelector("output")?.textContent === value, id);
   await page.goto(board);
+  const peekTabs = page.getByTestId("peek-tabs");
+  assert.deepEqual(await peekTabs.getByRole("tab").allTextContents(), ["Overview", "Clips", "Audit"]);
+  assert.ok(await peekTabs.getByRole("region", { name: "Overview properties" }).isVisible());
+  assert.ok(await peekTabs.getByLabel("Discussion comment").isVisible());
+  assert.equal(
+    await peekTabs.evaluate((element) =>
+      Boolean(
+        element
+          .querySelector('[aria-label="Overview properties"]')
+          .compareDocumentPosition(element.querySelector('[aria-label="Discussion"]')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+      )
+    ),
+    true
+  );
+  await peekTabs.getByRole("tab", { name: "Audit", exact: true }).click();
+  assert.ok(await peekTabs.getByRole("region", { name: "Audit history" }).isVisible());
+  assert.equal(await peekTabs.getByLabel("Discussion comment").isVisible(), false);
+  await peekTabs.getByRole("tab", { name: "Overview", exact: true }).click();
   await expectSelection("closed");
   await page.locator("#board").evaluate((element) => {
     element.scrollTop = 300;

@@ -61,11 +61,11 @@ export const CoachingCardDiscussion = observer(({ issue, workspaceSlug, projectI
     new_identifier: undefined,
   });
   return (
-    <section aria-label={isDiscussion ? "Discussion" : "Activity"} className="space-y-4 py-3">
+    <section aria-label={isDiscussion ? "Thread" : "Audit"} className="space-y-4 py-3">
       {!entries && <IssueActivityLoader />}
       {isDiscussion && entries && !relevantEntries?.length && (
         <div className="py-5 text-sm text-custom-text-300">
-          <p className="font-medium text-custom-text-200">No discussion yet.</p>
+          <p className="font-medium text-custom-text-200">No thread yet.</p>
           <p className="mt-1">Start the conversation with the player or coaching staff.</p>
         </div>
       )}

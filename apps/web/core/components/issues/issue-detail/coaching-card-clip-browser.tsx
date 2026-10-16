@@ -1,27 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-import useSWR from "swr";
-import { ChevronRight, Play, Video } from "lucide-react";
-import { API_BASE_URL } from "@plane/constants";
-import type { TIssue } from "@plane/types";
-import { ImageWithFallback, Loader, ScrollArea } from "@plane/ui";
-import { cn } from "@plane/utils";
-import { getSgEventMediaReferenceAnnotations, normalizePlaylistAnnotations } from "@/components/annotation";
-import { MediaLibraryService } from "@/services/media-library.service";
 import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
 import { useMediaLibraryItem } from "ce/features/media-library/hooks/use-media-library-item";
+import dynamic from "next/dynamic";
+import useSWR from "swr";
+import { ChevronRight, Loader2, Play, Plus, Video } from "lucide-react";
+import { API_BASE_URL } from "@plane/constants";
+import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import type { TCoachingCardData, TIssue } from "@plane/types";
+import { Button, Loader, ScrollArea } from "@plane/ui";
+import { cn } from "@plane/utils";
+import { getSgEventMediaReferenceAnnotations, normalizePlaylistAnnotations } from "@/components/annotation";
+import { useIssueDetail } from "@/hooks/store/use-issue-detail";
+import { IssueService } from "@/services/issue/issue.service";
+import { MediaLibraryService } from "@/services/media-library.service";
+import { CoachingCardAddClip } from "./coaching-card-add-clip";
+import { CoachingCardClipThumbnail } from "./coaching-card-clip-thumbnail";
 import type { CoachingCardDetailClip, CoachingCardDetailPlaylist } from "./coaching-card-clips-model";
 import {
   buildCoachingCardClips,
-  clipTypeConfig,
   resolveCoachingClipSource,
   resolveCoachingClipThumbnail,
   groupCoachingCardPlaylists,
+  clipMutationPayload,
 } from "./coaching-card-clips-model";
 import { CoachingCardStreamLink } from "./coaching-card-stream-link";
-import { formatCardDuration } from "./sg-event-detail-page/create-card-model";
+import { useCoachingClipMedia } from "./use-coaching-clip-media";
 import { loadSgMediaPayload } from "./sg-event-detail-page/data";
 import {
   asRecord,
@@ -36,6 +41,7 @@ const CoachingCardClipPlayer = dynamic(
 );
 
 const mediaLibraryService = new MediaLibraryService();
+const issueService = new IssueService();
 
 const thumbnailUrl = (thumbnail?: string | null) =>
   thumbnail
@@ -48,12 +54,37 @@ export const CoachingCardClipBrowser = ({
   issue,
   workspaceSlug,
   projectId,
+  disabled = false,
+  allowAdding = false,
+  onModalChange,
 }: {
   issue: TIssue;
   workspaceSlug: string;
   projectId: string;
+  disabled?: boolean;
+  allowAdding?: boolean;
+  onModalChange?: (open: boolean) => void;
 }) => {
-  const card = issue.coaching_card_data;
+  const {
+    issue: { fetchIssue },
+    fetchActivities,
+  } = useIssueDetail();
+  const [persisted, setPersisted] = useState<{ cardId: string; data: TCoachingCardData } | null>(null);
+  const card = persisted?.cardId === issue.id ? persisted.data : issue.coaching_card_data;
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const canAdd = allowAdding && !disabled && !issue.archived_at;
+  useEffect(() => {
+    if (!canAdd) setAdding(false);
+  }, [canAdd]);
+  useEffect(() => {
+    setPersisted(null);
+    setAdding(false);
+  }, [issue.id, issue.coaching_card_data]);
+  useEffect(() => {
+    onModalChange?.(adding);
+    return () => onModalChange?.(false);
+  }, [adding, onModalChange]);
   const { item: mediaItem, isLoading } = useMediaLibraryItem(workspaceSlug, projectId, card?.source_media?.artifact_id);
   const { effectiveVideoSrc: uploadedSourceUrl } = useResolvedMediaSources({
     item: mediaItem,
@@ -81,6 +112,37 @@ export const CoachingCardClipBrowser = ({
   const [selection, setSelection] = useState<{ cardId: string; key: string } | null>(null);
   const [expanded, setExpanded] = useState<{ cardId: string; playlistId: string | null } | null>(null);
   const [playRequest, setPlayRequest] = useState(0);
+  const saveClip = async (clip: CoachingCardDetailClip, requestId: string) => {
+    if (!canAdd || saving) return;
+    setSaving(true);
+    try {
+      const response = await issueService.saveCoachingCardClip(
+        workspaceSlug,
+        projectId,
+        issue.id,
+        clipMutationPayload(clip, requestId)
+      );
+      if (response.coaching_card_data) {
+        setPersisted({ cardId: issue.id, data: response.coaching_card_data });
+        const updated = buildCoachingCardClips(response.coaching_card_data, issue.created_at);
+        const added = updated[updated.length - 1];
+        if (added) {
+          setSelection({ cardId: issue.id, key: added.key });
+          setExpanded({ cardId: issue.id, playlistId: added.playlistId ?? null });
+          setPlayRequest((value) => value + 1);
+        }
+      }
+      void fetchIssue(workspaceSlug, projectId, issue.id).catch(() => {});
+      void fetchActivities(workspaceSlug, projectId, issue.id).catch(() => {});
+      window.dispatchEvent(new CustomEvent("coaching-card-updated", { detail: { projectId } }));
+      setToast({ type: TOAST_TYPE.SUCCESS, title: "Clip added" });
+    } catch (error) {
+      setToast({ type: TOAST_TYPE.ERROR, title: "Unable to add clip", message: "Please try again." });
+      throw error;
+    } finally {
+      setSaving(false);
+    }
+  };
   const activeClip = clips.find((clip) => selection?.cardId === issue.id && clip.key === selection.key) ?? clips[0];
   const activePlaylistIndex = playlists.findIndex((playlist) =>
     playlist.clips.some((clip) => clip.key === activeClip?.key)
@@ -106,7 +168,14 @@ export const CoachingCardClipBrowser = ({
     if (linked) setSelection({ cardId: issue.id, key: linked });
     setPlayRequest(0);
   }, [issue.id]);
-  const { item: selectedMedia } = useMediaLibraryItem(workspaceSlug, projectId, activeClip?.sourceMedia?.artifact_id);
+  const { data: selectedMedia, isLoading: isSelectedMediaLoading } = useCoachingClipMedia(
+    workspaceSlug,
+    projectId,
+    activeClip?.sourceMedia
+  );
+  const waitingForVideo = Boolean(
+    activeClip?.sourceMedia && (isSelectedMediaLoading || selectedMedia?.isTranscodeActive)
+  );
   const { effectiveVideoSrc: selectedMediaSrc } = useResolvedMediaSources({
     item: activeClip?.sourceMedia ? selectedMedia : null,
     meta: selectedMedia?.meta ?? {},
@@ -136,16 +205,17 @@ export const CoachingCardClipBrowser = ({
     : normalizePlaylistAnnotations(savedPlaylist?.annotations);
   const annotations = normalizePlaylistAnnotations(
     activeClip?.sourceMedia
-      ? selectedMedia?.meta?.annotations
-      : card?.source_media
-        ? (mediaItem?.meta?.annotations ?? card.source_media.annotations)
-        : playlistAnnotations.length
-          ? playlistAnnotations
-          : getSgEventMediaReferenceAnnotations(eventMeta, {
-              streamId: activeClip?.streamId,
-              videoSrc: source,
-              eventPayload: eventMedia?.eventPayload,
-            })
+      ? (selectedMedia?.meta?.annotations ??
+          (activeClip.sourceMedia.artifact_id === card?.source_media?.artifact_id
+            ? card.source_media.annotations
+            : undefined))
+      : playlistAnnotations.length
+        ? playlistAnnotations
+        : getSgEventMediaReferenceAnnotations(eventMeta, {
+            streamId: activeClip?.streamId,
+            videoSrc: source,
+            eventPayload: eventMedia?.eventPayload,
+          })
   );
   const poster =
     thumbnailUrl(activeClip?.thumbnail) ||
@@ -160,13 +230,34 @@ export const CoachingCardClipBrowser = ({
           <Loader.Item width="100%" height="240px" />
         </Loader>
       ) : activeClip ? (
-        source ? (
+        waitingForVideo ? (
+          <div
+            role="status"
+            className="flex aspect-video flex-col items-center justify-center gap-3 rounded-lg border border-custom-border-300 bg-custom-background-90 p-6 text-center text-sm text-custom-text-100"
+          >
+            <Loader2 className="h-6 w-6 animate-spin text-custom-primary-100" aria-hidden="true" />
+            <p>
+              {selectedMedia?.isTranscodeActive
+                ? `Video processing · ${selectedMedia.transcodeProgress ?? 0}%`
+                : "Checking video…"}
+            </p>
+            <p className="text-xs text-custom-text-300">The clip will be ready to play when processing finishes.</p>
+          </div>
+        ) : selectedMedia?.isTranscodeFailed ? (
+          <div
+            role="status"
+            className="flex aspect-video items-center justify-center rounded-lg border border-custom-border-300 bg-custom-background-90 p-6 text-center text-sm text-custom-text-100"
+          >
+            {selectedMedia.transcodeError || "Video processing failed. Please retry from the media library."}
+          </div>
+        ) : source ? (
           <CoachingCardClipPlayer
             clip={activeClip}
             src={source}
             poster={poster}
             autoPlay={playRequest > 0}
             playRequest={playRequest}
+            paused={adding}
             onComplete={advanceClip}
             annotations={annotations}
             annotationTimeline={
@@ -185,13 +276,23 @@ export const CoachingCardClipBrowser = ({
           No clips added yet.
         </div>
       )}
-      {!isLoading && <CoachingCardStreamLink source={source} />}
+      {!isLoading && !waitingForVideo && !selectedMedia?.isTranscodeFailed && (
+        <CoachingCardStreamLink source={source} />
+      )}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-medium text-custom-text-100">{playlists.length > 1 ? "Playlists" : "Clips"}</h3>
-          <span className="text-xs text-custom-text-100">
-            {clips.length} {clips.length === 1 ? "clip" : "clips"}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-custom-text-100">
+              {clips.length} {clips.length === 1 ? "clip" : "clips"}
+            </span>
+            {canAdd && (
+              <Button variant="link-primary" size="sm" type="button" onClick={() => setAdding(true)}>
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                Add clip
+              </Button>
+            )}
+          </div>
         </div>
         {playlists.map((playlist, playlistIndex) => (
           <div key={playlist.id} className="min-w-0 space-y-2">
@@ -235,62 +336,35 @@ export const CoachingCardClipBrowser = ({
             <div id={`coaching-playlist-${issue.id}-${playlistIndex}`} hidden={expandedPlaylistId !== playlist.id}>
               <ScrollArea type="hover" size="sm" className="w-full">
                 <ul aria-label={`${playlist.name} clips`} className="flex w-max min-w-full flex-row gap-3 p-1 pb-3">
-                  {playlist.clips.map((clip) => {
-                    const period = clip.period?.replace(/^quarter\s*(\d+)$/i, "Q$1");
-                    const clock =
-                      clip.gameClock?.replace(/\s*[-–]\s*/g, " → ") ||
-                      `${formatCardDuration(clip.startSeconds)} → ${formatCardDuration(clip.endSeconds)}`;
-                    return (
-                      <li key={clip.key} className="w-60 shrink-0">
-                        <button
-                          type="button"
-                          aria-label={`Play clip: ${clip.title}`}
-                          aria-pressed={activeClip?.key === clip.key}
-                          onClick={() => playClip(clip.key)}
-                          className={cn(
-                            "group flex w-full flex-col overflow-hidden rounded-lg border border-custom-border-300 bg-custom-background-100 text-left transition-colors hover:bg-custom-background-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100 focus-visible:ring-offset-2 focus-visible:ring-offset-custom-background-100",
-                            activeClip?.key === clip.key && "border-custom-primary-100 bg-custom-primary-100/10"
-                          )}
-                        >
-                          <span className="relative block aspect-video w-full overflow-hidden bg-custom-background-80">
-                            <ImageWithFallback
-                              src={thumbnailUrl(clip.thumbnail)}
-                              alt=""
-                              loading="lazy"
-                              className="absolute inset-0 h-full w-full object-cover"
-                            />
-                            <span className="absolute inset-0 flex items-center justify-center">
-                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-custom-primary-100 text-white shadow-sm">
-                                <Play className="h-4 w-4" aria-hidden="true" />
-                              </span>
-                            </span>
-                          </span>
-                          <span className="block w-full min-w-0 space-y-1 border-t border-custom-border-300 p-3">
-                            <span className="block truncate text-sm font-medium text-custom-text-100">
-                              {formatLooseLabel(clip.title)}
-                            </span>
-                            <span className="block truncate text-xs text-custom-text-100">
-                              {clipTypeConfig(clip.clipType).label}
-                            </span>
-                            <span className="block truncate text-xs tabular-nums text-custom-text-100">
-                              {[period, clock].filter(Boolean).join(" · ")}
-                            </span>
-                            <span className="block text-xs text-custom-text-100">
-                              {clip.durationSeconds !== null
-                                ? `${Math.round(clip.durationSeconds * 10) / 10} sec`
-                                : "Duration unavailable"}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
+                  {playlist.clips.map((clip) => (
+                    <CoachingCardClipThumbnail
+                      key={clip.key}
+                      clip={clip}
+                      workspaceSlug={workspaceSlug}
+                      projectId={projectId}
+                      selected={activeClip?.key === clip.key}
+                      onSelect={() => playClip(clip.key)}
+                    />
+                  ))}
                 </ul>
               </ScrollArea>
             </div>
           </div>
         ))}
       </div>
+      {adding && canAdd && (
+        <CoachingCardAddClip
+          workspaceSlug={workspaceSlug}
+          projectId={projectId}
+          saving={saving}
+          sources={clips}
+          currentClip={activeClip}
+          onAdd={saveClip}
+          onClose={() => {
+            if (!saving) setAdding(false);
+          }}
+        />
+      )}
     </section>
   );
 };
