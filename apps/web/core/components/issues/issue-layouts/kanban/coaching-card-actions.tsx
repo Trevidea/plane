@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { observer } from "mobx-react";
 import useSWR from "swr";
-import { ArrowRight, UsersRound, X } from "lucide-react";
+import { UsersRound, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
@@ -14,7 +14,7 @@ import { IssueService } from "@/services/issue/issue.service";
 import { RosterService } from "@/services/roster.service";
 import { canEditCoachingCardRecipients } from "./coaching-card-recipient-policy";
 import { getCardStageActions, getCardStageRole } from "./coaching-card-stage-model";
-import { coachingCardErrorMessage, useCoachingCardStageAction } from "./use-coaching-card-stage-action";
+import { coachingCardErrorMessage } from "./use-coaching-card-stage-action";
 
 const issueService = new IssueService();
 const rosterService = new RosterService();
@@ -224,13 +224,6 @@ export const AssignmentDialog = observer(function AssignmentDialog({
 
 export const CoachingCardActions = observer(({ issue, config, workspaceSlug, projectId, onChanged }: ActionProps) => {
   const [dialog, setDialog] = useState<"recipients" | null>(null);
-  const { moveToStage, isMoving, canRequestStageChange } = useCoachingCardStageAction({
-    issue,
-    config,
-    workspaceSlug,
-    projectId,
-    onChanged,
-  });
   const card = issue.coaching_card_data;
   const recipientCount = card?.recipient_ids?.length ?? card?.recipients?.length ?? (card?.player ? 1 : 0);
   const { available, next } = getCardStageActions(config, issue.state_id);
@@ -255,22 +248,6 @@ export const CoachingCardActions = observer(({ issue, config, workspaceSlug, pro
             className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-custom-border-200 bg-custom-background-80 text-custom-text-200 hover:text-custom-text-100 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
           >
             <UsersRound className="h-3 w-3" aria-hidden="true" />
-          </Button>
-        </Tooltip>
-      )}
-      {nextStage && issue.state_id !== config?.initial_stage_id && !needsAssignment && (
-        <Tooltip tooltipContent={`Move to ${nextStage.name}`}>
-          <Button
-            unstyled
-            type="button"
-            onClick={() => void moveToStage(nextStage.id)}
-            disabled={isMoving || !canRequestStageChange}
-            title={`Move to ${nextStage.name}`}
-            aria-label={`Move to ${nextStage.name}`}
-            className="inline-flex h-6 min-w-0 max-w-full items-center gap-1 rounded-md bg-custom-primary-100 px-2.5 text-[11px] font-medium text-white hover:opacity-90 focus-visible:ring-2 focus-visible:ring-custom-primary-100 disabled:opacity-50"
-          >
-            <ArrowRight className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <span className="truncate">Next: {nextStage.name}</span>
           </Button>
         </Tooltip>
       )}
