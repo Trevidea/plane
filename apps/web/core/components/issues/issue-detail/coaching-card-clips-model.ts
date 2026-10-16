@@ -101,6 +101,8 @@ export const buildCoachingCardClips = (
   const addedAt = card.metadata?.created_at || createdAt;
   const clips = (card.playlists ?? []).flatMap((playlist, playlistIndex) =>
     (playlist.clips ?? []).map((clip, index): CoachingCardDetailClip => {
+      const uploadedMedia =
+        clip.source_media === undefined && card.source_media?.artifact_id === clip.id ? card.source_media : undefined;
       const isPrimary = primary?.association_id
         ? primary.association_id === clip.association_id
         : primary?.playlist_id === playlist.id && primary.clip_id === clip.id;
@@ -131,10 +133,14 @@ export const buildCoachingCardClips = (
           validSeconds(clip.duration_seconds) ??
           (endSeconds !== null && endSeconds > startSeconds ? endSeconds - startSeconds : null),
         addedAt: clip.created_at || addedAt,
-        playbackMode: clip.playback_mode,
+        playbackMode: clip.playback_mode ?? (uploadedMedia ? "source" : undefined),
         sourceStartSeconds: clip.source_start_seconds ?? undefined,
         sourceType: clip.source_type,
-        sourceMedia: clip.source_media ?? undefined,
+        sourceMedia:
+          clip.source_media ??
+          (uploadedMedia
+            ? { package_id: uploadedMedia.package_id, artifact_id: uploadedMedia.artifact_id }
+            : undefined),
         startSegment: clip.start_segment,
         endSegment: clip.end_segment,
         clipType: clip.clip_type || (isPrimary ? "original" : "game_film"),

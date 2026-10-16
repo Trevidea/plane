@@ -325,6 +325,10 @@ test("uploaded clips resolve their saved artifact when no source URL exists", ()
     "http://localhost:8000/api/workspaces/sport%20work/projects/project/media-library/packages/library/artifacts/video%201.mov/file/"
   );
   assert.equal(clips[0].durationSeconds, 30);
+  assert.deepEqual(clips[0].sourceMedia, { package_id: "library", artifact_id: "video 1.mov" });
+  assert.equal(clips[0].playbackMode, "source");
+  data.playlists[0].clips[0].source_media = null;
+  assert.equal(buildCoachingCardClips(data, "2026-10-01")[0].sourceMedia, undefined);
 });
 
 test("both peek layouts pass workspace and project IDs to the clip player", () => {

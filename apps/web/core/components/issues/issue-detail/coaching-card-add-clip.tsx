@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
+import { useMediaLibraryItem } from "ce/features/media-library/hooks/use-media-library-item";
+import { useMediaLibraryItems } from "ce/features/media-library/hooks/use-media-library-items";
 import { Dialog } from "@headlessui/react";
 import { Button, CustomSelect, EModalWidth, Input, Loader, ModalCore, TextArea } from "@plane/ui";
-import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
-import { useMediaLibraryItems } from "ce/features/media-library/hooks/use-media-library-items";
+import { CoachingCardClipUpload } from "./coaching-card-clip-upload";
 import type { CoachingCardDetailClip } from "./coaching-card-clips-model";
 import {
   COACHING_CLIP_TYPES,
@@ -12,11 +13,6 @@ import {
   resolveCoachingClipSource,
 } from "./coaching-card-clips-model";
 import { getArchivedHlsBaseUrl } from "./sg-event-detail-page/utils";
-
-const ClipPlayer = dynamic(
-  () => import("./coaching-card-clip-player").then((module) => module.CoachingCardClipPlayer),
-  { ssr: false }
-);
 
 // Uses the same project library query and media resolution as the existing media UI.
 const LibrarySourcePicker = ({
@@ -46,6 +42,7 @@ const LibrarySourcePicker = ({
   return (
     <div className="space-y-2">
       <Input
+        className="w-full text-custom-text-100"
         aria-label="Search project videos"
         value={query}
         placeholder="Search project videos…"
@@ -61,6 +58,7 @@ const LibrarySourcePicker = ({
         </Loader>
       ) : (
         <CustomSelect
+          input
           value={selectedId}
           label={item?.title || "Select project video"}
           onChange={setSelectedId}
@@ -122,7 +120,7 @@ const LibrarySourcePicker = ({
         </Button>
       </div>
       {!isLoading && !items.some((entry) => entry.mediaType === "video" || entry.linkedMediaType === "video") && (
-        <p className="text-xs text-custom-text-300">No videos found. Try another search or enter a video URL.</p>
+        <p className="text-xs text-custom-text-300">No videos found. Try another search or upload a new video.</p>
       )}
     </div>
   );
@@ -141,7 +139,7 @@ export const CoachingCardAddClip = ({
   capturedRange,
 }: {
   onClose: () => void;
-  onAdd?: (clip: CoachingCardDetailClip, requestId: string) => Promise<void> | void;
+  onAdd: (clip: CoachingCardDetailClip, requestId: string) => Promise<void> | void;
   initialClip?: CoachingCardDetailClip;
   currentClip?: CoachingCardDetailClip;
   sources?: CoachingCardDetailClip[];
@@ -151,7 +149,9 @@ export const CoachingCardAddClip = ({
   saving?: boolean;
   capturedRange?: { start: number; end: number | null };
 }) => {
-  const base = initialClip || currentClip;
+  // Existing footage is inherited only when editing or explicitly adding a captured range.
+  const base = initialClip || (capturedRange ? currentClip : undefined);
+  const showClipDetails = Boolean(initialClip || capturedRange);
   const requestId = useRef(crypto.randomUUID());
   const [title, setTitle] = useState(initialClip?.title || "");
   const [url, setUrl] = useState(base?.sourceUrl || "");
@@ -159,22 +159,31 @@ export const CoachingCardAddClip = ({
   const [sourceKey, setSourceKey] = useState(base?.key || "");
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [start, setStart] = useState(
-    String(initialClip?.startSeconds ?? capturedRange?.start ?? currentClip?.startSeconds ?? "")
+    String(initialClip?.startSeconds ?? capturedRange?.start ?? base?.startSeconds ?? "0")
   );
-  const [end, setEnd] = useState(
-    String(initialClip?.endSeconds ?? capturedRange?.end ?? currentClip?.endSeconds ?? "")
-  );
+  const [end, setEnd] = useState(String(initialClip?.endSeconds ?? capturedRange?.end ?? base?.endSeconds ?? ""));
   const [type, setType] = useState(initialClip?.clipType || "coach_added");
   const [note, setNote] = useState(initialClip?.note || "");
   const [sourceName, setSourceName] = useState(base?.sourceName || "");
   const [period, setPeriod] = useState(initialClip?.period || "");
   const [clock, setClock] = useState(initialClip?.gameClock || "");
   const [tags, setTags] = useState(initialClip?.tags?.join(", ") || "");
-  const [preview, setPreview] = useState<CoachingCardDetailClip | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uploadPending, setUploadPending] = useState(false);
   const busy = saving || submitting;
+  const { item: sourceItem } = useMediaLibraryItem(workspaceSlug, projectId, source.sourceMedia?.artifact_id);
+  const { effectiveVideoSrc: mediaSourceUrl } = useResolvedMediaSources({
+    item: sourceItem?.id === source.sourceMedia?.artifact_id ? sourceItem : null,
+    meta: sourceItem?.meta ?? {},
+    documentFormat: sourceItem?.format ?? "",
+    normalizedAction: sourceItem?.action ?? "",
+  });
+  const resolvedSourceUrl =
+    (source.sourceMedia && sourceItem?.id === source.sourceMedia.artifact_id ? mediaSourceUrl : "") ||
+    resolveCoachingClipSource(url, getArchivedHlsBaseUrl());
   const selectSource = (next: Partial<CoachingCardDetailClip>) => {
+    setError("");
     setSource(next);
     setUrl(next.sourceUrl || "");
     setSourceName(next.sourceName || next.title || "");
@@ -184,11 +193,14 @@ export const CoachingCardAddClip = ({
     setClock(next.gameClock || "");
     setLibraryOpen(false);
   };
-  const submit = async () => {
-    if (busy) return;
+  const readDraft = (): CoachingCardDetailClip | null => {
+    if (!title.trim()) {
+      setError("Enter a clip title.");
+      return null;
+    }
     const startSeconds = parseClipTime(start);
     const endSeconds = end.trim() ? parseClipTime(end) : null;
-    const resolved = resolveCoachingClipSource(url, getArchivedHlsBaseUrl());
+    const resolved = resolvedSourceUrl;
     let parsed: URL;
     try {
       parsed = new URL(resolved, window.location.origin);
@@ -196,8 +208,12 @@ export const CoachingCardAddClip = ({
       if (startSeconds === null || (end.trim() && (endSeconds === null || endSeconds <= startSeconds)))
         throw new Error();
     } catch {
-      setError("Enter an HTTP or HTTPS video URL and an end time after the start time.");
-      return;
+      setError(
+        showClipDetails
+          ? "Enter an HTTP or HTTPS video URL and an end time after the start time."
+          : "Upload a video or choose one from the media library."
+      );
+      return null;
     }
     const clip: CoachingCardDetailClip = {
       ...source,
@@ -205,7 +221,7 @@ export const CoachingCardAddClip = ({
       key: initialClip?.key || requestId.current,
       associationId: initialClip?.associationId,
       slot: initialClip?.slot ?? sources.length,
-      title: title.trim() || "Coaching clip",
+      title: title.trim(),
       clipType: type,
       playlistName: initialClip?.playlistName || "",
       sourceName: sourceName.trim(),
@@ -236,12 +252,16 @@ export const CoachingCardAddClip = ({
       ],
     };
     setError("");
+    return clip;
+  };
+  const submit = async () => {
+    if (busy || uploadPending) return;
+    const clip = readDraft();
+    if (!clip) return;
     setSubmitting(true);
     try {
-      if (onAdd) {
-        await onAdd(clip, requestId.current);
-        onClose();
-      } else setPreview(clip);
+      await onAdd(clip, requestId.current);
+      onClose();
     } catch {
       setError("Unable to save this clip. Your changes are still here. Please try again.");
     } finally {
@@ -258,7 +278,7 @@ export const CoachingCardAddClip = ({
     >
       <form
         data-prevent-outside-click
-        className="max-h-[90vh] overflow-y-auto p-5"
+        className="flex max-h-[90vh] flex-col p-5 text-custom-text-100"
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
@@ -268,159 +288,237 @@ export const CoachingCardAddClip = ({
           {initialClip ? "Edit clip details" : "Add clip"}
         </Dialog.Title>
         <Dialog.Description className="mt-1 text-sm text-custom-text-300">
-          Choose footage and a range to attach to this coaching card.
+          {initialClip || capturedRange
+            ? "Choose footage and a range to attach to this coaching card."
+            : "Upload a new video or choose from the media library to add a separate clip."}
         </Dialog.Description>
-        <fieldset disabled={busy} className="mt-4 space-y-4">
-          <label className="block space-y-1 text-xs text-custom-text-200">
-            <span>Clip type</span>
-            <CustomSelect
-              value={type}
-              label={clipTypeConfig(type).label}
-              onChange={setType}
-              disabled={busy}
-              optionsClassName="z-50"
-            >
-              {Object.entries(COACHING_CLIP_TYPES).map(([value, config]) => (
-                <CustomSelect.Option key={value} value={value}>
-                  {config.label}
-                </CustomSelect.Option>
-              ))}
-            </CustomSelect>
-          </label>
-          {sources.length > 0 && (
+        <div className="mt-4 min-h-0 overflow-y-auto">
+          <fieldset disabled={busy} className="min-w-0 space-y-4">
             <label className="block space-y-1 text-xs text-custom-text-200">
-              <span>Video source</span>
+              <span>Clip type</span>
               <CustomSelect
-                value={sourceKey}
-                label={sources.find((entry) => entry.key === sourceKey)?.sourceName || "Select existing video"}
+                input
+                value={type}
+                label={clipTypeConfig(type).label}
+                onChange={setType}
                 disabled={busy}
                 optionsClassName="z-50"
-                onChange={(key: string) => {
-                  setSourceKey(key);
-                  const next = sources.find((entry) => entry.key === key);
-                  if (next) selectSource(next);
-                }}
               >
-                {sources
-                  .filter((clip) => clip.sourceUrl)
-                  .map((clip) => (
-                    <CustomSelect.Option key={clip.key} value={clip.key}>
-                      {clip.sourceName || clip.title}
-                    </CustomSelect.Option>
-                  ))}
+                {Object.entries(COACHING_CLIP_TYPES).map(([value, config]) => (
+                  <CustomSelect.Option key={value} value={value}>
+                    {config.label}
+                  </CustomSelect.Option>
+                ))}
               </CustomSelect>
             </label>
-          )}
-          {workspaceSlug && projectId && (
-            <div className="space-y-2">
-              <Button variant="link-primary" size="sm" type="button" onClick={() => setLibraryOpen(!libraryOpen)}>
-                Choose from media library
-              </Button>
-              {libraryOpen && (
-                <LibrarySourcePicker
-                  workspaceSlug={workspaceSlug}
-                  projectId={projectId}
-                  onSelect={(next) => {
-                    setSourceKey("");
-                    selectSource(next);
+            {(initialClip || capturedRange) && sources.length > 0 && (
+              <label className="block space-y-1 text-xs text-custom-text-200">
+                <span>Video source</span>
+                <CustomSelect
+                  input
+                  value={sourceKey}
+                  label={sources.find((entry) => entry.key === sourceKey)?.sourceName || "Select existing video"}
+                  disabled={busy || uploadPending}
+                  optionsClassName="z-50"
+                  onChange={(key: string) => {
+                    setSourceKey(key);
+                    const next = sources.find((entry) => entry.key === key);
+                    if (next) selectSource(next);
                   }}
-                />
-              )}
-            </div>
-          )}
-          <label className="block space-y-1 text-xs text-custom-text-200">
-            <span>Video URL</span>
-            <Input
-              required
-              value={url}
-              placeholder="https://…/playlist.m3u8"
-              onChange={(event) => {
-                setUrl(event.target.value);
-                setSource({ playbackMode: "source" });
-                setSourceKey("");
-                setStart("0");
-                setEnd("");
-                setPeriod("");
-                setClock("");
-              }}
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1 text-xs text-custom-text-200">
-              <span>Start (seconds or timecode)</span>
-              <Input value={start} onChange={(event) => setStart(event.target.value)} placeholder="00:18" />
-              {getPosition && sourceKey === currentClip?.key && (
+                >
+                  {sources
+                    .filter((clip) => clip.sourceUrl)
+                    .map((clip) => (
+                      <CustomSelect.Option key={clip.key} value={clip.key}>
+                        {clip.sourceName || clip.title}
+                      </CustomSelect.Option>
+                    ))}
+                </CustomSelect>
+              </label>
+            )}
+            {workspaceSlug && projectId && (
+              <div className="space-y-2">
                 <Button
                   variant="link-primary"
                   size="sm"
                   type="button"
-                  onClick={() => setStart(getPosition().toFixed(2))}
+                  disabled={uploadPending}
+                  onClick={() => setLibraryOpen(!libraryOpen)}
                 >
-                  Set start from player
+                  Choose from media library
                 </Button>
-              )}
-            </label>
+                {libraryOpen && (
+                  <LibrarySourcePicker
+                    workspaceSlug={workspaceSlug}
+                    projectId={projectId}
+                    onSelect={(next) => {
+                      setSourceKey("");
+                      selectSource(next);
+                    }}
+                  />
+                )}
+              </div>
+            )}
+            {!initialClip && workspaceSlug && projectId && (
+              <CoachingCardClipUpload
+                workspaceSlug={workspaceSlug}
+                projectId={projectId}
+                disabled={busy}
+                onPendingChange={setUploadPending}
+                onSelect={(next) => {
+                  setSourceKey("");
+                  selectSource(next);
+                }}
+              />
+            )}
+            {showClipDetails && (
+              <>
+                <label className="block space-y-1 text-xs text-custom-text-200">
+                  <span>Video URL</span>
+                  <Input
+                    className="w-full text-custom-text-100"
+                    required
+                    disabled={uploadPending}
+                    value={url}
+                    placeholder="https://…/playlist.m3u8"
+                    onChange={(event) => {
+                      setUrl(event.target.value);
+                      setSource({ playbackMode: "source" });
+                      setSourceKey("");
+                      setStart("0");
+                      setEnd("");
+                      setPeriod("");
+                      setClock("");
+                    }}
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block space-y-1 text-xs text-custom-text-200">
+                    <span>Start (seconds or timecode)</span>
+                    <Input
+                      className="w-full text-custom-text-100"
+                      value={start}
+                      onChange={(event) => setStart(event.target.value)}
+                      placeholder="00:18"
+                    />
+                    {getPosition && sourceKey === currentClip?.key && (
+                      <Button
+                        variant="link-primary"
+                        size="sm"
+                        type="button"
+                        onClick={() => setStart(getPosition().toFixed(2))}
+                      >
+                        Set start from player
+                      </Button>
+                    )}
+                  </label>
+                  <label className="block space-y-1 text-xs text-custom-text-200">
+                    <span>End (optional)</span>
+                    <Input
+                      className="w-full text-custom-text-100"
+                      value={end}
+                      onChange={(event) => setEnd(event.target.value)}
+                      placeholder="00:31"
+                    />
+                    {getPosition && sourceKey === currentClip?.key && (
+                      <Button
+                        variant="link-primary"
+                        size="sm"
+                        type="button"
+                        onClick={() => setEnd(getPosition().toFixed(2))}
+                      >
+                        Set end from player
+                      </Button>
+                    )}
+                  </label>
+                </div>
+              </>
+            )}
             <label className="block space-y-1 text-xs text-custom-text-200">
-              <span>End (optional)</span>
-              <Input value={end} onChange={(event) => setEnd(event.target.value)} placeholder="00:31" />
-              {getPosition && sourceKey === currentClip?.key && (
-                <Button variant="link-primary" size="sm" type="button" onClick={() => setEnd(getPosition().toFixed(2))}>
-                  Set end from player
-                </Button>
-              )}
+              <span>Clip title</span>
+              <Input
+                className="w-full text-custom-text-100"
+                value={title}
+                required
+                maxLength={255}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  setError("");
+                }}
+                placeholder="Practice rep — corrected footwork"
+              />
             </label>
-          </div>
-          <label className="block space-y-1 text-xs text-custom-text-200">
-            <span>Clip title</span>
-            <Input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Practice rep — corrected footwork"
-            />
-          </label>
-          <label className="block space-y-1 text-xs text-custom-text-200">
-            <span>Source / event name</span>
-            <Input
-              value={sourceName}
-              onChange={(event) => setSourceName(event.target.value)}
-              placeholder="Practice · Oct 8"
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
+            {showClipDetails && (
+              <>
+                <label className="block space-y-1 text-xs text-custom-text-200">
+                  <span>Source / event name</span>
+                  <Input
+                    className="w-full text-custom-text-100"
+                    value={sourceName}
+                    onChange={(event) => setSourceName(event.target.value)}
+                    placeholder="Practice · Oct 8"
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block space-y-1 text-xs text-custom-text-200">
+                    <span>Period</span>
+                    <Input
+                      className="w-full text-custom-text-100"
+                      value={period}
+                      onChange={(event) => setPeriod(event.target.value)}
+                      placeholder="Q2"
+                    />
+                  </label>
+                  <label className="block space-y-1 text-xs text-custom-text-200">
+                    <span>Game clock</span>
+                    <Input
+                      className="w-full text-custom-text-100"
+                      value={clock}
+                      onChange={(event) => setClock(event.target.value)}
+                      placeholder="08:42"
+                    />
+                  </label>
+                </div>
+                <label className="block space-y-1 text-xs text-custom-text-200">
+                  <span>Tags (comma separated)</span>
+                  <Input
+                    className="w-full text-custom-text-100"
+                    value={tags}
+                    onChange={(event) => setTags(event.target.value)}
+                    placeholder="Footwork, First step"
+                  />
+                </label>
+              </>
+            )}
             <label className="block space-y-1 text-xs text-custom-text-200">
-              <span>Period</span>
-              <Input value={period} onChange={(event) => setPeriod(event.target.value)} placeholder="Q2" />
+              <span>Coach note</span>
+              <TextArea
+                rows={4}
+                className="min-h-28 resize-y text-sm text-custom-text-100"
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="Optional coaching note"
+              />
             </label>
-            <label className="block space-y-1 text-xs text-custom-text-200">
-              <span>Game clock</span>
-              <Input value={clock} onChange={(event) => setClock(event.target.value)} placeholder="08:42" />
-            </label>
-          </div>
-          <label className="block space-y-1 text-xs text-custom-text-200">
-            <span>Tags (comma separated)</span>
-            <Input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Footwork, First step" />
-          </label>
-          <label className="block space-y-1 text-xs text-custom-text-200">
-            <span>Coach note</span>
-            <TextArea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="Optional coaching note"
-            />
-          </label>
-        </fieldset>
+          </fieldset>
+        </div>
         {error && (
           <p role="alert" className="mt-3 text-xs text-custom-text-200">
             {error}
           </p>
         )}
-        {preview && !onAdd && <ClipPlayer clip={preview} src={preview.sourceUrl} autoPlay={false} />}
         <div className="mt-4 flex justify-end gap-2 border-t border-custom-border-200 pt-4">
           <Button variant="neutral-primary" size="sm" type="button" disabled={busy} onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" size="sm" type="submit" disabled={busy} loading={busy}>
-            {onAdd ? (initialClip ? "Save changes" : "Add clip") : "Preview clip"}
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            disabled={busy || uploadPending || !resolvedSourceUrl || !title.trim()}
+            loading={busy}
+          >
+            {initialClip ? "Save changes" : "Add clip"}
           </Button>
         </div>
       </form>

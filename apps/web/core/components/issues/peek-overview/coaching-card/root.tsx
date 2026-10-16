@@ -6,7 +6,7 @@ import { Check, UsersRound } from "lucide-react";
 import type { EditorRefApi } from "@plane/editor";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TIssue, TNameDescriptionLoader } from "@plane/types";
-import { Avatar, Button, Loader, Tabs } from "@plane/ui";
+import { Avatar, Button, Loader } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useProjectState } from "@/hooks/store/use-project-state";
@@ -27,6 +27,7 @@ import { cardStageProgress } from "./model";
 import { CoachingCardNote } from "./note";
 import { CoachingCardProperties } from "./properties";
 import type { CoachingCardUpdate } from "./properties";
+import { CoachingCardPeekTabs } from "./tabs";
 
 const service = new IssueService();
 export const CoachingCardPeekContent = observer(
@@ -297,58 +298,41 @@ export const CoachingCardPeekContent = observer(
             </Button>
           )}
         </div>
-        <Tabs
-          key={issue.id}
-          storeInLocalStorage={false}
-          defaultTab={searchParams.get("clip") ? "coaching-clips" : "coaching-overview"}
-          size="sm"
-          tabClassName="text-sm font-medium text-custom-text-100 hover:text-custom-text-100 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
-          tabListContainerClassName="sticky top-0 z-10 bg-custom-background-100 py-2"
-          tabs={[
-            { key: "coaching-overview", label: "Overview", content: overview },
-            {
-              key: "coaching-clips",
-              label: "Clips",
-              content: (
-                <div className="py-4">
-                  <CoachingCardClips
-                    viewOnly
-                    issue={issue}
-                    workspaceSlug={workspaceSlug}
-                    projectId={projectId}
-                    disabled={disabled}
-                    onModalChange={onModalChange}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: "coaching-discussion",
-              label: "Audit",
-              content: (
-                <CoachingCardDiscussion
-                  issue={issue}
-                  workspaceSlug={workspaceSlug}
-                  projectId={projectId}
-                  disabled={disabled}
-                  mode="comments"
-                />
-              ),
-            },
-            {
-              key: "coaching-activity",
-              label: "Activity",
-              content: (
-                <CoachingCardDiscussion
-                  issue={issue}
-                  workspaceSlug={workspaceSlug}
-                  projectId={projectId}
-                  disabled={disabled}
-                  mode="activity"
-                />
-              ),
-            },
-          ]}
+        <CoachingCardPeekTabs
+          cardId={issue.id}
+          initialTab={searchParams.get("clip") ? "coaching-clips" : "coaching-overview"}
+          overview={overview}
+          discussion={
+            <CoachingCardDiscussion
+              issue={issue}
+              workspaceSlug={workspaceSlug}
+              projectId={projectId}
+              disabled={disabled}
+              mode="comments"
+            />
+          }
+          clips={
+            <div className="py-4">
+              <CoachingCardClips
+                viewOnly
+                allowAdding
+                issue={issue}
+                workspaceSlug={workspaceSlug}
+                projectId={projectId}
+                disabled={disabled}
+                onModalChange={onModalChange}
+              />
+            </div>
+          }
+          audit={
+            <CoachingCardDiscussion
+              issue={issue}
+              workspaceSlug={workspaceSlug}
+              projectId={projectId}
+              disabled={disabled}
+              mode="activity"
+            />
+          }
         />
         {assigning && (
           <AssignmentDialog

@@ -79,7 +79,7 @@ export const CoachingCardProperties = observer(
       <section aria-label="Card properties" className="space-y-3 rounded-lg bg-custom-background-100 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-base font-semibold text-custom-text-100">Properties</h3>
-          <span className="text-xs text-custom-text-200">Edits are logged to Activity</span>
+          <span className="text-xs text-custom-text-200">Edits are logged to Audit</span>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="min-w-0 space-y-1">
