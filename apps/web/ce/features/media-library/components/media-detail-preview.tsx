@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 
-import { ArrowLeft, Check, Download, FileText, FileWarning, Pencil, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, Check, Download, FileText, FileWarning, Pencil } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import { ImageFullScreenModal } from "@plane/editor";
 import { ImageWithFallback, Button, EModalWidth, ModalCore } from "@plane/ui";
@@ -134,7 +134,6 @@ export const MediaDetailPreview = ({
   const [isVideoAnnotationDoneModalOpen, setIsVideoAnnotationDoneModalOpen] = useState(false);
   const [isVideoAnnotationBackModalOpen, setIsVideoAnnotationBackModalOpen] = useState(false);
   const [isCompletingVideoAnnotation, setIsCompletingVideoAnnotation] = useState(false);
-  const [isAnnotationPropertiesVisible, setIsAnnotationPropertiesVisible] = useState(true);
   const previousVideoAnnotationBackPromptKeyRef = useRef(videoAnnotationBackPromptKey);
   const [viewport, setViewport] = useState(() => {
     if (typeof window === "undefined") {
@@ -206,7 +205,6 @@ export const MediaDetailPreview = ({
   }, [effectiveDocumentSrc, effectiveImageSrc, item?.id, item?.videoSrc]);
 
   useEffect(() => {
-    setIsAnnotationPropertiesVisible(true);
     if (isVideoAnnotationWorkspaceOpen) return;
 
     setIsVideoAnnotationDoneModalOpen(false);
@@ -435,30 +433,17 @@ export const MediaDetailPreview = ({
                 </Button>
                 <span className="text-xs text-custom-text-300">Annotation editor</span>
                 <div className="flex items-center gap-2">
-                  {showVideoTimeline && (
-                    <Button
-                      unstyled
-                      type="button"
-                      onClick={() => setIsAnnotationPropertiesVisible((visible) => !visible)}
-                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-custom-text-200 hover:bg-custom-background-80"
-                      aria-label={isAnnotationPropertiesVisible ? "Hide properties" : "Show properties"}
-                      aria-expanded={isAnnotationPropertiesVisible}
-                    >
-                      <SlidersHorizontal className="h-4 w-4" />
-                      Properties
-                    </Button>
-                  )}
                   <Button
                     unstyled
                     type="button"
                     onClick={handleRequestCloseVideoAnnotationWorkspace}
                     className={VIDEO_ANNOTATION_HEADER_ACTION_CLASS}
                     disabled={isNarrationRecordingLocked}
-                    aria-label="Save annotations and return"
-                    title="Save annotations and return to the previous view"
+                    aria-label="Save annotations"
+                    title="Save annotations"
                   >
                     <Check className="h-4 w-4 shrink-0" />
-                    <span className="whitespace-nowrap leading-none">Save &amp; return</span>
+                    <span className="whitespace-nowrap leading-none">Save</span>
                   </Button>
                 </div>
               </div>
@@ -499,22 +484,12 @@ export const MediaDetailPreview = ({
               </div>
               {showVideoTimeline ? (
                 <aside
-                  className={`${isAnnotationPropertiesVisible ? "flex" : "hidden"} h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90 p-2 lg:w-[250px] xl:w-[280px]`}
+                  className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90 p-2 lg:w-[250px] xl:w-[280px]"
                   style={videoPreviewHeightStyle}
                   aria-label="Annotation properties"
                 >
                   <div className="flex shrink-0 items-center justify-between pb-2 text-xs text-custom-text-200">
                     <span>Properties</span>
-                    <Button
-                      unstyled
-                      type="button"
-                      aria-label="Close properties"
-                      title="Hide properties without leaving the editor"
-                      onClick={() => setIsAnnotationPropertiesVisible(false)}
-                      className="rounded p-1 hover:bg-custom-background-80 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
                   </div>
                   <div ref={handleVideoAnnotationPropertiesElement} className="flex min-h-0 flex-1 overflow-hidden" />
                 </aside>

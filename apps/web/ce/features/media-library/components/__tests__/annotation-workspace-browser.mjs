@@ -76,11 +76,12 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.getByRole("button", { name: "Open annotation editor", exact: true }).click();
   await page.getByLabel("Color", { exact: true }).fill("blue");
-  await page.getByRole("button", { name: "Close properties", exact: true }).click();
-  assert.equal(await page.getByLabel("Color", { exact: true }).isVisible(), false);
-  await page.getByRole("button", { name: "Show properties", exact: true }).click();
+  assert.equal(await page.getByRole("complementary", { name: "Annotation properties" }).isVisible(), true);
+  assert.equal(await page.getByRole("button", { name: /^(Show|Hide|Close) properties$/ }).count(), 0);
   assert.equal(await page.getByLabel("Color", { exact: true }).inputValue(), "blue");
-  await page.getByRole("button", { name: "Save annotations and return", exact: true }).click();
+  const saveButton = page.getByRole("button", { name: "Save annotations", exact: true });
+  assert.equal(await saveButton.innerText(), "Save");
+  await saveButton.click();
   const save = page.getByRole("dialog").getByRole("button", { name: "Save", exact: true });
   await save.click();
   await page.getByText("Attempts: 1", { exact: true }).waitFor();
@@ -92,9 +93,9 @@ try {
   await page.getByRole("button", { name: "Back without saving annotations", exact: true }).click();
   await page.getByRole("dialog").waitFor();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  assert.equal(await page.getByRole("button", { name: "Save annotations and return", exact: true }).isVisible(), true);
+  assert.equal(await page.getByRole("button", { name: "Save annotations", exact: true }).isVisible(), true);
   console.log(
-    "PASS: properties hide/show preserves edits, failed save stays open, successful save returns, Back protects unsaved work"
+    "PASS: properties remain visible without a toggle, Save label is correct, failed save stays open, successful save returns, Back protects unsaved work"
   );
 } finally {
   await browser?.close();

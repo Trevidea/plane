@@ -959,11 +959,19 @@ export const SgEventDetailPage = ({
       ? timelinePlaylistRows
       : selectedRows;
   const isTagRowsLoading = isMediaLoading || (shouldUseKanavioTagApi && isKanavioTagsLoading);
-  const playbackAnnotationVideoSrc = isPlaybackOverrideActive ? playbackItem?.videoSrc : selectedViewDevice?.hlsUrl;
-  const playbackAnnotationViewLabel = isPlaybackOverrideActive ? playbackItem?.title : selectedViewDevice?.name;
+  const playbackAnnotationSourceItem =
+    !isPlaybackOverrideActive && sgMediaPayload?.eventItem?.packageId
+      ? sgMediaPayload.eventItem
+      : playbackAnnotationItem;
+  const playbackAnnotationVideoSrc = isPlaybackOverrideActive
+    ? playbackItem?.videoSrc
+    : (selectedViewDevice?.hlsUrl ?? playbackItem?.videoSrc);
+  const playbackAnnotationViewLabel = isPlaybackOverrideActive
+    ? playbackItem?.title
+    : (selectedViewDevice?.name ?? playbackItem?.title);
   const playbackAnnotationPageItem = useMemo(
     () =>
-      buildSgEventAnnotationVideoItem(playbackAnnotationItem, {
+      buildSgEventAnnotationVideoItem(playbackAnnotationSourceItem, {
         deviceId: selectedViewDevice?.id,
         eventPayload,
         streamId: selectedViewDevice?.streamId,
@@ -973,7 +981,7 @@ export const SgEventDetailPage = ({
       }),
     [
       eventPayload,
-      playbackAnnotationItem,
+      playbackAnnotationSourceItem,
       playbackAnnotationVideoSrc,
       playbackAnnotationViewLabel,
       selectedViewDevice?.id,
@@ -1133,8 +1141,8 @@ export const SgEventDetailPage = ({
                     annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                     compactEmpty={!hasPlayableVideo}
                     onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
-                    showAnnotationButton={false}
-                    showAnnotations={false}
+                    showAnnotationButton={!isPlaybackOverrideActive}
+                    showAnnotations={!isPlaybackOverrideActive}
                     onPlaybackTimeChange={handlePlaybackTimeChange}
                     onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
                     seekRequestId={pendingSeekRequestId}
@@ -1195,8 +1203,8 @@ export const SgEventDetailPage = ({
                         annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                         compactEmpty={!hasPlayableVideo}
                         onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
-                        showAnnotationButton={false}
-                        showAnnotations={false}
+                        showAnnotationButton={!isPlaybackOverrideActive}
+                        showAnnotations={!isPlaybackOverrideActive}
                         onPlaybackTimeChange={handlePlaybackTimeChange}
                         onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
                         seekRequestId={pendingSeekRequestId}
