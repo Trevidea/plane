@@ -2,6 +2,8 @@
 
 import React from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
+
 import { AlertOctagon, BarChart4, CircleDashed, Folder, Microscope, Search } from "lucide-react";
 // plane imports
 import { MARKETING_PRICING_PAGE_LINK } from "@plane/constants";
@@ -81,7 +83,8 @@ export const WorkspaceActiveCyclesUpgrade = observer(() => {
             <p className="text-base font-medium text-custom-text-300">{t("active_cycles_description")}</p>
           </div>
           <div className="flex items-center gap-3">
-            <a
+            <Link
+              prefetch={false}
               className={`${getButtonStyling("primary", "md")} cursor-pointer`}
               href={MARKETING_PRICING_PAGE_LINK}
               target="_blank"
@@ -89,7 +92,7 @@ export const WorkspaceActiveCyclesUpgrade = observer(() => {
             >
               <ProIcon className="h-3.5 w-3.5 text-white" />
               {t("upgrade")}
-            </a>
+            </Link>
           </div>
           <span className="absolute left-0 top-0">
             <Image

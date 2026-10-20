@@ -1,5 +1,7 @@
 import type { FC } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
+
 // icons
 import { Users } from "lucide-react";
 // hooks;
@@ -27,14 +29,15 @@ export const IssueAssigneeActivity: FC<TIssueAssigneeActivity> = observer((props
     >
       <>
         {activity.old_value === "" ? `added a new assignee ` : `removed the assignee `}
-        <a
+        <Link
+          prefetch={false}
           href={`/${activity.workspace_detail?.slug}/profile/${activity.new_identifier ?? activity.old_identifier}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center font-medium text-custom-text-100 hover:underline capitalize"
         >
           {activity.new_value && activity.new_value !== "" ? activity.new_value : activity.old_value}
-        </a>
+        </Link>
         {showIssue && (activity.old_value === "" ? ` to ` : ` from `)}
         {showIssue && <IssueLink activityId={activityId} />}.
       </>

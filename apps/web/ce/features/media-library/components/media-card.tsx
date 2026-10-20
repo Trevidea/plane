@@ -374,7 +374,8 @@ export const MediaCard = ({
   }
 
   return isExternal ? (
-    <a
+    <Link
+      prefetch={false}
       href={href}
       onClick={handleLinkClick}
       className="select-none text-left"
@@ -382,7 +383,7 @@ export const MediaCard = ({
       onDragStart={(event) => event.preventDefault()}
     >
       {cardBody}
-    </a>
+    </Link>
   ) : (
     <Link
       href={href}

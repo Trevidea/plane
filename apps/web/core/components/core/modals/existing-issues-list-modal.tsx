@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
+
 import { Rocket, Search, X } from "lucide-react";
 import { Combobox, Dialog, Transition } from "@headlessui/react";
 // i18n
@@ -299,7 +301,8 @@ export const ExistingIssuesListModal: React.FC<Props> = (props) => {
                                     </span>
                                     <span className="truncate">{issue.name}</span>
                                   </div>
-                                  <a
+                                  <Link
+                                    prefetch={false}
                                     href={generateWorkItemLink({
                                       workspaceSlug,
                                       projectId: issue?.project_id,
@@ -313,7 +316,7 @@ export const ExistingIssuesListModal: React.FC<Props> = (props) => {
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <Rocket className="h-4 w-4" />
-                                  </a>
+                                  </Link>
                                 </Combobox.Option>
                               );
                             })}

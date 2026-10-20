@@ -2,7 +2,9 @@
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
+
 import { ArrowLeft, Check, Download, FileText, FileWarning, Pencil, SlidersHorizontal, X } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import { ImageFullScreenModal } from "@plane/editor";
@@ -672,7 +674,8 @@ export const MediaDetailPreview = ({
             )}
             {documentDownloadSrc && !isUnsupportedDocument && !isDocumentCorrupted ? (
               <div className="flex justify-end border-t border-custom-border-200 p-3">
-                <a
+                <Link
+                  prefetch={false}
                   href={documentDownloadSrc}
                   target="_blank"
                   rel="noreferrer"
@@ -683,7 +686,7 @@ export const MediaDetailPreview = ({
                     <Download className="h-4 w-4" />
                   </span>
                   Download
-                </a>
+                </Link>
               </div>
             ) : null}
           </div>

@@ -1,4 +1,5 @@
 import { observer } from "mobx-react";
+import Link from "next/link";
 import { Copy, Pencil, Trash2 } from "lucide-react";
 // plane types
 import { MODULE_TRACKER_ELEMENTS } from "@plane/constants";
@@ -49,9 +50,15 @@ export const ModulesLinksListItem: React.FC<Props> = observer((props) => {
             <Icon className="size-3 stroke-2 text-custom-text-350 group-hover:text-custom-text-100 flex-shrink-0" />
           </span>
           <Tooltip tooltipContent={link.title && link.title !== "" ? link.title : link.url} isMobile={isMobile}>
-            <a href={link.url} target="_blank" rel="noopener noreferrer" className="cursor-pointer truncate text-xs">
+            <Link
+              prefetch={false}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cursor-pointer truncate text-xs"
+            >
               {link.title && link.title !== "" ? link.title : link.url}
-            </a>
+            </Link>
           </Tooltip>
         </div>
 

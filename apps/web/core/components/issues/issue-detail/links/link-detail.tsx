@@ -1,6 +1,8 @@
 "use client";
 
 import type { FC } from "react";
+import NextLink from "next/link";
+
 // hooks
 // ui
 import { Pencil, Trash2, ExternalLink } from "lucide-react";
@@ -86,14 +88,15 @@ export const IssueLinkDetail: FC<TIssueLinkDetail> = (props) => {
               >
                 <Pencil className="h-3 w-3 stroke-[1.5] text-custom-text-200" />
               </button>
-              <a
+              <NextLink
+                prefetch={false}
                 href={linkDetail.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center p-1 hover:bg-custom-background-80"
               >
                 <ExternalLink className="h-3 w-3 stroke-[1.5] text-custom-text-200" />
-              </a>
+              </NextLink>
               <button
                 type="button"
                 className="flex items-center justify-center p-1 hover:bg-custom-background-80"

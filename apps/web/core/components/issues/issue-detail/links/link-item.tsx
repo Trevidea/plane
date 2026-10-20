@@ -2,6 +2,8 @@
 
 import type { FC } from "react";
 import { observer } from "mobx-react";
+import NextLink from "next/link";
+
 import { Pencil, Trash2, Copy, Link } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
@@ -59,7 +61,8 @@ export const IssueLinkItem: FC<TIssueLinkItem> = observer((props) => {
             <Link className="size-4 text-custom-text-350 group-hover:text-custom-text-100" />
           )}
           <Tooltip tooltipContent={linkDetail.url} isMobile={isMobile}>
-            <a
+            <NextLink
+              prefetch={false}
               href={linkDetail.url}
               target="_blank"
               rel="noopener noreferrer"
@@ -68,7 +71,7 @@ export const IssueLinkItem: FC<TIssueLinkItem> = observer((props) => {
               {linkDetail.title && linkDetail.title !== "" ? linkDetail.title : linkDetail.url}
 
               {linkTitle && linkTitle !== "" && <span className="text-custom-text-400 text-xs">{linkTitle}</span>}
-            </a>
+            </NextLink>
           </Tooltip>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">

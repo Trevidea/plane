@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useTheme } from "next-themes";
 // plane imports
@@ -19,7 +20,8 @@ export const StarUsOnGitHubLink = () => {
   const imageSrc = resolvedTheme === "dark" ? githubWhiteImage : githubBlackImage;
 
   return (
-    <a
+    <Link
+      prefetch={false}
       aria-label={t("home.star_us_on_github")}
       onClick={() =>
         captureElementAndEvent({
@@ -39,6 +41,6 @@ export const StarUsOnGitHubLink = () => {
     >
       <Image src={imageSrc} height={16} width={16} alt="GitHub Logo" aria-hidden="true" />
       <span className="hidden text-xs font-medium sm:hidden md:block">{t("home.star_us_on_github")}</span>
-    </a>
+    </Link>
   );
 };

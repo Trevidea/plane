@@ -2,7 +2,9 @@
 
 import type { FC } from "react";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+
 // icons
 import { Eye, EyeOff } from "lucide-react";
 // plane internal packages
@@ -330,7 +332,8 @@ export const InstanceSetupForm: FC = (props) => {
               </div>
               <label className="text-sm text-custom-text-300 font-medium cursor-pointer" htmlFor="is_telemetry_enabled">
                 Allow Plane to anonymously collect usage events.{" "}
-                <a
+                <Link
+                  prefetch={false}
                   tabIndex={-1}
                   href="https://developers.plane.so/self-hosting/telemetry"
                   target="_blank"
@@ -338,7 +341,7 @@ export const InstanceSetupForm: FC = (props) => {
                   className="text-sm font-medium text-blue-500 hover:text-blue-600 flex-shrink-0"
                 >
                   See More
-                </a>
+                </Link>
               </label>
             </div>
 
