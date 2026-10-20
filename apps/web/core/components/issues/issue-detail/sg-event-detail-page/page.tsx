@@ -1270,6 +1270,7 @@ export const SgEventDetailPage = ({
                     isMediaLoading={isTagRowsLoading}
                     isSearchOpen={isSearchOpen}
                     onCreatePlaylist={() => void handleCreateCustomPlaylist(activePlaylistRows)}
+                    onCreateCard={canManageCards ? () => handleCreateMatrixCard(activePlaylistRows) : undefined}
                     onPlayTagRow={handlePlayTagRow}
                     onRemoveTag={handleRemoveTag}
                     onRowFilterModeChange={setRowFilterMode}

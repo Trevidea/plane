@@ -165,7 +165,7 @@ export const VideoAnnotationTimelinePanel = ({
     [effectiveCurrentTime, sortedAnnotations]
   );
   return (
-    <div className="isolate flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[6px] border border-custom-border-200 bg-custom-background-100 shadow-sm">
+    <div className="select-none [&_input]:select-text isolate flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[6px] border border-custom-border-200 bg-custom-background-100 shadow-sm">
       <div className="flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-custom-border-200 bg-custom-background-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
           <button

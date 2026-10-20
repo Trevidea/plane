@@ -3,7 +3,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { HlsVideo } from "ce/features/media-library/components/hls-video";
 import { ChevronDown, ChevronRight, ClipboardList, Pencil, Plus, Trash2, Video, X } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import { ImageWithFallback, AlertModalCore, Button, Checkbox } from "@plane/ui";
+import { AlertModalCore, Button, Checkbox } from "@plane/ui";
 import type {
   TCustomPlaylist,
   TCustomPlaylistClip,
@@ -48,7 +48,6 @@ type PlaylistClipCard = {
   startSeconds: number;
   subtitle: string;
   tags: string[];
-  thumbnailUrl: string;
   timeLabel: string;
   timestampLabel: string;
   title: string;
@@ -240,7 +239,6 @@ const buildClipCards = (playlist: TCustomPlaylist | null, segments: PlaylistSegm
         normalizeCardText(savedClip?.subtitle) ||
         [savedClip?.player, savedClip?.team, savedClip?.groupValue].map(normalizeCardText).filter(Boolean).join(" / "),
       tags,
-      thumbnailUrl: buildCustomPlaylistThumbnailUrl(savedClip?.thumbnail || playlist.thumbnail),
       timeLabel: formatClipTime(range.startSeconds) || timestampLabel || `Clip ${index + 1}`,
       timestampLabel,
       title: normalizeCardText(savedClip?.title) || `Clip ${index + 1}`,
@@ -253,7 +251,9 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
   const [activeClipIndex, setActiveClipIndex] = useState<number | null>(null);
   const [playlistSegments, setPlaylistSegments] = useState<PlaylistSegment[]>([]);
   const playlistUrl = buildCustomPlaylistUrl(playlist?.url);
-  const thumbnailUrl = buildCustomPlaylistThumbnailUrl(playlist?.thumbnail);
+  const thumbnailUrl =
+    buildCustomPlaylistThumbnailUrl(playlist?.clips?.[0]?.thumbnail) ||
+    buildCustomPlaylistThumbnailUrl(playlist?.thumbnail);
   const clipCount = playlist?.clip ?? 0;
   const playlistTitle = playlist?.name?.trim() || "Playlist";
   const clipCards = useMemo(() => buildClipCards(playlist, playlistSegments), [playlist, playlistSegments]);
@@ -464,7 +464,7 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                               disabled={!canSeek}
                               onClick={() => setActiveClipIndex(index)}
                               className={[
-                                "group relative flex w-full min-w-0 gap-2 rounded-[6px] border p-2 text-left transition-colors",
+                                "select-none group relative flex w-full min-w-0 gap-2 rounded-[6px] border p-2 text-left transition-colors",
                                 isActive
                                   ? "border-[var(--sg-matrix-active-border)] bg-[var(--sg-matrix-selected-nav)]"
                                   : "border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel)] hover:bg-[var(--sg-matrix-hover)]",
@@ -479,15 +479,11 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                               </span>
 
                               <span className="relative flex h-[50px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-black text-white/50">
-                                {clipCard.thumbnailUrl ? (
-                                  <ImageWithFallback
-                                    src={clipCard.thumbnailUrl}
-                                    alt=""
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <Video className="h-4 w-4" />
-                                )}
+                                <PlaylistClipThumbnail
+                                  thumbnail={playlist.clips?.[clipCard.index]?.thumbnail}
+                                  fallbackThumbnail={playlist.thumbnail}
+                                  className="h-full w-full"
+                                />
                                 <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
                                   {clipCard.timeLabel}
                                 </span>
@@ -780,9 +776,16 @@ export const SgMatrixPlaylistPanel = ({
     [customPlaylists, selectedPlaylistIds]
   );
   const hasUnsavedPlaylistChanges = Boolean(draft || editingPlaylistText || savingPlaylistText);
-  const isCreateCardDisabled =
-    !onCreateCard ||
-    (!hasUnsavedPlaylistChanges && !selectedPlaylists.some((playlist) => (playlist.clips ?? []).length > 0));
+  const createCardDisabledReason = !onCreateCard
+    ? "Card creation is unavailable for this event."
+    : hasUnsavedPlaylistChanges
+      ? "Save or discard playlist changes before creating a card."
+      : selectedPlaylists.length === 0
+        ? "Select a playlist containing saved clips to create a card."
+        : !selectedPlaylists.some((playlist) => (playlist.clips ?? []).length > 0)
+          ? "Selected playlists have no saved clips. Add clips before creating a card."
+          : undefined;
+  const isCreateCardDisabled = Boolean(createCardDisabledReason);
   const deletePlaylistClipCount = playlistPendingDelete ? getPlaylistCardClipCount(playlistPendingDelete) : 0;
   const deletePlaylistName =
     playlistPendingDelete?.name?.trim().replace(GENERATED_PLAYLIST_NAME_SUFFIX, "") || "Playlist";
@@ -797,7 +800,7 @@ export const SgMatrixPlaylistPanel = ({
           <div className="flex min-w-0 items-baseline gap-2">
             <h3 className="truncate text-[13px] font-normal text-[var(--sg-matrix-text-secondary)]">Staging Area</h3>
             <span className="shrink-0 text-[8px] font-normal text-[var(--sg-matrix-primary-blue)]">
-              {customPlaylists.length} Playlist
+              {customPlaylists.length} {customPlaylists.length === 1 ? "playlist" : "playlists"}
             </span>
           </div>
           <button
@@ -841,7 +844,7 @@ export const SgMatrixPlaylistPanel = ({
                 return (
                   <li
                     key={playlist.id}
-                    className="overflow-hidden rounded-[4px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-selected-nav)]"
+                    className="select-none overflow-hidden rounded-[4px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-selected-nav)]"
                   >
                     <div
                       className={`group flex h-9 min-w-0 items-center px-2 ${isExpanded ? "border-b border-[var(--sg-matrix-grid-border)]" : ""}`}
@@ -902,7 +905,7 @@ export const SgMatrixPlaylistPanel = ({
                               event.stopPropagation();
                               handleCancelTextEdit(true);
                             }}
-                            className="h-6 w-full min-w-0 border-0 bg-transparent px-1 text-[11px] font-medium leading-none text-[var(--sg-matrix-text)] outline-none placeholder:text-[var(--sg-matrix-text-muted)] focus:ring-0"
+                            className="select-text h-6 w-full min-w-0 border-0 bg-transparent px-1 text-[11px] font-medium leading-none text-[var(--sg-matrix-text)] outline-none placeholder:text-[var(--sg-matrix-text-muted)] focus:ring-0"
                             aria-label="Playlist title"
                           />
                         </form>
@@ -920,8 +923,11 @@ export const SgMatrixPlaylistPanel = ({
                             <span className="min-w-0 truncate text-[11px] font-normal leading-4 text-[var(--sg-matrix-text)]">
                               {cardTitle}
                             </span>
-                            <span className="shrink-0 whitespace-nowrap rounded-[3px] bg-[var(--sg-matrix-panel)] px-1 py-0.5 text-[9px] leading-none text-[var(--sg-matrix-primary-blue)]">
-                              {String(clipCount).padStart(2, "0")} Clip
+                            <span
+                              title="Number of clips in this playlist"
+                              className="shrink-0 whitespace-nowrap rounded-[3px] bg-[var(--sg-matrix-panel)] px-1 py-0.5 text-[9px] leading-none text-[var(--sg-matrix-primary-blue)]"
+                            >
+                              {clipCount} {clipCount === 1 ? "clip" : "clips"}
                             </span>
                             <span className="shrink-0 rounded-[3px] bg-[var(--sg-matrix-panel)] px-1 py-0.5 text-[9px] leading-none tabular-nums text-[var(--sg-matrix-primary-blue)]">
                               {durationLabel}
@@ -935,6 +941,24 @@ export const SgMatrixPlaylistPanel = ({
                           </span>
                         </button>
                       )}
+
+                      {!isEditing && onPlayPlaylist ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearPendingPlaylistOpen();
+                            onPlayPlaylist(playlist);
+                          }}
+                          disabled={!buildCustomPlaylistUrl(playlist.url)}
+                          className="ml-1 inline-flex h-6 shrink-0 items-center rounded-[3px] bg-[var(--sg-matrix-primary-blue)] px-1.5 text-[10px] font-medium text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={`Annotate ${cardTitle}`}
+                          title={
+                            buildCustomPlaylistUrl(playlist.url) ? `Annotate ${cardTitle}` : "No playable video source"
+                          }
+                        >
+                          Annotate
+                        </button>
+                      ) : null}
 
                       {!isEditing ? (
                         <button
@@ -971,7 +995,8 @@ export const SgMatrixPlaylistPanel = ({
                                   className="mx-2 mb-1 flex h-10 min-w-0 items-center gap-2 rounded-[6px] border border-gray-400/20 border-l-[5px] border-l-[#858581] bg-[var(--sg-matrix-panel)] px-1.5 py-0.5 last:mb-0"
                                 >
                                   <PlaylistClipThumbnail
-                                    thumbnail={clip.thumbnail || playlist.thumbnail}
+                                    thumbnail={clip.thumbnail}
+                                    fallbackThumbnail={playlist.thumbnail}
                                     className="h-9 w-14"
                                   />
                                   <span className="min-w-0 flex-1">
@@ -1021,12 +1046,22 @@ export const SgMatrixPlaylistPanel = ({
               );
             }}
             disabled={isCreateCardDisabled}
-            title={hasUnsavedPlaylistChanges ? "Save changes before creating a card" : undefined}
+            title={createCardDisabledReason}
+            aria-describedby={createCardDisabledReason ? "staging-create-card-reason" : undefined}
             className="inline-flex h-7 w-full items-center justify-center gap-1.5 rounded-[4px] border border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-selected-nav)] text-[10px] font-normal text-[var(--sg-matrix-primary-blue)] transition-colors hover:border-[var(--sg-matrix-active-border)] hover:bg-[var(--sg-matrix-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:text-[var(--sg-matrix-text-secondary)] disabled:opacity-60"
           >
             <ClipboardList className="h-3.5 w-3.5" />
             Create Card
           </Button>
+          {createCardDisabledReason && (
+            <p
+              id="staging-create-card-reason"
+              role="status"
+              className="mt-1 text-[10px] text-[var(--sg-matrix-text-secondary)]"
+            >
+              {createCardDisabledReason}
+            </p>
+          )}
         </div>
       </aside>
       <AlertModalCore

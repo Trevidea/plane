@@ -24,12 +24,10 @@ let resolveTagRowArtifactThumbnail;
 let buildCardPlaylists;
 try {
   ({ mapArtifactsToMediaItems } = await import("../media-items.ts"));
-  ({ buildMediaThumbnailLookup, resolveTagRowArtifactThumbnail } = await import(
-    "../../../../../core/components/issues/issue-detail/sg-event-detail-page/media-thumbnail-lookup.ts"
-  ));
-  ({ buildCardPlaylists } = await import(
-    "../../../../../core/components/issues/issue-detail/sg-event-detail-page/create-card-model.ts"
-  ));
+  ({ buildMediaThumbnailLookup, resolveTagRowArtifactThumbnail } =
+    await import("../../../../../core/components/issues/issue-detail/sg-event-detail-page/media-thumbnail-lookup.ts"));
+  ({ buildCardPlaylists } =
+    await import("../../../../../core/components/issues/issue-detail/sg-event-detail-page/create-card-model.ts"));
 } finally {
   hooks.deregister();
 }
@@ -146,5 +144,144 @@ test("coach thumbnail proxy references retain their existing resolution", () => 
       "https://coach.example/"
     ),
     "https://coach.example/blobs/thumbnails/tag-1.jpg"
+  );
+});
+
+test("completed event posters take precedence over the generic thumbnail hint", () => {
+  const event = {
+    name: "coach-event-match-final",
+    title: "Match",
+    format: "json",
+    action: "view",
+    path: "event.json",
+    meta: {
+      source: "plane-coach",
+      artifact_type: "completed-event-json",
+      thumbnail: "attachment/video-icon.png",
+      poster_url: posterUrl,
+    },
+  };
+  assert.equal(mapArtifactsToMediaItems([event], context)[0].thumbnail, posterUrl);
+});
+
+test("completed events read saved nested event poster metadata", () => {
+  const event = {
+    name: "coach-event-match-final",
+    title: "Match",
+    format: "json",
+    action: "view",
+    path: "event.json",
+    meta: {
+      source: "plane-coach",
+      artifact_type: "completed-event-json",
+      event: { posterUrl },
+    },
+  };
+  assert.equal(mapArtifactsToMediaItems([event], context)[0].thumbnail, posterUrl);
+});
+
+test("completed events without poster data use the thumbnail unavailable placeholder", () => {
+  const event = {
+    name: "coach-event-match-final",
+    title: "Match",
+    format: "json",
+    action: "view",
+    path: "event.json",
+    meta: {
+      source: "plane-coach",
+      artifact_type: "completed-event-json",
+    },
+  };
+  const genericThumbnail = {
+    name: `${event.name}-thumb`,
+    title: "Event thumbnail",
+    format: "thumbnail",
+    action: "view",
+    path: "projects/project-1/packages/package-1/attachment/video-icon.webp",
+    link: event.name,
+  };
+  assert.equal(mapArtifactsToMediaItems([event], context)[0].thumbnail, "");
+  assert.equal(mapArtifactsToMediaItems([event, genericThumbnail], context)[0].thumbnail, "");
+  event.meta.thumbnail = "/attachment/video-icon.png";
+  assert.equal(mapArtifactsToMediaItems([event, genericThumbnail], context)[0].thumbnail, "");
+  genericThumbnail.path = posterUrl;
+  assert.equal(mapArtifactsToMediaItems([event, genericThumbnail], context)[0].thumbnail, posterUrl);
+});
+
+test("completed events use their first-stream frame endpoint rather than the generic poster", () => {
+  const event = {
+    name: "coach-event-first-stream-final",
+    title: "Match",
+    format: "json",
+    action: "view",
+    path: "event.json",
+    meta: {
+      source: "plane-coach",
+      artifact_type: "completed-event-json",
+      thumbnail: "attachment/video-icon.png",
+      event: { primaryStreamName: "servicegateway_stream_first" },
+    },
+  };
+  assert.equal(
+    mapArtifactsToMediaItems([event], context)[0].thumbnail,
+    `${fileUrl(event.name)}?thumbnail=first-stream`
+  );
+});
+
+test("first-stream frame endpoints remain scoped to each artifact and project", () => {
+  const event = {
+    name: "coach-event-another-final",
+    title: "Match",
+    format: "json",
+    action: "view",
+    path: "event.json",
+    meta: { source: "plane-coach", artifact_type: "completed-event-json", primaryStreamName: "first_stream" },
+  };
+  const item = mapArtifactsToMediaItems([event], { ...context, projectId: "different-project" })[0];
+  assert.match(item.thumbnail, /\/projects\/different-project\//);
+  assert.match(item.thumbnail, /\/artifacts\/coach-event-another-final\/file\/\?thumbnail=first-stream$/);
+});
+
+test("older events prefer the stream frame over their linked generic thumbnail artifact", () => {
+  const event = {
+    name: "coach-event-1110-final",
+    title: "Older match",
+    format: "json",
+    action: "view",
+    path: "event.json",
+    meta: {
+      source: "plane-coach",
+      artifact_type: "completed-event-json",
+      event: { primaryStreamName: "michaeljohnson_endzone_kwommzC7" },
+    },
+  };
+  const legacyThumbnail = {
+    name: `${event.name}-thumb`,
+    title: "Older match thumbnail",
+    format: "thumbnail",
+    path: "projects/project-1/packages/package-1/attachment/video-icon.webp",
+    link: event.name,
+    action: "view",
+  };
+  const item = mapArtifactsToMediaItems([event, legacyThumbnail], context).find((item) => item.id === event.name);
+  assert.equal(item.thumbnail, `${fileUrl(event.name)}?thumbnail=first-stream`);
+});
+
+test("completed events find the first stream in saved nested event data", () => {
+  const event = {
+    name: "coach-event-nested-final",
+    title: "Match",
+    format: "json",
+    action: "view",
+    path: "event.json",
+    meta: {
+      source: "plane-coach",
+      artifact_type: "completed-event-json",
+      event: { rawEvent: { devices: [{ streamName: "servicegateway_stream_first" }] } },
+    },
+  };
+  assert.equal(
+    mapArtifactsToMediaItems([event], context)[0].thumbnail,
+    `${fileUrl(event.name)}?thumbnail=first-stream`
   );
 });

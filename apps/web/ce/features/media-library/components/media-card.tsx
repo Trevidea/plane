@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Calendar,
+  CalendarDays,
   CheckCircle2,
   Clock,
   File,
@@ -14,6 +15,7 @@ import {
   LoaderCircle,
   PencilLine,
   Video,
+  Upload,
 } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import { ETagSize, ETagVariant, Tag, ImageWithFallback } from "@plane/ui";
@@ -91,10 +93,10 @@ export const MediaCard = ({
   const mediaSummary = mediaSummaryParts.join(" • ");
   const isExternal = /^https?:\/\//i.test(href);
   const showLinkedTypeIndicator = item.mediaType === "image" && Boolean(item.link) && Boolean(item.linkedMediaType);
-  const isLinkedDocumentThumbnail = item.mediaType === "image" && item.linkedMediaType === "document";
+  const isLinkedDocumentThumbnail = !isEventItem && item.mediaType === "image" && item.linkedMediaType === "document";
   const linkedTypeLabel = showLinkedTypeIndicator
     ? isEventItem
-      ? "Video"
+      ? "Event"
       : item.linkedMediaType === "video"
         ? "Video"
         : item.linkedMediaType === "image"
@@ -128,7 +130,7 @@ export const MediaCard = ({
   const showAnnotatedIndicator = (isVideoLike || isEventItem) && Boolean(item.isAnnotated);
   const LinkedTypeIcon = showLinkedTypeIndicator
     ? isEventItem
-      ? Video
+      ? CalendarDays
       : item.linkedMediaType === "video"
         ? Video
         : item.linkedMediaType === "image"
@@ -170,6 +172,12 @@ export const MediaCard = ({
       }`.trim()}
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg bg-custom-background-90">
+        {isEventItem || isVideoLike ? (
+          <span className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded bg-custom-background-100/85 px-1.5 py-0.5 text-[11px] font-medium text-custom-text-100 backdrop-blur">
+            {isEventItem ? <CalendarDays className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
+            {isEventItem ? "Event" : "Upload"}
+          </span>
+        ) : null}
         {showAnnotatedIndicator ? (
           <span
             className="absolute top-2 left-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#505050] bg-[#303030]/95 text-[#F5A524] shadow-[0_1px_3px_rgba(0,0,0,0.45)]"
@@ -270,7 +278,7 @@ export const MediaCard = ({
                 height={100}
                 loading="lazy"
                 onError={() => setIsThumbnailUnavailable(true)}
-                className="h-full w-full object-contain p-6 transition-transform duration-300"
+                className={`h-full w-full transition-transform duration-300 ${isEventItem ? "object-cover" : "object-contain p-6"}`}
               />
             )}
           </>
@@ -366,11 +374,23 @@ export const MediaCard = ({
   }
 
   return isExternal ? (
-    <a href={href} onClick={handleLinkClick} className="text-left">
+    <a
+      href={href}
+      onClick={handleLinkClick}
+      className="select-none text-left"
+      draggable={false}
+      onDragStart={(event) => event.preventDefault()}
+    >
       {cardBody}
     </a>
   ) : (
-    <Link href={href} onClick={handleLinkClick} className="text-left">
+    <Link
+      href={href}
+      onClick={handleLinkClick}
+      className="select-none text-left"
+      draggable={false}
+      onDragStart={(event) => event.preventDefault()}
+    >
       {cardBody}
     </Link>
   );

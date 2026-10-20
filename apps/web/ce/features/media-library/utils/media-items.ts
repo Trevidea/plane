@@ -489,10 +489,13 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
   };
 
   const thumbnailByLink = new Map<string, string>();
+  const placeholderThumbnailLinks = new Set<string>();
   const mediaTypeByName = new Map<string, TMediaItem["mediaType"]>();
   const artifactByName = new Map<string, TMediaArtifact>();
 
   const normalizeKey = (value: string) => value.trim().toLowerCase();
+  const isEventPlaceholder = (value: string) =>
+    /(?:^|\/)(?:video-icon|default|defualt)\.(?:png|jpe?g|webp|svg)(?:[?#]|$)/i.test(value);
   const resolveArtifactNameSource = (value: string) => {
     const linkedArtifact = artifactByName.get(normalizeKey(value));
     return linkedArtifact ? resolveArtifactSource(linkedArtifact, context) : "";
@@ -507,9 +510,39 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
   };
   const getThumbnailHint = (artifact: TMediaArtifact, meta: Record<string, unknown>) => {
     const artifactRecord = artifact as TMediaArtifact & Record<string, unknown>;
+    // Coach exports a normalized thumbnail hint alongside the original poster URL.
+    // The hint may be a generic icon, so prefer an available event poster.
+    const eventDetails = getEventMediaDetails(meta);
+    if (eventDetails) {
+      const eventSources = [
+        meta,
+        getMetaObject(meta.event),
+        getMetaObject(getMetaObject(meta.event).rawEvent),
+        getMetaObject(meta.rawEvent),
+      ];
+      const hasSavedStream = eventSources.some(
+        (source) =>
+          getMetaString(source, ["primary_stream_name", "primaryStreamName", "stream_name", "streamName"], "") ||
+          ["devices", "mediaReferences", "media_references"].some(
+            (key) =>
+              Array.isArray(source[key]) &&
+              (source[key] as unknown[]).some((device) =>
+                getMetaString(getMetaObject(device), ["stream_name", "streamName", "original_stream_name"], "")
+              )
+          )
+      );
+      if (hasSavedStream && context && artifact.name) {
+        return `${buildArtifactFileUrl(context, artifact.name)}?thumbnail=first-stream`;
+      }
+      for (const source of [artifactRecord, meta, getMetaObject(meta.event)]) {
+        const poster = getMetaString(source, ["poster_url", "posterUrl", "poster"], "");
+        if (poster && !isEventPlaceholder(poster)) return poster;
+      }
+    }
     for (const key of THUMBNAIL_HINT_KEYS) {
       const value = artifactRecord[key] ?? meta[key];
-      if (typeof value === "string" && value.trim()) return value.trim();
+      if (typeof value === "string" && value.trim() && !(eventDetails && isEventPlaceholder(value.trim())))
+        return value.trim();
     }
     return "";
   };
@@ -532,6 +565,8 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
     const isPreview = artifact.action === "preview" || format === "thumbnail";
     if (isPreview) {
       thumbnailByLink.set(normalizeKey(artifact.link), resolveArtifactSource(artifact, context));
+      if (isEventPlaceholder(artifact.path ?? "")) placeholderThumbnailLinks.add(normalizeKey(artifact.link));
+      else placeholderThumbnailLinks.delete(normalizeKey(artifact.link));
     }
   }
 
@@ -624,15 +659,21 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
     const metaThumbnail = getThumbnailHint(artifact, meta);
     const transcodeState = getTranscodeState(meta);
     const isAnnotated = hasSavedVideoAnnotations(meta);
-    const artifactThumbnail = artifact.name ? thumbnailByLink.get(normalizeKey(artifact.name)) : "";
+    const artifactThumbnail =
+      artifact.name && !(eventDetails && placeholderThumbnailLinks.has(normalizeKey(artifact.name)))
+        ? thumbnailByLink.get(normalizeKey(artifact.name))
+        : "";
     const planeCoachThumbnail =
-      metaSource === "plane-coach" && mediaType === "document" ? metaThumbnail || getPlaneCoachThumbnailPath() : "";
-    const fallbackThumbnail =
-      mediaType === "image"
+      !eventDetails && metaSource === "plane-coach" && mediaType === "document"
+        ? metaThumbnail || getPlaneCoachThumbnailPath()
+        : "";
+    const fallbackThumbnail = eventDetails
+      ? ""
+      : mediaType === "image"
         ? resolvedPath
         : planeCoachThumbnail || (mediaType === "document" ? getDocumentThumbnailPath(format) : "");
     const thumbnail = resolveArtifactPath(
-      (mediaType === "video" ? resolveThumbnailHint(metaThumbnail) : "") ||
+      (mediaType === "video" || eventDetails ? resolveThumbnailHint(metaThumbnail) : "") ||
         artifactThumbnail ||
         resolveThumbnailHint(metaThumbnail) ||
         planeCoachThumbnail ||

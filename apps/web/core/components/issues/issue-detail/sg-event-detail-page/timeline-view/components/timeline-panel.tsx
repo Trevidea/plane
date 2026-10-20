@@ -281,6 +281,13 @@ export const SgEventTimelinePanel = ({
   const hasTimelineRows = sortedTimelineRows.length > 0;
   const selectedTagCount = selectedTagIds.length;
   const canCreatePlaylist = Boolean(onCreatePlaylist) && selectedTagCount > 0 && !isCreatingPlaylist;
+  const playlistDisabledReason = !onCreatePlaylist
+    ? "Playlist creation is unavailable for this event."
+    : isCreatingPlaylist
+      ? "Creating playlist. Please wait."
+      : selectedTagCount === 0
+        ? "Select timeline tags to create a playlist."
+        : undefined;
   const timelineZoomLabel = getTimelineZoomLabel({
     scale: timelineScale,
     selectedContentWidthPx: selectedTimelineContentWidth,
@@ -818,6 +825,8 @@ export const SgEventTimelinePanel = ({
           <button
             type="button"
             disabled={!canCreatePlaylist}
+            title={playlistDisabledReason}
+            aria-describedby={playlistDisabledReason ? "timeline-playlist-reason" : undefined}
             onClick={onCreatePlaylist}
             className={cn(
               TEXT_TOOL_BUTTON_CLASS,
@@ -827,6 +836,11 @@ export const SgEventTimelinePanel = ({
             <ListPlus className="h-3.5 w-3.5" />
             <span>{isCreatingPlaylist ? "Creating" : "Create Playlist"}</span>
           </button>
+          {playlistDisabledReason && (
+            <p id="timeline-playlist-reason" role="status" className="text-xs text-custom-text-300">
+              {playlistDisabledReason}
+            </p>
+          )}
           <Tooltip tooltipContent="Tag types" isMobile={false}>
             <button
               type="button"
@@ -978,7 +992,7 @@ export const SgEventTimelinePanel = ({
                               }
                             }}
                             className={cn(
-                              "absolute h-7 min-w-1.5 overflow-hidden rounded-md border border-transparent text-left text-[10px] font-medium leading-7 text-white/95 shadow-sm transition-[box-shadow,filter] hover:brightness-110",
+                              "select-none absolute h-7 min-w-1.5 overflow-hidden rounded-md border border-transparent text-left text-[10px] font-medium leading-7 text-white/95 shadow-sm transition-[box-shadow,filter] hover:brightness-110",
                               isPlaylistSelectionMode && "cursor-pointer hover:ring-2 hover:ring-white/40",
                               isActive && "ring-2 ring-custom-primary-100",
                               isSelected && "border-white/90 ring-2 ring-white/80"

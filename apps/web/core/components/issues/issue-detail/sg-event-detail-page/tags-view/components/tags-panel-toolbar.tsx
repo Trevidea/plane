@@ -33,6 +33,7 @@ type TagsPanelToolbarProps = {
   isSearchOpen: boolean;
   onColumnsPanelOpen: () => void;
   onCreatePlaylist?: () => void;
+  onCreateCard?: () => void;
   onRowFilterModeChange: (mode: RowFilterMode) => void;
   onSearchQueryChange: (value: string) => void;
   onSelectedGroupValueChange: (value: string) => void;
@@ -57,6 +58,7 @@ export const TagsPanelToolbar = ({
   isSearchOpen,
   onColumnsPanelOpen,
   onCreatePlaylist,
+  onCreateCard,
   onRowFilterModeChange,
   onSearchQueryChange,
   onSelectedGroupValueChange,
@@ -68,113 +70,144 @@ export const TagsPanelToolbar = ({
   showCreateActions,
   totalColumnCount,
   viewToggle,
-}: TagsPanelToolbarProps) => (
-  <div className="flex flex-col gap-3 border-b border-custom-border-200 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
-    <div className="flex flex-wrap items-center gap-3">
-      <span className="text-sm font-medium text-custom-text-100">Group by :</span>
-      <CustomSelect
-        value={effectiveGroupValue}
-        onChange={(value: string) => onSelectedGroupValueChange(value)}
-        label={<span className="truncate">{groupSelectLabel}</span>}
-        placement="bottom-start"
-        className="h-8"
-        buttonClassName="h-8 min-w-[112px] rounded-md border border-custom-border-200 bg-custom-background-100 px-3 py-1.5 text-xs text-custom-text-300 hover:bg-custom-background-90"
-        optionsClassName="min-w-[140px]"
-      >
-        <CustomSelect.Option value="All tags">
-          <span className="text-sm">All clips</span>
-        </CustomSelect.Option>
-        {(availableGroups.length > 0 ? availableGroups : [defaultGroupValue]).map((groupValue) => (
-          <CustomSelect.Option key={groupValue} value={groupValue}>
-            <span className="text-sm">{groupValue}</span>
+}: TagsPanelToolbarProps) => {
+  const playlistDisabledReason = isCreatingPlaylist
+    ? "Creating playlist. Please wait."
+    : selectedCount === 0
+      ? "Select tag rows to create a playlist."
+      : undefined;
+  const cardDisabledReason = !onCreateCard
+    ? "Card creation is unavailable for this event."
+    : selectedCount === 0
+      ? "Select tag rows to create a card."
+      : undefined;
+  return (
+    <div className="flex flex-col gap-3 border-b border-custom-border-200 px-3 py-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium text-custom-text-100">Group by :</span>
+        <CustomSelect
+          value={effectiveGroupValue}
+          onChange={(value: string) => onSelectedGroupValueChange(value)}
+          label={<span className="truncate">{groupSelectLabel}</span>}
+          placement="bottom-start"
+          className="h-8"
+          buttonClassName="h-8 min-w-[112px] rounded-md border border-custom-border-200 bg-custom-background-100 px-3 py-1.5 text-xs text-custom-text-300 hover:bg-custom-background-90"
+          optionsClassName="min-w-[140px]"
+        >
+          <CustomSelect.Option value="All tags">
+            <span className="text-sm">All clips</span>
           </CustomSelect.Option>
-        ))}
-      </CustomSelect>
-    </div>
+          {(availableGroups.length > 0 ? availableGroups : [defaultGroupValue]).map((groupValue) => (
+            <CustomSelect.Option key={groupValue} value={groupValue}>
+              <span className="text-sm">{groupValue}</span>
+            </CustomSelect.Option>
+          ))}
+        </CustomSelect>
+      </div>
 
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      {showCreateActions && (
-        <button type="button" className={TEXT_BUTTON_CLASS}>
-          <Plus className="h-3.5 w-3.5" />
-          <span>Create Card</span>
-        </button>
-      )}
-      {viewToggle}
-      {isSearchOpen && (
-        <label className="flex h-9 items-center gap-2 rounded-md border border-custom-border-200 bg-custom-background-100 px-3 text-sm text-custom-text-300">
-          <Search className="h-4 w-4" />
-          <input
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            placeholder="Search"
-            className="w-32 bg-transparent text-sm text-custom-text-100 outline-none placeholder:text-custom-text-400"
-          />
-        </label>
-      )}
-      <Tooltip tooltipContent={isSearchOpen ? "Hide search" : "Search"} isMobile={false}>
-        <button type="button" onClick={onToggleSearch} className={ICON_BUTTON_CLASS}>
-          <Search className="h-4 w-4" />
-        </button>
-      </Tooltip>
-      <CustomMenu
-        placement="bottom-end"
-        closeOnSelect
-        customButton={
-          <Tooltip tooltipContent={`Filter: ${activeFilterLabel}`} isMobile={false}>
-            <button
-              type="button"
-              className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors",
-                rowFilterMode !== "all"
-                  ? "border-custom-primary-100/30 bg-custom-primary-100/15 text-custom-primary-100"
-                  : "border-custom-border-200 bg-custom-background-100 text-custom-text-300 hover:bg-custom-background-90 hover:text-custom-text-100"
-              )}
-            >
-              <TagsFilterIcon className="h-4 w-4" />
-            </button>
-          </Tooltip>
-        }
-      >
-        {(Object.keys(ROW_FILTER_LABELS) as RowFilterMode[]).map((mode) => (
-          <CustomMenu.MenuItem
-            key={mode}
-            className="flex items-center justify-between gap-2"
-            onClick={() => onRowFilterModeChange(mode)}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {showCreateActions && (
+          <button
+            type="button"
+            onClick={onCreateCard}
+            disabled={Boolean(cardDisabledReason)}
+            title={cardDisabledReason}
+            aria-describedby={cardDisabledReason ? "tags-card-reason" : undefined}
+            className={`${TEXT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-45`}
           >
-            {ROW_FILTER_LABELS[mode]}
-            {rowFilterMode === mode && <Check className="h-3 w-3" />}
-          </CustomMenu.MenuItem>
-        ))}
-      </CustomMenu>
-      <Tooltip tooltipContent="Columns" isMobile={false}>
-        <button
-          type="button"
-          onClick={onColumnsPanelOpen}
-          className={cn(
-            "inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors",
-            isColumnsPanelOpen
-              ? "border-custom-primary-100/30 bg-custom-primary-100/15 text-custom-primary-100"
-              : "border-custom-border-200 bg-custom-background-100 text-custom-text-300 hover:bg-custom-background-90 hover:text-custom-text-100"
-          )}
+            <Plus className="h-3.5 w-3.5" />
+            <span>Create Card</span>
+          </button>
+        )}
+        {viewToggle}
+        {isSearchOpen && (
+          <label className="flex h-9 items-center gap-2 rounded-md border border-custom-border-200 bg-custom-background-100 px-3 text-sm text-custom-text-300">
+            <Search className="h-4 w-4" />
+            <input
+              value={searchQuery}
+              onChange={(event) => onSearchQueryChange(event.target.value)}
+              placeholder="Search"
+              className="w-32 bg-transparent text-sm text-custom-text-100 outline-none placeholder:text-custom-text-400"
+            />
+          </label>
+        )}
+        <Tooltip tooltipContent={isSearchOpen ? "Hide search" : "Search"} isMobile={false}>
+          <button type="button" onClick={onToggleSearch} className={ICON_BUTTON_CLASS}>
+            <Search className="h-4 w-4" />
+          </button>
+        </Tooltip>
+        <CustomMenu
+          placement="bottom-end"
+          closeOnSelect
+          customButton={
+            <Tooltip tooltipContent={`Filter: ${activeFilterLabel}`} isMobile={false}>
+              <button
+                type="button"
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors",
+                  rowFilterMode !== "all"
+                    ? "border-custom-primary-100/30 bg-custom-primary-100/15 text-custom-primary-100"
+                    : "border-custom-border-200 bg-custom-background-100 text-custom-text-300 hover:bg-custom-background-90 hover:text-custom-text-100"
+                )}
+              >
+                <TagsFilterIcon className="h-4 w-4" />
+              </button>
+            </Tooltip>
+          }
         >
-          <Columns3 className="h-4 w-4" />
-          <span>Columns</span>
-          <span className="text-custom-text-400">
-            {selectedAvailableColumnCount}/{totalColumnCount}
-          </span>
-        </button>
-      </Tooltip>
-      {onCreatePlaylist && (
-        <button
-          type="button"
-          disabled={selectedCount === 0 || isCreatingPlaylist}
-          onClick={onCreatePlaylist}
-          className={`${PRIMARY_TEXT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-45`}
-        >
-          <ListPlus className="h-3.5 w-3.5" />
-          <span>{isCreatingPlaylist ? "Creating" : "Create Playlist"}</span>
-        </button>
-      )}
+          {(Object.keys(ROW_FILTER_LABELS) as RowFilterMode[]).map((mode) => (
+            <CustomMenu.MenuItem
+              key={mode}
+              className="flex items-center justify-between gap-2"
+              onClick={() => onRowFilterModeChange(mode)}
+            >
+              {ROW_FILTER_LABELS[mode]}
+              {rowFilterMode === mode && <Check className="h-3 w-3" />}
+            </CustomMenu.MenuItem>
+          ))}
+        </CustomMenu>
+        <Tooltip tooltipContent="Columns" isMobile={false}>
+          <button
+            type="button"
+            onClick={onColumnsPanelOpen}
+            className={cn(
+              "inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors",
+              isColumnsPanelOpen
+                ? "border-custom-primary-100/30 bg-custom-primary-100/15 text-custom-primary-100"
+                : "border-custom-border-200 bg-custom-background-100 text-custom-text-300 hover:bg-custom-background-90 hover:text-custom-text-100"
+            )}
+          >
+            <Columns3 className="h-4 w-4" />
+            <span>Columns</span>
+            <span className="text-custom-text-400">
+              {selectedAvailableColumnCount}/{totalColumnCount}
+            </span>
+          </button>
+        </Tooltip>
+        {onCreatePlaylist && (
+          <button
+            type="button"
+            disabled={Boolean(playlistDisabledReason)}
+            title={playlistDisabledReason}
+            aria-describedby={playlistDisabledReason ? "tags-playlist-reason" : undefined}
+            onClick={onCreatePlaylist}
+            className={`${PRIMARY_TEXT_BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-45`}
+          >
+            <ListPlus className="h-3.5 w-3.5" />
+            <span>{isCreatingPlaylist ? "Creating" : "Create Playlist"}</span>
+          </button>
+        )}
+        {showCreateActions && cardDisabledReason && (
+          <p id="tags-card-reason" role="status" className="text-xs text-custom-text-300">
+            {cardDisabledReason}
+          </p>
+        )}
+        {onCreatePlaylist && playlistDisabledReason && (
+          <p id="tags-playlist-reason" role="status" className="text-xs text-custom-text-300">
+            {playlistDisabledReason}
+          </p>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
