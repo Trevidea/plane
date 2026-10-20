@@ -689,6 +689,7 @@ export const VideoAnnotationEditor = ({
       const normalizedColor = normalizeAnnotationHexColor(colorValue);
       if (!normalizedColor) return;
 
+      handleAnnotationColorChange(normalizedColor);
       handleUpdateAnnotation({
         ...selectedStyleAnnotation,
         style: {
