@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { renderFormattedDate } from "@plane/utils";
 import type { TDevice } from "../devices.types";
 
@@ -83,7 +85,8 @@ export const DevicesGrid = ({
           <div className="border-t border-custom-border-200 px-5 py-3">
             <div className="grid grid-cols-3 gap-2">
               <Tooltip tooltipContent={device.streamingUrl} position="top" disabled={!device.streamingUrl}>
-                <button
+                <Button
+                  unstyled
                   type="button"
                   className={`${actionButtonClassName} text-custom-text-100 hover:bg-custom-background-70`}
                   onClick={() => onCopyUrl(device)}
@@ -92,10 +95,11 @@ export const DevicesGrid = ({
                 >
                   <Copy className="h-3.5 w-3.5 text-[#8ec4ff]" />
                   {copiedDeviceId === device.id ? "Copied" : "Copy URL"}
-                </button>
+                </Button>
               </Tooltip>
 
-              <button
+              <Button
+                unstyled
                 type="button"
                 className={`${actionButtonClassName} text-custom-text-100 hover:bg-custom-background-70`}
                 onClick={() => onEdit(device)}
@@ -103,9 +107,10 @@ export const DevicesGrid = ({
               >
                 <Pencil className="h-3.5 w-3.5 text-[#8ec4ff]" />
                 Edit
-              </button>
+              </Button>
 
-              <button
+              <Button
+                unstyled
                 type="button"
                 className={`${actionButtonClassName} text-red-500 hover:bg-red-500/10`}
                 onClick={() => onDelete(device)}
@@ -113,7 +118,7 @@ export const DevicesGrid = ({
               >
                 <Trash2 className="h-3.5 w-3.5 text-red-500" />
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         </article>

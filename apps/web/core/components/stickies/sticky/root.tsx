@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
+
 import { debounce } from "lodash-es";
 import { observer } from "mobx-react";
 import { Minimize2 } from "lucide-react";
 // plane types
 import type { TSticky } from "@plane/types";
+import { Button } from "@plane/ui";
 // plane utils
 import { cn } from "@plane/utils";
 // hooks
@@ -81,9 +83,9 @@ export const StickyNote = observer((props: TProps) => {
       >
         {/* {isStickiesPage && <StickyItemDragHandle isDragging={false} />}{" "} */}
         {onClose && (
-          <button type="button" className="flex-shrink-0 flex justify-end p-2.5" onClick={onClose}>
+          <Button unstyled type="button" className="flex-shrink-0 flex justify-end p-2.5" onClick={onClose}>
             <Minimize2 className="size-4" />
-          </button>
+          </Button>
         )}
         {/* inputs */}
         <div className="-mt-2">

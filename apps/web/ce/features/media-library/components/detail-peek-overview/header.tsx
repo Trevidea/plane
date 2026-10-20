@@ -13,18 +13,10 @@ import { TOAST_TYPE, setPromiseToast, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssueAttachment, TNameDescriptionLoader } from "@plane/types";
 import { EIssuesStoreType } from "@plane/types";
-import { AlertModalCore, CustomSelect } from "@plane/ui";
+import { Button, AlertModalCore, CustomSelect } from "@plane/ui";
 import { copyUrlToClipboard, generateWorkItemLink, getAssetIdFromUrl, getFileName, getFileURL } from "@plane/utils";
 // helpers
-import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
-import { useIssueDetail } from "@/hooks/store/use-issue-detail";
-import { useIssues } from "@/hooks/store/use-issues";
-import { useMember } from "@/hooks/store/use-member";
-import { useProject } from "@/hooks/store/use-project";
-import { useUser } from "@/hooks/store/user";
-// hooks
-import { usePlatformOS } from "@/hooks/use-platform-os";
-import { MediaLibraryService } from "@/services/media-library.service";
+import { IssueSubscription } from "@/components/issues/issue-detail/subscription";
 import {
   DOC_FORMATS,
   IMAGE_FORMATS,
@@ -38,9 +30,17 @@ import {
   resolveAttachmentFileName,
   resolveAttachmentDownloadUrl,
 } from "@/components/issues/issue-detail-widgets/media-library-utils";
-import { NameDescriptionUpdateStatus } from "@/components/issues/issue-update-status";
-import { IssueSubscription } from "@/components/issues/issue-detail/subscription";
 import { WorkItemDetailQuickActions } from "@/components/issues/issue-layouts/quick-action-dropdowns";
+import { NameDescriptionUpdateStatus } from "@/components/issues/issue-update-status";
+import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
+import { useIssueDetail } from "@/hooks/store/use-issue-detail";
+import { useIssues } from "@/hooks/store/use-issues";
+import { useMember } from "@/hooks/store/use-member";
+import { useProject } from "@/hooks/store/use-project";
+import { useUser } from "@/hooks/store/user";
+// hooks
+import { usePlatformOS } from "@/hooks/use-platform-os";
+import { MediaLibraryService } from "@/services/media-library.service";
 
 export type TPeekModes = "side-peek" | "modal" | "full-screen";
 
@@ -294,7 +294,10 @@ const fetchInlineImageResponse = async (url: string) => {
   const apiOrigin = getApiOrigin();
   const parsedUrl = typeof window !== "undefined" ? new URL(url, window.location.origin) : null;
   const isApiAssetUrl =
-    parsedUrl && apiOrigin && parsedUrl.origin === apiOrigin && parsedUrl.pathname.includes("/api/assets/v2/workspaces/");
+    parsedUrl &&
+    apiOrigin &&
+    parsedUrl.origin === apiOrigin &&
+    parsedUrl.pathname.includes("/api/assets/v2/workspaces/");
 
   const initialUrl = isApiAssetUrl ? appendJsonResponseParam(url) : url;
   const response = await fetch(initialUrl, {
@@ -348,13 +351,17 @@ const resolveInlineManifestCleanupArtifacts = ({
       .filter((entry) => entry && !entry.startsWith("data:"))
   );
   const inlineAssetIds = new Set(candidates.map(({ url }) => resolveInlineAssetId(url)).filter(Boolean));
-  const currentInlineSourceKeys = new Set(currentDescriptionImages.map((url) => normalizeInlineSourceKey(url)).filter(Boolean));
+  const currentInlineSourceKeys = new Set(
+    currentDescriptionImages.map((url) => normalizeInlineSourceKey(url)).filter(Boolean)
+  );
   const currentInlineUrlKeys = new Set(
     currentDescriptionImages
       .map((url) => normalizeUrlForCompare(resolveInlineAssetUrl(url)))
       .filter((entry) => entry && !entry.startsWith("data:"))
   );
-  const currentInlineAssetIds = new Set(currentDescriptionImages.map((url) => resolveInlineAssetId(url)).filter(Boolean));
+  const currentInlineAssetIds = new Set(
+    currentDescriptionImages.map((url) => resolveInlineAssetId(url)).filter(Boolean)
+  );
   const artifactNameCandidates = new Set<string>();
   candidates.forEach(({ url, index }) => {
     resolveInlineArtifactNames(url, index).forEach((name) => artifactNameCandidates.add(name));
@@ -480,7 +487,7 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
   const createdByDetails = issueDetails?.created_by ? getUserDetails(issueDetails.created_by) : undefined;
   const createdByName = createdByDetails?.display_name?.includes("-intake")
     ? "Plane"
-    : createdByDetails?.display_name ?? issueDetails?.created_by ?? "";
+    : (createdByDetails?.display_name ?? issueDetails?.created_by ?? "");
   const baseEventMeta = useMemo(() => buildEventMeta(issueDetails, createdByName), [issueDetails, createdByName]);
   const attachmentIds = attachment.getAttachmentsByIssueId(issueId) ?? [];
   const attachmentCount = issueDetails?.attachment_count ?? attachmentIds.length;
@@ -970,7 +977,8 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
         content={
           <>
             You removed {inlineCleanupCandidates.length} inline image
-            {inlineCleanupCandidates.length === 1 ? "" : "s"} from the description. Do you also want to remove from the media library?
+            {inlineCleanupCandidates.length === 1 ? "" : "s"} from the description. Do you also want to remove from the
+            media library?
           </>
         }
       />
@@ -981,9 +989,9 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
       >
         <div className="flex items-center gap-4">
           <Tooltip tooltipContent={t("common.close_peek_view")} isMobile={isMobile}>
-            <button onClick={removeRoutePeekId}>
+            <Button unstyled type="submit" onClick={removeRoutePeekId}>
               <MoveRight className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-            </button>
+            </Button>
           </Tooltip>
 
           <Tooltip tooltipContent={t("issue.open_in_full_screen")} isMobile={isMobile}>
@@ -998,9 +1006,9 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
                 onChange={(val: any) => setPeekMode(val)}
                 customButton={
                   <Tooltip tooltipContent={t("common.toggle_peek_view_layout")} isMobile={isMobile}>
-                    <button type="button" className="">
+                    <Button unstyled type="button" className="">
                       <currentMode.icon className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-                    </button>
+                    </Button>
                   </Tooltip>
                 }
               >
@@ -1030,7 +1038,8 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
             )}
             {hasMediaAssets && (
               <Tooltip tooltipContent="Add assets in media library" isMobile={isMobile}>
-                <button
+                <Button
+                  unstyled
                   type="button"
                   onClick={handleAddAssetsClick}
                   disabled={disabled || isAddingToMediaLibrary}
@@ -1043,13 +1052,13 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
                         : "text-custom-text-300 hover:text-custom-text-200"
                     }`}
                   />
-                </button>
+                </Button>
               </Tooltip>
             )}
             <Tooltip tooltipContent={t("common.actions.copy_link")} isMobile={isMobile}>
-              <button type="button" onClick={handleCopyText}>
+              <Button unstyled type="button" onClick={handleCopyText}>
                 <Link2 className="h-4 w-4 -rotate-45 text-custom-text-300 hover:text-custom-text-200" />
-              </button>
+              </Button>
             </Tooltip>
             {issueDetails && (
               <WorkItemDetailQuickActions

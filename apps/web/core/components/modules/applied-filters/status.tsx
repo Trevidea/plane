@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { MODULE_STATUS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { ModuleStatusIcon } from "@plane/propel/icons";
+import { Button } from "@plane/ui";
 // constants
 
 type Props = {
@@ -29,13 +30,14 @@ export const AppliedStatusFilters: React.FC<Props> = observer((props) => {
             <ModuleStatusIcon status={statusDetails.value} height="12px" width="12px" />
             {t(statusDetails.i18n_label)}
             {editable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemove(status)}
               >
                 <X size={10} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </div>
         );

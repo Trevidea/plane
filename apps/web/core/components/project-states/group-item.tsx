@@ -2,6 +2,7 @@
 
 import type { FC } from "react";
 import { useState, useRef } from "react";
+
 import { observer } from "mobx-react";
 import { ChevronDown, Plus } from "lucide-react";
 // plane imports
@@ -9,6 +10,7 @@ import { EIconSize, STATE_GROUPS, STATE_TRACKER_ELEMENTS } from "@plane/constant
 import { useTranslation } from "@plane/i18n";
 import { StateGroupIcon } from "@plane/propel/icons";
 import type { IState, TStateGroups, TStateOperationsCallbacks } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { StateList, StateCreate } from "@/components/project-states";
@@ -81,7 +83,8 @@ export const GroupItem: FC<TGroupItem> = observer((props) => {
           </div>
           <div className="text-base font-medium text-custom-text-200 px-1">{groupLabel}</div>
         </div>
-        <button
+        <Button
+          unstyled
           type="button"
           data-ph-element={STATE_TRACKER_ELEMENTS.STATE_GROUP_ADD_BUTTON}
           className={cn(
@@ -97,7 +100,7 @@ export const GroupItem: FC<TGroupItem> = observer((props) => {
           disabled={!isEditable || createState}
         >
           <Plus className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
 
       {shouldShowEmptyState && (

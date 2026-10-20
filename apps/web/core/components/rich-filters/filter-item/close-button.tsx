@@ -1,9 +1,11 @@
 import React from "react";
+
 import { observer } from "mobx-react";
 import { X } from "lucide-react";
 // plane imports
 import type { IFilterInstance } from "@plane/shared-state";
 import type { TExternalFilter, TFilterProperty } from "@plane/types";
+import { Button } from "@plane/ui";
 
 interface FilterItemCloseButtonProps<P extends TFilterProperty, E extends TExternalFilter> {
   conditionId: string;
@@ -19,14 +21,15 @@ export const FilterItemCloseButton = observer(
     };
 
     return (
-      <button
+      <Button
+        unstyled
         onClick={handleRemoveFilter}
         className="px-1.5 text-custom-text-400 hover:text-custom-text-300 focus:outline-none hover:bg-custom-background-90"
         type="button"
         aria-label="Remove filter"
       >
         <X className="size-3.5" />
-      </button>
+      </Button>
     );
   }
 );

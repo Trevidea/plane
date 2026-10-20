@@ -12,7 +12,7 @@ import { useTranslation } from "@plane/i18n";
 import { getButtonStyling } from "@plane/propel/button";
 import type { TBillingFrequency } from "@plane/types";
 import { EProductSubscriptionEnum } from "@plane/types";
-import { getUpgradeButtonStyle } from "@plane/ui";
+import { Button, getUpgradeButtonStyle } from "@plane/ui";
 import { cn, getSubscriptionName } from "@plane/utils";
 // components
 import { DiscountInfo } from "@/components/license/modal/card/discount-info";
@@ -110,7 +110,9 @@ export const PlanDetail: FC<TPlanDetailProps> = observer((props) => {
 
       {/* Subscription button */}
       <div className={cn("flex flex-col gap-1 py-3 items-start transition-all duration-300")}>
-        <button
+        <Button
+          unstyled
+          type="submit"
           onClick={handleRedirection}
           className={cn(upgradeButtonStyle, COMMON_BUTTON_STYLE)}
           data-ph-element={
@@ -120,7 +122,7 @@ export const PlanDetail: FC<TPlanDetailProps> = observer((props) => {
           }
         >
           {isSubscriptionActive ? `Upgrade to ${subscriptionName}` : t("common.upgrade_cta.talk_to_sales")}
-        </button>
+        </Button>
       </div>
     </div>
   );

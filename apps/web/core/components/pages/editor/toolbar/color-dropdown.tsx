@@ -1,11 +1,13 @@
 "use client";
 
 import { memo } from "react";
+
 import { ALargeSmall, Ban } from "lucide-react";
 import { Popover } from "@headlessui/react";
 // plane editor
 import { COLORS_LIST } from "@plane/editor";
 import type { TEditorCommands } from "@plane/editor";
+import { Button as UnstyledButton } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 
@@ -78,7 +80,8 @@ export const ColorDropdown: React.FC<Props> = memo((props) => {
           <p className="text-xs text-custom-text-300 font-semibold">Text colors</p>
           <div className="flex items-center gap-2">
             {COLORS_LIST.map((color) => (
-              <button
+              <UnstyledButton
+                unstyled
                 key={color.key}
                 type="button"
                 className="flex-shrink-0 size-6 rounded border-[0.5px] border-custom-border-400 hover:opacity-60 transition-opacity"
@@ -86,22 +89,26 @@ export const ColorDropdown: React.FC<Props> = memo((props) => {
                   backgroundColor: color.textColor,
                 }}
                 onClick={() => handleColorSelect("text-color", color.key)}
-              />
+              >
+                {null}
+              </UnstyledButton>
             ))}
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               className="flex-shrink-0 size-6 grid place-items-center rounded text-custom-text-300 border-[0.5px] border-custom-border-400 hover:bg-custom-background-80 transition-colors"
               onClick={() => handleColorSelect("text-color", undefined)}
             >
               <Ban className="size-4" />
-            </button>
+            </UnstyledButton>
           </div>
         </div>
         <div className="space-y-1.5">
           <p className="text-xs text-custom-text-300 font-semibold">Background colors</p>
           <div className="flex items-center gap-2">
             {COLORS_LIST.map((color) => (
-              <button
+              <UnstyledButton
+                unstyled
                 key={color.key}
                 type="button"
                 className="flex-shrink-0 size-6 rounded border-[0.5px] border-custom-border-400 hover:opacity-60 transition-opacity"
@@ -109,15 +116,18 @@ export const ColorDropdown: React.FC<Props> = memo((props) => {
                   backgroundColor: color.backgroundColor,
                 }}
                 onClick={() => handleColorSelect("background-color", color.key)}
-              />
+              >
+                {null}
+              </UnstyledButton>
             ))}
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               className="flex-shrink-0 size-6 grid place-items-center rounded text-custom-text-300 border-[0.5px] border-custom-border-400 hover:bg-custom-background-80 transition-colors"
               onClick={() => handleColorSelect("background-color", undefined)}
             >
               <Ban className="size-4" />
-            </button>
+            </UnstyledButton>
           </div>
         </div>
       </Popover.Panel>

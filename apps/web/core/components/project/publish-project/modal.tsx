@@ -13,7 +13,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TProjectPublishLayouts, TProjectPublishSettings } from "@plane/types";
 // ui
-import { Loader, ToggleSwitch, CustomSelect, ModalCore, EModalWidth } from "@plane/ui";
+import { Button as UnstyledButton, Loader, ToggleSwitch, CustomSelect, ModalCore, EModalWidth } from "@plane/ui";
 // helpers
 import { copyTextToClipboard } from "@plane/utils";
 // hooks
@@ -217,13 +217,14 @@ export const PublishProjectModal: React.FC<Props> = observer((props) => {
                     >
                       <ExternalLink className="size-4" />
                     </Link>
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       className="h-8 bg-custom-background-90 hover:bg-custom-background-100 rounded text-xs font-medium py-2 px-3"
                       onClick={handleCopyLink}
                     >
                       Copy link
-                    </button>
+                    </UnstyledButton>
                   </div>
                 </div>
                 <p className="text-sm font-medium text-custom-primary-100 flex items-center gap-1 mt-3">

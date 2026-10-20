@@ -3,12 +3,14 @@
 import React, { Fragment, useState } from "react";
 import type { Placement } from "@popperjs/core";
 import { usePopper } from "react-popper";
+
 // icons
 import { ChevronUp } from "lucide-react";
 // headless ui
 import { Popover, Transition } from "@headlessui/react";
 // ui
 import { Button } from "@plane/propel/button";
+import { Button as UnstyledButton } from "@plane/ui";
 
 type Props = {
   children: React.ReactNode;
@@ -51,9 +53,9 @@ export const FiltersDropdown: React.FC<Props> = (props) => {
           <>
             <Popover.Button as={React.Fragment}>
               {menuButton ? (
-                <button role="button" ref={setReferenceElement}>
+                <UnstyledButton unstyled type="submit" role="button" ref={setReferenceElement}>
                   {menuButton}
-                </button>
+                </UnstyledButton>
               ) : (
                 <div ref={setReferenceElement}>
                   <div className="hidden @4xl:flex">

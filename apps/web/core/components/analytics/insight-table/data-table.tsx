@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+
 import type {
   ColumnDef,
   ColumnFiltersState,
@@ -22,6 +23,7 @@ import { Search, X } from "lucide-react";
 // plane package imports
 import { useTranslation } from "@plane/i18n";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@plane/propel/table";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // plane web components
 import { useResolvedAssetPath } from "@/hooks/use-resolved-asset-path";
@@ -72,7 +74,8 @@ export function DataTable<TData, TValue>({ columns, data, searchPlaceholder, act
             </div>
           )}
           {!isSearchOpen && (
-            <button
+            <Button
+              unstyled
               type="button"
               className="-mr-5 grid place-items-center rounded p-2 text-custom-text-400 hover:bg-custom-background-80"
               onClick={() => {
@@ -81,7 +84,7 @@ export function DataTable<TData, TValue>({ columns, data, searchPlaceholder, act
               }}
             >
               <Search className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           )}
           <div
             className={cn(
@@ -108,7 +111,8 @@ export function DataTable<TData, TValue>({ columns, data, searchPlaceholder, act
               }}
             />
             {isSearchOpen && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center"
                 onClick={() => {
@@ -120,7 +124,7 @@ export function DataTable<TData, TValue>({ columns, data, searchPlaceholder, act
                 }}
               >
                 <X className="h-3 w-3" />
-              </button>
+              </Button>
             )}
           </div>
         </div>

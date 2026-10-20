@@ -24,7 +24,7 @@ import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 // types
 import { EOnboardingSteps } from "@plane/types";
 // ui
-import { Input, Spinner } from "@plane/ui";
+import { Button as UnstyledButton, Input, Spinner } from "@plane/ui";
 // constants
 // helpers
 
@@ -242,13 +242,14 @@ const InviteMemberInput: React.FC<InviteMemberFormProps> = observer((props) => {
           />
         </div>
         {fields.length > 1 && (
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             className="absolute right-0 hidden place-items-center self-center rounded group-hover:grid"
             onClick={() => remove(index)}
           >
             <XCircle className="h-5 w-5 pl-0.5 text-custom-text-400" />
-          </button>
+          </UnstyledButton>
         )}
       </div>
       {email && !emailRegex.test(email) && (
@@ -386,14 +387,15 @@ export const InviteTeamStep: React.FC<Props> = observer((props) => {
             />
           ))}
         </div>
-        <button
+        <UnstyledButton
+          unstyled
           type="button"
           className="flex items-center mx-8 gap-1.5 bg-transparent text-sm font-medium text-custom-primary-100 outline-custom-primary-100"
           onClick={appendField}
         >
           <Plus className="h-4 w-4" strokeWidth={2} />
           Add another
-        </button>
+        </UnstyledButton>
       </div>
       <div className="flex flex-col mx-auto px-8 sm:px-2 items-center justify-center gap-4 w-full">
         <Button

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Check, Columns3, ListPlus, Plus, Search } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
-import { CustomMenu, CustomSelect } from "@plane/ui";
+import { Button, CustomMenu, CustomSelect } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { ICON_BUTTON_CLASS, ROW_FILTER_LABELS } from "../../constants";
 import type { RowFilterMode } from "../../types";
@@ -107,7 +107,8 @@ export const TagsPanelToolbar = ({
 
       <div className="flex flex-wrap items-center justify-end gap-2">
         {showCreateActions && (
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={onCreateCard}
             disabled={Boolean(cardDisabledReason)}
@@ -117,7 +118,7 @@ export const TagsPanelToolbar = ({
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Create Card</span>
-          </button>
+          </Button>
         )}
         {viewToggle}
         {isSearchOpen && (
@@ -132,16 +133,17 @@ export const TagsPanelToolbar = ({
           </label>
         )}
         <Tooltip tooltipContent={isSearchOpen ? "Hide search" : "Search"} isMobile={false}>
-          <button type="button" onClick={onToggleSearch} className={ICON_BUTTON_CLASS}>
+          <Button unstyled type="button" onClick={onToggleSearch} className={ICON_BUTTON_CLASS}>
             <Search className="h-4 w-4" />
-          </button>
+          </Button>
         </Tooltip>
         <CustomMenu
           placement="bottom-end"
           closeOnSelect
           customButton={
             <Tooltip tooltipContent={`Filter: ${activeFilterLabel}`} isMobile={false}>
-              <button
+              <Button
+                unstyled
                 type="button"
                 className={cn(
                   "inline-flex h-9 w-9 items-center justify-center rounded-md border transition-colors",
@@ -151,7 +153,7 @@ export const TagsPanelToolbar = ({
                 )}
               >
                 <TagsFilterIcon className="h-4 w-4" />
-              </button>
+              </Button>
             </Tooltip>
           }
         >
@@ -167,7 +169,8 @@ export const TagsPanelToolbar = ({
           ))}
         </CustomMenu>
         <Tooltip tooltipContent="Columns" isMobile={false}>
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={onColumnsPanelOpen}
             className={cn(
@@ -182,10 +185,11 @@ export const TagsPanelToolbar = ({
             <span className="text-custom-text-400">
               {selectedAvailableColumnCount}/{totalColumnCount}
             </span>
-          </button>
+          </Button>
         </Tooltip>
         {onCreatePlaylist && (
-          <button
+          <Button
+            unstyled
             type="button"
             disabled={Boolean(playlistDisabledReason)}
             title={playlistDisabledReason}
@@ -195,7 +199,7 @@ export const TagsPanelToolbar = ({
           >
             <ListPlus className="h-3.5 w-3.5" />
             <span>{isCreatingPlaylist ? "Creating" : "Create Playlist"}</span>
-          </button>
+          </Button>
         )}
         {showCreateActions && cardDisabledReason && (
           <p id="tags-card-reason" role="status" className="text-xs text-custom-text-300">

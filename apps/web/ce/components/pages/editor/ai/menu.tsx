@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+
 import type { LucideIcon } from "lucide-react";
 import { ChevronRight, CornerDownRight, RefreshCcw, Sparkles, TriangleAlert } from "lucide-react";
 // plane editor
 import type { EditorRefApi } from "@plane/editor";
 // plane ui
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 // components
 import { cn } from "@plane/utils";
 import { RichTextEditor } from "@/components/editor/rich-text";
@@ -155,7 +157,8 @@ export const EditorAIMenu: React.FC<Props> = (props) => {
             const isActiveTask = activeTask === item.key;
 
             return (
-              <button
+              <Button
+                unstyled
                 key={item.key}
                 type="button"
                 className={cn(
@@ -179,7 +182,7 @@ export const EditorAIMenu: React.FC<Props> = (props) => {
                     "opacity-100 pointer-events-auto": isActiveTask,
                   })}
                 />
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -222,24 +225,27 @@ export const EditorAIMenu: React.FC<Props> = (props) => {
                       workspaceSlug={workspaceSlug}
                     />
                     <div className="mt-3 flex items-center gap-4">
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         className="p-1 text-custom-text-300 text-sm font-medium rounded hover:bg-custom-background-80 outline-none"
                         onClick={() => handleInsertText(false)}
                       >
                         Replace selection
-                      </button>
+                      </Button>
                       <Tooltip tooltipContent="Add to next line">
-                        <button
+                        <Button
+                          unstyled
                           type="button"
                           className="flex-shrink-0 size-6 grid place-items-center rounded hover:bg-custom-background-80 outline-none"
                           onClick={() => handleInsertText(true)}
                         >
                           <CornerDownRight className="text-custom-text-300 size-4" />
-                        </button>
+                        </Button>
                       </Tooltip>
                       <Tooltip tooltipContent="Re-generate response">
-                        <button
+                        <Button
+                          unstyled
                           type="button"
                           className="flex-shrink-0 size-6 grid place-items-center rounded hover:bg-custom-background-80 outline-none"
                           onClick={(e) => {
@@ -254,7 +260,7 @@ export const EditorAIMenu: React.FC<Props> = (props) => {
                               "animate-spin": isRegenerating,
                             })}
                           />
-                        </button>
+                        </Button>
                       </Tooltip>
                     </div>
                   </div>
@@ -266,7 +272,8 @@ export const EditorAIMenu: React.FC<Props> = (props) => {
               </div>
               <div className="sticky bottom-0 w-full bg-custom-background-100 pl-[54.8px] py-2 flex items-center gap-2">
                 {TONES_LIST.map((tone) => (
-                  <button
+                  <Button
+                    unstyled
                     key={tone.key}
                     type="button"
                     className={cn(
@@ -282,7 +289,7 @@ export const EditorAIMenu: React.FC<Props> = (props) => {
                     }}
                   >
                     {tone.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </>

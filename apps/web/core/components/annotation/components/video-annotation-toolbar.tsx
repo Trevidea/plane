@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { Mic, PaintBucket, Save, Trash2, Undo2 } from "lucide-react";
+import { Button } from "@plane/ui";
+
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import type { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
 import {
@@ -79,7 +81,8 @@ export const VideoAnnotationToolbar = ({
             const isSelected = annotationTool === toolOption.type;
 
             return (
-              <button
+              <Button
+                unstyled
                 key={toolOption.type}
                 type="button"
                 onClick={() => onSelectAnnotationTool(toolOption.type)}
@@ -92,7 +95,7 @@ export const VideoAnnotationToolbar = ({
                 title={toolOption.label}
               >
                 <ToolIcon className="h-4 w-4" />
-              </button>
+              </Button>
             );
           })}
 
@@ -102,7 +105,8 @@ export const VideoAnnotationToolbar = ({
               {annotationColorPicker}
 
               {shouldShowShapeBackgroundControl ? (
-                <button
+                <Button
+                  unstyled
                   type="button"
                   onClick={() => onShapeBackgroundToggle(!annotationShapeBackgroundEnabled)}
                   className={[
@@ -116,7 +120,7 @@ export const VideoAnnotationToolbar = ({
                   title="Fill"
                 >
                   <PaintBucket className="h-4 w-4" />
-                </button>
+                </Button>
               ) : null}
 
               <span className="my-0.5 h-px w-6 bg-custom-border-200" />
@@ -124,7 +128,8 @@ export const VideoAnnotationToolbar = ({
                 const isSelected = annotationDurationSeconds === durationSeconds;
 
                 return (
-                  <button
+                  <Button
+                    unstyled
                     key={durationSeconds}
                     type="button"
                     onClick={() => onDurationChange(durationSeconds)}
@@ -137,7 +142,7 @@ export const VideoAnnotationToolbar = ({
                     title={`${durationSeconds}s duration`}
                   >
                     {durationSeconds}s
-                  </button>
+                  </Button>
                 );
               })}
 
@@ -146,7 +151,8 @@ export const VideoAnnotationToolbar = ({
                 const isSelected = annotationStrokeWidth === strokeWidth;
 
                 return (
-                  <button
+                  <Button
+                    unstyled
                     key={strokeWidth}
                     type="button"
                     onClick={() => onStrokeWidthChange(strokeWidth)}
@@ -159,7 +165,7 @@ export const VideoAnnotationToolbar = ({
                     title={`${strokeWidth}px`}
                   >
                     <span className="w-4 rounded-full bg-current" style={{ height: Math.max(2, strokeWidth / 1.5) }} />
-                  </button>
+                  </Button>
                 );
               })}
 
@@ -167,7 +173,8 @@ export const VideoAnnotationToolbar = ({
                 const isSelected = annotationStrokeStyle === strokeStyleOption.value;
 
                 return (
-                  <button
+                  <Button
+                    unstyled
                     key={strokeStyleOption.value}
                     type="button"
                     onClick={() => onStrokeStyleChange(strokeStyleOption.value)}
@@ -185,14 +192,15 @@ export const VideoAnnotationToolbar = ({
                         strokeStyleOption.value === "dotted" ? "border-dotted" : "border-solid",
                       ].join(" ")}
                     />
-                  </button>
+                  </Button>
                 );
               })}
             </>
           ) : null}
 
           <span className="my-0.5 h-px w-6 bg-custom-border-200" />
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={onStartVoiceNarration}
             className={[
@@ -213,10 +221,11 @@ export const VideoAnnotationToolbar = ({
             }
           >
             <Mic className="h-4 w-4" />
-          </button>
+          </Button>
 
           <span className="my-0.5 h-px w-6 bg-custom-border-200" />
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={onUndoVisibleAnnotation}
             className={annotationButtonClass}
@@ -225,8 +234,9 @@ export const VideoAnnotationToolbar = ({
             title="Undo timestamp"
           >
             <Undo2 className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             onClick={onClearVisibleAnnotations}
             className={annotationButtonClass}
@@ -235,8 +245,9 @@ export const VideoAnnotationToolbar = ({
             title="Clear timestamp"
           >
             <Trash2 className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             onClick={() => void onSaveAnnotations()}
             className={[
@@ -248,7 +259,7 @@ export const VideoAnnotationToolbar = ({
             title="Save"
           >
             <Save className="h-4 w-4" />
-          </button>
+          </Button>
         </>
       ) : null}
     </fieldset>

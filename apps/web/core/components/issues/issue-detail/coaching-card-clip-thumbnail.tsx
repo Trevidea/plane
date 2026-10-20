@@ -1,6 +1,6 @@
 import { Loader2, Play } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
-import { ImageWithFallback } from "@plane/ui";
+import { Button, ImageWithFallback } from "@plane/ui";
 import { cn } from "@plane/utils";
 import type { CoachingCardDetailClip } from "./coaching-card-clips-model";
 import { clipTypeConfig, parseClipTime, resolveCoachingClipThumbnail } from "./coaching-card-clips-model";
@@ -38,7 +38,8 @@ export const CoachingCardClipThumbnail = ({
   const progress = media?.transcodeProgress ?? 0;
   return (
     <li className="w-60 shrink-0">
-      <button
+      <Button
+        unstyled
         type="button"
         aria-label={`Play clip: ${clip.title}`}
         aria-pressed={selected}
@@ -110,7 +111,7 @@ export const CoachingCardClipThumbnail = ({
             </>
           )}
         </span>
-      </button>
+      </Button>
     </li>
   );
 };

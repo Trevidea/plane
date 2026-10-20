@@ -20,7 +20,7 @@ import { ModuleStatusIcon, WorkItemsIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { ILinkDetails, IModule, ModuleLink } from "@plane/types";
 // plane ui
-import { Loader, CustomSelect, TextArea } from "@plane/ui";
+import { Button as UnstyledButton, Loader, CustomSelect, TextArea } from "@plane/ui";
 // components
 // helpers
 import { getDate, renderFormattedPayloadDate } from "@plane/utils";
@@ -242,12 +242,14 @@ export const ModuleAnalyticsSidebar: React.FC<Props> = observer((props) => {
           className={`sticky z-10 top-0 flex items-center justify-between bg-custom-sidebar-background-100 pb-5 pt-5`}
         >
           <div>
-            <button
+            <UnstyledButton
+              unstyled
+              type="submit"
               className="flex h-5 w-5 items-center justify-center rounded-full bg-custom-border-300"
               onClick={() => handleClose()}
             >
               <ChevronRight className="h-3 w-3 stroke-2 text-white" />
-            </button>
+            </UnstyledButton>
           </div>
         </div>
 
@@ -450,13 +452,15 @@ export const ModuleAnalyticsSidebar: React.FC<Props> = observer((props) => {
                           <>
                             {isEditingAllowed && !isArchived && (
                               <div className="flex w-full items-center justify-end">
-                                <button
+                                <UnstyledButton
+                                  unstyled
+                                  type="submit"
                                   className="flex items-center gap-1.5 text-sm font-medium text-custom-primary-100"
                                   onClick={() => setModuleLinkModal(true)}
                                 >
                                   <Plus className="h-3 w-3" />
                                   {t("add_link")}
-                                </button>
+                                </UnstyledButton>
                               </div>
                             )}
 
@@ -478,13 +482,15 @@ export const ModuleAnalyticsSidebar: React.FC<Props> = observer((props) => {
                               </span>
                             </div>
                             {isEditingAllowed && !isArchived && (
-                              <button
+                              <UnstyledButton
+                                unstyled
+                                type="submit"
                                 className="flex items-center gap-1.5 text-sm font-medium text-custom-primary-100"
                                 onClick={() => setModuleLinkModal(true)}
                               >
                                 <Plus className="h-3 w-3" />
                                 {t("add_link")}
-                              </button>
+                              </UnstyledButton>
                             )}
                           </div>
                         )}

@@ -9,7 +9,7 @@ import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssueServiceType } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
 // ui
-import { CustomMenu } from "@plane/ui";
+import { Button, CustomMenu } from "@plane/ui";
 import { convertBytesToSize, getFileExtension, getFileName, getFileURL, renderFormattedDate } from "@plane/utils";
 // components
 //
@@ -52,7 +52,9 @@ export const IssueAttachmentsListItem: FC<TIssueAttachmentsListItem> = observer(
 
   return (
     <>
-      <button
+      <Button
+        unstyled
+        type="submit"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -107,7 +109,7 @@ export const IssueAttachmentsListItem: FC<TIssueAttachmentsListItem> = observer(
             </CustomMenu>
           </div>
         </div>
-      </button>
+      </Button>
     </>
   );
 });

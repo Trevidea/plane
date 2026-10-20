@@ -3,7 +3,7 @@ import { Expand, Shrink } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 // plane
 import type { TGanttViews } from "@plane/types";
-import { Row } from "@plane/ui";
+import { Button, Row } from "@plane/ui";
 // components
 import { cn } from "@plane/utils";
 import { VIEWS_LIST } from "@/components/gantt-chart/data";
@@ -57,22 +57,24 @@ export const GanttChartHeader: React.FC<Props> = observer((props) => {
       </div>
 
       {showToday && (
-        <button
+        <Button
+          unstyled
           type="button"
           className="rounded-sm p-1 px-2 text-xs hover:bg-custom-background-80"
           onClick={handleToday}
         >
           {t("common.today")}
-        </button>
+        </Button>
       )}
 
-      <button
+      <Button
+        unstyled
         type="button"
         className="flex items-center justify-center rounded-sm border border-custom-border-200 p-1 transition-all hover:bg-custom-background-80"
         onClick={toggleFullScreenMode}
       >
         {fullScreenMode ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}
-      </button>
+      </Button>
     </Row>
   );
 });

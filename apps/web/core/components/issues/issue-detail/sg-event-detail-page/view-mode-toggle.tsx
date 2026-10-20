@@ -1,5 +1,6 @@
 import { Grid3x3, List, SlidersHorizontal } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 import type { SgEventTagViewMode } from "./types";
 
@@ -27,7 +28,8 @@ export const SgEventViewModeToggle = ({ isMatrixViewEnabled, onChange, value }: 
 
       return (
         <Tooltip key={option.value} tooltipContent={option.label} isMobile={false}>
-          <button
+          <Button
+            unstyled
             type="button"
             aria-label={option.label}
             aria-pressed={isActive}
@@ -41,7 +43,7 @@ export const SgEventViewModeToggle = ({ isMatrixViewEnabled, onChange, value }: 
             )}
           >
             <Icon aria-hidden="true" className={option.value === "list" ? "h-4 w-4" : "h-3.5 w-3.5"} />
-          </button>
+          </Button>
         </Tooltip>
       );
     })}

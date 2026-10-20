@@ -15,7 +15,7 @@ import {
 import { useTranslation } from "@plane/i18n";
 import type { IProject } from "@plane/types";
 // ui
-import { CustomSelect, Loader, ToggleSwitch } from "@plane/ui";
+import { Button, CustomSelect, Loader, ToggleSwitch } from "@plane/ui";
 // component
 import { SelectMonthModal } from "@/components/automation";
 // constants
@@ -125,13 +125,14 @@ export const AutoArchiveAutomation: React.FC<Props> = observer((props) => {
                         </CustomSelect.Option>
                       ))}
 
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         className="flex w-full select-none items-center rounded px-1 py-1.5 text-sm text-custom-text-200 hover:bg-custom-background-80"
                         onClick={() => setmonthModal(true)}
                       >
                         {t("common.customize_time_range")}
-                      </button>
+                      </Button>
                     </>
                   </CustomSelect>
                 </div>

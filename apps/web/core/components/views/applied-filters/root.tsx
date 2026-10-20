@@ -2,7 +2,7 @@ import { X } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import type { EViewAccess, TViewFilterProps } from "@plane/types";
-import { Tag } from "@plane/ui";
+import { Button, Tag } from "@plane/ui";
 import { replaceUnderscoreIfSnakeCase } from "@plane/utils";
 // components
 import { AppliedDateFilters } from "@/components/common/applied-filters/date";
@@ -63,24 +63,25 @@ export const ViewAppliedFiltersList: React.FC<Props> = (props) => {
               />
             )}
             {isEditingAllowed && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemoveFilter(filterKey, null)}
               >
                 <X size={12} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </Tag>
         );
       })}
       {isEditingAllowed && (
-        <button type="button" onClick={handleClearAllFilters}>
+        <Button unstyled type="button" onClick={handleClearAllFilters}>
           <Tag>
             {t("common.clear_all")}
             <X size={12} strokeWidth={2} />
           </Tag>
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -23,7 +23,7 @@ import { useOutsideClickDetector } from "@plane/hooks";
 import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
-import { ImageWithFallback } from "@plane/ui";
+import { Button, ImageWithFallback } from "@plane/ui";
 import { cn, getFileURL } from "@plane/utils";
 // components
 import { SidebarNavItem } from "@/components/sidebar/sidebar-navigation";
@@ -260,7 +260,8 @@ export const ProfileLayoutSidebar = observer(() => {
               sidebarCollapsed ? "flex-col justify-center gap-2" : "items-center justify-between gap-2"
             }`}
           >
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={handleSignOut}
               className="flex items-center justify-center gap-2 text-sm font-medium text-red-500"
@@ -268,15 +269,17 @@ export const ProfileLayoutSidebar = observer(() => {
             >
               <LogOut className="h-3.5 w-3.5" />
               {!sidebarCollapsed && <span>{isSigningOut ? `${t("signing_out")}...` : t("sign_out")}</span>}
-            </button>
-            <button
+            </Button>
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center rounded-md p-1.5 text-custom-text-200 outline-none hover:bg-custom-background-90 hover:text-custom-text-100 md:hidden"
               onClick={() => toggleSidebar()}
             >
               <MoveLeft className="h-3.5 w-3.5" />
-            </button>
-            <button
+            </Button>
+            <Button
+              unstyled
               type="button"
               className={`ml-auto hidden place-items-center rounded-md p-1.5 text-custom-text-200 outline-none hover:bg-custom-background-90 hover:text-custom-text-100 md:grid ${
                 sidebarCollapsed ? "w-full" : ""
@@ -284,7 +287,7 @@ export const ProfileLayoutSidebar = observer(() => {
               onClick={() => toggleSidebar()}
             >
               <MoveLeft className={`h-3.5 w-3.5 duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} />
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import videojs from "video.js";
-import { Check, Pencil } from "lucide-react";
-import { cn } from "@plane/utils";
-import { VideoAnnotationEditor } from "@/components/annotation";
-import type { TCustomPlaylistAnnotation } from "@/components/annotation";
 import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
 import { getQualitySelection, getVideoRepresentations } from "ce/features/media-library/utils/media-detail-utils";
+import { createPortal } from "react-dom";
+
+import videojs from "video.js";
+import { Check, Pencil } from "lucide-react";
+import { Button as UnstyledButton } from "@plane/ui";
+import { cn } from "@plane/utils";
+import { VideoAnnotationEditor } from "@/components/annotation";
+import type { TCustomPlaylistAnnotation } from "@/components/annotation";
 import { PLAYER_FRAME_CLASS, PLAYER_STAGE_CLASS, SG_PLAYER_STYLE } from "./constants";
 
 type SgEventVideoPlayerProps = {
@@ -701,7 +703,8 @@ export const SgEventVideoPlayer = ({
       <div className="sg-event-settings-title">Quality</div>
       <div className="sg-event-settings-options" role="menu" aria-label="Video quality">
         {qualityOptions.map((option) => (
-          <button
+          <UnstyledButton
+            unstyled
             key={option.key}
             type="button"
             role="menuitemradio"
@@ -717,7 +720,7 @@ export const SgEventVideoPlayer = ({
               <Check className="h-3.5 w-3.5" />
             </span>
             <span className="sg-event-settings-label">{option.label}</span>
-          </button>
+          </UnstyledButton>
         ))}
       </div>
     </div>
@@ -744,7 +747,8 @@ export const SgEventVideoPlayer = ({
       {videoAnnotationContent}
       {settingsPanelContent}
       {canAnnotateVideo ? (
-        <button
+        <UnstyledButton
+          unstyled
           type="button"
           onClick={onOpenAnnotationPage}
           className="sg-event-annotation-button"
@@ -753,7 +757,7 @@ export const SgEventVideoPlayer = ({
         >
           <Pencil className="h-4 w-4 shrink-0" />
           <span className="whitespace-nowrap leading-none">Annotate</span>
-        </button>
+        </UnstyledButton>
       ) : null}
     </>
   );

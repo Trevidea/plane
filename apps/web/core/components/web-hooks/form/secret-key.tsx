@@ -5,6 +5,7 @@ import { useState } from "react";
 import { range } from "lodash-es";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 // icons
 import { Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
@@ -12,6 +13,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IWebhook } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 // ui
 import { csvDownload, copyTextToClipboard } from "@plane/utils";
 // hooks
@@ -121,9 +123,14 @@ export const WebhookSecretKey: FC<Props> = observer((props) => {
                 <div className="flex items-center gap-2">
                   {SECRET_KEY_OPTIONS.map((option) => (
                     <Tooltip key={option.key} tooltipContent={option.label} isMobile={isMobile}>
-                      <button type="button" className="grid flex-shrink-0 place-items-center" onClick={option.onClick}>
+                      <UnstyledButton
+                        unstyled
+                        type="button"
+                        className="grid flex-shrink-0 place-items-center"
+                        onClick={option.onClick}
+                      >
                         <option.Icon className="h-3 w-3 text-custom-text-400" />
-                      </button>
+                      </UnstyledButton>
                     </Tooltip>
                   ))}
                 </div>

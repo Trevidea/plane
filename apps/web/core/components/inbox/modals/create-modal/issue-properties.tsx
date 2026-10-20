@@ -5,7 +5,7 @@ import { LayoutPanelTop } from "lucide-react";
 // plane imports
 import { ETabIndices } from "@plane/constants";
 import type { ISearchIssueResponse, TIssue } from "@plane/types";
-import { CustomMenu } from "@plane/ui";
+import { Button, CustomMenu } from "@plane/ui";
 import { renderFormattedPayloadDate, getDate, getTabIndex } from "@plane/utils";
 // components
 import { CycleDropdown } from "@/components/dropdowns/cycle";
@@ -173,7 +173,8 @@ export const InboxIssueProperties: FC<TInboxIssueProperties> = observer((props) 
           {selectedParentIssue ? (
             <CustomMenu
               customButton={
-                <button
+                <Button
+                  unstyled
                   type="button"
                   className="flex cursor-pointer items-center justify-between gap-1 h-full rounded border-[0.5px] border-custom-border-300 px-2 py-0.5 text-xs hover:bg-custom-background-80"
                 >
@@ -183,7 +184,7 @@ export const InboxIssueProperties: FC<TInboxIssueProperties> = observer((props) 
                       ? `${selectedParentIssue.project__identifier}-${selectedParentIssue.sequence_id}`
                       : `Add parent`}
                   </span>
-                </button>
+                </Button>
               }
               placement="bottom-start"
               className="h-full w-full"
@@ -206,14 +207,15 @@ export const InboxIssueProperties: FC<TInboxIssueProperties> = observer((props) 
               </>
             </CustomMenu>
           ) : (
-            <button
+            <Button
+              unstyled
               type="button"
               className="flex cursor-pointer items-center justify-between gap-1 h-full rounded border-[0.5px] border-custom-border-300 px-2 py-0.5 text-xs hover:bg-custom-background-80"
               onClick={() => setParentIssueModalOpen(true)}
             >
               <LayoutPanelTop className="h-3 w-3 flex-shrink-0" />
               <span className="whitespace-nowrap">Add parent</span>
-            </button>
+            </Button>
           )}
 
           <ParentIssuesListModal

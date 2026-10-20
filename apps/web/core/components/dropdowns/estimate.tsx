@@ -8,7 +8,7 @@ import { Combobox } from "@headlessui/react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import { EEstimateSystem } from "@plane/types";
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 import { convertMinutesToHoursMinutesString, cn } from "@plane/utils";
 // hooks
 import { useProjectEstimates } from "@/hooks/store/estimates";
@@ -156,7 +156,8 @@ export const EstimateDropdown: React.FC<Props> = observer((props) => {
   const comboButton = (
     <>
       {button ? (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn("clickable block h-full w-full outline-none", buttonContainerClassName)}
@@ -164,9 +165,10 @@ export const EstimateDropdown: React.FC<Props> = observer((props) => {
           disabled={disabled}
         >
           {button}
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn(
@@ -203,7 +205,7 @@ export const EstimateDropdown: React.FC<Props> = observer((props) => {
               <ChevronDown className={cn("h-2.5 w-2.5 flex-shrink-0", dropdownArrowClassName)} aria-hidden="true" />
             )}
           </DropdownButton>
-        </button>
+        </Button>
       )}
     </>
   );

@@ -2,7 +2,7 @@
 
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Pencil } from "lucide-react";
-import { ImageWithFallback } from "@plane/ui";
+import { Button, ImageWithFallback } from "@plane/ui";
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import type { VIDEO_ANNOTATION_TOOLS } from "../utils/video-annotation-editor-config";
 import {
@@ -209,7 +209,8 @@ export const VideoAnnotationPropertiesPanel = ({
               <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">Color</div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     onClick={() => setIsAnnotationColorPickerOpen((currentValue) => !currentValue)}
                     className={[
@@ -224,7 +225,7 @@ export const VideoAnnotationPropertiesPanel = ({
                       className="h-5 w-7 rounded-[4px] border border-custom-border-200 shadow-sm"
                       style={{ backgroundColor: annotationColor }}
                     />
-                  </button>
+                  </Button>
                   <input
                     type="text"
                     value={annotationColorInputValue}
@@ -238,7 +239,8 @@ export const VideoAnnotationPropertiesPanel = ({
                 </div>
                 {isAnnotationColorPickerOpen ? (
                   <div className="space-y-2 rounded-[6px] border border-custom-border-200 bg-custom-background-90 p-2 shadow-sm">
-                    <button
+                    <Button
+                      unstyled
                       type="button"
                       onPointerDown={onAnnotationColorPickerPointerDown}
                       onPointerMove={onAnnotationColorPickerPointerMove}
@@ -256,7 +258,7 @@ export const VideoAnnotationPropertiesPanel = ({
                           top: `${(1 - annotationColorHsv.value) * 100}%`,
                         }}
                       />
-                    </button>
+                    </Button>
                     <label className="block space-y-1">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-custom-text-400">
                         Hue
@@ -307,7 +309,8 @@ export const VideoAnnotationPropertiesPanel = ({
                         const isSelected = annotationColor.toLowerCase() === colorPreset;
 
                         return (
-                          <button
+                          <Button
+                            unstyled
                             key={colorPreset}
                             type="button"
                             onClick={() => onAnnotationColorChange(colorPreset)}
@@ -323,7 +326,7 @@ export const VideoAnnotationPropertiesPanel = ({
                               className="h-3.5 w-3.5 rounded-full border border-custom-border-200 shadow-sm"
                               style={{ backgroundColor: colorPreset }}
                             />
-                          </button>
+                          </Button>
                         );
                       })}
                     </div>
@@ -341,7 +344,8 @@ export const VideoAnnotationPropertiesPanel = ({
                   const isSelected = annotationDurationSeconds === durationSeconds;
 
                   return (
-                    <button
+                    <Button
+                      unstyled
                       key={durationSeconds}
                       type="button"
                       onClick={() => onDurationChange(durationSeconds)}
@@ -354,7 +358,7 @@ export const VideoAnnotationPropertiesPanel = ({
                       title={`${durationSeconds}s duration`}
                     >
                       {durationSeconds}s
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -435,7 +439,8 @@ export const VideoAnnotationPropertiesPanel = ({
                     const isSelected = annotationTextFontFamily === fontFamilyOption.value;
 
                     return (
-                      <button
+                      <Button
+                        unstyled
                         key={fontFamilyOption.value}
                         type="button"
                         onClick={() => onTextFontFamilyChange(fontFamilyOption.value)}
@@ -449,7 +454,7 @@ export const VideoAnnotationPropertiesPanel = ({
                         aria-pressed={isSelected}
                       >
                         {fontFamilyOption.label}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -461,7 +466,8 @@ export const VideoAnnotationPropertiesPanel = ({
                     const isSelected = annotationTextFontSize === fontSize;
 
                     return (
-                      <button
+                      <Button
+                        unstyled
                         key={fontSize}
                         type="button"
                         onClick={() => onTextFontSizeChange(fontSize)}
@@ -475,7 +481,7 @@ export const VideoAnnotationPropertiesPanel = ({
                         aria-pressed={isSelected}
                       >
                         {fontSize}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -487,7 +493,8 @@ export const VideoAnnotationPropertiesPanel = ({
                     const isSelected = annotationTextFontWeight === fontWeightOption.value;
 
                     return (
-                      <button
+                      <Button
+                        unstyled
                         key={fontWeightOption.value}
                         type="button"
                         onClick={() => onTextFontWeightChange(fontWeightOption.value)}
@@ -501,7 +508,7 @@ export const VideoAnnotationPropertiesPanel = ({
                         aria-pressed={isSelected}
                       >
                         {fontWeightOption.label}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -522,7 +529,8 @@ export const VideoAnnotationPropertiesPanel = ({
                       const isSelected = annotationShapeBackgroundEnabled === backgroundOption.value;
 
                       return (
-                        <button
+                        <Button
+                          unstyled
                           key={backgroundOption.label}
                           type="button"
                           onClick={() => onShapeBackgroundToggle(backgroundOption.value)}
@@ -537,7 +545,7 @@ export const VideoAnnotationPropertiesPanel = ({
                           title={backgroundOption.label}
                         >
                           {backgroundOption.label}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -571,7 +579,8 @@ export const VideoAnnotationPropertiesPanel = ({
                     const isSelected = annotationStrokeWidth === strokeWidth;
 
                     return (
-                      <button
+                      <Button
+                        unstyled
                         key={strokeWidth}
                         type="button"
                         onClick={() => onStrokeWidthChange(strokeWidth)}
@@ -590,7 +599,7 @@ export const VideoAnnotationPropertiesPanel = ({
                           className="w-4 rounded-full bg-current"
                           style={{ height: Math.max(2, strokeWidth / 1.5) }}
                         />
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -599,7 +608,8 @@ export const VideoAnnotationPropertiesPanel = ({
                     const isSelected = annotationStrokeStyle === strokeStyleOption.value;
 
                     return (
-                      <button
+                      <Button
+                        unstyled
                         key={strokeStyleOption.value}
                         type="button"
                         onClick={() => onStrokeStyleChange(strokeStyleOption.value)}
@@ -619,7 +629,7 @@ export const VideoAnnotationPropertiesPanel = ({
                             strokeStyleOption.value === "dotted" ? "border-dotted" : "border-solid",
                           ].join(" ")}
                         />
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>

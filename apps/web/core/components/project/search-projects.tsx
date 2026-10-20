@@ -2,12 +2,14 @@
 
 import type { FC } from "react";
 import { useRef, useState } from "react";
+
 import { observer } from "mobx-react";
 import { Search, X } from "lucide-react";
 // plane hooks
 import { useOutsideClickDetector } from "@plane/hooks";
 // i18n
 import { useTranslation } from "@plane/i18n";
+import { Button } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 // hooks
@@ -37,7 +39,8 @@ export const ProjectSearch: FC = observer(() => {
   return (
     <div className="flex items-center">
       {!isSearchOpen && (
-        <button
+        <Button
+          unstyled
           type="button"
           className="-mr-1 p-2 hover:bg-custom-background-80 rounded text-custom-text-400 grid place-items-center"
           onClick={() => {
@@ -46,7 +49,7 @@ export const ProjectSearch: FC = observer(() => {
           }}
         >
           <Search className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       )}
       <div
         className={cn(
@@ -66,7 +69,8 @@ export const ProjectSearch: FC = observer(() => {
           onKeyDown={handleInputKeyDown}
         />
         {isSearchOpen && (
-          <button
+          <Button
+            unstyled
             type="button"
             className="grid place-items-center"
             onClick={() => {
@@ -75,7 +79,7 @@ export const ProjectSearch: FC = observer(() => {
             }}
           >
             <X className="h-3 w-3" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

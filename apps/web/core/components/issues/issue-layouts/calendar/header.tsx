@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { TSupportedFilterTypeForUpdate } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import type { TSupportedFilterForUpdate } from "@plane/types";
-import { Row } from "@plane/ui";
+import { Button, Row } from "@plane/ui";
 // icons
 import { useCalendarView } from "@/hooks/store/use-calendar-view";
 import type { IProjectEpicsFilter } from "@/plane-web/store/issue/epic";
@@ -103,22 +103,23 @@ export const CalendarHeader: React.FC<ICalendarHeader> = observer((props) => {
   return (
     <Row className="mb-4 flex items-center justify-between gap-2">
       <div className="flex items-center gap-1.5">
-        <button type="button" className="grid place-items-center" onClick={handlePrevious}>
+        <Button unstyled type="button" className="grid place-items-center" onClick={handlePrevious}>
           <ChevronLeft size={16} strokeWidth={2} />
-        </button>
-        <button type="button" className="grid place-items-center" onClick={handleNext}>
+        </Button>
+        <Button unstyled type="button" className="grid place-items-center" onClick={handleNext}>
           <ChevronRight size={16} strokeWidth={2} />
-        </button>
+        </Button>
         <CalendarMonthsDropdown issuesFilterStore={issuesFilterStore} />
       </div>
       <div className="flex items-center gap-1.5">
-        <button
+        <Button
+          unstyled
           type="button"
           className="rounded bg-custom-background-80 px-2.5 py-1 text-xs font-medium text-custom-text-200 hover:text-custom-text-100"
           onClick={handleToday}
         >
           {t("common.today")}
-        </button>
+        </Button>
         <CalendarOptionsDropdown issuesFilterStore={issuesFilterStore} updateFilters={updateFilters} />
       </div>
     </Row>

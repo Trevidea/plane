@@ -13,7 +13,7 @@ import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { ISearchIssueResponse, TProjectIssuesSearchParams } from "@plane/types";
 // ui
-import { Loader, ToggleSwitch } from "@plane/ui";
+import { Button as UnstyledButton, Loader, ToggleSwitch } from "@plane/ui";
 import { generateWorkItemLink, getTabIndex } from "@plane/utils";
 // helpers
 // hooks
@@ -194,13 +194,14 @@ export const ExistingIssuesListModal: React.FC<Props> = (props) => {
                               issueSequenceId={issue.sequence_id}
                               textContainerClassName="text-xs text-custom-text-200"
                             />
-                            <button
+                            <UnstyledButton
+                              unstyled
                               type="button"
                               className="group p-1"
                               onClick={() => setSelectedIssues((prevData) => prevData.filter((i) => i.id !== issue.id))}
                             >
                               <X className="h-3 w-3 text-custom-text-200 group-hover:text-custom-text-100" />
-                            </button>
+                            </UnstyledButton>
                           </div>
                         ))}
                       </div>
@@ -220,13 +221,14 @@ export const ExistingIssuesListModal: React.FC<Props> = (props) => {
                             value={isWorkspaceLevel}
                             onChange={() => setIsWorkspaceLevel((prevData) => !prevData)}
                           />
-                          <button
+                          <UnstyledButton
+                            unstyled
                             type="button"
                             onClick={() => setIsWorkspaceLevel((prevData) => !prevData)}
                             className="flex-shrink-0"
                           >
                             {t("common.workspace_level")}
-                          </button>
+                          </UnstyledButton>
                         </div>
                       </Tooltip>
                     )}

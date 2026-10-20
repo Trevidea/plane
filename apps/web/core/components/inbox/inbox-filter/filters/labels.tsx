@@ -4,7 +4,7 @@ import type { FC } from "react";
 import { useState } from "react";
 import { observer } from "mobx-react";
 import type { IIssueLabel } from "@plane/types";
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 // components
 import { FilterHeader, FilterOption } from "@/components/issues/issue-layouts/filters";
 // hooks
@@ -65,13 +65,14 @@ export const FilterLabels: FC<Props> = observer((props) => {
                   />
                 ))}
                 {filteredOptions.length > 5 && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="ml-8 text-xs font-medium text-custom-primary-100"
                     onClick={handleViewToggle}
                   >
                     {itemsToRender === filteredOptions.length ? "View less" : "View all"}
-                  </button>
+                  </Button>
                 )}
               </>
             ) : (

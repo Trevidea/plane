@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
+
 import { observer } from "mobx-react";
 import { Search, X } from "lucide-react";
+import { Button } from "@plane/ui";
 // types
 import type { IIssueFilterOptions, TIssueFilterKeys } from "@/types/issue";
 // local imports
@@ -36,9 +38,14 @@ export const FilterSelection: React.FC<Props> = observer((props) => {
             autoFocus
           />
           {filtersSearchQuery !== "" && (
-            <button type="button" className="grid place-items-center" onClick={() => setFiltersSearchQuery("")}>
+            <Button
+              unstyled
+              type="button"
+              className="grid place-items-center"
+              onClick={() => setFiltersSearchQuery("")}
+            >
               <X className="text-custom-text-300" size={12} strokeWidth={2} />
-            </button>
+            </Button>
           )}
         </div>
       </div>

@@ -9,7 +9,7 @@ import { Transition, Dialog } from "@headlessui/react";
 // plane imports
 import { allTimeIn30MinutesInterval12HoursFormat } from "@plane/constants";
 import { Button } from "@plane/propel/button";
-import { CustomSelect } from "@plane/ui";
+import { Button as UnstyledButton, CustomSelect } from "@plane/ui";
 // components
 import { getDate } from "@plane/utils";
 import { DateDropdown } from "@/components/dropdowns/date";
@@ -146,9 +146,9 @@ export const NotificationSnoozeModal: FC<TNotificationSnoozeModal> = (props) => 
                     </Dialog.Title>
 
                     <div>
-                      <button type="button" onClick={handleClose}>
+                      <UnstyledButton unstyled type="button" onClick={handleClose}>
                         <X className="h-5 w-5 text-custom-text-100" />
-                      </button>
+                      </UnstyledButton>
                     </div>
                   </div>
 

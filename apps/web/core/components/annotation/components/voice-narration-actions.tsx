@@ -1,7 +1,7 @@
 "use client";
 import { memo, useState } from "react";
 import { Copy, Download, Loader2, Pencil, Play, RefreshCw, Square, Trash2 } from "lucide-react";
-import { CustomMenu } from "@plane/ui";
+import { Button, CustomMenu } from "@plane/ui";
 import type { TCustomPlaylistAnnotation } from "../types/annotation.types";
 import { finalizeNarrationAudio } from "../utils/narration-audio-container";
 import { narrationAudio, narrationDownloadRequest } from "../utils/voice-narration";
@@ -57,7 +57,8 @@ export const VoiceNarrationActions = memo(function VoiceNarrationActions({
   };
   return (
     <div className="relative flex shrink-0 items-center">
-      <button
+      <Button
+        unstyled
         type="button"
         disabled={disabled}
         aria-label={previewing ? "Stop narration preview" : "Play narration"}
@@ -66,7 +67,7 @@ export const VoiceNarrationActions = memo(function VoiceNarrationActions({
         className="hidden size-7 place-items-center rounded text-custom-primary-100 hover:bg-custom-background-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100 md:grid"
       >
         {previewing ? <Square className="size-3.5" /> : <Play className="size-3.5" />}
-      </button>
+      </Button>
       <CustomMenu
         ellipsis
         ariaLabel="Narration actions"

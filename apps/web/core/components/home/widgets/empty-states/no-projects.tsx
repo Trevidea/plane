@@ -9,7 +9,7 @@ import { EUserPermissions, EUserPermissionsLevel, PROJECT_TRACKER_ELEMENTS } fro
 import { useLocalStorage } from "@plane/hooks";
 import { useTranslation } from "@plane/i18n";
 import { ProjectIcon } from "@plane/propel/icons";
-import { ImageWithFallback } from "@plane/ui";
+import { Button, ImageWithFallback } from "@plane/ui";
 import { cn, getFileURL } from "@plane/utils";
 // helpers
 // hooks
@@ -136,7 +136,9 @@ export const NoProjectsEmptyState = observer(() => {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="text-base font-semibold text-custom-text-350">{t("home.empty.quickstart_guide")}</div>
-        <button
+        <Button
+          unstyled
+          type="submit"
           className="text-custom-text-300 font-medium text-sm flex items-center gap-1"
           onClick={() => {
             if (!storedValue) return;
@@ -145,7 +147,7 @@ export const NoProjectsEmptyState = observer(() => {
         >
           <X className="size-4" />
           {t("home.empty.not_right_now")}
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {EMPTY_STATE_DATA.map((item) => {
@@ -192,13 +194,14 @@ export const NoProjectsEmptyState = observer(() => {
                     {t(item.cta.text)}
                   </Link>
                 ) : (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="text-custom-primary-100 hover:text-custom-primary-200 text-sm font-medium"
                     onClick={item.cta.onClick}
                   >
                     {t(item.cta.text)}
-                  </button>
+                  </Button>
                 ))
               )}
             </div>

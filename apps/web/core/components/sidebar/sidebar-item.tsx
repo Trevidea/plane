@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Button as UnstyledButton } from "@plane/ui";
+
 import { cn } from "@plane/utils";
 
 // ============================================================================
@@ -106,9 +108,9 @@ const AppSidebarButtonItem: React.FC<AppSidebarButtonItemProps> = ({
   disabled = false,
   className,
 }) => (
-  <button className={cn(styles.base, className)} onClick={onClick} disabled={disabled} type="button">
+  <UnstyledButton unstyled className={cn(styles.base, className)} onClick={onClick} disabled={disabled} type="button">
     {children}
-  </button>
+  </UnstyledButton>
 );
 
 // ============================================================================

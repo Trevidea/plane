@@ -9,7 +9,7 @@ import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TEstimatePointsObject, TEstimateSystemKeys, TEstimateTypeErrorObject } from "@plane/types";
-import { Spinner } from "@plane/ui";
+import { Button, Spinner } from "@plane/ui";
 import { cn, isEstimatePointValuesRepeated } from "@plane/utils";
 import { EstimateInputRoot } from "@/components/estimates/inputs/root";
 // helpers
@@ -190,22 +190,24 @@ export const EstimatePointCreate: FC<TEstimatePointCreate> = observer((props) =>
       </div>
 
       {estimateInputValue && estimateInputValue.length > 0 && (
-        <button
+        <Button
+          unstyled
           type="submit"
           className="rounded-sm w-6 h-6 flex-shrink-0 relative flex justify-center items-center hover:bg-custom-background-80 transition-colors cursor-pointer text-green-500"
           disabled={loader}
         >
           {loader ? <Spinner className="w-4 h-4" /> : <Check size={14} />}
-        </button>
+        </Button>
       )}
-      <button
+      <Button
+        unstyled
         type="button"
         className="rounded-sm w-6 h-6 flex-shrink-0 relative flex justify-center items-center hover:bg-custom-background-80 transition-colors cursor-pointer"
         onClick={handleClose}
         disabled={loader}
       >
         <X size={14} className="text-custom-text-200" />
-      </button>
+      </Button>
     </form>
   );
 });

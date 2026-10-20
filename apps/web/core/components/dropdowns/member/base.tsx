@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import type { IUserLite } from "@plane/types";
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 // hooks
@@ -105,7 +105,8 @@ export const MemberDropdownBase: React.FC<TMemberDropdownBaseProps> = observer((
   const comboButton = (
     <>
       {button ? (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn("clickable block h-full w-full outline-none", buttonContainerClassName)}
@@ -114,9 +115,10 @@ export const MemberDropdownBase: React.FC<TMemberDropdownBaseProps> = observer((
           tabIndex={tabIndex}
         >
           {button}
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn(
@@ -152,7 +154,7 @@ export const MemberDropdownBase: React.FC<TMemberDropdownBaseProps> = observer((
               <ChevronDown className={cn("h-2.5 w-2.5 flex-shrink-0", dropdownArrowClassName)} aria-hidden="true" />
             )}
           </DropdownButton>
-        </button>
+        </Button>
       )}
     </>
   );

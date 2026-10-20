@@ -4,10 +4,12 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
+
 import type { Swiper as SwiperInstance } from "swiper";
 import { Navigation, Scrollbar } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@plane/ui";
 import { useFiltersOperatorConfigs } from "@/plane-web/hooks/rich-filters/use-filters-operator-configs";
 import { useMediaLibraryItems } from "../hooks/use-media-library-items";
 import { useMediaLibrary } from "../store/media-library-context";
@@ -86,7 +88,8 @@ const MediaRow = ({
         </Swiper>
         {hasScrollableItems ? (
           <>
-            <button
+            <Button
+              unstyled
               id={prevId}
               type="button"
               className={`absolute left-0 top-[40%] z-10 flex -translate-y-1/2 -translate-x-1/2 rounded-full border border-custom-border-200 bg-custom-background-100 p-2 text-custom-text-300 shadow-sm hover:text-custom-text-100 ${
@@ -95,8 +98,9 @@ const MediaRow = ({
               aria-label={`Scroll ${section.title} left`}
             >
               <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
+            </Button>
+            <Button
+              unstyled
               id={nextId}
               type="button"
               className={`absolute right-0 top-[40%] z-10 flex -translate-y-1/2 translate-x-1/2 rounded-full border border-custom-border-200 bg-custom-background-100 p-2 text-custom-text-300 shadow-sm hover:text-custom-text-100 ${
@@ -105,7 +109,7 @@ const MediaRow = ({
               aria-label={`Scroll ${section.title} right`}
             >
               <ChevronRight className="h-5 w-5" />
-            </button>
+            </Button>
           </>
         ) : null}
       </div>

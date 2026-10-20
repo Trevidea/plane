@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Button } from "@plane/ui";
+
 import type { TCustomPlaylistAnnotation } from "../../types/annotation.types";
 import { VideoAnnotationEditor } from "../video-annotation-editor";
 function Fixture() {
@@ -14,8 +16,12 @@ function Fixture() {
   }, []);
   return (
     <main>
-      <button onClick={() => setTime(8)}>Seek to eight</button>
-      <button onClick={() => save.current?.()}>Save editor</button>
+      <Button unstyled type="submit" onClick={() => setTime(8)}>
+        Seek to eight
+      </Button>
+      <Button unstyled type="submit" onClick={() => save.current?.()}>
+        Save editor
+      </Button>
       <div style={{ display: "flex", gap: 12 }}>
         <div ref={setToolbar} />
         <div data-testid="drawing" style={{ position: "relative", width: 700, height: 400, background: "#222" }}>

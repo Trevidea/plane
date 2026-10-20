@@ -19,7 +19,7 @@ import { ModuleIcon } from "@plane/propel/icons";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { ICustomSearchSelectOption, IIssueDisplayFilterOptions, IIssueDisplayProperties } from "@plane/types";
 import { EIssuesStoreType, EIssueLayoutTypes } from "@plane/types";
-import { Breadcrumbs, Header, BreadcrumbNavigationSearchDropdown } from "@plane/ui";
+import { Button as UnstyledButton, Breadcrumbs, Header, BreadcrumbNavigationSearchDropdown } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { WorkItemsModal } from "@/components/analytics/work-items/modal";
@@ -241,13 +241,14 @@ export const ModuleIssuesHeader: React.FC = observer(() => {
           ) : (
             <></>
           )}
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             className="p-1.5 rounded outline-none hover:bg-custom-sidebar-background-80 bg-custom-background-80/70"
             onClick={toggleSidebar}
           >
             <PanelRight className={cn("h-4 w-4", !isSidebarCollapsed ? "text-[#3E63DD]" : "text-custom-text-200")} />
-          </button>
+          </UnstyledButton>
           {moduleId && (
             <ModuleQuickActions
               parentRef={parentRef}

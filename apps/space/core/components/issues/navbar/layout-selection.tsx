@@ -3,11 +3,13 @@
 import type { FC } from "react";
 import { observer } from "mobx-react";
 import { useRouter, useSearchParams } from "next/navigation";
+
 // ui
 import { SITES_ISSUE_LAYOUTS } from "@plane/constants";
 // plane i18n
 import { useTranslation } from "@plane/i18n";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 // helpers
 import { queryParamGenerator } from "@/helpers/query-param-generator";
 // hooks
@@ -51,7 +53,8 @@ export const IssuesLayoutSelection: FC<Props> = observer((props) => {
 
         return (
           <Tooltip key={layout.key} tooltipContent={t(layout.titleTranslationKey)}>
-            <button
+            <Button
+              unstyled
               type="button"
               className={`group grid h-[22px] w-7 place-items-center overflow-hidden rounded transition-all hover:bg-custom-background-100 ${
                 activeLayout == layout.key ? "bg-custom-background-100 shadow-custom-shadow-2xs" : ""
@@ -62,7 +65,7 @@ export const IssuesLayoutSelection: FC<Props> = observer((props) => {
                 layout={layout.key}
                 className={`size-3.5 ${activeLayout == layout.key ? "text-custom-text-100" : "text-custom-text-200"}`}
               />
-            </button>
+            </Button>
           </Tooltip>
         );
       })}

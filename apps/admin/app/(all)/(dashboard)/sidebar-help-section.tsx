@@ -4,12 +4,14 @@ import type { FC } from "react";
 import { useState, useRef } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
+
 import { ExternalLink, HelpCircle, MoveLeft } from "lucide-react";
 import { Transition } from "@headlessui/react";
 // plane internal packages
 import { WEB_BASE_URL } from "@plane/constants";
 import { DiscordIcon, GithubIcon, PageIcon } from "@plane/propel/icons";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { useTheme } from "@/hooks/store";
@@ -66,7 +68,8 @@ export const AdminSidebarHelpSection: FC = observer(() => {
           </Link>
         </Tooltip>
         <Tooltip tooltipContent="Help" position={isSidebarCollapsed ? "right" : "top"} className="ml-4">
-          <button
+          <Button
+            unstyled
             type="button"
             className={`ml-auto grid place-items-center rounded-md p-1.5 text-custom-text-200 outline-none hover:bg-custom-background-90 hover:text-custom-text-100 ${
               isSidebarCollapsed ? "w-full" : ""
@@ -74,10 +77,11 @@ export const AdminSidebarHelpSection: FC = observer(() => {
             onClick={() => setIsNeedHelpOpen((prev) => !prev)}
           >
             <HelpCircle className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip tooltipContent="Toggle sidebar" position={isSidebarCollapsed ? "right" : "top"} className="ml-4">
-          <button
+          <Button
+            unstyled
             type="button"
             className={`grid place-items-center rounded-md p-1.5 text-custom-text-200 outline-none hover:bg-custom-background-90 hover:text-custom-text-100 ${
               isSidebarCollapsed ? "w-full" : ""
@@ -85,7 +89,7 @@ export const AdminSidebarHelpSection: FC = observer(() => {
             onClick={() => toggleSidebar(!isSidebarCollapsed)}
           >
             <MoveLeft className={`h-3.5 w-3.5 duration-300 ${isSidebarCollapsed ? "rotate-180" : ""}`} />
-          </button>
+          </Button>
         </Tooltip>
       </div>
 
@@ -120,7 +124,8 @@ export const AdminSidebarHelpSection: FC = observer(() => {
                   );
                 else
                   return (
-                    <button
+                    <Button
+                      unstyled
                       key={name}
                       type="button"
                       className="flex w-full items-center gap-x-2 rounded px-2 py-1 text-xs hover:bg-custom-background-80"
@@ -129,7 +134,7 @@ export const AdminSidebarHelpSection: FC = observer(() => {
                         <Icon className="h-3.5 w-3.5 text-custom-text-200" />
                       </div>
                       <span className="text-xs">{name}</span>
-                    </button>
+                    </Button>
                   );
               })}
             </div>

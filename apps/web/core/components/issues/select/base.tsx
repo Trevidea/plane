@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Placement } from "@popperjs/core";
 import { observer } from "mobx-react";
 import { usePopper } from "react-popper";
+
 import { Check, Component, Loader, Search, Tag } from "lucide-react";
 import { Combobox } from "@headlessui/react";
 import { getRandomLabelColor } from "@plane/constants";
@@ -9,6 +10,7 @@ import { getRandomLabelColor } from "@plane/constants";
 import { useOutsideClickDetector } from "@plane/hooks";
 import { useTranslation } from "@plane/i18n";
 import type { IIssueLabel } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { IssueLabelsList } from "@/components/ui/labels-list";
@@ -155,7 +157,8 @@ export const WorkItemLabelSelectBase: React.FC<TWorkItemLabelSelectBaseProps> = 
       disabled={disabled}
       onKeyDown={handleKeyDown}
     >
-      <button
+      <Button
+        unstyled
         type="button"
         ref={setReferenceElement}
         className={cn(
@@ -185,7 +188,7 @@ export const WorkItemLabelSelectBase: React.FC<TWorkItemLabelSelectBaseProps> = 
             <span>{t("labels")}</span>
           </div>
         )}
-      </button>
+      </Button>
 
       {isDropdownOpen && (
         <Combobox.Options className="fixed z-10" static>

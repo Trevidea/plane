@@ -404,14 +404,15 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
               </a>
             ) : null} */}
 
-              <button
+              <Button
+                unstyled
                 type="button"
                 onClick={onClose}
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-[var(--sg-matrix-selected-nav)] text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sg-matrix-active-border)] sm:h-10 sm:w-10"
                 aria-label="Close playlist video"
               >
                 <X className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -440,14 +441,15 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                   <div className="text-[14px] font-semibold text-[var(--sg-matrix-text)]">
                     Clips ({clipCards.length || clipCount})
                   </div>
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     onClick={handlePlayFullPlaylist}
                     className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[5px] border border-[var(--sg-matrix-active-border)] bg-[var(--sg-matrix-selected-nav)] px-2 text-[11px] font-medium text-[var(--sg-matrix-primary-blue)] transition-colors hover:bg-[var(--sg-matrix-hover)]"
                   >
                     <Video className="h-3.5 w-3.5" />
                     <span>Full playlist</span>
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="vertical-scrollbar scrollbar-md min-h-0 flex-1 overflow-y-auto overscroll-contain p-2.5">
@@ -459,7 +461,8 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
 
                         return (
                           <li key={clipCard.id}>
-                            <button
+                            <Button
+                              unstyled
                               type="button"
                               disabled={!canSeek}
                               onClick={() => setActiveClipIndex(index)}
@@ -511,7 +514,7 @@ const SgPlaylistVideoModal = ({ onClose, playlist }: SgPlaylistVideoModalProps) 
                                   </span>
                                 ) : null}
                               </span>
-                            </button>
+                            </Button>
                           </li>
                         );
                       })}
@@ -803,7 +806,8 @@ export const SgMatrixPlaylistPanel = ({
               {customPlaylists.length} {customPlaylists.length === 1 ? "playlist" : "playlists"}
             </span>
           </div>
-          <button
+          <Button
+            unstyled
             type="button"
             aria-label="Add playlist"
             title={draft ? "Finish the current playlist first" : "Add playlist"}
@@ -812,7 +816,7 @@ export const SgMatrixPlaylistPanel = ({
             className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border border-[var(--sg-matrix-grid-border)] text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         <div className="vertical-scrollbar scrollbar-md min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
@@ -861,7 +865,8 @@ export const SgMatrixPlaylistPanel = ({
                         aria-label={`Select ${cardTitle}`}
                       />
 
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         onClick={(event) => handleTogglePlaylistClips(event, playlist.id)}
                         className="ml-1.5 inline-flex h-5 w-4 shrink-0 items-center justify-center text-[var(--sg-matrix-text-muted)] transition-colors hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:text-[var(--sg-matrix-text)]"
@@ -870,7 +875,7 @@ export const SgMatrixPlaylistPanel = ({
                         aria-label={`${isExpanded ? "Hide" : "Show"} clips in ${cardTitle}`}
                       >
                         {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                      </button>
+                      </Button>
 
                       {isEditing ? (
                         <form
@@ -910,7 +915,8 @@ export const SgMatrixPlaylistPanel = ({
                           />
                         </form>
                       ) : (
-                        <button
+                        <Button
+                          unstyled
                           type="button"
                           onClick={() => {
                             onPlayPlaylist?.(playlist);
@@ -939,11 +945,12 @@ export const SgMatrixPlaylistPanel = ({
                           >
                             {cardSubtitle}
                           </span>
-                        </button>
+                        </Button>
                       )}
 
                       {!isEditing && onPlayPlaylist ? (
-                        <button
+                        <Button
+                          unstyled
                           type="button"
                           onClick={() => {
                             clearPendingPlaylistOpen();
@@ -957,28 +964,30 @@ export const SgMatrixPlaylistPanel = ({
                           }
                         >
                           Annotate
-                        </button>
+                        </Button>
                       ) : null}
 
                       {!isEditing ? (
-                        <button
+                        <Button
+                          unstyled
                           type="button"
                           onClick={(event) => handleStartTextEdit(event, playlist, "name", cardTitle, cardSubtitle)}
                           className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] text-[var(--sg-matrix-text-muted)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)]"
                           aria-label={`Edit ${cardTitle}`}
                         >
                           <Pencil className="h-3 w-3" />
-                        </button>
+                        </Button>
                       ) : null}
 
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         onClick={() => handleOpenDeleteModal(playlist)}
                         className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[3px] text-red-500 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-400/70"
                         aria-label={`Delete ${cardTitle}`}
                       >
                         <Trash2 className="h-3 w-3" />
-                      </button>
+                      </Button>
                     </div>
 
                     {isExpanded ? (

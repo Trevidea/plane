@@ -1,9 +1,11 @@
 import { Fragment, useState } from "react";
 import { usePopper } from "react-popper";
+
 import { X } from "lucide-react";
 import { Popover } from "@headlessui/react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
+import { Button as UnstyledButton } from "@plane/ui";
 
 export const ForgotPasswordPopover = () => {
   // popper-js refs
@@ -27,13 +29,14 @@ export const ForgotPasswordPopover = () => {
   return (
     <Popover className="relative">
       <Popover.Button as={Fragment}>
-        <button
+        <UnstyledButton
+          unstyled
           type="button"
           ref={setReferenceElement}
           className="text-xs font-medium text-custom-primary-100 outline-none"
         >
           {t("auth.common.forgot_password")}
-        </button>
+        </UnstyledButton>
       </Popover.Button>
       <Popover.Panel className="fixed z-10">
         {({ close }) => (
@@ -45,14 +48,15 @@ export const ForgotPasswordPopover = () => {
           >
             <span className="flex-shrink-0">🤥</span>
             <p className="text-xs">{t("auth.forgot_password.errors.smtp_not_enabled")}</p>
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               className="flex-shrink-0 size-3 grid place-items-center"
               onClick={() => close()}
               aria-label={t("aria_labels.auth_forms.close_popover")}
             >
               <X className="size-3 text-custom-text-200" />
-            </button>
+            </UnstyledButton>
           </div>
         )}
       </Popover.Panel>

@@ -13,7 +13,7 @@ import { Tooltip } from "@plane/propel/tooltip";
 import type { IIssueDisplayProperties, TIssue } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
 // ui
-import { ControlLink, Row } from "@plane/ui";
+import { Button, ControlLink, Row } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
 // components
 import { MultipleSelectEntityAction } from "@/components/core/multiple-select";
@@ -330,7 +330,8 @@ const IssueRowDetails = observer((props: IssueRowDetailsProps) => {
               {/* sub-issues chevron */}
               <div className="grid place-items-center size-4">
                 {subIssuesCount > 0 && !isEpic && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="grid place-items-center size-4 rounded-sm text-custom-text-400 hover:text-custom-text-300"
                     onClick={handleToggleExpand}
@@ -341,7 +342,7 @@ const IssueRowDetails = observer((props: IssueRowDetailsProps) => {
                       })}
                       strokeWidth={2.5}
                     />
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

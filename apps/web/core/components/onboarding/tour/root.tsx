@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 import type { StaticImageData } from "next/image";
+
 import { X } from "lucide-react";
 // plane imports
 import { PRODUCT_TOUR_TRACKER_ELEMENTS } from "@plane/constants";
 import { Button } from "@plane/propel/button";
 import { PlaneLockup } from "@plane/propel/icons";
+import { Button as UnstyledButton } from "@plane/ui";
 import Image from "@/components/common/image-with-fallback";
 // helpers
 import { captureClick } from "@/helpers/event-tracker.helper";
@@ -120,7 +122,8 @@ export const TourRoot: React.FC<Props> = observer((props) => {
                   >
                     Take a Product Tour
                   </Button>
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     className="bg-transparent text-xs font-medium text-custom-primary-100 outline-custom-text-100"
                     onClick={() => {
@@ -131,7 +134,7 @@ export const TourRoot: React.FC<Props> = observer((props) => {
                     }}
                   >
                     No thanks, I will explore it myself
-                  </button>
+                  </UnstyledButton>
                 </div>
               </div>
             </div>
@@ -139,13 +142,14 @@ export const TourRoot: React.FC<Props> = observer((props) => {
         </div>
       ) : (
         <div className="relative grid h-3/5 w-4/5 grid-cols-10 overflow-hidden rounded-[10px] bg-custom-background-100 sm:h-3/4 md:w-1/2 lg:w-3/5">
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             className="fixed right-[9%] top-[19%] z-10 -translate-y-1/2 translate-x-1/2 cursor-pointer rounded-full border border-custom-text-100 p-1 sm:top-[11.5%] md:right-[24%] lg:right-[19%]"
             onClick={onComplete}
           >
             <X className="h-3 w-3 text-custom-text-100" />
-          </button>
+          </UnstyledButton>
           <TourSidebar step={step} setStep={setStep} />
           <div className="col-span-10 h-full overflow-hidden lg:col-span-7">
             <div

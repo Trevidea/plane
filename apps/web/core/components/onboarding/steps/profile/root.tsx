@@ -11,7 +11,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IUser } from "@plane/types";
 import { EOnboardingSteps } from "@plane/types";
-import { ImageWithFallback } from "@plane/ui";
+import { Button as UnstyledButton, ImageWithFallback } from "@plane/ui";
 import { cn, getFileURL, getPasswordStrength } from "@plane/utils";
 // components
 import { UserImageUploadModal } from "@/components/core/modals/user-image-upload-modal";
@@ -172,7 +172,8 @@ export const ProfileSetupStep: FC<Props> = observer(({ handleStepChange }) => {
         )}
       />
       <div className="flex items-center gap-4">
-        <button
+        <UnstyledButton
+          unstyled
           className="size-12 rounded-full bg-[#028375] flex items-center justify-center text-white font-semibold text-xl"
           type="button"
           onClick={() => setIsImageUploadModalOpen(true)}
@@ -187,16 +188,17 @@ export const ProfileSetupStep: FC<Props> = observer(({ handleStepChange }) => {
           ) : (
             <>{watch("first_name")[0] ?? "R"}</>
           )}
-        </button>
+        </UnstyledButton>
         <input type="file" className="hidden" id="profile-image-input" />
-        <button
+        <UnstyledButton
+          unstyled
           className="flex items-center gap-1.5 text-custom-text-300 hover:text-custom-text-200 text-sm px-2 py-1"
           type="button"
           onClick={() => setIsImageUploadModalOpen(true)}
         >
           <ImageIcon className="size-4" />
           <span className="text-sm">{userAvatar ? "Change image" : "Upload image"}</span>
-        </button>
+        </UnstyledButton>
       </div>
 
       <div className="flex flex-col gap-6 w-full">

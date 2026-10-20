@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Star, Trash2 } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
-import { ImageWithFallback } from "@plane/ui";
+import { Button, ImageWithFallback } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { SURFACE_CLASS } from "../../constants";
 import { getDraggedPlaylistTagIds, writePlaylistTagDragData } from "../../playlist-draft";
@@ -354,7 +354,7 @@ export const SgEventTagsPanel = ({
             className="sticky top-0 z-[2] grid w-max min-w-full items-center gap-3 border-b border-custom-border-200 bg-custom-sidebar-background-100 px-3 py-3 text-xs font-medium text-custom-text-300"
             style={{ gridTemplateColumns: tableGridTemplateColumns }}
           >
-            <button type="button" onClick={onSelectAll} className="flex items-center gap-2 text-left">
+            <Button unstyled type="button" onClick={onSelectAll} className="flex items-center gap-2 text-left">
               <span
                 className={cn(
                   "flex h-4 w-4 items-center justify-center rounded border",
@@ -366,7 +366,7 @@ export const SgEventTagsPanel = ({
                 <Check className="h-3 w-3" />
               </span>
               <span>No.</span>
-            </button>
+            </Button>
             <div>Clip</div>
             {visibleColumns.map((column) => (
               <div key={column.key} className="truncate" title={column.label}>
@@ -421,7 +421,8 @@ export const SgEventTagsPanel = ({
                     }
                   }}
                 >
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
@@ -442,7 +443,7 @@ export const SgEventTagsPanel = ({
                     <span className={cn("text-custom-text-400", isSelected && "text-custom-text-100")}>
                       {index + 1}
                     </span>
-                  </button>
+                  </Button>
                   <div className="h-10 w-[74px] overflow-hidden rounded bg-custom-background-80">
                     {rowThumbnailUrl ? (
                       <ImageWithFallback
@@ -466,7 +467,8 @@ export const SgEventTagsPanel = ({
                   })}
                   <div className="flex items-center gap-1.5">
                     <Tooltip tooltipContent="Edit row" isMobile={false}>
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
@@ -475,10 +477,11 @@ export const SgEventTagsPanel = ({
                         className="rounded-md p-1.5 text-custom-text-300 transition-colors hover:bg-custom-background-100 hover:text-custom-text-100"
                       >
                         <Pencil className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </Tooltip>
                     <Tooltip tooltipContent={isFavorited ? "Remove favorite" : "Favorite"} isMobile={false}>
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
@@ -491,10 +494,11 @@ export const SgEventTagsPanel = ({
                             "fill-[#d0a64a]": isFavorited,
                           })}
                         />
-                      </button>
+                      </Button>
                     </Tooltip>
                     <Tooltip tooltipContent="Remove row" isMobile={false}>
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
@@ -503,7 +507,7 @@ export const SgEventTagsPanel = ({
                         className="rounded-md p-1.5 text-red-500 transition-colors hover:bg-red-500/10"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </Tooltip>
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import useSWR from "swr";
 import { Plus, StickyNote as StickyIcon, X } from "lucide-react";
 // plane hooks
@@ -8,6 +9,7 @@ import { useOutsideClickDetector } from "@plane/hooks";
 // plane ui
 import { RecentStickyIcon, StickyNoteIcon } from "@plane/propel/icons";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 // plane utils
 import { cn } from "@plane/utils";
 // hooks
@@ -56,12 +58,14 @@ export const StickyActionBar = observer(() => {
         className={`flex flex-col gap-2 transition-all duration-300 ease-in-out origin-bottom ${isExpanded ? "scale-y-100 opacity-100 mb-2 " : "scale-y-0 opacity-0 h-0"}`}
       >
         <Tooltip tooltipContent="All stickies" isMobile={false} position="left">
-          <button
+          <Button
+            unstyled
+            type="submit"
             className="btn btn--icon rounded-full w-10 h-10 flex items-center justify-center shadow-sm bg-custom-background-100"
             onClick={() => toggleAllStickiesModal(true)}
           >
             <RecentStickyIcon className="size-5 rotate-90 text-custom-text-350" />
-          </button>
+          </Button>
         </Tooltip>
         {recentStickyId && (
           <Tooltip
@@ -85,17 +89,21 @@ export const StickyActionBar = observer(() => {
             position="left"
             disabled={showRecentSticky}
           >
-            <button
+            <Button
+              unstyled
+              type="submit"
               className="btn btn--icon rounded-full w-10 h-10 flex items-center justify-center shadow-sm bg-custom-background-100"
               onClick={() => setShowRecentSticky(true)}
               style={{ color: recentStickyBackgroundColor }}
             >
               <StickyNoteIcon className={cn("size-5 rotate-90")} color={recentStickyBackgroundColor} />
-            </button>
+            </Button>
           </Tooltip>
         )}
         <Tooltip tooltipContent="Add sticky" isMobile={false} position="left">
-          <button
+          <Button
+            unstyled
+            type="submit"
             className="btn btn--icon rounded-full w-10 h-10 flex items-center justify-center shadow-sm bg-custom-background-100"
             onClick={() => {
               updateActiveStickyId("");
@@ -104,11 +112,13 @@ export const StickyActionBar = observer(() => {
             }}
           >
             <Plus className="size-5 rotate-90 text-custom-text-350" />
-          </button>
+          </Button>
         </Tooltip>
       </div>
 
-      <button
+      <Button
+        unstyled
+        type="submit"
         className={`btn btn--icon rounded-full w-10 h-10 flex items-center justify-center shadow-sm bg-custom-background-100 transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
@@ -117,7 +127,7 @@ export const StickyActionBar = observer(() => {
         ) : (
           <StickyIcon className="size-5 rotate-90 text-custom-text-350" />
         )}
-      </button>
+      </Button>
 
       <div
         className={cn(

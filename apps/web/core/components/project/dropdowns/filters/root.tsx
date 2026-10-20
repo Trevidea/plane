@@ -1,8 +1,10 @@
 import { useState } from "react";
+
 import { observer } from "mobx-react";
 import { Search, X } from "lucide-react";
 // plane imports
 import type { TProjectDisplayFilters, TProjectFilters } from "@plane/types";
+import { Button } from "@plane/ui";
 // components
 import { FilterOption } from "@/components/issues/issue-layouts/filters";
 // hooks
@@ -42,9 +44,14 @@ export const ProjectFiltersSelection: React.FC<Props> = observer((props) => {
             autoFocus={!isMobile}
           />
           {filtersSearchQuery !== "" && (
-            <button type="button" className="grid place-items-center" onClick={() => setFiltersSearchQuery("")}>
+            <Button
+              unstyled
+              type="button"
+              className="grid place-items-center"
+              onClick={() => setFiltersSearchQuery("")}
+            >
               <X className="text-custom-text-300" size={12} strokeWidth={2} />
-            </button>
+            </Button>
           )}
         </div>
       </div>

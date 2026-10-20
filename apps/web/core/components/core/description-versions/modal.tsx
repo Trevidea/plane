@@ -8,7 +8,7 @@ import { Button, getButtonStyling } from "@plane/propel/button";
 import { setToast, TOAST_TYPE } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TDescriptionVersion } from "@plane/types";
-import { Avatar, EModalPosition, EModalWidth, Loader, ModalCore } from "@plane/ui";
+import { Button as UnstyledButton, Avatar, EModalPosition, EModalWidth, Loader, ModalCore } from "@plane/ui";
 import { calculateTimeAgo, cn, copyTextToClipboard, getFileURL } from "@plane/utils";
 // components
 import { RichTextEditor } from "@/components/editor/rich-text";
@@ -90,7 +90,8 @@ export const DescriptionVersionsModal: React.FC<Props> = observer((props) => {
             </p>
           </div>
           <div className="flex-shrink-0 flex items-center">
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               onClick={() => handleNavigation("prev")}
               className={cn(
@@ -103,8 +104,9 @@ export const DescriptionVersionsModal: React.FC<Props> = observer((props) => {
               disabled={isPrevDisabled}
             >
               <ChevronLeft className="size-4" />
-            </button>
-            <button
+            </UnstyledButton>
+            <UnstyledButton
+              unstyled
               type="button"
               onClick={() => handleNavigation("next")}
               className={cn(
@@ -117,7 +119,7 @@ export const DescriptionVersionsModal: React.FC<Props> = observer((props) => {
               disabled={isNextDisabled}
             >
               <ChevronRight className="size-4" />
-            </button>
+            </UnstyledButton>
           </div>
         </div>
         {/* End header */}
@@ -157,7 +159,8 @@ export const DescriptionVersionsModal: React.FC<Props> = observer((props) => {
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 pt-4 border-t-[0.5px] border-custom-border-200">
           <Tooltip tooltipContent={t("common.actions.copy_markdown")}>
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               className={cn(
                 "flex-shrink-0",
@@ -167,7 +170,7 @@ export const DescriptionVersionsModal: React.FC<Props> = observer((props) => {
               onClick={handleCopyMarkdown}
             >
               <Copy className="size-4" />
-            </button>
+            </UnstyledButton>
           </Tooltip>
           <div className="flex items-center gap-2">
             <Button variant="neutral-primary" size="sm" onClick={handleClose} tabIndex={1}>

@@ -1,9 +1,11 @@
 import type { SetStateAction } from "react";
+
 import { observer } from "mobx-react";
 import { GripVertical, Pencil } from "lucide-react";
 // plane imports
 import { EIconSize, STATE_TRACKER_ELEMENTS } from "@plane/constants";
 import type { IState, TStateOperationsCallbacks } from "@plane/types";
+import { Button } from "@plane/ui";
 // local imports
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { StateDelete, StateMarksAsDefault } from "./options";
@@ -67,7 +69,8 @@ export const StateItemTitle = observer((props: TStateItemTitleProps) => {
           </div>
           {/* state edit options */}
           <div className="flex items-center gap-1 transition-all">
-            <button
+            <Button
+              unstyled
               type="button"
               aria-label={`Rename ${state.name}`}
               className="flex-shrink-0 w-5 h-5 rounded flex justify-center items-center overflow-hidden transition-colors hover:bg-custom-background-80 cursor-pointer text-custom-text-200 hover:text-custom-text-100"
@@ -75,7 +78,7 @@ export const StateItemTitle = observer((props: TStateItemTitleProps) => {
               data-ph-element={STATE_TRACKER_ELEMENTS.STATE_LIST_EDIT_BUTTON}
             >
               <Pencil className="w-3 h-3" />
-            </button>
+            </Button>
             <StateDelete
               totalStates={stateCount}
               state={state}

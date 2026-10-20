@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
+
 import { observer } from "mobx-react";
 // icons
 import { ListFilter, Search, X } from "lucide-react";
 // plane helpers
 import { useOutsideClickDetector } from "@plane/hooks";
+import { Button } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 // hooks
@@ -49,7 +51,8 @@ export const ViewListHeader = observer(() => {
     <div className="h-full flex items-center gap-2">
       <div className="flex items-center">
         {!isSearchOpen && (
-          <button
+          <Button
+            unstyled
             type="button"
             className="-mr-1 p-2 hover:bg-custom-background-80 rounded text-custom-text-400 grid place-items-center"
             onClick={() => {
@@ -58,7 +61,7 @@ export const ViewListHeader = observer(() => {
             }}
           >
             <Search className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         )}
         <div
           className={cn(
@@ -78,7 +81,8 @@ export const ViewListHeader = observer(() => {
             onKeyDown={handleInputKeyDown}
           />
           {isSearchOpen && (
-            <button
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center"
               onClick={() => {
@@ -87,7 +91,7 @@ export const ViewListHeader = observer(() => {
               }}
             >
               <X className="h-3 w-3" />
-            </button>
+            </Button>
           )}
         </div>
       </div>

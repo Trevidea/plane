@@ -254,7 +254,8 @@ export const MediaDetailPreview = ({
   const annotationWorkspaceToggleContent = (
     <>
       {canAnnotateVideo && !isVideoAnnotationWorkspaceOpen ? (
-        <button
+        <Button
+          unstyled
           type="button"
           onClick={onOpenVideoAnnotationWorkspace}
           className={`${VIDEO_ANNOTATION_FLOATING_ACTION_CLASS} !border-custom-primary-100 !bg-custom-primary-100 !text-white hover:!bg-custom-primary-100/90`}
@@ -263,7 +264,7 @@ export const MediaDetailPreview = ({
         >
           <Pencil className="!h-4 !w-4 !shrink-0" />
           <span className="!whitespace-nowrap !leading-none">Annotate</span>
-        </button>
+        </Button>
       ) : null}
     </>
   );
@@ -504,7 +505,8 @@ export const MediaDetailPreview = ({
                 >
                   <div className="flex shrink-0 items-center justify-between pb-2 text-xs text-custom-text-200">
                     <span>Properties</span>
-                    <button
+                    <Button
+                      unstyled
                       type="button"
                       aria-label="Close properties"
                       title="Hide properties without leaving the editor"
@@ -512,7 +514,7 @@ export const MediaDetailPreview = ({
                       className="rounded p-1 hover:bg-custom-background-80 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
                     >
                       <X className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
                   <div ref={handleVideoAnnotationPropertiesElement} className="flex min-h-0 flex-1 overflow-hidden" />
                 </aside>
@@ -527,7 +529,8 @@ export const MediaDetailPreview = ({
             className="overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90"
             style={previewHeightStyle}
           >
-            <button
+            <Button
+              unstyled
               type="button"
               className={`h-full w-full bg-custom-background-100 ${imagePreviewAvailable ? "cursor-zoom-in" : "cursor-default"}`}
               onClick={() => {
@@ -566,7 +569,7 @@ export const MediaDetailPreview = ({
                   "h-full w-full"
                 )
               )}
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="rounded-lg border border-custom-border-200 bg-custom-background-90">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Download, FileText, X } from "lucide-react";
-import { ImageWithFallback, EModalPosition, EModalWidth, ModalCore } from "@plane/ui";
+import { Button, ImageWithFallback, EModalPosition, EModalWidth, ModalCore } from "@plane/ui";
 
 import { LogoSpinner } from "@/components/common/logo-spinner";
 import { DOCUMENT_PREVIEW_STYLE } from "@/plane-web/features/media-library/utils/media-detail-utils";
@@ -62,14 +62,15 @@ export const WebhookArtifactModal = ({
             {activeArtifact?.mediaType ?? "preview"} {activeArtifact?.format ? `• ${activeArtifact.format}` : ""}
           </p>
         </div>
-        <button
+        <Button
+          unstyled
           type="button"
           onClick={onClose}
           className="rounded p-1.5 text-custom-text-300 transition-colors hover:bg-custom-background-90 hover:text-custom-text-100"
           title="Close"
         >
           <X className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-3 p-4">

@@ -1,7 +1,8 @@
 import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { MONTHS_LIST } from "@/constants/calendar";
+import { Button } from "@plane/ui";
 
+import { MONTHS_LIST } from "@/constants/calendar";
 
 type Props = {
   date: Date;
@@ -33,25 +34,27 @@ export const CalendarDayHeader: React.FC<Props> = ({ date, isLoading, onChangeDa
         <div className="absolute h-[1.5px] w-3/4 animate-[bar-loader_2s_linear_infinite] bg-custom-primary-100" />
       )}
 
-      <button
+      <Button
+        unstyled
         type="button"
         onClick={handlePrevDay}
         className="grid place-items-center h-6 w-6 border border-custom-border-400 rounded-full"
       >
         <ChevronLeft size={14} />
-      </button>
+      </Button>
 
       <h2 className="text-lg font-semibold text-center flex-1">
         {weekday}, {day} {month} {year}
       </h2>
 
-      <button
+      <Button
+        unstyled
         type="button"
         onClick={handleNextDay}
         className="grid place-items-center h-6 w-6 border border-custom-border-400 rounded-full"
       >
-         <ChevronRight size={14} />
-      </button>
+        <ChevronRight size={14} />
+      </Button>
     </div>
   );
 };

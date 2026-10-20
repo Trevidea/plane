@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Columns3, ListPlus, Plus, X } from "lucide-react";
+import { Button } from "@plane/ui";
+
 import { cn } from "@plane/utils";
 import type { MatrixColumn, MatrixFilterOptions, MatrixFilterState } from "../types/matrix.types";
 import { AxisViewToggle } from "./axis-view-toggle";
@@ -88,7 +90,8 @@ export const MatrixToolbar = ({
               <span aria-live="polite" className="whitespace-nowrap text-[11px] text-[var(--sg-matrix-text-muted)]">
                 {selectedCellCount} {selectedCellCount === 1 ? "cell" : "cells"} selected
               </span>
-              <button
+              <Button
+                unstyled
                 type="button"
                 aria-label="Clear selected matrix cells"
                 disabled={disabled || isCreatingPlaylist}
@@ -97,10 +100,11 @@ export const MatrixToolbar = ({
               >
                 <X className="h-3.5 w-3.5" />
                 Clear
-              </button>
+              </Button>
             </>
           ) : null}
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={() => setIsColumnsPanelOpen(true)}
             disabled={disabled || columns.length === 0}
@@ -117,8 +121,9 @@ export const MatrixToolbar = ({
             <span className="text-[var(--sg-matrix-text-muted)]">
               {visibleColumnCount}/{columns.length}
             </span>
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             disabled={disabled || !canCreateCard}
             title={cardDisabledReason}
@@ -128,8 +133,9 @@ export const MatrixToolbar = ({
           >
             <Plus className="h-3.5 w-3.5" />
             Create Card
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             disabled={disabled || !canCreatePlaylist || selectedPlayableRowCount === 0}
             onClick={onCreatePlaylist}
@@ -139,7 +145,7 @@ export const MatrixToolbar = ({
           >
             <ListPlus className="h-3.5 w-3.5" />
             {isCreatingPlaylist ? "Creating" : "Create Playlist"}
-          </button>
+          </Button>
         </div>
       </div>
       {cardDisabledReason && (

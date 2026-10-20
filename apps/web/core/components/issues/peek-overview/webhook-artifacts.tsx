@@ -2,9 +2,11 @@
 
 import type { FC } from "react";
 import { useCallback, useEffect, useState } from "react";
+
 import { observer } from "mobx-react";
 import { Copy, ExternalLink } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import { Button } from "@plane/ui";
 import { copyUrlToClipboard } from "@plane/utils";
 
 import { useWebhookArtifactsData } from "./webhook-utils/use-webhook-artifacts-data";
@@ -92,22 +94,24 @@ export const PeekOverviewWebhookArtifacts: FC<PeekOverviewWebhookArtifactsProps>
               </p>
             </div>
             <div className="flex items-center gap-1">
-              <button
+              <Button
+                unstyled
                 type="button"
                 onClick={() => handleOpenArtifactModal(artifact)}
                 className="rounded p-1.5 text-custom-text-300 transition-colors hover:bg-custom-background-100 hover:text-custom-text-100"
                 title="Open preview"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-              </button>
-              <button
+              </Button>
+              <Button
+                unstyled
                 type="button"
                 onClick={() => handleCopyPath(artifact.path)}
                 className="rounded p-1.5 text-custom-text-300 transition-colors hover:bg-custom-background-100 hover:text-custom-text-100"
                 title="Copy path"
               >
                 <Copy className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </div>
           </div>
           <p className="break-all rounded-md bg-custom-background-100 px-2 py-1.5 text-xs leading-5 text-custom-text-300">

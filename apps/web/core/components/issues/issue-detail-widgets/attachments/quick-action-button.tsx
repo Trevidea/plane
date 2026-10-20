@@ -5,10 +5,12 @@ import React, { useCallback, useState } from "react";
 import { observer } from "mobx-react";
 import type { FileRejection } from "react-dropzone";
 import { useDropzone } from "react-dropzone";
+
 import { Plus } from "lucide-react";
 // plane imports
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TIssueServiceType } from "@plane/types";
+import { Button } from "@plane/ui";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 // plane web hooks
@@ -98,10 +100,10 @@ export const IssueAttachmentActionButton: FC<Props> = observer((props) => {
         e.stopPropagation();
       }}
     >
-      <button {...getRootProps()} type="button" disabled={disabled}>
+      <Button unstyled {...getRootProps()} type="button" disabled={disabled}>
         <input {...getInputProps()} />
         {customButton ? customButton : <Plus className="h-4 w-4" />}
-      </button>
+      </Button>
     </div>
   );
 });

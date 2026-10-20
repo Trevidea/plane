@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, ReactNode, UIEvent, WheelEvent } from "react";
+
 import {
   Check,
   Eye,
@@ -16,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { SURFACE_CLASS } from "../../constants";
 import { getDraggedPlaylistTagIds, writePlaylistTagDragData } from "../../playlist-draft";
@@ -759,36 +761,39 @@ export const SgEventTimelinePanel = ({
       <div className="flex flex-col gap-3 border-b border-custom-border-200 px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-1">
           <Tooltip tooltipContent="Jump to previous tag" isMobile={false}>
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={jumpToPreviousTag}
               disabled={!hasTimelineRows}
               className={cn(TOOL_BUTTON_CLASS, !hasTimelineRows && "cursor-not-allowed opacity-40")}
             >
               <SkipBack className="h-4 w-4" />
-            </button>
+            </Button>
           </Tooltip>
           <Tooltip tooltipContent="Jump to next tag" isMobile={false}>
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={jumpToNextTag}
               disabled={!hasTimelineRows}
               className={cn(TOOL_BUTTON_CLASS, !hasTimelineRows && "cursor-not-allowed opacity-40")}
             >
               <SkipForward className="h-4 w-4" />
-            </button>
+            </Button>
           </Tooltip>
           <div className="mx-2 h-6 w-px bg-custom-border-200" />
           <Tooltip tooltipContent="Reset playhead" isMobile={false}>
-            <button type="button" onClick={onResetPlayback} className={TOOL_BUTTON_CLASS}>
+            <Button unstyled type="button" onClick={onResetPlayback} className={TOOL_BUTTON_CLASS}>
               <RotateCcw className="h-4 w-4" />
-            </button>
+            </Button>
           </Tooltip>
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
           {viewToggle}
-          <button
+          <Button
+            unstyled
             type="button"
             disabled={!onPlaylistSelectionModeChange || !hasTimelineRows}
             onClick={() => onPlaylistSelectionModeChange?.(!isPlaylistSelectionMode)}
@@ -802,13 +807,14 @@ export const SgEventTimelinePanel = ({
           >
             <MousePointer2 className="h-3.5 w-3.5" />
             <span>{isPlaylistSelectionMode ? "Selecting Clips" : "Select Clips"}</span>
-          </button>
+          </Button>
           {selectedTagCount > 0 && (
             <>
               <span className="inline-flex h-8 items-center rounded-md border border-custom-border-200 bg-custom-background-100 px-2 text-xs text-custom-text-300">
                 {selectedTagCount} selected
               </span>
-              <button
+              <Button
+                unstyled
                 type="button"
                 disabled={!onClearTagSelection}
                 onClick={onClearTagSelection}
@@ -819,10 +825,11 @@ export const SgEventTimelinePanel = ({
               >
                 <X className="h-3.5 w-3.5" />
                 <span>Clear</span>
-              </button>
+              </Button>
             </>
           )}
-          <button
+          <Button
+            unstyled
             type="button"
             disabled={!canCreatePlaylist}
             title={playlistDisabledReason}
@@ -835,14 +842,15 @@ export const SgEventTimelinePanel = ({
           >
             <ListPlus className="h-3.5 w-3.5" />
             <span>{isCreatingPlaylist ? "Creating" : "Create Playlist"}</span>
-          </button>
+          </Button>
           {playlistDisabledReason && (
             <p id="timeline-playlist-reason" role="status" className="text-xs text-custom-text-300">
               {playlistDisabledReason}
             </p>
           )}
           <Tooltip tooltipContent="Tag types" isMobile={false}>
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={() => setIsTagTypesPanelOpen(true)}
               disabled={totalTagTypeCount === 0}
@@ -859,7 +867,7 @@ export const SgEventTimelinePanel = ({
               <span className="text-custom-text-400">
                 {visibleTagTypeCount}/{totalTagTypeCount}
               </span>
-            </button>
+            </Button>
           </Tooltip>
           {/* <div className="inline-flex h-8 overflow-hidden rounded-md border border-custom-border-200 bg-custom-background-100">
             <Tooltip tooltipContent="Timeline view" isMobile={false}>
@@ -957,7 +965,8 @@ export const SgEventTimelinePanel = ({
                           isMobile={false}
                           position="top"
                         >
-                          <button
+                          <Button
+                            unstyled
                             type="button"
                             draggable
                             onDragStart={(event) => {
@@ -1013,7 +1022,7 @@ export const SgEventTimelinePanel = ({
                             <span className="pointer-events-none block truncate px-1.5">
                               {formatTooltipText(row.action, "title") || "Tag"}
                             </span>
-                          </button>
+                          </Button>
                         </Tooltip>
                       );
                     })}
@@ -1035,7 +1044,8 @@ export const SgEventTimelinePanel = ({
           <span className="shrink-0">Zoom</span>
           <span className="inline-flex min-w-0 flex-1 items-center justify-end gap-1.5">
             <Tooltip tooltipContent="Zoom out timeline" isMobile={false}>
-              <button
+              <Button
+                unstyled
                 type="button"
                 aria-label="Zoom out timeline"
                 onClick={() => handleTimelineScaleChange("out")}
@@ -1046,7 +1056,7 @@ export const SgEventTimelinePanel = ({
                 )}
               >
                 <Minus className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </Tooltip>
             <input
               type="range"
@@ -1060,7 +1070,8 @@ export const SgEventTimelinePanel = ({
               className="h-6 w-16 accent-custom-primary-100"
             />
             <Tooltip tooltipContent="Zoom in timeline" isMobile={false}>
-              <button
+              <Button
+                unstyled
                 type="button"
                 aria-label="Zoom in timeline"
                 onClick={() => handleTimelineScaleChange("in")}
@@ -1071,7 +1082,7 @@ export const SgEventTimelinePanel = ({
                 )}
               >
                 <Plus className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </Tooltip>
             <span
               className="flex min-w-11 flex-col items-end text-right tabular-nums leading-none text-custom-text-300"

@@ -18,7 +18,7 @@ import { useTranslation } from "@plane/i18n";
 import { StateGroupIcon, DoubleCircleIcon } from "@plane/propel/icons";
 import type { IProject } from "@plane/types";
 // ui
-import { CustomSelect, CustomSearchSelect, ToggleSwitch, Loader } from "@plane/ui";
+import { Button, CustomSelect, CustomSearchSelect, ToggleSwitch, Loader } from "@plane/ui";
 // component
 import { SelectMonthModal } from "@/components/automation";
 // constants
@@ -154,13 +154,14 @@ export const AutoCloseAutomation: React.FC<Props> = observer((props) => {
                             {t(month.i18n_label, { months: month.value })}
                           </CustomSelect.Option>
                         ))}
-                        <button
+                        <Button
+                          unstyled
                           type="button"
                           className="flex w-full select-none items-center rounded px-1 py-1.5 text-custom-text-200 hover:bg-custom-background-80"
                           onClick={() => setmonthModal(true)}
                         >
                           {t("common.customize_time_range")}
-                        </button>
+                        </Button>
                       </>
                     </CustomSelect>
                   </div>

@@ -1,4 +1,5 @@
 import type { TSticky } from "@plane/types";
+import { Button } from "@plane/ui";
 
 export const STICKY_COLORS_LIST: {
   key: string;
@@ -58,7 +59,8 @@ export const ColorPalette = (props: TProps) => {
       <div className="text-sm font-semibold text-custom-text-400 mb-2">Background colors</div>
       <div className="flex flex-wrap gap-2">
         {STICKY_COLORS_LIST.map((color) => (
-          <button
+          <Button
+            unstyled
             key={color.key}
             type="button"
             onClick={() => {
@@ -70,7 +72,9 @@ export const ColorPalette = (props: TProps) => {
             style={{
               backgroundColor: color.backgroundColor,
             }}
-          />
+          >
+            {null}
+          </Button>
         ))}
       </div>
     </div>

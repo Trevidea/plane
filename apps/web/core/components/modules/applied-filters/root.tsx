@@ -2,7 +2,7 @@ import { X } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 import type { TModuleDisplayFilters, TModuleFilters } from "@plane/types";
 // components
-import { Header, EHeaderVariant, Tag } from "@plane/ui";
+import { Button, Header, EHeaderVariant, Tag } from "@plane/ui";
 import { replaceUnderscoreIfSnakeCase } from "@plane/utils";
 import { AppliedDateFilters, AppliedMembersFilters, AppliedStatusFilters } from "@/components/modules";
 // helpers
@@ -73,13 +73,14 @@ export const ModuleAppliedFiltersList: React.FC<Props> = (props) => {
                   />
                 )}
                 {isEditingAllowed && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                     onClick={() => handleRemoveFilter(filterKey, null)}
                   >
                     <X size={12} strokeWidth={2} />
-                  </button>
+                  </Button>
                 )}
               </div>
             </Tag>
@@ -95,7 +96,8 @@ export const ModuleAppliedFiltersList: React.FC<Props> = (props) => {
               <div className="flex items-center gap-1 rounded p-1 text-xs bg-custom-background-80">
                 Favorite
                 {isEditingAllowed && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                     onClick={() =>
@@ -106,19 +108,19 @@ export const ModuleAppliedFiltersList: React.FC<Props> = (props) => {
                     }
                   >
                     <X size={10} strokeWidth={2} />
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
           </div>
         )}
         {isEditingAllowed && (
-          <button type="button" onClick={handleClearAllFilters}>
+          <Button unstyled type="button" onClick={handleClearAllFilters}>
             <Tag>
               {t("common.clear_all")}
               <X size={12} strokeWidth={2} />
             </Tag>
-          </button>
+          </Button>
         )}
       </div>
     </Header>

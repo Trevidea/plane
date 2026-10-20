@@ -9,7 +9,7 @@ import type { EAdminAuthErrorCodes, TAdminAuthErrorInfo } from "@plane/constants
 import { API_BASE_URL } from "@plane/constants";
 import { Button } from "@plane/propel/button";
 import { AuthService } from "@plane/services";
-import { Input, Spinner } from "@plane/ui";
+import { Button as UnstyledButton, Input, Spinner } from "@plane/ui";
 // components
 import { Banner } from "@/components/common/banner";
 // local components
@@ -165,21 +165,23 @@ export const InstanceSignInForm: FC = () => {
                   autoComplete="on"
                 />
                 {showPassword ? (
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     className="absolute right-3 top-3.5 flex items-center justify-center text-custom-text-400"
                     onClick={() => setShowPassword(false)}
                   >
                     <EyeOff className="h-4 w-4" />
-                  </button>
+                  </UnstyledButton>
                 ) : (
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     className="absolute right-3 top-3.5 flex items-center justify-center text-custom-text-400"
                     onClick={() => setShowPassword(true)}
                   >
                     <Eye className="h-4 w-4" />
-                  </button>
+                  </UnstyledButton>
                 )}
               </div>
             </div>

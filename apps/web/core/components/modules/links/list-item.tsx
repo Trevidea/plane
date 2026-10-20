@@ -1,11 +1,13 @@
 import { observer } from "mobx-react";
 import Link from "next/link";
+
 import { Copy, Pencil, Trash2 } from "lucide-react";
 // plane types
 import { MODULE_TRACKER_ELEMENTS } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { ILinkDetails } from "@plane/types";
+import { Button } from "@plane/ui";
 // plane ui
 import { getIconForLink, copyTextToClipboard, calculateTimeAgo } from "@plane/utils";
 // helpers
@@ -64,7 +66,8 @@ export const ModulesLinksListItem: React.FC<Props> = observer((props) => {
 
         <div className="z-[1] flex flex-shrink-0 items-center">
           {isEditingAllowed && (
-            <button
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center p-1 hover:bg-custom-background-80"
               data-ph-element={MODULE_TRACKER_ELEMENTS.LIST_ITEM}
@@ -75,7 +78,7 @@ export const ModulesLinksListItem: React.FC<Props> = observer((props) => {
               }}
             >
               <Pencil className="size-3 stroke-[1.5] text-custom-text-200" />
-            </button>
+            </Button>
           )}
           <span
             onClick={() => copyToClipboard(link.url)}
@@ -84,7 +87,8 @@ export const ModulesLinksListItem: React.FC<Props> = observer((props) => {
             <Copy className="h-3.5 w-3.5 stroke-[1.5]" />
           </span>
           {isEditingAllowed && (
-            <button
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center p-1 hover:bg-custom-background-80"
               data-ph-element={MODULE_TRACKER_ELEMENTS.LIST_ITEM}
@@ -95,7 +99,7 @@ export const ModulesLinksListItem: React.FC<Props> = observer((props) => {
               }}
             >
               <Trash2 className="size-3 stroke-[1.5] text-custom-text-200" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
