@@ -23,7 +23,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TNameDescriptionLoader } from "@plane/types";
 import { EInboxIssueStatus } from "@plane/types";
-import { ControlLink, CustomMenu, Row } from "@plane/ui";
+import { Button as UnstyledButton, ControlLink, CustomMenu, Row } from "@plane/ui";
 import { copyUrlToClipboard, findHowManyDaysLeft, generateWorkItemLink } from "@plane/utils";
 // components
 import { CreateUpdateIssueModal } from "@/components/issues/issue-modal/modal";
@@ -285,9 +285,9 @@ export const InboxIssueActionsHeader: FC<TInboxIssueActionsHeader> = observer((p
       <Row className="hidden relative lg:flex h-full w-full items-center justify-between gap-2 bg-custom-background-100 z-[15] border-b border-custom-border-200">
         <div className="flex items-center gap-4">
           {isNotificationEmbed && (
-            <button onClick={embedRemoveCurrentNotification}>
+            <UnstyledButton unstyled type="submit" onClick={embedRemoveCurrentNotification}>
               <MoveRight className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-            </button>
+            </UnstyledButton>
           )}
           {issue?.project_id && issue.sequence_id && (
             <h3 className="text-base font-medium text-custom-text-300 flex-shrink-0">
@@ -303,20 +303,22 @@ export const InboxIssueActionsHeader: FC<TInboxIssueActionsHeader> = observer((p
         <div className="flex items-center gap-2">
           {!isNotificationEmbed && (
             <div className="flex items-center gap-x-2">
-              <button
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="rounded border border-custom-border-200 p-1.5"
                 onClick={() => handleInboxIssueNavigation("prev")}
               >
                 <ChevronUp size={14} strokeWidth={2} />
-              </button>
-              <button
+              </UnstyledButton>
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="rounded border border-custom-border-200 p-1.5"
                 onClick={() => handleInboxIssueNavigation("next")}
               >
                 <ChevronDown size={14} strokeWidth={2} />
-              </button>
+              </UnstyledButton>
             </div>
           )}
 

@@ -4,6 +4,7 @@ import { observer } from "mobx-react";
 import { X } from "lucide-react";
 import { CycleGroupIcon } from "@plane/propel/icons";
 import type { TCycleGroups } from "@plane/types";
+import { Button } from "@plane/ui";
 // hooks
 import { useCycle } from "@/hooks/store/use-cycle";
 // ui
@@ -34,13 +35,14 @@ export const AppliedCycleFilters: React.FC<Props> = observer((props) => {
             <CycleGroupIcon cycleGroup={cycleStatus} className="h-3 w-3 flex-shrink-0" />
             <span className="normal-case truncate">{cycleDetails.name}</span>
             {editable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemove(cycleId)}
               >
                 <X size={10} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </div>
         );

@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 // plane imports
 import { ROLE } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
-import { CustomSelect, Input } from "@plane/ui";
+import { Button, CustomSelect, Input } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { useUserPermissions } from "@/hooks/store/user";
@@ -101,9 +101,14 @@ export const InvitationFields = observer((props: TInvitationFieldsProps) => {
             </div>
             {fields.length > 1 && (
               <div className="flex-item flex w-6">
-                <button type="button" className="place-items-center self-center rounded" onClick={() => remove(index)}>
+                <Button
+                  unstyled
+                  type="button"
+                  className="place-items-center self-center rounded"
+                  onClick={() => remove(index)}
+                >
                   <X className="h-4 w-4 text-custom-text-200" />
-                </button>
+                </Button>
               </div>
             )}
           </div>

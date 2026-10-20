@@ -44,11 +44,11 @@ export const InstanceNotReady: FC = () => {
                 </p>
               </div>
               <div>
-                <a href={GOD_MODE_URL}>
+                <Link prefetch={false} href={GOD_MODE_URL}>
                   <Button size="lg" className="w-full">
                     Get started
                   </Button>
-                </a>
+                </Link>
               </div>
             </div>
           </div>

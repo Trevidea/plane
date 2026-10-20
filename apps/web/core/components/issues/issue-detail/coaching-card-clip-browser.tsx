@@ -26,7 +26,6 @@ import {
   clipMutationPayload,
 } from "./coaching-card-clips-model";
 import { CoachingCardStreamLink } from "./coaching-card-stream-link";
-import { useCoachingClipMedia } from "./use-coaching-clip-media";
 import { loadSgMediaPayload } from "./sg-event-detail-page/data";
 import {
   asRecord,
@@ -34,6 +33,7 @@ import {
   formatLooseLabel,
   getArchivedHlsBaseUrl,
 } from "./sg-event-detail-page/utils";
+import { useCoachingClipMedia } from "./use-coaching-clip-media";
 
 const CoachingCardClipPlayer = dynamic(
   () => import("./coaching-card-clip-player").then((module) => module.CoachingCardClipPlayer),
@@ -302,7 +302,8 @@ export const CoachingCardClipBrowser = ({
                 activePlaylistIndex === playlistIndex && "border-custom-primary-100 bg-custom-primary-100/10"
               )}
             >
-              <button
+              <Button
+                unstyled
                 type="button"
                 aria-label={`Toggle playlist: ${playlist.name}`}
                 aria-expanded={expandedPlaylistId === playlist.id}
@@ -323,15 +324,16 @@ export const CoachingCardClipBrowser = ({
                 <span className="shrink-0 text-xs">
                   {playlist.clips.length} {playlist.clips.length === 1 ? "clip" : "clips"}
                 </span>
-              </button>
-              <button
+              </Button>
+              <Button
+                unstyled
                 type="button"
                 aria-label={`Play playlist: ${playlist.name}`}
                 onClick={() => playClip(playlist.clips[0].key)}
                 className="mr-1 rounded p-2 hover:bg-custom-background-90 focus-visible:outline-custom-primary-100"
               >
                 <Play className="h-4 w-4" aria-hidden="true" />
-              </button>
+              </Button>
             </div>
             <div id={`coaching-playlist-${issue.id}-${playlistIndex}`} hidden={expandedPlaylistId !== playlist.id}>
               <ScrollArea type="hover" size="sm" className="w-full">

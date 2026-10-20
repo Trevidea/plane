@@ -9,7 +9,7 @@ import { PROJECT_TRACKER_ELEMENTS } from "@plane/constants";
 import type { IJiraImporterForm } from "@plane/types";
 // hooks
 // components
-import { CustomSelect, Input } from "@plane/ui";
+import { Button, CustomSelect, Input } from "@plane/ui";
 // helpers
 import { checkEmailValidity } from "@plane/utils";
 import { captureClick } from "@/helpers/event-tracker.helper";
@@ -200,7 +200,8 @@ export const JiraGetImportDetail: React.FC = observer(() => {
                   </div>
                 )}
                 <div>
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     data-ph-element={PROJECT_TRACKER_ELEMENTS.EMPTY_STATE_CREATE_PROJECT_BUTTON}
                     onClick={() => {
@@ -211,7 +212,7 @@ export const JiraGetImportDetail: React.FC = observer(() => {
                   >
                     <Plus className="h-4 w-4 text-custom-text-200" />
                     <span>Create new program</span>
-                  </button>
+                  </Button>
                 </div>
               </CustomSelect>
             )}

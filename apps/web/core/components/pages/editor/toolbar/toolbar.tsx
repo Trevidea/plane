@@ -5,7 +5,7 @@ import { Check, ChevronDown } from "lucide-react";
 // plane imports
 import type { EditorRefApi } from "@plane/editor";
 import { Tooltip } from "@plane/propel/tooltip";
-import { CustomMenu } from "@plane/ui";
+import { Button, CustomMenu } from "@plane/ui";
 import { cn } from "@plane/utils";
 // constants
 import type { ToolbarMenuItem } from "@/constants/editor";
@@ -35,7 +35,8 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = React.memo((props) => {
         </p>
       }
     >
-      <button
+      <Button
+        unstyled
         type="button"
         onClick={() =>
           // TODO: update this while toolbar homogenization
@@ -54,7 +55,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = React.memo((props) => {
             "text-custom-text-100": isActive,
           })}
         />
-      </button>
+      </Button>
     </Tooltip>
   );
 });

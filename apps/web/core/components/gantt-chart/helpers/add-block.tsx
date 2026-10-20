@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+
 import { addDays } from "date-fns";
 import { observer } from "mobx-react";
 import { Plus } from "lucide-react";
 // ui
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IBlockUpdateData, IGanttBlock } from "@plane/types";
+import { Button } from "@plane/ui";
 // helpers
 import { renderFormattedDate, renderFormattedPayloadDate } from "@plane/utils";
 // hooks
@@ -85,7 +87,8 @@ export const ChartAddBlock: React.FC<Props> = observer((props) => {
       <div ref={containerRef} className="h-full w-full" />
       {isButtonVisible && (
         <Tooltip tooltipContent={buttonStartDate && renderFormattedDate(buttonStartDate)} isMobile={isMobile}>
-          <button
+          <Button
+            unstyled
             type="button"
             className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 bg-custom-background-80 p-1.5 rounded border border-custom-border-300 grid place-items-center text-custom-text-200 hover:text-custom-text-100"
             style={{
@@ -94,7 +97,7 @@ export const ChartAddBlock: React.FC<Props> = observer((props) => {
             onClick={handleButtonClick}
           >
             <Plus className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </Tooltip>
       )}
     </div>

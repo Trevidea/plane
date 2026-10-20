@@ -2,6 +2,7 @@
 
 import type { FC } from "react";
 import React, { useRef } from "react";
+
 import { observer } from "mobx-react";
 import { LinkIcon } from "lucide-react";
 // plane imports
@@ -10,6 +11,7 @@ import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import { EIssuesStoreType } from "@plane/types";
+import { Button } from "@plane/ui";
 import { generateWorkItemLink, copyTextToClipboard } from "@plane/utils";
 // helpers
 import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
@@ -157,13 +159,14 @@ export const IssueDetailQuickActions: FC<Props> = observer((props) => {
           )}
           <div className="flex flex-wrap items-center gap-2.5 text-custom-text-300">
             <Tooltip tooltipContent={t("common.actions.copy_link")} isMobile={isMobile}>
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid h-5 w-5 place-items-center rounded hover:text-custom-text-200 focus:outline-none focus:ring-2 focus:ring-custom-primary"
                 onClick={handleCopyText}
               >
                 <LinkIcon className="h-4 w-4" />
-              </button>
+              </Button>
             </Tooltip>
             <WorkItemDetailQuickActions
               parentRef={parentRef}

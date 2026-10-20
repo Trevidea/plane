@@ -1,3 +1,4 @@
+import Link from "next/link";
 // plane imports
 import { getButtonStyling } from "@plane/propel/button";
 import { cn } from "@plane/utils";
@@ -19,13 +20,14 @@ export const IssueEmbedUpgradeCard: React.FC<any> = (props) => (
         Embed and access issues in pages seamlessly, upgrade to Plane Pro now.
       </p>
     </div>
-    <a
+    <Link
+      prefetch={false}
       href="https://plane.so/pro"
       target="_blank"
       rel="noopener noreferrer"
       className={cn(getButtonStyling("primary", "md"), "no-underline")}
     >
       Upgrade
-    </a>
+    </Link>
   </div>
 );

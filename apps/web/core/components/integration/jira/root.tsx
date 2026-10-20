@@ -4,12 +4,14 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
+
 import { mutate } from "swr";
 // icons
 import { ArrowLeft, Check, List, Settings, Users } from "lucide-react";
 // types
 import { Button } from "@plane/propel/button";
 import type { IJiraImporterForm } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 import Image from "@/components/common/image-with-fallback";
 // ui
 // fetch keys
@@ -110,7 +112,8 @@ export const JiraImporterRoot: React.FC = () => {
           <div className="flex h-full w-full items-center justify-center">
             {integrationWorkflowData.map((integration, index) => (
               <React.Fragment key={integration.key}>
-                <button
+                <UnstyledButton
+                  unstyled
                   type="button"
                   onClick={() => {
                     setCurrentStep({ state: integration.key });
@@ -132,7 +135,7 @@ export const JiraImporterRoot: React.FC = () => {
                   <integration.icon
                     className={`h-5 w-5 ${index <= activeIntegrationState() ? "text-white" : "text-custom-text-400"}`}
                   />
-                </button>
+                </UnstyledButton>
                 {index < integrationWorkflowData.length - 1 && (
                   <div
                     key={index}

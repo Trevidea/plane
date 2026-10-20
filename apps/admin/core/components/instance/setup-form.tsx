@@ -2,14 +2,16 @@
 
 import type { FC } from "react";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+
 // icons
 import { Eye, EyeOff } from "lucide-react";
 // plane internal packages
 import { API_BASE_URL, E_PASSWORD_STRENGTH } from "@plane/constants";
 import { Button } from "@plane/propel/button";
 import { AuthService } from "@plane/services";
-import { Checkbox, Input, PasswordStrengthIndicator, Spinner } from "@plane/ui";
+import { Button as UnstyledButton, Checkbox, Input, PasswordStrengthIndicator, Spinner } from "@plane/ui";
 import { getPasswordStrength } from "@plane/utils";
 // components
 import { AuthHeader } from "@/app/(all)/(home)/auth-header";
@@ -251,23 +253,25 @@ export const InstanceSetupForm: FC = (props) => {
                   autoComplete="on"
                 />
                 {showPassword.password ? (
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     tabIndex={-1}
                     className="absolute right-3 top-3.5 flex items-center justify-center text-custom-text-400"
                     onClick={() => handleShowPassword("password")}
                   >
                     <EyeOff className="h-4 w-4" />
-                  </button>
+                  </UnstyledButton>
                 ) : (
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     tabIndex={-1}
                     className="absolute right-3 top-3.5 flex items-center justify-center text-custom-text-400"
                     onClick={() => handleShowPassword("password")}
                   >
                     <Eye className="h-4 w-4" />
-                  </button>
+                  </UnstyledButton>
                 )}
               </div>
               {errorData.type && errorData.type === EErrorCodes.INVALID_PASSWORD && errorData.message && (
@@ -294,23 +298,25 @@ export const InstanceSetupForm: FC = (props) => {
                   onBlur={() => setIsRetryPasswordInputFocused(false)}
                 />
                 {showPassword.retypePassword ? (
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     tabIndex={-1}
                     className="absolute right-3 top-3.5 flex items-center justify-center text-custom-text-400"
                     onClick={() => handleShowPassword("retypePassword")}
                   >
                     <EyeOff className="h-4 w-4" />
-                  </button>
+                  </UnstyledButton>
                 ) : (
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     tabIndex={-1}
                     className="absolute right-3 top-3.5 flex items-center justify-center text-custom-text-400"
                     onClick={() => handleShowPassword("retypePassword")}
                   >
                     <Eye className="h-4 w-4" />
-                  </button>
+                  </UnstyledButton>
                 )}
               </div>
               {!!formData.confirm_password &&
@@ -330,7 +336,8 @@ export const InstanceSetupForm: FC = (props) => {
               </div>
               <label className="text-sm text-custom-text-300 font-medium cursor-pointer" htmlFor="is_telemetry_enabled">
                 Allow Plane to anonymously collect usage events.{" "}
-                <a
+                <Link
+                  prefetch={false}
                   tabIndex={-1}
                   href="https://developers.plane.so/self-hosting/telemetry"
                   target="_blank"
@@ -338,7 +345,7 @@ export const InstanceSetupForm: FC = (props) => {
                   className="text-sm font-medium text-blue-500 hover:text-blue-600 flex-shrink-0"
                 >
                   See More
-                </a>
+                </Link>
               </label>
             </div>
 

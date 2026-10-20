@@ -2,11 +2,13 @@
 
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import { CalendarCheck2, Signal } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import { DoubleCircleIcon, StateGroupIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import { Button } from "@plane/ui";
 import { cn, getIssuePriorityFilters } from "@plane/utils";
 // components
 import { Icon } from "@/components/ui";
@@ -57,9 +59,9 @@ export const PeekOverviewIssueProperties: React.FC<Props> = observer(({ issueDet
             {project_details?.identifier}-{issueDetails.sequence_id}
           </h6>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={handleCopyLink} className="-rotate-45">
+            <Button unstyled type="button" onClick={handleCopyLink} className="-rotate-45">
               <Icon iconName="link" />
-            </button>
+            </Button>
           </div>
         </div>
       )}

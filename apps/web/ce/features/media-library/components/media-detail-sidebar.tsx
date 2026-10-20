@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { Calendar, CalendarClock, Clock, Handshake, MapPin, Signal, Tag, User, Volleyball, X } from "lucide-react";
 import type { EditorRefApi } from "@plane/editor";
 import type { TNameDescriptionLoader } from "@plane/types";
+import { Button } from "@plane/ui";
 import { renderFormattedPayloadDate } from "@plane/utils";
 import { CategoryDropdown } from "@/components/dropdowns/category-property";
 import { DateDropdown } from "@/components/dropdowns/date";
@@ -20,11 +22,7 @@ import OppositionTeamProperty from "@/plane-web/components/issues/issue-details/
 import { MediaLibraryService } from "@/services/media-library.service";
 import type { TMediaItem } from "../types/media-library.types";
 import { formatFileSize, formatMetaLabel, formatMetaValue } from "../utils/media-detail-utils";
-import {
-  getEventMediaDetails,
-  getEventMediaMetrics,
-  isEventMediaItem,
-} from "../utils/media-event";
+import { getEventMediaDetails, getEventMediaMetrics, isEventMediaItem } from "../utils/media-event";
 import { DetailIssueOverview } from "./detail-peek-overview";
 import { PeekOverviewIssueDetails } from "./detail-peek-overview/issue-detail";
 
@@ -100,7 +98,9 @@ const parseMetaNumber = (value: unknown): number | null => {
     const [rawNumerator, rawDenominator] = normalizedValue.split("/", 2);
     const numerator = Number(rawNumerator);
     const denominator = Number(rawDenominator);
-    return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0 ? numerator / denominator : null;
+    return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0
+      ? numerator / denominator
+      : null;
   }
   const parsed = Number(normalizedValue);
   return Number.isFinite(parsed) ? parsed : null;
@@ -396,9 +396,9 @@ export const MediaDetailSidebar = ({
       item.format.toLowerCase() === "m3u8" ||
       Boolean(
         artifactMeta.hls_master_playlist ||
-          artifactMeta.hlsMasterPlaylist ||
-          artifactMeta.hls_renditions ||
-          artifactMeta.hlsRenditions
+        artifactMeta.hlsMasterPlaylist ||
+        artifactMeta.hls_renditions ||
+        artifactMeta.hlsRenditions
       );
     if (!isHlsMedia) return [];
 
@@ -704,9 +704,7 @@ export const MediaDetailSidebar = ({
                     buttonVariant="transparent-with-text"
                     className="w-3/4 flex-grow group"
                     buttonContainerClassName="w-full text-left"
-                    buttonClassName={`text-sm ${
-                      getMetaString("location") ? "" : "text-custom-text-400"
-                    }`}
+                    buttonClassName={`text-sm ${getMetaString("location") ? "" : "text-custom-text-400"}`}
                     hideIcon
                     disabled={isSavingMeta}
                     clearIconClassName="h-3 w-3 hidden group-hover:inline"
@@ -744,7 +742,8 @@ export const MediaDetailSidebar = ({
                     className="inline-flex max-w-full items-center gap-1 rounded-full border border-custom-primary-100/30 bg-custom-primary-100/15 px-2 py-0.5 text-[11px] font-medium text-custom-primary-100"
                   >
                     <span className="truncate">{tag}</span>
-                    <button
+                    <Button
+                      unstyled
                       type="button"
                       onClick={() => removeUserTag(tag)}
                       className="text-custom-primary-100/80 hover:text-custom-primary-100"
@@ -752,7 +751,7 @@ export const MediaDetailSidebar = ({
                       aria-label={`Remove ${tag}`}
                     >
                       <X className="h-3 w-3" />
-                    </button>
+                    </Button>
                   </span>
                 ))}
                 <input

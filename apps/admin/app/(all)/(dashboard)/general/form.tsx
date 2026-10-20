@@ -1,7 +1,9 @@
 "use client";
 import type { FC } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
 import { Controller, useForm } from "react-hook-form";
+
 import { Telescope } from "lucide-react";
 // types
 import { Button } from "@plane/propel/button";
@@ -124,14 +126,15 @@ export const GeneralConfigurationForm: FC<IGeneralConfigurationForm> = observer(
               <div className="text-xs font-normal text-custom-text-300 leading-5">
                 No PII is collected.This anonymized data is used to understand how you use Plane and build new features
                 in line with{" "}
-                <a
+                <Link
+                  prefetch={false}
                   href="https://developers.plane.so/self-hosting/telemetry"
                   target="_blank"
                   className="text-custom-primary-100 hover:underline"
                   rel="noreferrer"
                 >
                   our Telemetry Policy.
-                </a>
+                </Link>
               </div>
             </div>
           </div>

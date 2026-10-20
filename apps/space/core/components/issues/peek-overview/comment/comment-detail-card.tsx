@@ -1,12 +1,14 @@
 import React, { useRef, useState } from "react";
-import Image from "next/image";
 import { observer } from "mobx-react";
+import Image from "next/image";
 import { Controller, useForm } from "react-hook-form";
+
 import { Check, MessageSquare, MoreVertical, X } from "lucide-react";
 import { Menu, Transition } from "@headlessui/react";
 // plane imports
 import type { EditorRefApi } from "@plane/editor";
 import type { TIssuePublicComment } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 import { getFileURL } from "@plane/utils";
 // components
 import { LiteTextEditor } from "@/components/editor/lite-text-editor";
@@ -125,20 +127,22 @@ export const CommentCard: React.FC<Props> = observer((props) => {
               />
             </div>
             <div className="flex gap-1 self-end">
-              <button
+              <UnstyledButton
+                unstyled
                 type="submit"
                 disabled={isSubmitting}
                 className="group rounded border border-green-500 bg-green-500/20 p-2 shadow-md duration-300 hover:bg-green-500"
               >
                 <Check className="h-3 w-3 text-green-500 duration-300 group-hover:text-white" strokeWidth={2} />
-              </button>
-              <button
+              </UnstyledButton>
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="group rounded border border-red-500 bg-red-500/20 p-2 shadow-md duration-300 hover:bg-red-500"
                 onClick={() => setIsEditing(false)}
               >
                 <X className="h-3 w-3 text-red-500 duration-300 group-hover:text-white" strokeWidth={2} />
-              </button>
+              </UnstyledButton>
             </div>
           </form>
           <div className={`${isEditing ? "hidden" : ""}`}>
@@ -181,7 +185,8 @@ export const CommentCard: React.FC<Props> = observer((props) => {
               <Menu.Item>
                 {({ active }) => (
                   <div className="py-1">
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       onClick={() => {
                         setIsEditing(true);
@@ -191,14 +196,15 @@ export const CommentCard: React.FC<Props> = observer((props) => {
                       }`}
                     >
                       Edit
-                    </button>
+                    </UnstyledButton>
                   </div>
                 )}
               </Menu.Item>
               <Menu.Item>
                 {({ active }) => (
                   <div className="py-1">
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       onClick={handleDelete}
                       className={`w-full select-none truncate rounded px-1 py-1.5 text-left text-custom-text-200 hover:bg-custom-background-80 ${
@@ -206,7 +212,7 @@ export const CommentCard: React.FC<Props> = observer((props) => {
                       }`}
                     >
                       Delete
-                    </button>
+                    </UnstyledButton>
                   </div>
                 )}
               </Menu.Item>

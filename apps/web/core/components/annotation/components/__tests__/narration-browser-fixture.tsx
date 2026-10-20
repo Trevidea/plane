@@ -1,6 +1,8 @@
 import { StrictMode, useCallback, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toast } from "@plane/propel/toast";
+import { Button } from "@plane/ui";
+
 import type { TCustomPlaylistAnnotation } from "../../types/annotation.types";
 import { VideoAnnotationEditor } from "../video-annotation-editor";
 
@@ -35,8 +37,12 @@ function NarrationFixture() {
           <input type="checkbox" checked={saveFails} onChange={(event) => setSaveFails(event.target.checked)} />
           Fail save
         </label>
-        <button onClick={() => setSaved((clips) => [...clips])}>Refresh annotations</button>
-        <button
+        <Button unstyled type="submit" onClick={() => setSaved((clips) => [...clips])}>
+          Refresh annotations
+        </Button>
+        <Button
+          unstyled
+          type="submit"
           onClick={() => {
             if (!narrationExample.current) return;
             setSaved([{ ...narrationExample.current, title: "Legacy narration", content: "/legacy-narration.webm" }]);
@@ -44,8 +50,10 @@ function NarrationFixture() {
           }}
         >
           Load legacy narration
-        </button>
-        <button
+        </Button>
+        <Button
+          unstyled
+          type="submit"
           onClick={() => {
             const drawings: TCustomPlaylistAnnotation[] = [
               {
@@ -78,22 +86,29 @@ function NarrationFixture() {
           }}
         >
           Load mixed layers
-        </button>
+        </Button>
         <label>
           <input type="checkbox" checked={logicalEnd} onChange={(event) => setLogicalEnd(event.target.checked)} />
           Logical timeline at end
         </label>
-        <button
+        <Button
+          unstyled
+          type="submit"
           onClick={() => {
             setSaved([]);
             setSession((value) => value + 1);
           }}
         >
           Switch media
-        </button>
-        <button disabled={locked} onClick={async () => setLastSaveResult((await save.current?.()) ?? false)}>
+        </Button>
+        <Button
+          unstyled
+          type="submit"
+          disabled={locked}
+          onClick={async () => setLastSaveResult((await save.current?.()) ?? false)}
+        >
           Save editor
-        </button>
+        </Button>
         <output data-testid="save-result">{String(lastSaveResult)}</output>
       </header>
       <div className="flex flex-wrap items-start gap-3">

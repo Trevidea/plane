@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+
 import { observer } from "mobx-react";
 // plane imports
 import { STATE_GROUPS } from "@plane/constants";
 import { StateGroupIcon } from "@plane/propel/icons";
+import { Button } from "@plane/ui";
 // components
 import { FilterHeader, FilterOption } from "@/components/issues/issue-layouts/filters";
 
@@ -52,13 +54,14 @@ export const FilterStateGroup: React.FC<Props> = observer((props) => {
                 />
               ))}
               {filteredOptions.length > 5 && (
-                <button
+                <Button
+                  unstyled
                   type="button"
                   className="ml-8 text-xs font-medium text-custom-primary-100"
                   onClick={handleViewToggle}
                 >
                   {itemsToRender === filteredOptions.length ? "View less" : "View all"}
-                </button>
+                </Button>
               )}
             </>
           ) : (

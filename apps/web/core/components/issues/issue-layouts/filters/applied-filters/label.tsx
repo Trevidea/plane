@@ -3,6 +3,7 @@ import { observer } from "mobx-react";
 // icons
 import { X } from "lucide-react";
 import type { IIssueLabel } from "@plane/types";
+import { Button } from "@plane/ui";
 // types
 
 type Props = {
@@ -32,13 +33,14 @@ export const AppliedLabelsFilters: React.FC<Props> = observer((props) => {
             />
             <span className="normal-case">{labelDetails.name}</span>
             {editable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemove(labelId)}
               >
                 <X size={10} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </div>
         );

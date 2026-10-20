@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 import type { ISearchIssueResponse } from "@plane/types";
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 import { IssueIdentifier } from "@/plane-web/components/issues/issue-details/issue-identifier";
 
 type Props = {
@@ -50,7 +50,8 @@ export const MediaLibraryWorkItemSelector = ({
   const selectorContent = (
     <>
       <div ref={containerRef} className={`relative ${showCard ? "mt-2" : ""}`}>
-        <button
+        <Button
+          unstyled
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
           aria-expanded={isOpen}
@@ -108,7 +109,7 @@ export const MediaLibraryWorkItemSelector = ({
               className={`h-4 w-4 flex-shrink-0 text-custom-text-300 transition-transform ${isOpen ? "rotate-180" : ""}`}
             />
           </span>
-        </button>
+        </Button>
 
         {isOpen ? (
           <div className="absolute left-0 top-full z-[80] mt-1 w-full rounded-md border border-custom-border-200 bg-custom-background-100 p-2 shadow-lg">
@@ -136,7 +137,8 @@ export const MediaLibraryWorkItemSelector = ({
                   const isSelected = selectedWorkItem?.id === issue.id;
 
                   return (
-                    <button
+                    <Button
+                      unstyled
                       key={issue.id}
                       type="button"
                       onClick={() => {
@@ -163,7 +165,7 @@ export const MediaLibraryWorkItemSelector = ({
                         }
                       />
                       <span className="truncate">{issue.name}</span>
-                    </button>
+                    </Button>
                   );
                 })
               )}

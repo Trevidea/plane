@@ -9,6 +9,8 @@ import type {
   UIEvent as ReactUIEvent,
 } from "react";
 import { Mic, ChevronRight, FastForward, Minus, Plus, Rewind, SkipBack, SkipForward, Trash2 } from "lucide-react";
+import { Button } from "@plane/ui";
+
 import type { TCustomPlaylistAnnotation } from "../types/annotation.types";
 import { getAnnotationColor, getTimelineColorWithAlpha } from "../utils/video-annotation-colors";
 import {
@@ -165,10 +167,11 @@ export const VideoAnnotationTimelinePanel = ({
     [effectiveCurrentTime, sortedAnnotations]
   );
   return (
-    <div className="isolate flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[6px] border border-custom-border-200 bg-custom-background-100 shadow-sm">
+    <div className="select-none [&_input]:select-text isolate flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[6px] border border-custom-border-200 bg-custom-background-100 shadow-sm">
       <div className="flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-custom-border-200 bg-custom-background-100 px-3 py-2">
         <div className="flex items-center gap-1.5">
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={() => onTimelineSeek(0)}
             disabled={!onSeek}
@@ -177,8 +180,9 @@ export const VideoAnnotationTimelinePanel = ({
             title="Jump to start"
           >
             <SkipBack className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             onClick={() => onJumpToNearestAnnotation("previous")}
             disabled={!onSeek || sortedAnnotations.length === 0}
@@ -187,8 +191,9 @@ export const VideoAnnotationTimelinePanel = ({
             title="Previous annotation"
           >
             <Rewind className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             onClick={() => onJumpToRelativeTimelineTime(-1)}
             disabled={!onSeek}
@@ -197,8 +202,9 @@ export const VideoAnnotationTimelinePanel = ({
             title="Step backward one second"
           >
             <Minus className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             onClick={() => onJumpToRelativeTimelineTime(1)}
             disabled={!onSeek}
@@ -207,8 +213,9 @@ export const VideoAnnotationTimelinePanel = ({
             title="Step forward one second"
           >
             <Plus className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             onClick={() => onJumpToNearestAnnotation("next")}
             disabled={!onSeek || sortedAnnotations.length === 0}
@@ -217,8 +224,9 @@ export const VideoAnnotationTimelinePanel = ({
             title="Next annotation"
           >
             <FastForward className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             onClick={() => onTimelineSeek(timelineDurationSeconds)}
             disabled={!onSeek}
@@ -227,7 +235,7 @@ export const VideoAnnotationTimelinePanel = ({
             title="Jump to end"
           >
             <SkipForward className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         <div className="flex min-w-0 items-baseline gap-2 font-mono tabular-nums">
@@ -310,7 +318,8 @@ export const VideoAnnotationTimelinePanel = ({
               const isNarrationOpen = !collapsedNarrationMomentIds.has(moment.id);
               return (
                 <div key={`narration-label-${moment.id}`} data-testid="narration-moment-label">
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     onClick={() => toggleNarrationMoment(moment.id)}
                     className={`flex h-11 w-full items-center gap-2 border-b border-custom-border-200 px-3 text-left text-[13px] font-medium text-custom-text-100 transition-colors hover:bg-custom-background-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-custom-primary-100/40 ${isNarrationOpen ? "bg-custom-background-80" : "bg-custom-background-90"}`}
@@ -327,7 +336,7 @@ export const VideoAnnotationTimelinePanel = ({
                     <span className="shrink-0 rounded-full border border-custom-border-200 bg-custom-background-100 px-2 text-[11px] leading-[17px] text-custom-text-300">
                       {moment.annotations.length}
                     </span>
-                  </button>
+                  </Button>
                   {isNarrationOpen &&
                     moment.annotations.map(({ annotation: clip }) => (
                       <div
@@ -335,7 +344,8 @@ export const VideoAnnotationTimelinePanel = ({
                         data-testid="narration-layer-label"
                         className={`group flex h-[34px] w-full items-center border-b border-custom-border-200 pr-1 transition-colors hover:bg-custom-background-80 ${narrationActions.selectedId === clip.id ? "bg-custom-primary-100/10 text-custom-primary-100" : "bg-custom-background-100 text-custom-text-200"}`}
                       >
-                        <button
+                        <Button
+                          unstyled
                           type="button"
                           disabled={narrationActions.disabled}
                           onClick={() => narrationActions.onSelect(clip)}
@@ -346,7 +356,7 @@ export const VideoAnnotationTimelinePanel = ({
                         >
                           <Mic className="size-3 shrink-0 text-custom-primary-100" />
                           <span className="min-w-0 truncate text-[12px] font-medium">{clip.title || "Narration"}</span>
-                        </button>
+                        </Button>
                         <div
                           className={`shrink-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 ${narrationActions.selectedId === clip.id ? "opacity-100" : "pointer-events-none opacity-0"}`}
                         >
@@ -378,7 +388,8 @@ export const VideoAnnotationTimelinePanel = ({
                   ].join(" ")}
                   title={`${formatAnnotationTime(moment.startTime)} - ${moment.title}`}
                 >
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     onClick={() => onToggleTimelineMoment(moment.id)}
                     className="grid h-5 w-5 shrink-0 place-items-center rounded-[4px] text-custom-text-400 transition-colors hover:bg-custom-background-80 hover:text-custom-text-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100/40"
@@ -388,15 +399,16 @@ export const VideoAnnotationTimelinePanel = ({
                     <ChevronRight
                       className={["h-3.5 w-3.5 transition-transform", isMomentOpen ? "rotate-90" : ""].join(" ")}
                     />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    unstyled
                     type="button"
                     onClick={() => onTimelineSeek(moment.startTime)}
                     className="shrink-0 rounded-[6px] border border-custom-border-200 bg-custom-background-100 px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-custom-text-100 transition-colors hover:border-custom-text-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100/40"
                     title={`Seek to ${formatAnnotationTime(moment.startTime)}`}
                   >
                     {formatAnnotationTime(moment.startTime)}
-                  </button>
+                  </Button>
                   <input
                     type="text"
                     value={isEditingMomentTitle ? editingTimelineMoment.value : moment.title}
@@ -427,7 +439,8 @@ export const VideoAnnotationTimelinePanel = ({
                     const annotationLabel = getAnnotationTimelineLabel(annotation, index);
 
                     return (
-                      <button
+                      <Button
+                        unstyled
                         key={`moment-item-label-${annotation.id}`}
                         type="button"
                         onClick={() => onTimelineSeek(annotation.startTime)}
@@ -438,7 +451,7 @@ export const VideoAnnotationTimelinePanel = ({
                         <span className="min-w-0 truncate text-[12px] font-medium text-custom-text-200">
                           {getAnnotationTimelineToolLabel(annotation.type)} - {annotationLabel}
                         </span>
-                      </button>
+                      </Button>
                     );
                   })}
               </div>
@@ -486,7 +499,8 @@ export const VideoAnnotationTimelinePanel = ({
                 return (
                   <div key={`narration-track-${moment.id}`} data-testid="narration-moment-track">
                     <div className="relative h-11 border-b border-custom-border-200 bg-custom-background-100">
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
@@ -504,7 +518,7 @@ export const VideoAnnotationTimelinePanel = ({
                         <Mic className="size-3 shrink-0 text-custom-primary-100" />
                         <span className="min-w-0 truncate">Voice narration</span>
                         <span className="shrink-0 text-custom-text-300">{moment.annotations.length}</span>
-                      </button>
+                      </Button>
                     </div>
                     {isNarrationOpen &&
                       moment.annotations.map(({ annotation: clip }) => (
@@ -533,7 +547,8 @@ export const VideoAnnotationTimelinePanel = ({
               return (
                 <div key={`moment-track-${moment.id}`} data-testid="annotation-moment-track">
                   <div className="relative h-11 border-b border-custom-border-200 bg-custom-background-100">
-                    <button
+                    <Button
+                      unstyled
                       type="button"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -580,7 +595,7 @@ export const VideoAnnotationTimelinePanel = ({
                         })}
                       </span>
                       <span className="min-w-0 truncate">{moment.title}</span>
-                    </button>
+                    </Button>
                   </div>
                   {isMomentOpen &&
                     moment.annotations.map(({ annotation, index }) => {
@@ -609,7 +624,8 @@ export const VideoAnnotationTimelinePanel = ({
                               width: `max(${VIDEO_ANNOTATION_TIMELINE_CLIP_MIN_WIDTH_PX}px, ${widthPercent}%)`,
                             }}
                           >
-                            <button
+                            <Button
+                              unstyled
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -638,9 +654,10 @@ export const VideoAnnotationTimelinePanel = ({
                                 style={{ color: getTimelineColorWithAlpha(color, 0.5) }}
                               />
                               <span className="min-w-0 truncate">{annotationLabel}</span>
-                            </button>
+                            </Button>
                             {annotation.type === "audio" ? (
-                              <button
+                              <Button
+                                unstyled
                                 type="button"
                                 onClick={(event) => {
                                   event.preventDefault();
@@ -653,9 +670,10 @@ export const VideoAnnotationTimelinePanel = ({
                                 title="Delete narration"
                               >
                                 <Trash2 className="h-3 w-3" />
-                              </button>
+                              </Button>
                             ) : null}
-                            <button
+                            <Button
+                              unstyled
                               type="button"
                               onClick={(event) => {
                                 event.preventDefault();
@@ -682,7 +700,7 @@ export const VideoAnnotationTimelinePanel = ({
                                 <span className="h-0.5 w-0.5 rounded-full bg-current" />
                                 <span className="h-0.5 w-0.5 rounded-full bg-current" />
                               </span>
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       );
@@ -704,7 +722,8 @@ export const VideoAnnotationTimelinePanel = ({
       <div className="flex h-11 shrink-0 items-center gap-3 border-t border-custom-border-200 bg-custom-background-100 px-3">
         <span className="shrink-0 text-[12px] font-medium text-custom-text-200">Scale Size</span>
         <div className="flex h-[28px] items-center overflow-hidden rounded-[8px] border border-custom-border-200 bg-custom-background-90">
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={() => onStepTimelineZoom("out")}
             disabled={!canZoomTimelineOut}
@@ -713,13 +732,14 @@ export const VideoAnnotationTimelinePanel = ({
             title="Zoom timeline out"
           >
             <Minus className="h-3.5 w-3.5" />
-          </button>
+          </Button>
           <span className="h-full w-px bg-custom-border-200" />
           <span className="inline-flex h-full min-w-14 items-center justify-center px-2 text-[12px] font-semibold text-custom-text-100 tabular-nums">
             {timelineZoomPercent}%
           </span>
           <span className="h-full w-px bg-custom-border-200" />
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={() => onStepTimelineZoom("in")}
             disabled={!canZoomTimelineIn}
@@ -728,7 +748,7 @@ export const VideoAnnotationTimelinePanel = ({
             title="Zoom timeline in"
           >
             <Plus className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

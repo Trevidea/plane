@@ -1,6 +1,8 @@
 "use client";
 
 import type { FC } from "react";
+import Link from "next/link";
+
 // hooks
 import { Tooltip } from "@plane/propel/tooltip";
 import { generateWorkItemLink } from "@plane/utils";
@@ -35,7 +37,8 @@ export const IssueLink: FC<TIssueLink> = (props) => {
       tooltipContent={activity.issue_detail ? activity.issue_detail.name : "This work item has been deleted"}
       isMobile={isMobile}
     >
-      <a
+      <Link
+        prefetch={false}
         aria-disabled={activity.issue === null}
         href={`${activity.issue_detail ? workItemLink : "#"}`}
         target={activity.issue === null ? "_self" : "_blank"}
@@ -46,7 +49,7 @@ export const IssueLink: FC<TIssueLink> = (props) => {
           ? `${activity.project_detail.identifier}-${activity.issue_detail.sequence_id}`
           : "Work items"}{" "}
         <span className="font-normal">{activity.issue_detail?.name}</span>
-      </a>
+      </Link>
     </Tooltip>
   );
 };

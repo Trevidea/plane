@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import NextLink from "next/link";
+
 import {
   Signal,
   RotateCcw,
@@ -171,14 +173,15 @@ export const messages = (activity: TProjectActivity): { message: string | ReactN
               {verb} this project {verb === "removed" ? "from" : "to"} the cycle{" "}
             </span>
             {verb !== "removed" ? (
-              <a
+              <NextLink
+                prefetch={false}
                 href={`/${workspaceDetail?.slug}/projects/${activity.project}/cycles/${activity.new_identifier}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex font-medium text-custom-text-100"
               >
                 {activity.new_value}
-              </a>
+              </NextLink>
             ) : (
               <span className="font-medium text-custom-text-100">{activity.old_value || "Unknown cycle"}</span>
             )}

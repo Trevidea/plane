@@ -6,7 +6,7 @@ import { observer } from "mobx-react";
 import { EIconSize } from "@plane/constants";
 import { StateGroupIcon } from "@plane/propel/icons";
 import type { IState } from "@plane/types";
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 // components
 import { FilterHeader, FilterOption } from "@/components/issues/issue-layouts/filters";
 // hooks
@@ -70,13 +70,14 @@ export const FilterState: FC<Props> = observer((props) => {
                   />
                 ))}
                 {filteredOptions.length > 5 && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="ml-8 text-xs font-medium text-custom-primary-100"
                     onClick={handleViewToggle}
                   >
                     {itemsToRender === filteredOptions.length ? "View less" : "View all"}
-                  </button>
+                  </Button>
                 )}
               </>
             ) : (

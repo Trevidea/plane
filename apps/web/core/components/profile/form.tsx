@@ -11,7 +11,7 @@ import { useTranslation } from "@plane/i18n";
 import { Button, getButtonStyling } from "@plane/propel/button";
 import { TOAST_TYPE, setPromiseToast, setToast } from "@plane/propel/toast";
 import type { IUser, TUserProfile } from "@plane/types";
-import { ImageWithFallback, Input } from "@plane/ui";
+import { Button as UnstyledButton, ImageWithFallback, Input } from "@plane/ui";
 import { cn, getFileURL } from "@plane/utils";
 // components
 import { DeactivateAccountModal } from "@/components/account/deactivate-account-modal";
@@ -193,7 +193,7 @@ export const ProfileForm = observer((props: TProfileFormProps) => {
             <div className="absolute -bottom-6 left-6 flex items-end justify-between">
               <div className="flex gap-3">
                 <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-custom-background-90">
-                  <button type="button" onClick={() => setIsImageUploadModalOpen(true)}>
+                  <UnstyledButton unstyled type="button" onClick={() => setIsImageUploadModalOpen(true)}>
                     {!userAvatar || userAvatar === "" ? (
                       <div className="h-16 w-16 rounded-md bg-custom-background-80 p-2">
                         <CircleUserRound className="h-full w-full text-custom-text-200" />
@@ -209,7 +209,7 @@ export const ProfileForm = observer((props: TProfileFormProps) => {
                         />
                       </div>
                     )}
-                  </button>
+                  </UnstyledButton>
                 </div>
               </div>
             </div>

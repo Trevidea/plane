@@ -2,8 +2,10 @@
 
 import { observer } from "mobx-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-// lib
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
+
+// lib
 import { ReactionSelector } from "@/components/ui";
 // helpers
 import { groupReactions, renderEmoji } from "@/helpers/emoji.helper";
@@ -88,7 +90,8 @@ export const IssueEmojiReactions: React.FC<IssueEmojiReactionsProps> = observer(
                 </div>
               }
             >
-              <button
+              <Button
+                unstyled
                 type="button"
                 onClick={() => {
                   if (user) handleReactionClick(reaction);
@@ -110,7 +113,7 @@ export const IssueEmojiReactions: React.FC<IssueEmojiReactionsProps> = observer(
                 >
                   {groupedReactions?.[reaction].length}{" "}
                 </span>
-              </button>
+              </Button>
             </Tooltip>
           );
       })}

@@ -4,11 +4,10 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { observer } from "mobx-react";
 import { ListFilter, SlidersHorizontal } from "lucide-react";
-import { cn } from "@plane/ui";
+import { Button, cn } from "@plane/ui";
 import { FiltersDropdown } from "@/components/issues/issue-layouts/filters/header/helpers/dropdown";
 import { FilterHeader } from "@/components/issues/issue-layouts/filters/header/helpers/filter-header";
 import { FilterOption } from "@/components/issues/issue-layouts/filters/header/helpers/filter-option";
-import { useRoster } from "../store/roster-context";
 import {
   ALL_CLASS_YEAR_OPTION,
   ALL_POSITION_OPTION,
@@ -17,6 +16,7 @@ import {
   ORDER_BY_OPTIONS,
   ROSTER_DISPLAY_PROPERTIES,
 } from "../constants/roster.constants";
+import { useRoster } from "../store/roster-context";
 import { toDisplayStatus } from "../utils/roster.utils";
 
 type TRosterDropdownProps = {
@@ -28,8 +28,16 @@ type TRosterDropdownProps = {
 
 export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
   const { title = "Display", icon, miniIcon, menuButton } = props;
-  const { displayProperties, toggleDisplayProperty, groupBy, subGroupBy, orderBy, setGroupBy, setSubGroupBy, setOrderBy } =
-    useRoster();
+  const {
+    displayProperties,
+    toggleDisplayProperty,
+    groupBy,
+    subGroupBy,
+    orderBy,
+    setGroupBy,
+    setSubGroupBy,
+    setOrderBy,
+  } = useRoster();
   const [showProperties, setShowProperties] = useState(true);
   const [showGroupBy, setShowGroupBy] = useState(true);
   const [showSubGroupBy, setShowSubGroupBy] = useState(true);
@@ -53,7 +61,8 @@ export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
           {showProperties ? (
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {ROSTER_DISPLAY_PROPERTIES.map((property) => (
-                <button
+                <Button
+                  unstyled
                   key={property.key}
                   type="button"
                   className={cn(
@@ -65,7 +74,7 @@ export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
                   onClick={() => toggleDisplayProperty(property.key)}
                 >
                   {property.label}
-                </button>
+                </Button>
               ))}
             </div>
           ) : null}

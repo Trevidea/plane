@@ -1,6 +1,8 @@
 "use client";
 import type { FC } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
+
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IFormattedInstanceConfiguration, TInstanceImageConfigurationKeys } from "@plane/types";
@@ -55,14 +57,15 @@ export const InstanceImageConfigForm: FC<IInstanceImageConfigForm> = (props) => 
           description={
             <>
               You will find your access key in your Unsplash developer console.&nbsp;
-              <a
+              <Link
+                prefetch={false}
                 href="https://unsplash.com/documentation#creating-a-developer-account"
                 target="_blank"
                 className="text-custom-primary-100 hover:underline"
                 rel="noreferrer"
               >
                 Learn more.
-              </a>
+              </Link>
             </>
           }
           placeholder="oXgq-sdfadsaeweqasdfasdf3234234rassd"

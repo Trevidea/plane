@@ -3,10 +3,12 @@
 import React from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
+
 import { Pencil, X } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
@@ -70,7 +72,8 @@ export const IssueParentSelect: React.FC<TIssueParentSelect> = observer((props) 
         handleClose={() => toggleParentIssueModal(null)}
         onChange={(issue: any) => handleParentIssue(issue?.id)}
       />
-      <button
+      <Button
+        unstyled
         type="button"
         className={cn(
           "group flex items-center justify-between gap-2 px-2 py-0.5 rounded outline-none",
@@ -126,7 +129,7 @@ export const IssueParentSelect: React.FC<TIssueParentSelect> = observer((props) 
             <Pencil className="h-2.5 w-2.5 flex-shrink-0" />
           </span>
         )}
-      </button>
+      </Button>
     </>
   );
 });

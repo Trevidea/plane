@@ -2,10 +2,12 @@
 
 import type { FC } from "react";
 import { useMemo } from "react";
+
 import { observer } from "mobx-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IUser } from "@plane/types";
+import { Button } from "@plane/ui";
 // components
 import { cn, formatTextList } from "@plane/utils";
 // helper
@@ -112,7 +114,8 @@ export const IssueCommentReaction: FC<TIssueCommentReaction> = observer((props) 
             reactionIds[reaction]?.length > 0 && (
               <>
                 <Tooltip tooltipContent={getReactionUsers(reaction)}>
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     onClick={() => !disabled && issueCommentReactionOperations.react(reaction)}
                     key={reaction}
@@ -128,7 +131,7 @@ export const IssueCommentReaction: FC<TIssueCommentReaction> = observer((props) 
                     <span className={userReactions.includes(reaction) ? "text-custom-primary-100" : ""}>
                       {(reactionIds || {})[reaction].length}{" "}
                     </span>
-                  </button>
+                  </Button>
                 </Tooltip>
               </>
             )

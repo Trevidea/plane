@@ -1,6 +1,8 @@
 "use client";
 import type { FC } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
+
 import { Lightbulb } from "lucide-react";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
@@ -41,14 +43,15 @@ export const InstanceAIForm: FC<IInstanceAIForm> = (props) => {
       description: (
         <>
           Choose an OpenAI engine.{" "}
-          <a
+          <Link
+            prefetch={false}
             href="https://platform.openai.com/docs/models/overview"
             target="_blank"
             className="text-custom-primary-100 hover:underline"
             rel="noreferrer"
           >
             Learn more
-          </a>
+          </Link>
         </>
       ),
       placeholder: "gpt-4o-mini",
@@ -62,14 +65,15 @@ export const InstanceAIForm: FC<IInstanceAIForm> = (props) => {
       description: (
         <>
           You will find your API key{" "}
-          <a
+          <Link
+            prefetch={false}
             href="https://platform.openai.com/api-keys"
             target="_blank"
             className="text-custom-primary-100 hover:underline"
             rel="noreferrer"
           >
             here.
-          </a>
+          </Link>
         </>
       ),
       placeholder: "sk-asddassdfasdefqsdfasd23das3dasdcasd",
@@ -125,9 +129,9 @@ export const InstanceAIForm: FC<IInstanceAIForm> = (props) => {
           <Lightbulb height="14" width="14" />
           <div>
             If you have a preferred AI models vendor, please get in{" "}
-            <a className="underline font-medium" href="https://plane.so/contact">
+            <Link prefetch={false} className="underline font-medium" href="https://plane.so/contact">
               touch with us.
-            </a>
+            </Link>
           </div>
         </div>
       </div>

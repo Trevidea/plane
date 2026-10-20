@@ -2,12 +2,14 @@ import type { FC } from "react";
 import { useCallback, useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 // icons
 import { ListFilter, Search, X } from "lucide-react";
 // plane helpers
 import { useOutsideClickDetector } from "@plane/hooks";
 // types
 import type { TModuleFilters } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn, calculateTotalFilters } from "@plane/utils";
 // components
 import { ArchiveTabsList } from "@/components/archives";
@@ -82,7 +84,8 @@ export const ArchivedModulesHeader: FC = observer(() => {
       {/* filter options */}
       <div className="h-full flex items-center gap-3 self-end px-8">
         {!isSearchOpen && (
-          <button
+          <Button
+            unstyled
             type="button"
             className="-mr-5 p-2 hover:bg-custom-background-80 rounded text-custom-text-400 grid place-items-center"
             onClick={() => {
@@ -91,7 +94,7 @@ export const ArchivedModulesHeader: FC = observer(() => {
             }}
           >
             <Search className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         )}
         <div
           className={cn(
@@ -111,7 +114,8 @@ export const ArchivedModulesHeader: FC = observer(() => {
             onKeyDown={handleInputKeyDown}
           />
           {isSearchOpen && (
-            <button
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center"
               onClick={() => {
@@ -120,7 +124,7 @@ export const ArchivedModulesHeader: FC = observer(() => {
               }}
             >
               <X className="h-3 w-3" />
-            </button>
+            </Button>
           )}
         </div>
         <ModuleOrderByDropdown

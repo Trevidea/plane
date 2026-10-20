@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Columns3, ListPlus, Plus, X } from "lucide-react";
+import { Button } from "@plane/ui";
+
 import { cn } from "@plane/utils";
 import type { MatrixColumn, MatrixFilterOptions, MatrixFilterState } from "../types/matrix.types";
 import { AxisViewToggle } from "./axis-view-toggle";
@@ -62,6 +64,21 @@ export const MatrixToolbar = ({
   const visibleColumnIdSet = new Set(visibleColumnIds);
   const visibleColumnCount = columns.filter((column) => visibleColumnIdSet.has(column.id)).length;
 
+  const cardDisabledReason = disabled
+    ? "Card creation is unavailable while event data is unavailable."
+    : !canCreateCard
+      ? "Select tags to create a card. Card creation also requires permission to manage cards."
+      : undefined;
+  const playlistDisabledReason = disabled
+    ? "Playlist creation is unavailable while event data is unavailable."
+    : !canCreatePlaylist
+      ? "Playlist creation is unavailable for this event."
+      : selectedPlayableRowCount === 0
+        ? selectedCellCount > 0
+          ? "Selected tags do not contain playable timestamps."
+          : "Select matrix cells containing playable tags to create a playlist."
+        : undefined;
+
   return (
     <div className="flex min-h-11 flex-col justify-center rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel-secondary)] px-3 py-1.5">
       <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
@@ -73,7 +90,8 @@ export const MatrixToolbar = ({
               <span aria-live="polite" className="whitespace-nowrap text-[11px] text-[var(--sg-matrix-text-muted)]">
                 {selectedCellCount} {selectedCellCount === 1 ? "cell" : "cells"} selected
               </span>
-              <button
+              <Button
+                unstyled
                 type="button"
                 aria-label="Clear selected matrix cells"
                 disabled={disabled || isCreatingPlaylist}
@@ -82,10 +100,11 @@ export const MatrixToolbar = ({
               >
                 <X className="h-3.5 w-3.5" />
                 Clear
-              </button>
+              </Button>
             </>
           ) : null}
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={() => setIsColumnsPanelOpen(true)}
             disabled={disabled || columns.length === 0}
@@ -102,32 +121,43 @@ export const MatrixToolbar = ({
             <span className="text-[var(--sg-matrix-text-muted)]">
               {visibleColumnCount}/{columns.length}
             </span>
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             disabled={disabled || !canCreateCard}
+            title={cardDisabledReason}
+            aria-describedby={cardDisabledReason ? "matrix-card-reason" : undefined}
             onClick={onCreateCard}
             className="inline-flex h-7 items-center gap-1.5 rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-selected-nav)] px-2.5 text-[11px] font-normal text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] disabled:cursor-not-allowed disabled:text-[var(--sg-matrix-text-disabled)] disabled:opacity-45"
           >
             <Plus className="h-3.5 w-3.5" />
             Create Card
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             disabled={disabled || !canCreatePlaylist || selectedPlayableRowCount === 0}
             onClick={onCreatePlaylist}
-            title={
-              selectedCellCount > 0 && selectedPlayableRowCount === 0
-                ? "Selected tags do not contain playable timestamps"
-                : undefined
-            }
+            title={playlistDisabledReason}
+            aria-describedby={playlistDisabledReason ? "matrix-playlist-reason" : undefined}
             className="inline-flex h-7 items-center gap-1.5 rounded-[5px] border border-custom-primary-100 bg-custom-primary-100 px-2.5 text-[11px] font-normal text-white transition-colors hover:border-custom-primary-200 hover:bg-custom-primary-200 disabled:cursor-not-allowed disabled:opacity-45"
           >
             <ListPlus className="h-3.5 w-3.5" />
             {isCreatingPlaylist ? "Creating" : "Create Playlist"}
-          </button>
+          </Button>
         </div>
       </div>
+      {cardDisabledReason && (
+        <p id="matrix-card-reason" role="status" className="text-[10px] text-[var(--sg-matrix-text-secondary)]">
+          {cardDisabledReason}
+        </p>
+      )}
+      {playlistDisabledReason && (
+        <p id="matrix-playlist-reason" role="status" className="text-[10px] text-[var(--sg-matrix-text-secondary)]">
+          {playlistDisabledReason}
+        </p>
+      )}
       {showFilters ? (
         <div className="hidden">
           <MatrixFilters

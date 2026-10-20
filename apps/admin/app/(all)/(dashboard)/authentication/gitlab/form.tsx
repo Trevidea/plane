@@ -68,7 +68,8 @@ export const InstanceGitlabConfigForm: FC<Props> = (props) => {
       description: (
         <>
           Get this from your{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://docs.gitlab.com/ee/integration/oauth_provider.html"
             target="_blank"
@@ -76,7 +77,7 @@ export const InstanceGitlabConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             GitLab OAuth application settings
-          </a>
+          </Link>
           .
         </>
       ),
@@ -91,7 +92,8 @@ export const InstanceGitlabConfigForm: FC<Props> = (props) => {
       description: (
         <>
           The client secret is also found in your{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://docs.gitlab.com/ee/integration/oauth_provider.html"
             target="_blank"
@@ -99,7 +101,7 @@ export const InstanceGitlabConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             GitLab OAuth application settings
-          </a>
+          </Link>
           .
         </>
       ),
@@ -117,7 +119,8 @@ export const InstanceGitlabConfigForm: FC<Props> = (props) => {
       description: (
         <>
           We will auto-generate this. Paste this into the <CodeBlock darkerShade>Redirect URI</CodeBlock> field of your{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://docs.gitlab.com/ee/integration/oauth_provider.html"
             target="_blank"
@@ -125,7 +128,7 @@ export const InstanceGitlabConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             GitLab OAuth application
-          </a>
+          </Link>
           .
         </>
       ),

@@ -2,9 +2,11 @@
 
 import type { FC } from "react";
 import { useState } from "react";
+
 import { observer } from "mobx-react";
 // plane imports
 import type { TStateOperationsCallbacks } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 
 type TStateMarksAsDefault = {
@@ -32,7 +34,9 @@ export const StateMarksAsDefault: FC<TStateMarksAsDefault> = observer((props) =>
   };
 
   return (
-    <button
+    <Button
+      unstyled
+      type="submit"
       className={cn(
         "text-xs whitespace-nowrap transition-colors",
         isDefault ? "text-custom-text-300" : "text-custom-text-200 hover:text-custom-text-100"
@@ -41,6 +45,6 @@ export const StateMarksAsDefault: FC<TStateMarksAsDefault> = observer((props) =>
       onClick={handleMarkAsDefault}
     >
       {isLoading ? "Marking as default" : isDefault ? `Default` : `Mark as default`}
-    </button>
+    </Button>
   );
 });

@@ -6,7 +6,7 @@ import { Controller } from "react-hook-form";
 // icons
 import { Eye, EyeOff } from "lucide-react";
 // plane internal packages
-import { Input } from "@plane/ui";
+import { Button, Input } from "@plane/ui";
 import { cn } from "@plane/utils";
 
 type Props = {
@@ -61,21 +61,25 @@ export const ControllerInput: React.FC<Props> = (props) => {
         />
         {type === "password" &&
           (showPassword ? (
-            <button
+            <Button
+              unstyled
+              type="submit"
               tabIndex={-1}
               className="absolute right-3 top-2.5 flex items-center justify-center text-custom-text-400"
               onClick={() => setShowPassword(false)}
             >
               <EyeOff className="h-4 w-4" />
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
+              unstyled
+              type="submit"
               tabIndex={-1}
               className="absolute right-3 top-2.5 flex items-center justify-center text-custom-text-400"
               onClick={() => setShowPassword(true)}
             >
               <Eye className="h-4 w-4" />
-            </button>
+            </Button>
           ))}
       </div>
       {description && <p className="pt-0.5 text-xs text-custom-text-300">{description}</p>}

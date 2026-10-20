@@ -606,33 +606,40 @@ export const VideoAnnotationEditor = ({
   );
 
   const handleAnnotationDurationChange = useCallback(
-    (durationSeconds: number) => {
+    (nextDurationSeconds: number) => {
+      if (!Number.isFinite(nextDurationSeconds) || nextDurationSeconds <= 0) return;
       if (!selectedAnnotation) {
-        setAnnotationDurationSeconds(durationSeconds);
+        setAnnotationDurationSeconds(nextDurationSeconds);
         return;
       }
 
       handleUpdateAnnotation({
         ...selectedAnnotation,
-        endTime: selectedAnnotation.startTime + durationSeconds,
+        endTime: Math.min(
+          selectedAnnotation.startTime + nextDurationSeconds,
+          durationSeconds && Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : Infinity
+        ),
       });
     },
-    [handleUpdateAnnotation, selectedAnnotation]
+    [durationSeconds, handleUpdateAnnotation, selectedAnnotation]
   );
 
   const handleAnnotationStartTimeChange = useCallback(
     (value: string) => {
       if (!selectedAnnotation || selectedAnnotation.type === "audio" || value === "") return;
-      const nextStartTime = Math.max(0, Number(value));
-      if (!Number.isFinite(nextStartTime)) return;
-      const annotationDuration = selectedAnnotation.endTime - selectedAnnotation.startTime;
+      const requestedStartTime = Number(value);
+      if (!Number.isFinite(requestedStartTime)) return;
+      const clipEnd =
+        durationSeconds && Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : Infinity;
+      const annotationDuration = Math.min(selectedAnnotation.endTime - selectedAnnotation.startTime, clipEnd);
+      const nextStartTime = clampTimelineValue(requestedStartTime, 0, Math.max(0, clipEnd - annotationDuration));
       handleUpdateAnnotation({
         ...selectedAnnotation,
         endTime: nextStartTime + annotationDuration,
         startTime: nextStartTime,
       });
     },
-    [handleUpdateAnnotation, selectedAnnotation]
+    [durationSeconds, handleUpdateAnnotation, selectedAnnotation]
   );
 
   const handleAnnotationOpacityChange = useCallback(

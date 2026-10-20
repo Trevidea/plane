@@ -9,7 +9,7 @@ import { STATE_TRACKER_EVENTS, STATE_TRACKER_ELEMENTS } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IState, TStateOperationsCallbacks } from "@plane/types";
-import { AlertModalCore } from "@plane/ui";
+import { Button, AlertModalCore } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
@@ -94,7 +94,8 @@ export const StateDelete: FC<TStateDelete> = observer((props) => {
         }
       />
 
-      <button
+      <Button
+        unstyled
         type="button"
         className={cn(
           "flex-shrink-0 w-5 h-5 rounded flex justify-center items-center overflow-hidden transition-colors cursor-pointer focus:outline-none",
@@ -116,7 +117,7 @@ export const StateDelete: FC<TStateDelete> = observer((props) => {
         >
           {isDelete ? <Loader className="w-3.5 h-3.5 text-custom-text-200" /> : <X className="w-3.5 h-3.5" />}
         </Tooltip>
-      </button>
+      </Button>
     </>
   );
 });

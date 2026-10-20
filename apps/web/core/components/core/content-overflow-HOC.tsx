@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+
 import { observer } from "mobx-react";
 import { useTranslation } from "@plane/i18n";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 
 interface IContentOverflowWrapper {
@@ -139,7 +141,9 @@ export const ContentOverflowWrapper = observer((props: IContentOverflowWrapper) 
           }}
         >
           {customButton || (
-            <button
+            <Button
+              unstyled
+              type="submit"
               className={cn(
                 "gap-1 w-full text-custom-primary-100 text-sm font-medium transition-opacity duration-300",
                 buttonClassName
@@ -148,7 +152,7 @@ export const ContentOverflowWrapper = observer((props: IContentOverflowWrapper) 
               disabled={isTransitioning}
             >
               {showAll ? t("show_less") : t("show_all")}
-            </button>
+            </Button>
           )}
         </div>
       )}

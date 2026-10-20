@@ -3,10 +3,22 @@
 import type { ChangeEvent, DragEvent, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
+
 import { ChevronDown, FileSpreadsheet, Upload, X } from "lucide-react";
 import { Button } from "@plane/propel/button";
 import type { IRosterPlayerPayload, TRosterPlayerStatus } from "@plane/types";
-import { AlertModalCore, cn, CustomSelect, EModalPosition, EModalWidth, Input, ModalCore, TextArea } from "@plane/ui";
+import {
+  Button as UnstyledButton,
+  AlertModalCore,
+  cn,
+  CustomSelect,
+  EModalPosition,
+  EModalWidth,
+  Input,
+  ModalCore,
+  TextArea,
+} from "@plane/ui";
 import { STATUS_SELECT_OPTIONS } from "../constants/roster.constants";
 import type { TRosterFormState } from "../store/roster-context";
 import { getRosterFormState, useRoster } from "../store/roster-context";
@@ -41,14 +53,15 @@ export const AddPlayerModal = observer(({ isOpen, onClose }: { isOpen?: boolean;
               Create and manage player roster details for this program.
             </p>
           </div>
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             onClick={handleClose}
             className="rounded-md p-1.5 text-custom-text-400 transition-colors hover:bg-custom-background-90 hover:text-custom-text-200"
             aria-label="Close player modal"
           >
             <X className="h-4 w-4" />
-          </button>
+          </UnstyledButton>
         </div>
       </div>
       <form
@@ -256,14 +269,15 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
               Upload a roster file with player name, jersey number, position, height, weight, and status.
             </p>
           </div>
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             onClick={handleClose}
             className="rounded-md p-1.5 text-custom-text-400 transition-colors hover:bg-custom-background-90 hover:text-custom-text-200"
             aria-label="Close import roster modal"
           >
             <X className="h-4 w-4" />
-          </button>
+          </UnstyledButton>
         </div>
       </div>
       <div className="space-y-5 p-5">
@@ -289,13 +303,16 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
             <div className="mt-1 text-sm text-custom-text-300">
               Browse a local file to preview and import roster rows.
             </div>
-            <a
+            <Link
+              prefetch={false}
               href="/templates/roster-template.xlsx"
               download="roster-template.xlsx"
+              target="_blank"
+              rel="noopener noreferrer"
               className="mt-2 text-sm font-medium text-custom-primary-100 transition-colors hover:text-custom-primary-200 hover:underline"
             >
               Download roster template
-            </a>
+            </Link>
             <input ref={fileInputRef} type="file" accept=".csv,.xlsx" className="hidden" onChange={handleFileChange} />
             <Button
               variant="neutral-primary"

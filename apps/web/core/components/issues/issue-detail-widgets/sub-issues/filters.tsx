@@ -1,9 +1,11 @@
 import type { FC } from "react";
 import { useMemo, useState } from "react";
+
 import { observer } from "mobx-react";
 import { ListFilter, Search, X } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 import type { IIssueFilterOptions, IState } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 import {
   FilterAssignees,
@@ -64,9 +66,14 @@ export const SubIssueFilters: FC<TSubIssueFiltersProps> = observer((props) => {
                 onChange={(e) => setFiltersSearchQuery(e.target.value)}
               />
               {filtersSearchQuery !== "" && (
-                <button type="button" className="grid place-items-center" onClick={() => setFiltersSearchQuery("")}>
+                <Button
+                  unstyled
+                  type="button"
+                  className="grid place-items-center"
+                  onClick={() => setFiltersSearchQuery("")}
+                >
                   <X className="text-custom-text-300" size={12} strokeWidth={2} />
-                </button>
+                </Button>
               )}
             </div>
           </div>

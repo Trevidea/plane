@@ -3,7 +3,7 @@
 import { observer } from "mobx-react";
 import { X } from "lucide-react";
 // plane ui
-import { Avatar } from "@plane/ui";
+import { Button, Avatar } from "@plane/ui";
 // helpers
 import { getFileURL } from "@plane/utils";
 // types
@@ -39,13 +39,14 @@ export const AppliedMembersFilters: React.FC<Props> = observer((props) => {
             />
             <span className="normal-case">{memberDetails.display_name}</span>
             {editable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemove(memberId)}
               >
                 <X size={10} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </div>
         );

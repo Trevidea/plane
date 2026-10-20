@@ -5,11 +5,13 @@ import { useCallback, useRef, useState } from "react";
 import { debounce } from "lodash-es";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import { Search, X } from "lucide-react";
 // plane hooks
 import { useOutsideClickDetector } from "@plane/hooks";
 // helpers
 import { useTranslation } from "@plane/i18n";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { useSticky } from "@/hooks/use-stickies";
 
@@ -51,7 +53,8 @@ export const StickySearch: FC = observer(() => {
   return (
     <div className="flex items-center mr-2 my-auto">
       {!isSearchOpen && (
-        <button
+        <Button
+          unstyled
           type="button"
           className="-mr-1 p-1 hover:bg-custom-background-80 rounded text-custom-text-400 grid place-items-center"
           onClick={() => {
@@ -60,7 +63,7 @@ export const StickySearch: FC = observer(() => {
           }}
         >
           <Search className=" size-4 " />
-        </button>
+        </Button>
       )}
       <div
         className={cn(
@@ -83,7 +86,8 @@ export const StickySearch: FC = observer(() => {
           onKeyDown={handleInputKeyDown}
         />
         {isSearchOpen && (
-          <button
+          <Button
+            unstyled
             type="button"
             className="grid place-items-center"
             onClick={() => {
@@ -93,7 +97,7 @@ export const StickySearch: FC = observer(() => {
             }}
           >
             <X className="h-3 w-3" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

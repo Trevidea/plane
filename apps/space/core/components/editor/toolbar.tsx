@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+
 // plane imports
 import { TOOLBAR_ITEMS } from "@plane/editor";
 import type { ToolbarMenuItem, EditorRefApi } from "@plane/editor";
 import { Button } from "@plane/propel/button";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button as UnstyledButton } from "@plane/ui";
 import { cn } from "@plane/utils";
 
 type Props = {
@@ -73,7 +75,8 @@ export const IssueCommentToolbar: React.FC<Props> = (props) => {
                       </p>
                     }
                   >
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       onClick={() => executeCommand(item)}
                       className={cn(
@@ -89,7 +92,7 @@ export const IssueCommentToolbar: React.FC<Props> = (props) => {
                         })}
                         strokeWidth={2.5}
                       />
-                    </button>
+                    </UnstyledButton>
                   </Tooltip>
                 );
               })}

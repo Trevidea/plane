@@ -12,7 +12,7 @@ import { useTranslation } from "@plane/i18n";
 import type { IIssueLabel } from "@plane/types";
 import { EUserProjectRoles } from "@plane/types";
 // components
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 // hooks
 import { useLabel } from "@/hooks/store/use-label";
 import { useUserPermissions } from "@/hooks/store/user";
@@ -186,7 +186,8 @@ export const LabelDropdown = (props: ILabelDropdownProps) => {
 
   const comboButton = useMemo(
     () => (
-      <button
+      <Button
+        unstyled
         ref={setReferenceElement}
         type="button"
         className={`clickable flex w-full h-full items-center justify-center gap-1 text-xs ${fullWidth && "hover:bg-custom-background-80"} ${
@@ -201,7 +202,7 @@ export const LabelDropdown = (props: ILabelDropdownProps) => {
       >
         {label}
         {!hideDropdownArrow && !disabled && <ChevronDown className="h-3 w-3" aria-hidden="true" />}
-      </button>
+      </Button>
     ),
     [buttonClassName, disabled, fullWidth, handleOnClick, hideDropdownArrow, label, maxRender, value.length]
   );

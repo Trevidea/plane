@@ -13,7 +13,7 @@ import type { IJiraImporterForm, IJiraMetadata } from "@plane/types";
 // react hook form
 
 // services
-import { ToggleSwitch, Spinner } from "@plane/ui";
+import { Button, ToggleSwitch, Spinner } from "@plane/ui";
 import { JIRA_IMPORTER_DETAIL } from "@/constants/fetch-keys";
 import { JiraImporterService } from "@/services/integrations";
 
@@ -107,13 +107,14 @@ export const JiraProjectDetail: React.FC<Props> = (props) => {
       <div className="flex h-full w-full items-center justify-center">
         <p className="text-sm text-custom-text-200">
           Something went wrong. Please{" "}
-          <button
+          <Button
+            unstyled
             onClick={() => setCurrentStep({ state: "import-configure" })}
             type="button"
             className="inline text-custom-primary underline"
           >
             go back
-          </button>{" "}
+          </Button>{" "}
           and check your Jira project details.
         </p>
       </div>

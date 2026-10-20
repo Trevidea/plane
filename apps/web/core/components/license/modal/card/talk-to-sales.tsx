@@ -2,6 +2,8 @@
 
 import type { FC } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
+
 // types
 // plane imports
 import { getButtonStyling } from "@plane/propel/button";
@@ -73,7 +75,8 @@ export const TalkToSalesCard: FC<TalkToSalesCardProps> = observer((props) => {
           </Loader>
         ) : (
           <div className="flex flex-col items-center justify-center w-full">
-            <a
+            <Link
+              prefetch={false}
               href={href}
               target="_blank"
               className={cn(
@@ -82,7 +85,7 @@ export const TalkToSalesCard: FC<TalkToSalesCardProps> = observer((props) => {
               )}
             >
               Talk to Sales
-            </a>
+            </Link>
             {isTrialAllowed && !isSelfHosted && (
               <div className="mt-4 h-4 transition-all duration-300 animate-fade-in">
                 {renderTrialButton &&

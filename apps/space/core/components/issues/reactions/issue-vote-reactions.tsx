@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-// plane imports
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
+
+// plane imports
 import { cn } from "@plane/utils";
 // helpers
 import { queryParamGenerator } from "@/helpers/query-param-generator";
@@ -92,7 +94,8 @@ export const IssueVotes: React.FC<TIssueVotes> = observer((props) => {
           </div>
         }
       >
-        <button
+        <Button
+          unstyled
           type="button"
           disabled={isSubmitting}
           onClick={(e) => {
@@ -112,7 +115,7 @@ export const IssueVotes: React.FC<TIssueVotes> = observer((props) => {
         >
           <span className="material-symbols-rounded !m-0 !p-0 text-base">arrow_upward_alt</span>
           <span className="text-sm font-normal transition-opacity ease-in-out">{allUpVotes.length}</span>
-        </button>
+        </Button>
       </Tooltip>
 
       {/* downvote button 👇 */}
@@ -133,7 +136,8 @@ export const IssueVotes: React.FC<TIssueVotes> = observer((props) => {
           </div>
         }
       >
-        <button
+        <Button
+          unstyled
           type="button"
           disabled={isSubmitting}
           onClick={(e) => {
@@ -153,7 +157,7 @@ export const IssueVotes: React.FC<TIssueVotes> = observer((props) => {
         >
           <span className="material-symbols-rounded !m-0 !p-0 text-base">arrow_downward_alt</span>
           <span className="text-sm font-normal transition-opacity ease-in-out">{allDownVotes.length}</span>
-        </button>
+        </Button>
       </Tooltip>
     </div>
   );

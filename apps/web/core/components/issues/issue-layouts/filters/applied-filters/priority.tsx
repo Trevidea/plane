@@ -6,6 +6,7 @@ import { observer } from "mobx-react";
 import { X } from "lucide-react";
 import { PriorityIcon } from "@plane/propel/icons";
 import type { TIssuePriorities } from "@plane/types";
+import { Button } from "@plane/ui";
 // types
 
 type Props = {
@@ -24,13 +25,14 @@ export const AppliedPriorityFilters: React.FC<Props> = observer((props) => {
           <PriorityIcon priority={priority as TIssuePriorities} className={`h-3 w-3`} />
           {priority}
           {editable && (
-            <button
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
               onClick={() => handleRemove(priority)}
             >
               <X size={10} strokeWidth={2} />
-            </button>
+            </Button>
           )}
         </div>
       ))}

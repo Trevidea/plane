@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@plane/ui";
 
 import type { TUploadTarget } from "./media-library-upload-types";
 
@@ -30,7 +31,8 @@ export const MediaLibraryUploadTabs = ({ value, onChange }: Props) => (
       {TAB_OPTIONS.map((tab) => {
         const isActive = value === tab.key;
         return (
-          <button
+          <Button
+            unstyled
             key={tab.key}
             type="button"
             role="tab"
@@ -43,12 +45,10 @@ export const MediaLibraryUploadTabs = ({ value, onChange }: Props) => (
             }`}
           >
             {tab.label}
-          </button>
+          </Button>
         );
       })}
     </div>
-    <div className="mt-2 text-[11px] text-custom-text-300">
-      {TAB_OPTIONS.find((tab) => tab.key === value)?.helper}
-    </div>
+    <div className="mt-2 text-[11px] text-custom-text-300">{TAB_OPTIONS.find((tab) => tab.key === value)?.helper}</div>
   </div>
 );

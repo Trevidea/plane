@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
+import { useMediaLibraryItem } from "ce/features/media-library/hooks/use-media-library-item";
 import dynamic from "next/dynamic";
 import { Plus, Video, Play, Maximize } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
@@ -11,8 +13,6 @@ import { ImageWithFallback, AlertModalCore, Badge, Button, CustomMenu, CustomSel
 import { cn, renderFormattedDate } from "@plane/utils";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { IssueService } from "@/services/issue/issue.service";
-import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
-import { useMediaLibraryItem } from "ce/features/media-library/hooks/use-media-library-item";
 import { CoachingCardAddClip } from "./coaching-card-add-clip";
 import { CoachingCardClipBrowser } from "./coaching-card-clip-browser";
 import type { CoachingCardDetailClip, ClipGroup, ClipSort } from "./coaching-card-clips-model";
@@ -437,7 +437,8 @@ const CoachingCardClipManager = ({
                   activeClip?.key === clip.key && "border-custom-primary-100/50 bg-custom-primary-100/5"
                 )}
               >
-                <button
+                <Button
+                  unstyled
                   type="button"
                   aria-label={`Play clip: ${clip.title}`}
                   aria-pressed={activeClip?.key === clip.key}
@@ -487,7 +488,7 @@ const CoachingCardClipManager = ({
                       </span>
                     )}
                   </span>
-                </button>
+                </Button>
                 <div className="flex shrink-0 flex-col items-end gap-1">{menus(clip)}</div>
                 {clip.tags?.length ? (
                   <div className="hidden flex-wrap gap-1 sm:flex">

@@ -1,7 +1,9 @@
 import { useState } from "react";
+
 import { CircleArrowUp, CornerDownRight, RefreshCcw, Sparkles } from "lucide-react";
 // ui
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 // components
 import { cn } from "@plane/utils";
 import { RichTextEditor } from "@/components/editor/rich-text";
@@ -51,24 +53,27 @@ export const AskPiMenu: React.FC<Props> = (props) => {
               workspaceSlug={workspaceSlug}
             />
             <div className="mt-3 flex items-center gap-4">
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="p-1 text-custom-text-300 text-sm font-medium rounded hover:bg-custom-background-80 outline-none"
                 onClick={() => handleInsertText(false)}
               >
                 Replace selection
-              </button>
+              </Button>
               <Tooltip tooltipContent="Add to next line">
-                <button
+                <Button
+                  unstyled
                   type="button"
                   className="flex-shrink-0 size-6 grid place-items-center rounded hover:bg-custom-background-80 outline-none"
                   onClick={() => handleInsertText(true)}
                 >
                   <CornerDownRight className="text-custom-text-300 size-4" />
-                </button>
+                </Button>
               </Tooltip>
               <Tooltip tooltipContent="Re-generate response">
-                <button
+                <Button
+                  unstyled
                   type="button"
                   className="flex-shrink-0 size-6 grid place-items-center rounded hover:bg-custom-background-80 outline-none"
                   onClick={(e) => {
@@ -83,7 +88,7 @@ export const AskPiMenu: React.FC<Props> = (props) => {
                       "animate-spin": isRegenerating,
                     })}
                   />
-                </button>
+                </Button>
               </Tooltip>
             </div>
           </div>

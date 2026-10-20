@@ -2,7 +2,9 @@
 
 import { useEffect } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
+
 // store hooks
 // icons
 import {
@@ -56,7 +58,8 @@ export const IssueLink = ({ activity }: { activity: IIssueActivity }) => {
       isMobile={isMobile}
     >
       {activity?.issue_detail ? (
-        <a
+        <Link
+          prefetch={false}
           aria-disabled={activity.issue === null}
           href={workItemLink}
           target={activity.issue === null ? "_self" : "_blank"}
@@ -65,7 +68,7 @@ export const IssueLink = ({ activity }: { activity: IIssueActivity }) => {
         >
           <span className="whitespace-nowrap">{`${activity.project_detail.identifier}-${activity.issue_detail.sequence_id}`}</span>{" "}
           <span className="font-normal break-all">{activity.issue_detail?.name}</span>
-        </a>
+        </Link>
       ) : (
         <span className="inline-flex items-center gap-1 font-medium text-custom-text-100 whitespace-nowrap">
           {" a work item"}{" "}
@@ -80,7 +83,8 @@ const UserLink = ({ activity }: { activity: IIssueActivity }) => {
   const { workspaceSlug } = useParams();
 
   return (
-    <a
+    <Link
+      prefetch={false}
       href={`/${workspaceSlug ?? activity.workspace_detail?.slug}/profile/${
         activity.new_identifier ?? activity.old_identifier
       }`}
@@ -89,7 +93,7 @@ const UserLink = ({ activity }: { activity: IIssueActivity }) => {
       className="inline-flex items-center font-medium text-custom-text-100 hover:underline"
     >
       {activity.new_value && activity.new_value !== "" ? activity.new_value : activity.old_value}
-    </a>
+    </Link>
   );
 };
 
@@ -363,14 +367,15 @@ const activityDetails: {
         return (
           <>
             added this{" "}
-            <a
+            <Link
+              prefetch={false}
               href={`${activity.new_value}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               link
-            </a>
+            </Link>
             {showIssue && (
               <>
                 {" "}
@@ -383,14 +388,15 @@ const activityDetails: {
         return (
           <>
             updated the{" "}
-            <a
+            <Link
+              prefetch={false}
               href={`${activity.old_value}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               link
-            </a>
+            </Link>
             {showIssue && (
               <>
                 {" "}
@@ -403,14 +409,15 @@ const activityDetails: {
         return (
           <>
             removed this{" "}
-            <a
+            <Link
+              prefetch={false}
               href={`${activity.old_value}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               link
-            </a>
+            </Link>
             {showIssue && (
               <>
                 {" "}
@@ -431,42 +438,45 @@ const activityDetails: {
               added {showIssue ? <IssueLink activity={activity} /> : "this work item"}{" "}
               <span className="whitespace-nowrap">to the cycle</span>{" "}
             </span>
-            <a
+            <Link
+              prefetch={false}
               href={`/${workspaceSlug}/projects/${activity.project}/cycles/${activity.new_identifier}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               <span className="break-all">{activity.new_value}</span>
-            </a>
+            </Link>
           </>
         );
       else if (activity.verb === "updated")
         return (
           <>
             <span className="flex-shrink-0 whitespace-nowrap">set the cycle to </span>
-            <a
+            <Link
+              prefetch={false}
               href={`/${workspaceSlug}/projects/${activity.project}/cycles/${activity.new_identifier}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               <span className="break-all">{activity.new_value}</span>
-            </a>
+            </Link>
           </>
         );
       else
         return (
           <>
             removed <IssueLink activity={activity} /> from the cycle{" "}
-            <a
+            <Link
+              prefetch={false}
               href={`/${workspaceSlug}/projects/${activity.project}/cycles/${activity.old_identifier}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               <span className="break-all">{activity.old_value}</span>
-            </a>
+            </Link>
           </>
         );
     },
@@ -478,42 +488,45 @@ const activityDetails: {
         return (
           <>
             added {showIssue ? <IssueLink activity={activity} /> : "this work item"} to the module{" "}
-            <a
+            <Link
+              prefetch={false}
               href={`/${workspaceSlug}/projects/${activity.project}/modules/${activity.new_identifier}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               <span className="break-all">{activity.new_value}</span>
-            </a>
+            </Link>
           </>
         );
       else if (activity.verb === "updated")
         return (
           <>
             set the module to{" "}
-            <a
+            <Link
+              prefetch={false}
               href={`/${workspaceSlug}/projects/${activity.project}/modules/${activity.new_identifier}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               <span className="break-all">{activity.new_value}</span>
-            </a>
+            </Link>
           </>
         );
       else
         return (
           <>
             removed <IssueLink activity={activity} /> from the module{" "}
-            <a
+            <Link
+              prefetch={false}
               href={`/${workspaceSlug}/projects/${activity.project}/modules/${activity.old_identifier}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               <span className="break-all">{activity.old_value}</span>
-            </a>
+            </Link>
           </>
         );
     },

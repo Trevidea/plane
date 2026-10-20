@@ -3,7 +3,7 @@
 import type { FC } from "react";
 import { MoveRight } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 // hooks
 import { usePlatformOS } from "@/hooks/use-platform-os";
 
@@ -21,9 +21,9 @@ export const IssuePeekOverviewLoader: FC<TIssuePeekOverviewLoader> = (props) => 
       <div className="flex justify-between items-center gap-2">
         <div className="flex items-center gap-2">
           <Tooltip tooltipContent="Close the peek view" isMobile={isMobile}>
-            <button onClick={removeRoutePeekId}>
+            <Button unstyled type="submit" onClick={removeRoutePeekId}>
               <MoveRight className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-            </button>
+            </Button>
           </Tooltip>
           <Loader.Item width="30px" height="30px" />
         </div>

@@ -2,6 +2,8 @@
 
 import type { FC } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
+
 // plane imports
 import {
   BUSINESS_PLAN_FEATURES,
@@ -71,9 +73,9 @@ export const PaidPlanUpgradeModal: FC<PaidPlanUpgradeModalProps> = observer((pro
               verticalFeatureList
               extraFeatures={
                 <p className={COMMON_EXTRA_FEATURES_CLASSNAME}>
-                  <a href={SUBSCRIPTION_WEBPAGE_URLS[EProductSubscriptionEnum.PRO]} target="_blank">
+                  <Link prefetch={false} href={SUBSCRIPTION_WEBPAGE_URLS[EProductSubscriptionEnum.PRO]} target="_blank">
                     See full features list
-                  </a>
+                  </Link>
                 </p>
               }
               handleCheckout={handleRedirection}
@@ -89,9 +91,13 @@ export const PaidPlanUpgradeModal: FC<PaidPlanUpgradeModalProps> = observer((pro
               verticalFeatureList
               extraFeatures={
                 <p className={COMMON_EXTRA_FEATURES_CLASSNAME}>
-                  <a href={SUBSCRIPTION_WEBPAGE_URLS[EProductSubscriptionEnum.BUSINESS]} target="_blank">
+                  <Link
+                    prefetch={false}
+                    href={SUBSCRIPTION_WEBPAGE_URLS[EProductSubscriptionEnum.BUSINESS]}
+                    target="_blank"
+                  >
                     See full features list
-                  </a>
+                  </Link>
                 </p>
               }
               handleCheckout={handleRedirection}
@@ -107,9 +113,13 @@ export const PaidPlanUpgradeModal: FC<PaidPlanUpgradeModalProps> = observer((pro
               verticalFeatureList
               extraFeatures={
                 <p className={COMMON_EXTRA_FEATURES_CLASSNAME}>
-                  <a href={SUBSCRIPTION_WEBPAGE_URLS[EProductSubscriptionEnum.ENTERPRISE]} target="_blank">
+                  <Link
+                    prefetch={false}
+                    href={SUBSCRIPTION_WEBPAGE_URLS[EProductSubscriptionEnum.ENTERPRISE]}
+                    target="_blank"
+                  >
                     See full features list
-                  </a>
+                  </Link>
                 </p>
               }
               handleCheckout={handleRedirection}

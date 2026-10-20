@@ -13,7 +13,7 @@ import { PriorityIcon } from "@plane/propel/icons";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssuePriorities } from "@plane/types";
 // ui
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 // hooks
@@ -391,7 +391,8 @@ export const PriorityDropdown: React.FC<Props> = (props) => {
   const comboButton = (
     <>
       {button ? (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn("clickable block h-full w-full outline-none", buttonContainerClassName)}
@@ -400,9 +401,10 @@ export const PriorityDropdown: React.FC<Props> = (props) => {
           tabIndex={tabIndex}
         >
           {button}
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn(
@@ -431,7 +433,7 @@ export const PriorityDropdown: React.FC<Props> = (props) => {
             hideText={BUTTON_VARIANTS_WITHOUT_TEXT.includes(buttonVariant)}
             renderToolTipByDefault={renderByDefault}
           />
-        </button>
+        </Button>
       )}
     </>
   );

@@ -1,12 +1,14 @@
 import React from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 // plane constants
 import { ISSUE_DISPLAY_PROPERTIES } from "@plane/constants";
 // plane i18n
 import { useTranslation } from "@plane/i18n";
 // types
 import type { IIssueDisplayProperties } from "@plane/types";
+import { Button } from "@plane/ui";
 // plane web helpers
 import { shouldRenderDisplayProperty } from "@/plane-web/helpers/issue-filter.helper";
 // components
@@ -69,7 +71,8 @@ export const FilterDisplayProperties: React.FC<Props> = observer((props) => {
         <div className="mt-1 flex flex-wrap items-center gap-2">
           {filteredDisplayProperties.map((displayProperty) => (
             <>
-              <button
+              <Button
+                unstyled
                 key={displayProperty.key}
                 type="button"
                 className={`rounded border px-2 py-0.5 text-xs transition-all ${
@@ -84,7 +87,7 @@ export const FilterDisplayProperties: React.FC<Props> = observer((props) => {
                 }
               >
                 {t(displayProperty.titleTranslationKey)}
-              </button>
+              </Button>
             </>
           ))}
         </div>

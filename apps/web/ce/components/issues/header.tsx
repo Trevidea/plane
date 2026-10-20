@@ -1,7 +1,9 @@
 "use client";
 
 import { observer } from "mobx-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
+
 // icons
 import { Circle, ExternalLink } from "lucide-react";
 // plane imports
@@ -91,7 +93,8 @@ export const IssuesHeader = observer(() => {
           ) : null}
         </div>
         {currentProjectDetails?.anchor ? (
-          <a
+          <Link
+            prefetch={false}
             href={publishedURL}
             className="group flex items-center gap-1.5 rounded bg-custom-primary-100/10 px-2.5 py-1 text-xs font-medium text-custom-primary-100"
             target="_blank"
@@ -100,7 +103,7 @@ export const IssuesHeader = observer(() => {
             <Circle className="h-1.5 w-1.5 fill-custom-primary-100" strokeWidth={2} />
             {t("workspace_projects.network.public.title")}
             <ExternalLink className="hidden h-3 w-3 group-hover:block" strokeWidth={2} />
-          </a>
+          </Link>
         ) : (
           <></>
         )}

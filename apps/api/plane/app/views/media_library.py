@@ -35,6 +35,10 @@ from plane.authentication.session import BaseSessionAuthentication
 from plane.db.models import FileAsset, Issue
 from plane.settings.storage import S3Storage
 from plane.utils.exception_logger import log_exception
+from plane.utils.event_first_frame_thumbnail import (
+    get_event_first_frame_thumbnail,
+    resolve_event_first_stream_name,
+)
 from plane.utils.media_library import (
     _now_iso,
     create_manifest,
@@ -1620,6 +1624,36 @@ class MediaArtifactFileAPIView(BaseAPIView):
                 candidate = candidate.resolve(strict=False)
             if os.path.commonpath([str(base_root), str(candidate)]) == str(base_root) and candidate.exists():
                 file_path = candidate
+
+        if request.query_params.get("thumbnail") == "first-stream":
+            meta = resolve_artifact_metadata(artifact, manifest.get("metadata"))
+            is_completed_event = meta.get("artifact_type") == "completed-event-json" or (
+                meta.get("source") == "plane-coach" and str(artifact.get("format") or "").lower() == "json"
+            )
+            if artifact_path or not is_completed_event:
+                raise NotFound("Event thumbnail not available.")
+            event_payload = {}
+            if not resolve_event_first_stream_name(meta) and file_path and file_path.is_file():
+                try:
+                    # A saved completed event is metadata, never a client supplied source URL.
+                    if file_path.stat().st_size <= 5 * 1024 * 1024:
+                        event_payload = json.loads(file_path.read_text())
+                except (OSError, ValueError, UnicodeError):
+                    pass
+            image = get_event_first_frame_thumbnail(
+                meta=meta,
+                event_payload=event_payload,
+                identity=(project_id_str, package_id, artifact_id),
+                worker_base=getattr(settings, "MEDIA_TRANSCODE_SERVICE_URL", ""),
+                hls_base=getattr(settings, "MEDIA_EVENT_HLS_BASE_URL", ""),
+                timeout=getattr(settings, "MEDIA_EVENT_THUMBNAIL_TIMEOUT", 25),
+                token=getattr(settings, "MEDIA_TRANSCODE_INTERNAL_API_TOKEN", ""),
+            )
+            if image is None:
+                raise NotFound("Event thumbnail not available.")
+            response = HttpResponse(image, content_type="image/jpeg")
+            response["Cache-Control"] = "private, max-age=86400"
+            return response
 
         if artifact_path:
             if not file_path:

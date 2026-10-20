@@ -1,6 +1,8 @@
 "use client";
 import { memo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
+import { Button } from "@plane/ui";
+
 import type { TCustomPlaylistAnnotation } from "../types/annotation.types";
 import { getTimelinePercent } from "../utils/video-annotation-timeline";
 import { moveNarration, narrationTime, trimNarration } from "../utils/voice-narration";
@@ -87,7 +89,8 @@ export const VoiceNarrationClip = memo(function VoiceNarrationClip({
       onPointerDown={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <button
+      <Button
+        unstyled
         type="button"
         disabled={disabled}
         aria-label={`${clip.title || "Narration"}, starts ${narrationTime(visible.startTime)}, duration ${(visible.endTime - visible.startTime).toFixed(2)} seconds`}
@@ -108,10 +111,11 @@ export const VoiceNarrationClip = memo(function VoiceNarrationClip({
           <VoiceNarrationWaveform clip={visible} />
         </span>
         <span className="shrink-0 font-mono tabular-nums">{(visible.endTime - visible.startTime).toFixed(1)}s</span>
-      </button>
+      </Button>
       {selected
         ? (["start", "end"] as const).map((edge) => (
-            <button
+            <Button
+              unstyled
               key={edge}
               type="button"
               disabled={disabled}
@@ -135,7 +139,9 @@ export const VoiceNarrationClip = memo(function VoiceNarrationClip({
                   )
                 );
               }}
-            />
+            >
+              {null}
+            </Button>
           ))
         : null}
     </div>

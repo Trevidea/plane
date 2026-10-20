@@ -4,6 +4,7 @@ import { ChevronDown, X } from "lucide-react";
 // plane imports
 import { ModuleIcon } from "@plane/propel/icons";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { useModule } from "@/hooks/store/use-module";
@@ -88,7 +89,8 @@ export const ModuleButtonContent: React.FC<ModuleButtonContentProps> = (props) =
                       isMobile={isMobile}
                       renderByDefault={false}
                     >
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         className="flex-shrink-0"
                         onClick={() => {
@@ -97,7 +99,7 @@ export const ModuleButtonContent: React.FC<ModuleButtonContentProps> = (props) =
                         }}
                       >
                         <X className="h-2.5 w-2.5 text-custom-text-300 hover:text-red-500" />
-                      </button>
+                      </Button>
                     </Tooltip>
                   )}
                 </div>

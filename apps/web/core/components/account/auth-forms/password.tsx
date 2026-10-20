@@ -9,7 +9,7 @@ import { Eye, EyeOff, Info, X, XCircle } from "lucide-react";
 import { API_BASE_URL, E_PASSWORD_STRENGTH, AUTH_TRACKER_EVENTS, AUTH_TRACKER_ELEMENTS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
-import { Input, PasswordStrengthIndicator, Spinner } from "@plane/ui";
+import { Button as UnstyledButton, Input, PasswordStrengthIndicator, Spinner } from "@plane/ui";
 import { getPasswordStrength } from "@plane/utils";
 // components
 import { ForgotPasswordPopover } from "@/components/account/auth-forms/forgot-password-popover";
@@ -200,14 +200,15 @@ export const AuthPasswordForm: React.FC<Props> = observer((props: Props) => {
               disabled
             />
             {passwordFormData.email.length > 0 && (
-              <button
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="absolute right-3 size-5"
                 onClick={handleEmailClear}
                 aria-label={t("aria_labels.auth_forms.clear_email")}
               >
                 <XCircle className="size-5 stroke-custom-text-400" />
-              </button>
+              </UnstyledButton>
             )}
           </div>
         </div>
@@ -230,7 +231,8 @@ export const AuthPasswordForm: React.FC<Props> = observer((props: Props) => {
               autoComplete="on"
               autoFocus
             />
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               onClick={() => handleShowPassword("password")}
               className="absolute right-3 size-5 grid place-items-center"
@@ -243,7 +245,7 @@ export const AuthPasswordForm: React.FC<Props> = observer((props: Props) => {
               ) : (
                 <Eye className="size-5 stroke-custom-text-400" />
               )}
-            </button>
+            </UnstyledButton>
           </div>
           {passwordSupport}
         </div>
@@ -265,7 +267,8 @@ export const AuthPasswordForm: React.FC<Props> = observer((props: Props) => {
                 onFocus={() => setIsRetryPasswordInputFocused(true)}
                 onBlur={() => setIsRetryPasswordInputFocused(false)}
               />
-              <button
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="absolute right-3 size-5 grid place-items-center"
                 aria-label={t(
@@ -280,7 +283,7 @@ export const AuthPasswordForm: React.FC<Props> = observer((props: Props) => {
                 ) : (
                   <Eye className="size-5 stroke-custom-text-400" />
                 )}
-              </button>
+              </UnstyledButton>
             </div>
             {!!passwordFormData.confirm_password &&
               passwordFormData.password !== passwordFormData.confirm_password &&

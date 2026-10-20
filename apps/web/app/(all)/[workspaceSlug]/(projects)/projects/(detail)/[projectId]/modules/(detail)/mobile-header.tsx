@@ -10,7 +10,7 @@ import { EIssueFilterType, ISSUE_LAYOUTS, ISSUE_DISPLAY_FILTERS_BY_PAGE } from "
 import { useTranslation } from "@plane/i18n";
 import type { IIssueDisplayFilterOptions, IIssueDisplayProperties, EIssueLayoutTypes } from "@plane/types";
 import { EIssuesStoreType } from "@plane/types";
-import { CustomMenu } from "@plane/ui";
+import { Button, CustomMenu } from "@plane/ui";
 // components
 import { WorkItemsModal } from "@/components/analytics/work-items/modal";
 import { DisplayFiltersSelection, FiltersDropdown } from "@/components/issues/issue-layouts/filters";
@@ -127,12 +127,14 @@ export const ModuleIssuesMobileHeader = observer(() => {
           </FiltersDropdown>
         </div>
 
-        <button
+        <Button
+          unstyled
+          type="submit"
           onClick={() => setAnalyticsModal(true)}
           className="flex flex-grow justify-center border-l border-custom-border-200 text-sm text-custom-text-200"
         >
           Analytics
-        </button>
+        </Button>
       </div>
     </div>
   );

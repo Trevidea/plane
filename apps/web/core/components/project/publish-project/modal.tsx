@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
+
 import { Check, ExternalLink, Globe2 } from "lucide-react";
 // types
 import { SPACE_BASE_PATH, SPACE_BASE_URL } from "@plane/constants";
@@ -11,7 +13,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TProjectPublishLayouts, TProjectPublishSettings } from "@plane/types";
 // ui
-import { Loader, ToggleSwitch, CustomSelect, ModalCore, EModalWidth } from "@plane/ui";
+import { Button as UnstyledButton, Loader, ToggleSwitch, CustomSelect, ModalCore, EModalWidth } from "@plane/ui";
 // helpers
 import { copyTextToClipboard } from "@plane/utils";
 // hooks
@@ -196,30 +198,33 @@ export const PublishProjectModal: React.FC<Props> = observer((props) => {
             {isProjectPublished && projectPublishSettings && (
               <>
                 <div className="bg-custom-background-80 border border-custom-border-300 rounded-md py-1.5 pl-4 pr-1 flex items-center justify-between gap-2">
-                  <a
+                  <Link
+                    prefetch={false}
                     href={publishLink}
                     className="text-sm text-custom-text-200 truncate"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     {publishLink}
-                  </a>
+                  </Link>
                   <div className="flex-shrink-0 flex items-center gap-1">
-                    <a
+                    <Link
+                      prefetch={false}
                       href={publishLink}
                       className="size-8 grid place-items-center bg-custom-background-90 hover:bg-custom-background-100 rounded"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       <ExternalLink className="size-4" />
-                    </a>
-                    <button
+                    </Link>
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       className="h-8 bg-custom-background-90 hover:bg-custom-background-100 rounded text-xs font-medium py-2 px-3"
                       onClick={handleCopyLink}
                     >
                       Copy link
-                    </button>
+                    </UnstyledButton>
                   </div>
                 </div>
                 <p className="text-sm font-medium text-custom-primary-100 flex items-center gap-1 mt-3">

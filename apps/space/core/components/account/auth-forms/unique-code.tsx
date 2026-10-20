@@ -6,7 +6,7 @@ import { CircleCheck, XCircle } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import { Button } from "@plane/propel/button";
 import { AuthService } from "@plane/services";
-import { Input, Spinner } from "@plane/ui";
+import { Button as UnstyledButton, Input, Spinner } from "@plane/ui";
 // hooks
 import useTimer from "@/hooks/use-timer";
 // types
@@ -124,7 +124,8 @@ export const AuthUniqueCodeForm: React.FC<TAuthUniqueCodeForm> = (props) => {
             <CircleCheck height={12} width={12} />
             Paste the code sent to your email
           </p>
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             onClick={() => generateNewCode(uniqueCodeFormData.email)}
             className={`${
@@ -139,7 +140,7 @@ export const AuthUniqueCodeForm: React.FC<TAuthUniqueCodeForm> = (props) => {
               : isRequestingNewCode
                 ? "Requesting new code"
                 : "Resend"}
-          </button>
+          </UnstyledButton>
         </div>
       </div>
 

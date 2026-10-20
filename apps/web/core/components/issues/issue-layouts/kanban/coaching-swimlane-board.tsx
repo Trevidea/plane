@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import useSWR from "swr";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { TGroupedIssues } from "@plane/types";
-import { Avatar } from "@plane/ui";
+import { Button, Avatar } from "@plane/ui";
 import { getProgramStateColumns } from "@/helpers/program-states";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useIssueStoreType } from "@/hooks/use-issue-layout-store";
@@ -171,7 +171,8 @@ export const CoachingSwimlaneBoard: React.FC<Props> = observer((props) => {
             : group.secondaryLabel || (view === "coach" ? "Coach" : "");
         return (
           <div key={group.id} className="border-t border-custom-border-200">
-            <button
+            <Button
+              unstyled
               type="button"
               aria-expanded={!isCollapsed}
               onClick={() => toggleLane(group.id)}
@@ -190,7 +191,7 @@ export const CoachingSwimlaneBoard: React.FC<Props> = observer((props) => {
               <span className="font-medium">{laneLabel(group)}</span>
               <span className="text-xs text-custom-text-300">{secondaryLabel}</span>
               <span className="text-xs text-custom-text-300">{group.cardCount} cards</span>
-            </button>
+            </Button>
 
             {!isCollapsed && (
               <div className="flex gap-4 px-3 py-2">

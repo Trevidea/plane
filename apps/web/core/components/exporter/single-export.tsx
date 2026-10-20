@@ -2,6 +2,8 @@
 
 import type { FC } from "react";
 import { useState } from "react";
+import Link from "next/link";
+
 // ui
 import { Button } from "@plane/propel/button";
 import type { IExportData } from "@plane/types";
@@ -62,11 +64,11 @@ export const SingleExport: FC<Props> = ({ service, refreshing }) => {
         <>
           {service.status == "completed" && (
             <div>
-              <a target="_blank" href={service?.url} rel="noopener noreferrer">
+              <Link prefetch={false} target="_blank" href={service?.url} rel="noopener noreferrer">
                 <Button variant="primary" className="w-full">
                   {isLoading ? "Downloading..." : "Download"}
                 </Button>
-              </a>
+              </Link>
             </div>
           )}
         </>

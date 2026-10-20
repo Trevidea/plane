@@ -6,7 +6,7 @@ import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
 // components
 import { ModuleIcon } from "@plane/propel/icons";
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 import { FilterHeader, FilterOption } from "@/components/issues/issue-layouts/filters";
 import { useModule } from "@/hooks/store/use-module";
 // ui
@@ -71,13 +71,14 @@ export const FilterModule: React.FC<Props> = observer((props) => {
                   />
                 ))}
                 {sortedOptions.length > 5 && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="ml-8 text-xs font-medium text-custom-primary-100"
                     onClick={handleViewToggle}
                   >
                     {itemsToRender === sortedOptions.length ? "View less" : "View all"}
-                  </button>
+                  </Button>
                 )}
               </>
             ) : (
