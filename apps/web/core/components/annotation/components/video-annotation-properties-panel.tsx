@@ -232,7 +232,7 @@ export const VideoAnnotationPropertiesPanel = ({
                     onChange={(event) => onAnnotationColorInputChange(event.currentTarget.value)}
                     className="h-9 min-w-0 flex-1 rounded-[5px] border border-custom-border-200 bg-custom-background-90 px-2 font-mono text-[11px] font-semibold uppercase text-custom-text-100 outline-none transition-colors placeholder:text-custom-text-400 focus:border-custom-primary-100 focus:ring-2 focus:ring-custom-primary-100/30"
                     aria-label="Annotation color hex value"
-                    placeholder="#F97316"
+                    placeholder="#38BDF8"
                     spellCheck={false}
                   />
                 </div>
