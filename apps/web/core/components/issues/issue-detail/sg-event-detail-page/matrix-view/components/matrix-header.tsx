@@ -107,21 +107,21 @@ export const MatrixHeader = ({
         aria-colindex={totalColumnCount + 2}
         scope="col"
         className={cn(
-          "sticky top-0 z-20 h-[180px] w-[44px] min-w-[44px] border-b border-r border-l border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] px-1 pb-3 text-center align-bottom text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]",
+          "sticky top-0 z-20 h-[180px] w-[44px] min-w-[44px] border-b border-r border-l border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0 text-center align-middle text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]",
           stickySummaries && "lg:right-[44px] lg:z-30"
         )}
       >
-        Total
+        <span className="inline-block -rotate-90 whitespace-nowrap">Total</span>
       </th>
       <th
         aria-colindex={totalColumnCount + 3}
         scope="col"
         className={cn(
-          "sticky top-0 z-20 h-[180px] w-[44px] min-w-[44px] border-b border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] px-1 pb-3 text-center align-bottom text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]",
+          "sticky top-0 z-20 h-[180px] w-[44px] min-w-[44px] border-b border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0 text-center align-middle text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]",
           stickySummaries && "lg:right-0 lg:z-30"
         )}
       >
-        Average
+        <span className="inline-block -rotate-90 whitespace-nowrap">Average</span>
       </th>
     </tr>
   </thead>

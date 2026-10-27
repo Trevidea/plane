@@ -1,6 +1,32 @@
 import type { RowFilterMode, SportTableConfig, SportTableKind } from "./types";
 
 export const SG_PLAYER_STYLE = `
+  .sg-event-player .video-js .vjs-load-progress {
+    display: none;
+  }
+  .sg-event-player.sg-event-clip-queue .video-js .vjs-progress-control,
+  .sg-event-player.sg-event-clip-queue .video-js .vjs-current-time,
+  .sg-event-player.sg-event-clip-queue .video-js .vjs-duration {
+    display: none;
+  }
+  .sg-event-player .video-js .sg-clip-progress {
+    position: absolute;
+    left: 12px;
+    top: 23px;
+    width: calc(100% - 24px);
+    height: 12px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: #ffffff;
+  }
+  .sg-event-player .video-js .sg-clip-time {
+    order: 1;
+    flex-shrink: 0;
+    color: #ffffff;
+    font-size: 11px;
+    line-height: 26px;
+  }
+
   .sg-event-player .video-js {
     width: 100%;
     height: 100%;
@@ -355,7 +381,7 @@ export const SURFACE_CLASS = "rounded-lg border border-custom-border-200 bg-cust
 export const ICON_BUTTON_CLASS =
   "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-custom-border-200 bg-custom-background-100 text-custom-text-300 transition-colors hover:bg-custom-background-90 hover:text-custom-text-100";
 
-export const PLAYER_FRAME_CLASS = "h-[clamp(260px,36vw,620px)] w-full";
+export const PLAYER_FRAME_CLASS = "h-[var(--sg-event-player-height,clamp(180px,30vw,480px))] w-full";
 
 export const PLAYER_STAGE_CLASS = "mx-auto h-full w-full max-w-full overflow-hidden rounded-[5px]";
 

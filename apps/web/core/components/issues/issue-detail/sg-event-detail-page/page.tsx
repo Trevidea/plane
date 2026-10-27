@@ -42,6 +42,7 @@ import {
   createMatrixPlaylist as createCustomPlaylist,
 } from "./matrix-view/utils/create-matrix-playlist";
 import { buildTimelinePlayerLabelMap } from "./media-thumbnail-lookup";
+import { SgEventPlayerResizeHandle } from "./player-resize-handle";
 import type { PlaylistDraft } from "./playlist-draft";
 import { SgEventVideoPlayer } from "./sg-event-video-player";
 import { SgEventTagsPanel } from "./tags-view";
@@ -439,6 +440,8 @@ export const SgEventDetailPage = ({
     activeTimelineTagId,
     activeVideo,
     clearActiveTimelineTag,
+    clipPlayback,
+    handlePlayTagRows,
     fullStreamPlaybackItem,
     handlePlayTagRow,
     handlePlaybackTimeChange,
@@ -1137,6 +1140,7 @@ export const SgEventDetailPage = ({
               <div className="grid min-w-0 gap-[10px] lg:grid-cols-[minmax(0,76fr)_minmax(260px,24fr)]">
                 <div className="min-w-0 rounded-[5px] bg-[var(--sg-matrix-video-bg)]">
                   <SgEventVideoPlayer
+                    clipPlayback={clipPlayback}
                     item={playbackItem}
                     annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                     compactEmpty={!hasPlayableVideo}
@@ -1170,6 +1174,7 @@ export const SgEventDetailPage = ({
                 </div>
               )}
 
+              <SgEventPlayerResizeHandle />
               <div className="flex flex-col gap-2">
                 <MatrixView
                   activeRowId={activeMatrixRowId}
@@ -1184,6 +1189,7 @@ export const SgEventDetailPage = ({
                   onCreateCard={canManageCards ? handleCreateMatrixCard : undefined}
                   onCreatePlaylist={handleCreateMatrixPlaylist}
                   onFocusedRowsChange={setFocusedMatrixRows}
+                  onPlayTagRows={handlePlayTagRows}
                   onPlayTagRow={handlePlayTagRow}
                   preferenceKey={matrixPreferenceKey}
                   sport={resolvedSport || ""}
@@ -1199,6 +1205,7 @@ export const SgEventDetailPage = ({
                   <div className="grid min-w-0 gap-[10px] lg:grid-cols-[minmax(0,76fr)_minmax(260px,24fr)]">
                     <div className="min-w-0 rounded-[5px] bg-[var(--sg-matrix-video-bg)]">
                       <SgEventVideoPlayer
+                        clipPlayback={clipPlayback}
                         item={playbackItem}
                         annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                         compactEmpty={!hasPlayableVideo}
@@ -1233,6 +1240,7 @@ export const SgEventDetailPage = ({
                   )}
                 </div>
 
+                <SgEventPlayerResizeHandle />
                 {tagViewMode === "timeline" ? (
                   <SgEventTimelinePanel
                     activePlaybackOverrideId={activePlaybackOverrideId}

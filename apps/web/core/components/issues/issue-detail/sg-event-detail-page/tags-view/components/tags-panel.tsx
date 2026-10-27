@@ -415,6 +415,7 @@ export const SgEventTagsPanel = ({
                     void onPlayTagRow(row);
                   }}
                   onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       void onPlayTagRow(row);
@@ -444,7 +445,17 @@ export const SgEventTagsPanel = ({
                       {index + 1}
                     </span>
                   </Button>
-                  <div className="h-10 w-[74px] overflow-hidden rounded bg-custom-background-80">
+                  <Button
+                    unstyled
+                    type="button"
+                    aria-label={`Select clip ${index + 1}: ${row.action}`}
+                    aria-pressed={isSelected}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggleTagSelection(row.id);
+                    }}
+                    className="h-10 w-[74px] overflow-hidden rounded bg-custom-background-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100"
+                  >
                     {rowThumbnailUrl ? (
                       <ImageWithFallback
                         src={rowThumbnailUrl}
@@ -455,7 +466,7 @@ export const SgEventTagsPanel = ({
                     ) : (
                       <div className="h-full w-full bg-custom-background-90" />
                     )}
-                  </div>
+                  </Button>
                   {visibleColumns.map((column) => {
                     const cellValue = column.getValue(row);
 
