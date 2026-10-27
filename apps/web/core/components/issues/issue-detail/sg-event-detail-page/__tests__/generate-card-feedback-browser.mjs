@@ -337,12 +337,22 @@ try {
     assert.equal(Math.round((await player.locator(".sg-event-player").boundingBox()).height), 280);
     await page.setViewportSize({ width: 1280, height: 900 });
   });
-  await check("matrix header occupies the same height as its data rows", async () => {
-    const heights = await page
-      .getByRole("region", { name: "Matrix test" })
+  await check("matrix keeps tall headers with vertical labels", async () => {
+    const matrix = page.getByRole("region", { name: "Matrix test" });
+    const heights = await matrix
       .locator("tr")
       .evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height));
-    assert.ok(Math.abs(heights[0] - heights[1]) <= 1, JSON.stringify(heights));
+    assert.equal(Math.round(heights[0]), 180);
+    assert.equal(Math.round(heights[1]), 44);
+    const rotations = await matrix.locator("thead th").evaluateAll((headers) =>
+      headers.map((header) => {
+        const transform = new DOMMatrixReadOnly(
+          getComputedStyle([...header.querySelectorAll("span")].at(-1)).transform
+        );
+        return { label: header.textContent, rotation: [transform.a, transform.b, transform.c, transform.d] };
+      })
+    );
+    for (const { label, rotation } of rotations) assert.deepEqual(rotation, [0, -1, 1, 0], label);
   });
   await check("thumbnail click and keyboard toggle selection without playing the row", async () => {
     const thumbnail = page.locator('img[src="/poster.svg"]').first();

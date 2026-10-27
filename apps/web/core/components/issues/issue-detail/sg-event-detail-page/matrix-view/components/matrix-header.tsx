@@ -55,16 +55,16 @@ export const MatrixHeader = ({
       <th
         aria-colindex={1}
         scope="col"
-        className="sticky left-0 top-0 z-30 h-11 w-[140px] min-w-[140px] border-b border-r border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0 text-center align-middle text-[12px] font-medium text-[var(--sg-matrix-text-secondary)]"
+        className="sticky left-0 top-0 z-30 h-[180px] w-[140px] min-w-[140px] border-b border-r border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0 text-center align-middle text-[12px] font-medium text-[var(--sg-matrix-text-secondary)]"
       >
         <span className="flex h-full w-full items-center justify-center">
-          <span className="truncate px-2">{firstColumnLabel}</span>
+          <span className="-rotate-90 whitespace-nowrap">{firstColumnLabel}</span>
         </span>
       </th>
       {leadingSpacerWidth > 0 ? (
         <th
           aria-hidden="true"
-          className="h-11 border-b border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0"
+          className="h-[180px] border-b border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0"
           style={{ minWidth: leadingSpacerWidth, width: leadingSpacerWidth }}
         />
       ) : null}
@@ -81,14 +81,16 @@ export const MatrixHeader = ({
             aria-colindex={columnStartIndex + columnIndex + 2}
             scope="col"
             className={cn(
-              "sticky top-0 z-20 h-11 w-[var(--sg-matrix-column-width)] min-w-[var(--sg-matrix-column-width)] border-b border-r border-[var(--sg-matrix-grid-border)] p-0 align-middle text-[12px] font-medium text-[var(--sg-matrix-header-text)]",
+              "sticky top-0 z-20 h-[180px] w-[var(--sg-matrix-column-width)] min-w-[var(--sg-matrix-column-width)] border-b border-r border-[var(--sg-matrix-grid-border)] p-0 align-bottom text-[12px] font-medium text-[var(--sg-matrix-header-text)]",
               isGroupStart && "border-l border-l-[var(--sg-matrix-grid-border)]"
             )}
             style={{ backgroundColor: palette.background, borderBottomColor: palette.accent, borderBottomWidth: 3 }}
           >
             <Tooltip tooltipContent={tooltipContent} position="top">
-              <span className="flex h-full w-full items-center overflow-hidden px-1">
-                <span className="block w-full truncate whitespace-nowrap text-center leading-4">{column.label}</span>
+              <span className="relative block h-full w-full overflow-hidden">
+                <span className="absolute left-1/2 top-1/2 block w-[148px] origin-center -translate-x-1/2 -translate-y-1/2 -rotate-90 truncate whitespace-nowrap text-center leading-4">
+                  {column.label}
+                </span>
               </span>
             </Tooltip>
           </th>
@@ -97,7 +99,7 @@ export const MatrixHeader = ({
       {trailingSpacerWidth > 0 ? (
         <th
           aria-hidden="true"
-          className="h-11 border-b border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0"
+          className="h-[180px] border-b border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0"
           style={{ minWidth: trailingSpacerWidth, width: trailingSpacerWidth }}
         />
       ) : null}
@@ -105,21 +107,21 @@ export const MatrixHeader = ({
         aria-colindex={totalColumnCount + 2}
         scope="col"
         className={cn(
-          "sticky top-0 z-20 h-11 w-[44px] min-w-[44px] border-b border-r border-l border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] px-1 py-0 text-center align-middle text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]",
+          "sticky top-0 z-20 h-[180px] w-[44px] min-w-[44px] border-b border-r border-l border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0 text-center align-middle text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]",
           stickySummaries && "lg:right-[44px] lg:z-30"
         )}
       >
-        Total
+        <span className="inline-block -rotate-90 whitespace-nowrap">Total</span>
       </th>
       <th
         aria-colindex={totalColumnCount + 3}
         scope="col"
         className={cn(
-          "sticky top-0 z-20 h-11 w-[44px] min-w-[44px] border-b border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] px-1 py-0 text-center align-middle text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]",
+          "sticky top-0 z-20 h-[180px] w-[44px] min-w-[44px] border-b border-[var(--sg-matrix-grid-border)] bg-[var(--sg-matrix-panel-secondary)] p-0 text-center align-middle text-[11px] font-medium text-[var(--sg-matrix-text-secondary)]",
           stickySummaries && "lg:right-0 lg:z-30"
         )}
       >
-        Average
+        <span className="inline-block -rotate-90 whitespace-nowrap">Average</span>
       </th>
     </tr>
   </thead>
