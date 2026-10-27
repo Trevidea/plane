@@ -28,6 +28,7 @@ export type MatrixViewProps = {
   onCreateCard?: (rows: SgTagRow[]) => void | Promise<void>;
   onCreatePlaylist?: (rows: SgTagRow[]) => void | Promise<void>;
   onFocusedRowsChange?: (rows: SgTagRow[]) => void;
+  onPlayTagRows?: (rows: SgTagRow[]) => void | Promise<void>;
   onPlayTagRow?: (row: SgTagRow) => void | Promise<void>;
   preferenceKey?: string;
   sport: SportTableKind | string;
@@ -49,6 +50,7 @@ export const MatrixView = ({
   onCreatePlaylist,
   onFocusedRowsChange,
   onPlayTagRow,
+  onPlayTagRows,
   preferenceKey,
   sport,
   tagRows,
@@ -152,8 +154,10 @@ export const MatrixView = ({
     (cell: MatrixCell, _trigger: HTMLButtonElement, options?: { additive?: boolean; range?: boolean }) => {
       selectCell(cell, options?.range ? "range" : options?.additive ? "toggle" : "replace");
       setActiveCellId(cell.id);
+      const rows = cell.sourceRowIds.map((id) => tagRowsById.get(id)).filter((row): row is SgTagRow => Boolean(row));
+      if (rows.length) void onPlayTagRows?.(rows);
     },
-    [selectCell]
+    [onPlayTagRows, selectCell, tagRowsById]
   );
   const handleCellDragStart = useCallback(
     (cell: MatrixCell, dataTransfer: DataTransfer) => {
@@ -260,11 +264,15 @@ export const MatrixView = ({
               <MatrixTable
                 activeRowId={activeRowId}
                 data={displayedMatrix}
-                maxHeightClassName={isWorkspaceLayout ? "max-h-[calc(100vh-31rem)] min-h-[300px]" : undefined}
+                maxHeightClassName={
+                  isWorkspaceLayout
+                    ? "max-h-[calc(100dvh_-_var(--sg-event-player-height,clamp(180px,30vw,480px))_-_14rem)] min-h-[240px]"
+                    : undefined
+                }
                 onCellActivate={handleCellActivate}
                 onCellDoubleClick={(cell) => {
                   const firstRow = cell.sourceRowIds.map((rowId) => tagRowsById.get(rowId)).find(Boolean);
-                  if (firstRow) void onPlayTagRow?.(firstRow);
+                  if (firstRow && !onPlayTagRows) void onPlayTagRow?.(firstRow);
                 }}
                 onCellDragStart={handleCellDragStart}
                 openCellId={activeCell?.id}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MediaLibraryService } from "@/services/media-library.service";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
 import { getTimelinePanelInputPlayheadSeconds } from "../timeline-view";
@@ -11,6 +11,7 @@ import {
   playlistHasMediaSegments,
   toText,
 } from "../utils";
+import { useSgEventClipQueue } from "./use-sg-event-clip-queue";
 
 type UseSgEventPlaybackStateArgs = {
   eventItem?: TMediaItem | null;
@@ -79,11 +80,13 @@ export const useSgEventPlaybackState = ({
   videoItems,
   viewDevices,
 }: UseSgEventPlaybackStateArgs) => {
+  const clipLoadRequestRef = useRef(0);
   const [activeVideoId, setActiveVideoId] = useState<string>("");
   const [activePlaybackOverride, setActivePlaybackOverride] = useState<TMediaItem | null>(null);
   const [activeTimelineTagId, setActiveTimelineTagId] = useState<string | null>(null);
   const [pendingSeekSeconds, setPendingSeekSeconds] = useState<number | null>(null);
   const [pendingSeekRequestId, setPendingSeekRequestId] = useState(0);
+  const [clipMediaStartSeconds, setClipMediaStartSeconds] = useState(0);
   const [playerLocalSeconds, setPlayerLocalSeconds] = useState(0);
   const [playerDurationSeconds, setPlayerDurationSeconds] = useState<number | null>(null);
   const [isPlayerPlaying, setIsPlayerPlaying] = useState(false);
@@ -219,67 +222,9 @@ export const useSgEventPlaybackState = ({
     }
   }, []);
 
-  const handleSwitchToFullStream = useCallback(() => {
-    setActivePlaybackOverride(null);
-    setActiveTimelineTagId(null);
-    setIsPlayerPlaying(false);
-    setPlayheadBaseSeconds(0);
-    requestPlayerSeek(null);
-  }, [requestPlayerSeek]);
-
-  const handleResetTimelinePlayback = useCallback(() => {
-    setActivePlaybackOverride(null);
-    setActiveTimelineTagId(null);
-    setIsPlayerPlaying(false);
-    setPlayheadBaseSeconds(0);
-    setPlayerLocalSeconds(0);
-    requestPlayerSeek(null);
-    window.setTimeout(() => requestPlayerSeek(0), 0);
-  }, [requestPlayerSeek]);
-
-  const handleSeekTimelineSeconds = useCallback(
-    (seconds: number) => {
-      const nextSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
-
-      setActivePlaybackOverride(null);
-      setActiveTimelineTagId(null);
-      setPlayheadBaseSeconds(0);
-      setPlayerLocalSeconds(nextSeconds);
-      setIsPlayerPlaying(true);
-      requestPlayerSeek(nextSeconds);
-    },
-    [requestPlayerSeek]
-  );
-
-  const handlePlaybackTimeChange = useCallback(
-    (
-      seconds: number,
-      durationSeconds: number | null,
-      playbackState?: {
-        isPlaying?: boolean;
-        playbackRate?: number;
-      }
-    ) => {
-      setPlayerLocalSeconds(seconds);
-      setPlayerDurationSeconds(durationSeconds);
-
-      if (typeof playbackState?.isPlaying === "boolean") {
-        setIsPlayerPlaying(playbackState.isPlaying);
-      }
-
-      if (
-        typeof playbackState?.playbackRate === "number" &&
-        Number.isFinite(playbackState.playbackRate) &&
-        playbackState.playbackRate > 0
-      ) {
-        setPlayerPlaybackRate(playbackState.playbackRate);
-      }
-    },
-    []
-  );
-
-  const handlePlayTagRow = useCallback(
-    async (row: SgTagRow) => {
+  const loadTagRow = useCallback(
+    async (row: SgTagRow, offsetSeconds = 0) => {
+      const requestId = ++clipLoadRequestRef.current;
       setActiveTimelineTagId(row.id);
       const originalStreamName = getSgTagRowStreamName(row, selectedViewDevice?.streamName || primaryStreamName);
       const playlistTimestamp = row.playlistTimestamp?.trim() || "";
@@ -290,7 +235,8 @@ export const useSgEventPlaybackState = ({
       if (!originalStreamName || !playlistTimestamp) {
         setActivePlaybackOverride(null);
         setPlayheadBaseSeconds(0);
-        requestPlayerSeek(fallbackSeekSeconds);
+        setClipMediaStartSeconds(fallbackSeekSeconds);
+        requestPlayerSeek(fallbackSeekSeconds + offsetSeconds);
         return;
       }
 
@@ -305,18 +251,21 @@ export const useSgEventPlaybackState = ({
             },
           ]);
 
+          if (requestId !== clipLoadRequestRef.current) return;
           const playlistUrl = playlistFileName ? buildArchivedPlaylistUrl(playlistFileName) : null;
           if (!playlistUrl) {
             continue;
           }
 
           const hasMediaSegments = await playlistHasMediaSegments(playlistUrl);
+          if (requestId !== clipLoadRequestRef.current) return;
           if (!hasMediaSegments) {
             continue;
           }
 
-          requestPlayerSeek(null);
-          setPlayerLocalSeconds(0);
+          setClipMediaStartSeconds(0);
+          requestPlayerSeek(offsetSeconds);
+          setPlayerLocalSeconds(offsetSeconds);
           setPlayerDurationSeconds(null);
           setPlayheadBaseSeconds(fallbackSeekSeconds);
           setActivePlaybackOverride({
@@ -360,9 +309,11 @@ export const useSgEventPlaybackState = ({
         console.error("Failed to create playlist for tag row.", error);
       }
 
+      if (requestId !== clipLoadRequestRef.current) return;
       setActivePlaybackOverride(null);
       setPlayheadBaseSeconds(0);
-      requestPlayerSeek(fallbackSeekSeconds);
+      setClipMediaStartSeconds(fallbackSeekSeconds);
+      requestPlayerSeek(fallbackSeekSeconds + offsetSeconds);
     },
     [
       activeVideo?.thumbnail,
@@ -375,17 +326,105 @@ export const useSgEventPlaybackState = ({
     ]
   );
 
+  const requestClipSeek = useCallback(
+    (seconds: number) => requestPlayerSeek(seconds + clipMediaStartSeconds),
+    [clipMediaStartSeconds, requestPlayerSeek]
+  );
+  const {
+    clear: clearClipQueue,
+    playRows: handlePlayTagRows,
+    playback: queuePlayback,
+    updateTime: updateClipQueueTime,
+  } = useSgEventClipQueue(loadTagRow, requestClipSeek);
+  const clipPlayback = queuePlayback ? { ...queuePlayback, mediaStartSeconds: clipMediaStartSeconds } : null;
+
+  const handlePlayTagRow = useCallback(
+    async (row: SgTagRow) => {
+      clearClipQueue();
+      await loadTagRow(row);
+    },
+    [clearClipQueue, loadTagRow]
+  );
+
+  const handlePlaybackTimeChange = useCallback(
+    (
+      seconds: number,
+      durationSeconds: number | null,
+      playbackState?: {
+        isPlaying?: boolean;
+        playbackRate?: number;
+      }
+    ) => {
+      updateClipQueueTime(seconds - clipMediaStartSeconds, clipMediaStartSeconds > 0 ? null : durationSeconds);
+      setPlayerLocalSeconds(seconds);
+      setPlayerDurationSeconds(durationSeconds);
+
+      if (typeof playbackState?.isPlaying === "boolean") {
+        setIsPlayerPlaying(playbackState.isPlaying);
+      }
+
+      if (
+        typeof playbackState?.playbackRate === "number" &&
+        Number.isFinite(playbackState.playbackRate) &&
+        playbackState.playbackRate > 0
+      ) {
+        setPlayerPlaybackRate(playbackState.playbackRate);
+      }
+    },
+    [clipMediaStartSeconds, updateClipQueueTime]
+  );
+
+  const handleSwitchToFullStream = useCallback(() => {
+    clipLoadRequestRef.current += 1;
+    clearClipQueue();
+    setActivePlaybackOverride(null);
+    setActiveTimelineTagId(null);
+    setIsPlayerPlaying(false);
+    setPlayheadBaseSeconds(0);
+    requestPlayerSeek(null);
+  }, [clearClipQueue, requestPlayerSeek]);
+
+  const handleResetTimelinePlayback = useCallback(() => {
+    clipLoadRequestRef.current += 1;
+    clearClipQueue();
+    setActivePlaybackOverride(null);
+    setActiveTimelineTagId(null);
+    setIsPlayerPlaying(false);
+    setPlayheadBaseSeconds(0);
+    setPlayerLocalSeconds(0);
+    requestPlayerSeek(null);
+    window.setTimeout(() => requestPlayerSeek(0), 0);
+  }, [clearClipQueue, requestPlayerSeek]);
+
+  const handleSeekTimelineSeconds = useCallback(
+    (seconds: number) => {
+      const nextSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+
+      clipLoadRequestRef.current += 1;
+      clearClipQueue();
+      setActivePlaybackOverride(null);
+      setActiveTimelineTagId(null);
+      setPlayheadBaseSeconds(0);
+      setPlayerLocalSeconds(nextSeconds);
+      setIsPlayerPlaying(true);
+      requestPlayerSeek(nextSeconds);
+    },
+    [clearClipQueue, requestPlayerSeek]
+  );
+
   const clearActiveTimelineTag = useCallback((tagId: string) => {
     setActiveTimelineTagId((currentValue) => (currentValue === tagId ? null : currentValue));
   }, []);
 
   const playPlaybackOverride = useCallback(
     (item: TMediaItem) => {
+      clipLoadRequestRef.current += 1;
+      clearClipQueue();
       requestPlayerSeek(null);
       setIsPlayerPlaying(false);
       setActivePlaybackOverride(item);
     },
-    [requestPlayerSeek]
+    [clearClipQueue, requestPlayerSeek]
   );
 
   return {
@@ -393,6 +432,8 @@ export const useSgEventPlaybackState = ({
     activeTimelineTagId,
     activeVideo,
     clearActiveTimelineTag,
+    clipPlayback,
+    handlePlayTagRows,
     fullStreamPlaybackItem,
     handlePlayTagRow,
     handlePlaybackTimeChange,
