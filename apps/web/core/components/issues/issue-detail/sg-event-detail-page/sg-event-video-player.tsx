@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import videojs from "video.js";
+import type VideoJsButton from "video.js/dist/types/button";
 import { Check, Pencil } from "lucide-react";
 import { Button as UnstyledButton } from "@plane/ui";
 import { cn } from "@plane/utils";
@@ -52,6 +53,8 @@ type TQualityOption = {
   rep: TQualityRepresentation | null;
   selected: boolean;
 };
+
+type TVideoJsButtonArgs = ConstructorParameters<typeof VideoJsButton>;
 
 const HLS_MIME_TYPES = ["application/x-mpegURL", "application/vnd.apple.mpegurl"] as const;
 const VIDEO_READY_STATE_HAVE_CURRENT_DATA = 2;
@@ -153,11 +156,9 @@ export const SgEventVideoPlayer = ({
       const settingsButtonName = "SgSettingsButton";
 
       if (!videojs.getComponent(previousButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const PreviousButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const PreviousButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Previous clip");
             this.addClass("vjs-previous-button");
@@ -167,16 +168,13 @@ export const SgEventVideoPlayer = ({
             this.player()?.trigger?.("sgprevious");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(previousButtonName, PreviousButton as any);
+        videojs.registerComponent(previousButtonName, PreviousButton);
       }
 
       if (!videojs.getComponent(skipBackButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SkipBackButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const SkipBackButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Skip backward 10 seconds");
             this.addClass("vjs-skip-backward-button");
@@ -186,16 +184,13 @@ export const SgEventVideoPlayer = ({
             this.player()?.trigger?.("sgskipback");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(skipBackButtonName, SkipBackButton as any);
+        videojs.registerComponent(skipBackButtonName, SkipBackButton);
       }
 
       if (!videojs.getComponent(skipForwardButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SkipForwardButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const SkipForwardButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Skip forward 10 seconds");
             this.addClass("vjs-skip-forward-button");
@@ -205,16 +200,13 @@ export const SgEventVideoPlayer = ({
             this.player()?.trigger?.("sgskipforward");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(skipForwardButtonName, SkipForwardButton as any);
+        videojs.registerComponent(skipForwardButtonName, SkipForwardButton);
       }
 
       if (!videojs.getComponent(nextButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const NextButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const NextButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Next clip");
             this.addClass("vjs-next-button");
@@ -224,16 +216,13 @@ export const SgEventVideoPlayer = ({
             this.player()?.trigger?.("sgnext");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(nextButtonName, NextButton as any);
+        videojs.registerComponent(nextButtonName, NextButton);
       }
 
       if (!videojs.getComponent(loopButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const LoopButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const LoopButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Toggle loop");
             this.addClass("vjs-loop-button");
@@ -244,16 +233,13 @@ export const SgEventVideoPlayer = ({
             this.player()?.trigger?.("sglooptoggle");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(loopButtonName, LoopButton as any);
+        videojs.registerComponent(loopButtonName, LoopButton);
       }
 
       if (!videojs.getComponent(settingsButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SettingsButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const SettingsButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Player settings");
             this.addClass("vjs-settings-button");
@@ -264,8 +250,7 @@ export const SgEventVideoPlayer = ({
             player?.trigger?.("sgsettingstoggle");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(settingsButtonName, SettingsButton as any);
+        videojs.registerComponent(settingsButtonName, SettingsButton);
       }
 
       playerRef.current = videojs(videoRef.current, {
