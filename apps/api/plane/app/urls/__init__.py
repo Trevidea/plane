@@ -9,6 +9,7 @@ from .issue import urlpatterns as issue_urls
 from .module import urlpatterns as module_urls
 from .notification import urlpatterns as notification_urls
 from .page import urlpatterns as page_urls
+from .player import urlpatterns as player_urls
 from .project import urlpatterns as project_urls
 from .roster import urlpatterns as roster_urls
 from .media_library import urlpatterns as media_library_urls
@@ -32,6 +33,7 @@ urlpatterns = [
     *module_urls,
     *notification_urls,
     *page_urls,
+    *player_urls,
     *project_urls,
     *roster_urls,
     *media_library_urls,
