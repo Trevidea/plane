@@ -32,7 +32,7 @@ type MatrixTableProps = {
 
 const getRowGroup = (row: MatrixRow) => row.group ?? row.category ?? row.dimension ?? "";
 
-const HEADER_HEIGHT = 180;
+const HEADER_HEIGHT = 44;
 const ROW_HEIGHT = 44;
 const ROW_OVERSCAN = 4;
 const ROW_VIRTUALIZATION_THRESHOLD = 40;
