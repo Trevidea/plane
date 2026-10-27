@@ -11,7 +11,8 @@ export const resolveCoachingStreamLink = (source: string) => {
       if (upstream && /^https?:\/\//i.test(upstream)) return upstream;
     }
   } catch {
-    console.error("Failed to parse coaching clip source URL:", source);  }
+    console.error("Failed to parse coaching clip source URL:", source);
+  }
   return source;
 };
 
@@ -52,6 +53,40 @@ export type CoachingCardDetailClip = {
   sourceMedia?: { package_id: string; artifact_id: string };
   startSegment?: number | null;
   endSegment?: number | null;
+};
+
+export type CoachingCardDetailPlaylist = {
+  id: string;
+  name: string;
+  clips: CoachingCardDetailClip[];
+};
+
+export const groupCoachingCardPlaylists = (
+  card: TCoachingCardData,
+  clips: CoachingCardDetailClip[]
+): CoachingCardDetailPlaylist[] => {
+  const byKey = new Map(clips.map((clip) => [clip.key, clip]));
+  const grouped = new Set<string>();
+  const playlists = (card.playlists ?? [])
+    .map((playlist, playlistIndex) => ({
+      id: playlist.id,
+      name: playlist.name,
+      // The primary clip can move to slot zero; retain the saved playlist order.
+      clips: (playlist.clips ?? []).flatMap((saved, index) => {
+        const clip = byKey.get(saved.association_id || `legacy:${playlistIndex}:${index}`);
+        if (!clip) return [];
+        grouped.add(clip.key);
+        return [clip];
+      }),
+    }))
+    .filter((playlist) => playlist.clips.length > 0);
+  const unlisted = clips.filter((clip) => !grouped.has(clip.key));
+  if (unlisted.length) {
+    let id = "legacy:unlisted";
+    while (playlists.some((playlist) => playlist.id === id)) id += ":unlisted";
+    playlists.push({ id, name: "Other clips", clips: unlisted });
+  }
+  return playlists;
 };
 
 const validSeconds = (value: number | null | undefined) =>
@@ -102,10 +137,13 @@ export const buildCoachingCardClips = (
           validSeconds(clip.duration_seconds) ??
           (endSeconds !== null && endSeconds > startSeconds ? endSeconds - startSeconds : null),
         addedAt: clip.created_at || addedAt,
-        playbackMode: clip.playback_mode,
+        playbackMode: clip.playback_mode ?? (card.source_media?.artifact_id === clip.id ? "source" : undefined),
         sourceStartSeconds: clip.source_start_seconds ?? undefined,
         sourceType: clip.source_type,
-        sourceMedia: clip.source_media ?? undefined,
+        sourceMedia:
+          clip.source_media === undefined && card.source_media?.artifact_id === clip.id
+            ? { package_id: card.source_media.package_id, artifact_id: card.source_media.artifact_id }
+            : (clip.source_media ?? undefined),
         startSegment: clip.start_segment,
         endSegment: clip.end_segment,
         clipType: clip.clip_type || (isPrimary ? "original" : "game_film"),
@@ -157,8 +195,8 @@ export const buildCoachingCardClips = (
     const startSeconds = validSeconds(primary.start_seconds) ?? 0;
     const endSeconds = validSeconds(primary.end_seconds);
     clips.unshift({
-      key: primary.association_id || "legacy:0:0",
-      associationId: primary.association_id || "legacy:0:0",
+      key: primary.association_id || "legacy:primary",
+      associationId: primary.association_id || "legacy:primary",
       slot: 0,
       title: card.summary?.primary_clip_title || "Original Clip",
       playlistName: "",
