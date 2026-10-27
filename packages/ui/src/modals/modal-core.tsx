@@ -12,6 +12,7 @@ type Props = {
   position?: EModalPosition;
   width?: EModalWidth;
   className?: string;
+  backdropClassName?: string;
 };
 export const ModalCore: React.FC<Props> = (props) => {
   const {
@@ -21,6 +22,7 @@ export const ModalCore: React.FC<Props> = (props) => {
     position = EModalPosition.CENTER,
     width = EModalWidth.XXL,
     className = "",
+    backdropClassName,
   } = props;
 
   return (
@@ -35,7 +37,7 @@ export const ModalCore: React.FC<Props> = (props) => {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-custom-backdrop transition-opacity" />
+          <div className={cn("fixed inset-0 bg-custom-backdrop transition-opacity", backdropClassName)} />
         </Transition.Child>
 
         <div className="fixed inset-0 z-30 overflow-y-auto">

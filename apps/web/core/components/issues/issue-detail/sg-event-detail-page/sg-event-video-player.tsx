@@ -1,21 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
-import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
-import { getQualitySelection, getVideoRepresentations } from "ce/features/media-library/utils/media-detail-utils";
 import { createPortal } from "react-dom";
 
 import videojs from "video.js";
+import type VideoJsButton from "video.js/dist/types/button";
 import { Check, Pencil } from "lucide-react";
 import { Button as UnstyledButton } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { VideoAnnotationEditor } from "@/components/annotation";
 import type { TCustomPlaylistAnnotation } from "@/components/annotation";
+import { useResolvedMediaSources } from "ce/features/media-library/hooks/media-detail-hooks";
+import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
+import { getQualitySelection, getVideoRepresentations } from "ce/features/media-library/utils/media-detail-utils";
+import type { ClipQueuePlayback } from "./clip-playback";
 import { PLAYER_FRAME_CLASS, PLAYER_STAGE_CLASS, SG_PLAYER_STYLE } from "./constants";
 
 type SgEventVideoPlayerProps = {
   item: TMediaItem | null;
+  clipPlayback?: ClipQueuePlayback | null;
   annotationItem?: TMediaItem | null;
   compactEmpty?: boolean;
   onPlaybackTimeChange?: (
@@ -51,11 +54,14 @@ type TQualityOption = {
   selected: boolean;
 };
 
+type TVideoJsButtonArgs = ConstructorParameters<typeof VideoJsButton>;
+
 const HLS_MIME_TYPES = ["application/x-mpegURL", "application/vnd.apple.mpegurl"] as const;
 const VIDEO_READY_STATE_HAVE_CURRENT_DATA = 2;
 
 export const SgEventVideoPlayer = ({
   item,
+  clipPlayback = null,
   annotationItem = null,
   compactEmpty = false,
   onPlaybackTimeChange,
@@ -74,6 +80,11 @@ export const SgEventVideoPlayer = ({
     item.id.startsWith("sg-tag-") &&
     typeof meta.playlistFileName === "string" &&
     Boolean(meta.playlistFileName.trim());
+  const clipPlaybackRef = useRef(clipPlayback);
+  clipPlaybackRef.current = clipPlayback;
+  const loopRef = useRef(true);
+  const readyQueueRequestRef = useRef<number | null>(null);
+  const hasClipQueue = Boolean(clipPlayback);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<ReturnType<typeof videojs> | null>(null);
   const settingsPanelRef = useRef<HTMLDivElement | null>(null);
@@ -140,102 +151,78 @@ export const SgEventVideoPlayer = ({
       const skipBackButtonName = "SgSkipBackButton";
       const skipForwardButtonName = "SgSkipForwardButton";
       const previousButtonName = "SgPreviousButton";
-      const nextButtonName = "SgPlayButton";
+      const nextButtonName = "SgNextClipButton";
       const loopButtonName = "SgLoopButton";
       const settingsButtonName = "SgSettingsButton";
 
       if (!videojs.getComponent(previousButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const PreviousButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const PreviousButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
-            this.controlText("Jump to start");
+            this.controlText("Previous clip");
             this.addClass("vjs-previous-button");
           }
 
           handleClick() {
-            this.player()?.currentTime?.(0);
+            this.player()?.trigger?.("sgprevious");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(previousButtonName, PreviousButton as any);
+        videojs.registerComponent(previousButtonName, PreviousButton);
       }
 
       if (!videojs.getComponent(skipBackButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SkipBackButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const SkipBackButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Skip backward 10 seconds");
             this.addClass("vjs-skip-backward-button");
           }
 
           handleClick() {
-            const player = this.player();
-            const currentTime = Number(player?.currentTime?.() ?? 0);
-            player?.currentTime?.(Math.max(0, currentTime - 10));
+            this.player()?.trigger?.("sgskipback");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(skipBackButtonName, SkipBackButton as any);
+        videojs.registerComponent(skipBackButtonName, SkipBackButton);
       }
 
       if (!videojs.getComponent(skipForwardButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SkipForwardButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const SkipForwardButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Skip forward 10 seconds");
             this.addClass("vjs-skip-forward-button");
           }
 
           handleClick() {
-            const player = this.player();
-            const currentTime = Number(player?.currentTime?.() ?? 0);
-            const duration = Number(player?.duration?.() ?? 0);
-            const nextTime = duration > 0 ? Math.min(duration, currentTime + 10) : currentTime + 10;
-            player?.currentTime?.(nextTime);
+            this.player()?.trigger?.("sgskipforward");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(skipForwardButtonName, SkipForwardButton as any);
+        videojs.registerComponent(skipForwardButtonName, SkipForwardButton);
       }
 
       if (!videojs.getComponent(nextButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const NextButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const NextButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
-            this.controlText("Play");
+            this.controlText("Next clip");
             this.addClass("vjs-next-button");
           }
 
           handleClick() {
-            const player = this.player();
-            const duration = Number(player?.duration?.() ?? 0);
-            if (Number.isFinite(duration) && duration > 0) {
-              player?.currentTime?.(Math.max(0, duration - 0.01));
-            }
+            this.player()?.trigger?.("sgnext");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(nextButtonName, NextButton as any);
+        videojs.registerComponent(nextButtonName, NextButton);
       }
 
       if (!videojs.getComponent(loopButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const LoopButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const LoopButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Toggle loop");
             this.addClass("vjs-loop-button");
@@ -243,22 +230,16 @@ export const SgEventVideoPlayer = ({
           }
 
           handleClick() {
-            const player = this.player();
-            const nextLoopState = !Boolean(player?.loop?.());
-            player?.loop?.(nextLoopState);
-            this.toggleClass("vjs-control-active", nextLoopState);
+            this.player()?.trigger?.("sglooptoggle");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(loopButtonName, LoopButton as any);
+        videojs.registerComponent(loopButtonName, LoopButton);
       }
 
       if (!videojs.getComponent(settingsButtonName)) {
-        const Button = videojs.getComponent("Button");
-        // video.js exposes component classes through an untyped registry API.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const SettingsButton = class extends (Button as any) {
-          constructor(playerInstance: unknown, options: unknown) {
+        const Button = videojs.getComponent("Button") as typeof VideoJsButton;
+        const SettingsButton = class extends Button {
+          constructor(playerInstance: TVideoJsButtonArgs[0], options?: TVideoJsButtonArgs[1]) {
             super(playerInstance, options);
             this.controlText("Player settings");
             this.addClass("vjs-settings-button");
@@ -269,8 +250,7 @@ export const SgEventVideoPlayer = ({
             player?.trigger?.("sgsettingstoggle");
           }
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        videojs.registerComponent(settingsButtonName, SettingsButton as any);
+        videojs.registerComponent(settingsButtonName, SettingsButton);
       }
 
       playerRef.current = videojs(videoRef.current, {
@@ -311,7 +291,7 @@ export const SgEventVideoPlayer = ({
           ],
         },
       });
-      playerRef.current.loop(true);
+      playerRef.current.loop(loopRef.current && !clipPlaybackRef.current);
       videoRef.current.removeAttribute("loop");
       setPlayerElement((playerRef.current.el?.() as HTMLElement | null | undefined) ?? null);
 
@@ -334,6 +314,69 @@ export const SgEventVideoPlayer = ({
       setIsVideoFrameReady(false);
     };
   }, [crossOrigin, isVideo, useCredentials]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    player.loop(loopRef.current && !hasClipQueue && !isFiniteTagClip);
+  }, [hasClipQueue, isFiniteTagClip, isVideo]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    const seekBy = (delta: number) => {
+      const queue = clipPlaybackRef.current;
+      if (queue) queue.onSeek(Math.max(0, Math.min(queue.durationSeconds, queue.currentSeconds + delta)));
+      else
+        player.currentTime(
+          Math.max(0, Math.min(Number(player.duration()) || Infinity, Number(player.currentTime()) + delta))
+        );
+    };
+    const previous = () => (clipPlaybackRef.current ? clipPlaybackRef.current.onPrevious() : player.currentTime(0));
+    const next = () => {
+      if (clipPlaybackRef.current) clipPlaybackRef.current.onNext();
+      else {
+        const duration = Number(player.duration());
+        if (Number.isFinite(duration) && duration > 0) player.currentTime(Math.max(0, duration - 0.01));
+      }
+    };
+    const backward = () => seekBy(-10);
+    const forward = () => seekBy(10);
+    const toggleLoop = () => {
+      loopRef.current = !loopRef.current;
+      player.loop(loopRef.current && !clipPlaybackRef.current && !isFiniteTagClip);
+      player.el()?.querySelector(".vjs-loop-button")?.classList.toggle("vjs-control-active", loopRef.current);
+    };
+    const ended = () => {
+      const queue = clipPlaybackRef.current;
+      if (queue && readyQueueRequestRef.current === queue.requestId) queue.onEnded(loopRef.current);
+    };
+    const enforceClipEnd = () => {
+      const queue = clipPlaybackRef.current;
+      if (
+        queue &&
+        readyQueueRequestRef.current === queue.requestId &&
+        queue.clipDurationSeconds > 0 &&
+        Number(player.currentTime()) - (queue.mediaStartSeconds ?? 0) >= queue.clipDurationSeconds
+      ) {
+        player.pause();
+        queue.onEnded(loopRef.current);
+      }
+    };
+    const handlers = {
+      sgprevious: previous,
+      sgnext: next,
+      sgskipback: backward,
+      sgskipforward: forward,
+      sglooptoggle: toggleLoop,
+      ended,
+      timeupdate: enforceClipEnd,
+    };
+    Object.entries(handlers).forEach(([event, handler]) => player.on(event, handler));
+    return () => {
+      Object.entries(handlers).forEach(([event, handler]) => player.off(event, handler));
+    };
+  }, [crossOrigin, isFiniteTagClip, isVideo, useCredentials]);
 
   useEffect(() => {
     if (!playerRef.current || !effectiveVideoSrc) {
@@ -394,6 +437,7 @@ export const SgEventVideoPlayer = ({
       }
 
       setIsVideoFrameReady(false);
+      readyQueueRequestRef.current = null;
 
       const techElement = player.el()?.querySelector("video");
       if (techElement instanceof HTMLVideoElement) {
@@ -549,6 +593,7 @@ export const SgEventVideoPlayer = ({
 
     const handleEnded = () => {
       const duration = Number(player.duration?.() ?? 0);
+      if (clipPlaybackRef.current) return;
       player.pause();
       if (Number.isFinite(duration) && duration > 0) {
         try {
@@ -569,9 +614,28 @@ export const SgEventVideoPlayer = ({
     const player = playerRef.current;
     if (!player || seekToSeconds == null || seekToSeconds < 0) return;
 
+    // A queue request is ready only after its own source and requested seek have
+    // settled. Old-source timeupdate/ended events must not skip the next clip.
+    const requestId = clipPlaybackRef.current?.requestId;
+    const markQueueReady = () => {
+      const queue = clipPlaybackRef.current;
+      if (
+        queue &&
+        queue.requestId === requestId &&
+        Number(player.readyState()) >= VIDEO_READY_STATE_HAVE_CURRENT_DATA &&
+        !player.seeking() &&
+        Math.abs(Number(player.currentTime()) - seekToSeconds) < 0.5
+      ) {
+        readyQueueRequestRef.current = queue.requestId;
+        queue.onReady();
+      }
+    };
     const seekAndPlay = () => {
+      readyQueueRequestRef.current = null;
+      player.one("seeked", markQueueReady);
       try {
         player.currentTime(seekToSeconds);
+        markQueueReady();
       } catch {
         return;
       }
@@ -584,15 +648,12 @@ export const SgEventVideoPlayer = ({
       }
     };
 
-    if (player.readyState() >= 1) {
-      seekAndPlay();
-      return;
-    }
-
-    player.one("loadeddata", seekAndPlay);
+    if (player.readyState() >= VIDEO_READY_STATE_HAVE_CURRENT_DATA) seekAndPlay();
+    else player.one("loadeddata", seekAndPlay);
 
     return () => {
       player.off("loadeddata", seekAndPlay);
+      player.off("seeked", markQueueReady);
     };
   }, [effectiveVideoSrc, item?.id, seekRequestId, seekToSeconds]);
 
@@ -743,8 +804,36 @@ export const SgEventVideoPlayer = ({
         thumbnailUrl={item?.thumbnail || effectiveAnnotationItem.thumbnail}
       />
     ) : null;
+  const controlBarElement = playerElement?.querySelector(".vjs-control-bar");
+  const formatQueueTime = (seconds: number) => {
+    const whole = Math.max(0, Math.floor(seconds));
+    return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+  };
+  const queueTimeline =
+    clipPlayback && controlBarElement
+      ? createPortal(
+          <>
+            <input
+              type="range"
+              aria-label="Selected clips timeline"
+              min={0}
+              max={clipPlayback.durationSeconds || 1}
+              step={0.1}
+              value={Math.min(clipPlayback.currentSeconds, clipPlayback.durationSeconds)}
+              disabled={clipPlayback.durationSeconds <= 0}
+              onChange={(event) => clipPlayback.onSeek(Number(event.target.value))}
+              className="sg-clip-progress"
+            />
+            <span className="sg-clip-time" aria-label="Selected clips playback time">
+              {formatQueueTime(clipPlayback.currentSeconds)} / {formatQueueTime(clipPlayback.durationSeconds)}
+            </span>
+          </>,
+          controlBarElement
+        )
+      : null;
   const playerLayerContent = (
     <>
+      {queueTimeline}
       {videoAnnotationContent}
       {settingsPanelContent}
       {canAnnotateVideo ? (
@@ -788,11 +877,11 @@ export const SgEventVideoPlayer = ({
         PLAYER_FRAME_CLASS
       )}
     >
-      <div className={cn("sg-event-player relative", PLAYER_STAGE_CLASS)}>
+      <div className={cn("sg-event-player relative", hasClipQueue && "sg-event-clip-queue", PLAYER_STAGE_CLASS)}>
         <style jsx global>
           {SG_PLAYER_STYLE}
         </style>
-        <video ref={videoRef} className="video-js vjs-big-play-centered" playsInline loop />
+        <video ref={videoRef} className="video-js vjs-big-play-centered" playsInline />
         {playerElement ? createPortal(playerLayerContent, playerElement) : playerLayerContent}
       </div>
     </div>
