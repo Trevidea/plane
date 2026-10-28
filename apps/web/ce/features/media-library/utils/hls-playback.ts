@@ -4,8 +4,8 @@ export const resolveHlsPlaybackSource = (source: string, origin: string) => {
     if (["http:", "https:"].includes(url.protocol) && url.origin !== origin) {
       return `/api/hls?url=${encodeURIComponent(url.toString())}`;
     }
-  } catch {
-    // Leave invalid sources to the player's existing error handling.
+  } catch (error) {
+    console.error("Failed to resolve HLS playback source:", error);
   }
   return source;
 };
