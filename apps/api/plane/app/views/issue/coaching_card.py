@@ -19,9 +19,9 @@ from plane.db.models import (
     Project,
     RosterPlayer,
     State,
-    WorkspaceMember,
 )
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY, COACHING_CARD_KIND
+from plane.utils.player_access import player_roster_queryset
 from plane.utils.coaching_card_clips import CLIP_TYPES, mutate_card_clips
 from plane.utils.coaching_card_media import build_uploaded_video_card_source, choose_card_context_value
 from plane.utils.coaching_card_stages import assigned_stage_id, can_edit_card_recipients
@@ -276,17 +276,9 @@ def _card_response(card):
 
 
 def _linked_player(request, project_id, slug):
-    player = RosterPlayer.objects.filter(
+    return player_roster_queryset(request.user).filter(
         project_id=project_id, project__workspace__slug=slug, user=request.user
     ).first()
-    if (
-        player is None
-        or not WorkspaceMember.objects.filter(
-            workspace_id=player.workspace_id, member=request.user, is_active=True
-        ).exists()
-    ):
-        return None
-    return player
 
 
 def _player_card_response(card, player_id):
@@ -542,7 +534,7 @@ class CoachingCardMineEndpoint(BaseAPIView):
             project_id=project_id,
             category=COACHING_CARD_CATEGORY,
         ).order_by("-created_at", "-id")
-        return Response(
+        response = Response(
             {
                 "total_count": cards.count(),
                 "limit": limit,
@@ -550,6 +542,8 @@ class CoachingCardMineEndpoint(BaseAPIView):
                 "results": [_player_card_response(card, player.id) for card in cards[offset : offset + limit]],
             }
         )
+        response["Cache-Control"] = "no-store"
+        return response
 
 
 class CoachingCardDetailEndpoint(BaseAPIView):

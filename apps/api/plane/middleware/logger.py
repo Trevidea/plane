@@ -102,6 +102,9 @@ class APITokenLogMiddleware:
             return "[Could not decode content]"
 
     def process_request(self, request, response, request_body):
+        # Player session responses contain CSRF state; login bodies contain passwords.
+        if request.path.startswith("/auth/player/"):
+            return
         api_key_header = "X-Api-Key"
         api_key = request.headers.get(api_key_header)
         # If the API key is present, log the request

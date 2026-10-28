@@ -20,8 +20,10 @@ from .webhook import urlpatterns as webhook_urls
 from .workspace import urlpatterns as workspace_urls
 from .timezone import urlpatterns as timezone_urls
 from .exporter import urlpatterns as exporter_urls
+from .player import urlpatterns as player_urls
 
 urlpatterns = [
+    *player_urls,
     *analytic_urls,
     *asset_urls,
     *cycle_urls,
