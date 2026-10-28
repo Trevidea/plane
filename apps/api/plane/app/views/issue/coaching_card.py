@@ -24,6 +24,7 @@ from plane.db.models import (
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY, COACHING_CARD_KIND
 from plane.utils.coaching_card_clips import CLIP_TYPES, mutate_card_clips
 from plane.utils.coaching_card_media import build_uploaded_video_card_source, choose_card_context_value
+from plane.utils.player_card_annotations import player_card_annotations
 from plane.utils.coaching_card_stages import assigned_stage_id, can_edit_card_recipients
 from plane.utils.media_library import manifest_path, read_manifest, resolve_artifact_metadata, validate_segment
 from plane.utils.coaching_card_lifecycle import (
@@ -289,9 +290,9 @@ def _linked_player(request, project_id, slug):
     return player
 
 
-def _player_card_response(card, player_id):
+def _player_card_response(card, player_id, annotation_cache=None):
     response = _card_response(card)
-    data = dict(card.coaching_card_data or {})
+    data = player_card_annotations(card, annotation_cache)
     recipient_ids = data.pop("recipient_ids", None) or ([str(card.roster_player_id)] if card.roster_player_id else [])
     data.pop("recipients", None)
     data["review"] = _player_review_response(data, player_id, recipient_ids)
@@ -542,12 +543,13 @@ class CoachingCardMineEndpoint(BaseAPIView):
             project_id=project_id,
             category=COACHING_CARD_CATEGORY,
         ).order_by("-created_at", "-id")
+        annotation_cache = {}
         return Response(
             {
                 "total_count": cards.count(),
                 "limit": limit,
                 "offset": offset,
-                "results": [_player_card_response(card, player.id) for card in cards[offset : offset + limit]],
+                "results": [_player_card_response(card, player.id, annotation_cache) for card in cards[offset : offset + limit]],
             }
         )
 
