@@ -14,7 +14,7 @@ import { useOutsideClickDetector } from "@plane/hooks";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { EFileAssetType } from "@plane/types";
-import { ImageWithFallback, Input, Loader } from "@plane/ui";
+import { Button as UnstyledButton, ImageWithFallback, Input, Loader } from "@plane/ui";
 // helpers
 import { getFileURL } from "@plane/utils";
 import Image from "@/components/common/image-with-fallback";
@@ -321,12 +321,13 @@ export const ImagePickerPopover: React.FC<Props> = observer((props) => {
                             : ""
                         }`}
                       >
-                        <button
+                        <UnstyledButton
+                          unstyled
                           type="button"
                           className="absolute right-0 top-0 z-40 -translate-y-1/2 rounded bg-custom-background-90 px-2 py-0.5 text-xs font-medium text-custom-text-200"
                         >
                           Edit
-                        </button>
+                        </UnstyledButton>
                         {image !== null || (value && value !== "") ? (
                           <>
                             <Image

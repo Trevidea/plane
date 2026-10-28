@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
+import { Button as UnstyledButton } from "@plane/ui";
 import { cn } from "@plane/utils";
 
 type TInvitationModalActionsProps = {
@@ -35,7 +36,8 @@ export const InvitationModalActions: React.FC<TInvitationModalActionsProps> = ob
 
   return (
     <div className={cn("mt-5 flex items-center justify-between gap-2", className)}>
-      <button
+      <UnstyledButton
+        unstyled
         type="button"
         className={cn(
           "flex items-center gap-1 bg-transparent py-2 pr-3 text-xs font-medium text-custom-primary outline-custom-primary",
@@ -48,7 +50,7 @@ export const InvitationModalActions: React.FC<TInvitationModalActionsProps> = ob
       >
         <Plus className="h-3.5 w-3.5" />
         {addMoreButtonText || t("common.add_more")}
-      </button>
+      </UnstyledButton>
       <div className="flex items-center gap-2">
         <Button variant="neutral-primary" size="sm" onClick={handleClose}>
           {cancelButtonText || t("cancel")}

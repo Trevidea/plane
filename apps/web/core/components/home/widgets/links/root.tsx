@@ -1,9 +1,11 @@
 import { useCallback } from "react";
+
 import { observer } from "mobx-react";
 import useSWR from "swr";
 import { Plus } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 import type { THomeWidgetProps } from "@plane/types";
+import { Button } from "@plane/ui";
 import { useHome } from "@/hooks/store/use-home";
 import { LinkCreateUpdateModal } from "./create-update-link-modal";
 import { ProjectLinkList } from "./links";
@@ -42,12 +44,14 @@ export const DashboardQuickLinks = observer((props: THomeWidgetProps) => {
       <div className="mb-2">
         <div className="flex items-center justify-between mb-4">
           <div className="text-base font-semibold text-custom-text-350">{t("home.quick_links.title_plural")}</div>
-          <button
+          <Button
+            unstyled
+            type="submit"
             onClick={handleCreateLinkModal}
             className="flex gap-1 text-sm font-medium text-custom-primary-100 my-auto"
           >
             <Plus className="size-4 my-auto" /> <span>{t("home.quick_links.add")}</span>
-          </button>
+          </Button>
         </div>
         <div className="flex flex-wrap w-full">
           {/* rendering links */}

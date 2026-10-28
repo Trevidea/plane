@@ -5,7 +5,7 @@ import { MoveLeft, MoveRight, RefreshCw } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import type { IExportData } from "@plane/types";
-import { Table } from "@plane/ui";
+import { Button, Table } from "@plane/ui";
 // components
 import { DetailedEmptyState } from "@/components/empty-state/detailed-empty-state-root";
 import { ImportExportSettingsLoader } from "@/components/ui/loader/settings/import-and-export";
@@ -69,17 +69,20 @@ export const PrevExports = observer((props: Props) => {
             {t("workspace_settings.settings.exports.previous_exports")}
           </h3>
 
-          <button
+          <Button
+            unstyled
             type="button"
             className="flex flex-shrink-0 items-center gap-1 rounded bg-custom-background-80 px-1.5 py-1 text-xs outline-none"
             onClick={handleRefresh}
           >
             <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />{" "}
             {refreshing ? `${t("refreshing")}...` : t("refresh_status")}
-          </button>
+          </Button>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <button
+          <Button
+            unstyled
+            type="submit"
             disabled={!exporterServices?.prev_page_results}
             onClick={() => exporterServices?.prev_page_results && setCursor(exporterServices?.prev_cursor)}
             className={`flex items-center rounded border border-custom-primary-100 px-1 text-custom-primary-100 ${
@@ -90,8 +93,10 @@ export const PrevExports = observer((props: Props) => {
           >
             <MoveLeft className="h-4 w-4" />
             <div className="pr-1">{t("prev")}</div>
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
+            type="submit"
             disabled={!exporterServices?.next_page_results}
             onClick={() => exporterServices?.next_page_results && setCursor(exporterServices?.next_cursor)}
             className={`flex items-center rounded border border-custom-primary-100 px-1 text-custom-primary-100 ${
@@ -102,7 +107,7 @@ export const PrevExports = observer((props: Props) => {
           >
             <div className="pl-1">{t("next")}</div>
             <MoveRight className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
 

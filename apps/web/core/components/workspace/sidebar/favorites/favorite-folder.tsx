@@ -23,7 +23,7 @@ import { useTranslation } from "@plane/i18n";
 import { DraftIcon, FavoriteFolderIcon } from "@plane/propel/icons";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IFavorite, InstructionType } from "@plane/types";
-import { CustomMenu, DropIndicator, DragHandle } from "@plane/ui";
+import { Button as UnstyledButton, CustomMenu, DropIndicator, DragHandle } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 // hooks
@@ -184,7 +184,8 @@ export const FavoriteFolder: React.FC<Props> = (props) => {
                         position="top-end"
                         disabled={isDragging}
                       >
-                        <button
+                        <UnstyledButton
+                          unstyled
                           type="button"
                           className={cn(
                             "hidden group-hover/project-item:flex items-center justify-center absolute top-1/2 -left-3 -translate-y-1/2 rounded text-custom-sidebar-text-400 cursor-grab",
@@ -195,7 +196,7 @@ export const FavoriteFolder: React.FC<Props> = (props) => {
                           )}
                         >
                           <DragHandle className="bg-transparent" />
-                        </button>
+                        </UnstyledButton>
                       </Tooltip>
                       <div className="size-5 grid place-items-center flex-shrink-0">
                         <FavoriteFolderIcon />

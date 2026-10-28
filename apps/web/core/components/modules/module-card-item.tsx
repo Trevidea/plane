@@ -21,7 +21,7 @@ import { WorkItemsIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setPromiseToast, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IModule } from "@plane/types";
-import { Card, FavoriteStar, LinearProgressIndicator } from "@plane/ui";
+import { Button, Card, FavoriteStar, LinearProgressIndicator } from "@plane/ui";
 import { getDate, renderFormattedPayloadDate, generateQueryParams } from "@plane/utils";
 // components
 import { DateRangeDropdown } from "@/components/dropdowns/date-range";
@@ -224,9 +224,9 @@ export const ModuleCardItem: React.FC<Props> = observer((props) => {
                     handleModuleDetailsChange={handleModuleDetailsChange}
                   />
                 )}
-                <button onClick={openModuleOverview}>
+                <Button unstyled type="submit" onClick={openModuleOverview}>
                   <Info className="h-4 w-4 text-custom-text-400" />
-                </button>
+                </Button>
               </div>
             </div>
           </div>

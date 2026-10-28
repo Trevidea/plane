@@ -86,7 +86,13 @@ export const CreateCardModal = ({
   };
 
   return (
-    <ModalCore isOpen handleClose={handleClose} width={EModalWidth.XXXXL} className="border border-custom-border-300">
+    <ModalCore
+      isOpen
+      handleClose={handleClose}
+      width={EModalWidth.XXXXL}
+      backdropClassName="bg-black/55 backdrop-blur-[8px]"
+      className="border border-custom-border-300 ring-1 ring-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+    >
       <form
         className="flex max-h-[calc(100dvh-2rem)] min-h-0 flex-col"
         onSubmit={async (event) => {

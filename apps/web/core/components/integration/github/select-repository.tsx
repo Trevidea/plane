@@ -6,7 +6,7 @@ import useSWRInfinite from "swr/infinite";
 import type { IWorkspaceIntegration } from "@plane/types";
 // services
 // ui
-import { CustomSearchSelect } from "@plane/ui";
+import { Button, CustomSearchSelect } from "@plane/ui";
 // helpers
 import { truncateText } from "@plane/utils";
 import { ProjectService } from "@/services/project";
@@ -70,14 +70,15 @@ export const SelectRepository: React.FC<Props> = (props) => {
       footerOption={
         <>
           {userRepositories && options.length < totalCount && (
-            <button
+            <Button
+              unstyled
               type="button"
               className="w-full p-1 text-center text-[0.6rem] text-custom-text-200 hover:bg-custom-background-80"
               onClick={() => setSize(size + 1)}
               disabled={isValidating}
             >
               {isValidating ? "Loading..." : "Click to load more..."}
-            </button>
+            </Button>
           )}
         </>
       }

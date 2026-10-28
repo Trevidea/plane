@@ -2,11 +2,13 @@
 
 import type { FC } from "react";
 import { useState } from "react";
+
 import { observer } from "mobx-react";
 import { Pencil } from "lucide-react";
 import { EIconSize, STATE_GROUPS } from "@plane/constants";
 import { StateGroupIcon } from "@plane/propel/icons";
 import type { IState, TStateGroups, TStateOperationsCallbacks } from "@plane/types";
+import { Button } from "@plane/ui";
 import { getProgramLifecycleStates } from "@/helpers/program-states";
 import { StateCreate } from "./create-update/create";
 import { StateItem } from "./state-item";
@@ -83,14 +85,15 @@ export const LifecycleStateList: FC<TLifecycleStateList> = observer((props) => {
               <span className="text-sm font-medium">{STATE_GROUPS[groupKey].label}</span>
             </div>
             {isEditable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 aria-label={`Set up ${STATE_GROUPS[groupKey].label} state`}
                 onClick={() => setCreatingGroup(groupKey)}
                 className="flex size-5 items-center justify-center rounded text-custom-text-200 hover:bg-custom-background-80 hover:text-custom-text-100"
               >
                 <Pencil className="size-3" />
-              </button>
+              </Button>
             )}
           </div>
         );

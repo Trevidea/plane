@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 // plane imports
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 // types
 import type { IIssueLabel } from "@/types/issue";
 // local imports
@@ -59,13 +59,14 @@ export const FilterLabels: React.FC<Props> = (props) => {
                   />
                 ))}
                 {filteredOptions.length > 5 && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="ml-8 text-xs font-medium text-custom-primary-100"
                     onClick={handleViewToggle}
                   >
                     {itemsToRender === filteredOptions.length ? "View less" : "View all"}
-                  </button>
+                  </Button>
                 )}
               </>
             ) : (

@@ -2,6 +2,7 @@
 
 import type { FC } from "react";
 import React, { useCallback, useMemo, useState } from "react";
+
 import { observer } from "mobx-react";
 import { Link, Paperclip, UploadCloud, Waypoints } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
@@ -9,6 +10,7 @@ import { ViewsIcon } from "@plane/propel/icons";
 import { setPromiseToast } from "@plane/propel/toast";
 // plane imports
 import type { TIssueAttachment, TIssueServiceType, TWorkItemWidgets } from "@plane/types";
+import { Button } from "@plane/ui";
 import { getFileName, getFileURL } from "@plane/utils";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
@@ -72,8 +74,7 @@ export {
 const EMPTY_ATTACHMENT_IDS: string[] = [];
 
 export const IssueDetailWidgetActionButtons: FC<Props> = observer((props) => {
-  const { workspaceSlug, projectId, issueId, disabled, issueServiceType, hideWidgets, hideMediaLibraryButton } =
-    props;
+  const { workspaceSlug, projectId, issueId, disabled, issueServiceType, hideWidgets, hideMediaLibraryButton } = props;
   // translation
   const { t } = useTranslation();
   // store hooks
@@ -88,7 +89,7 @@ export const IssueDetailWidgetActionButtons: FC<Props> = observer((props) => {
   const createdByDetails = issue?.created_by ? getUserDetails(issue.created_by) : undefined;
   const createdByName = createdByDetails?.display_name?.includes("-intake")
     ? "Plane"
-    : createdByDetails?.display_name ?? issue?.created_by ?? "";
+    : (createdByDetails?.display_name ?? issue?.created_by ?? "");
   const baseEventMeta = useMemo(() => buildEventMeta(issue, createdByName), [issue, createdByName]);
   const attachmentIds = attachment.getAttachmentsByIssueId(issueId) ?? EMPTY_ATTACHMENT_IDS;
   const attachmentCount = issue?.attachment_count ?? attachmentIds.length;
@@ -316,7 +317,8 @@ export const IssueDetailWidgetActionButtons: FC<Props> = observer((props) => {
         />
       )}
       {showMediaLibraryButton && (
-        <button
+        <Button
+          unstyled
           type="button"
           onClick={handleAddAssetsClick}
           disabled={disabled || isAddingToMediaLibrary}
@@ -327,7 +329,7 @@ export const IssueDetailWidgetActionButtons: FC<Props> = observer((props) => {
             icon={<UploadCloud className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={2} />}
             disabled={disabled || isAddingToMediaLibrary}
           />
-        </button>
+        </Button>
       )}
       <WorkItemAdditionalWidgetActionButtons
         disabled={disabled}

@@ -7,7 +7,7 @@ import useSWR, { mutate } from "swr";
 // types
 import type { IWorkspaceIntegration, ISlackIntegration } from "@plane/types";
 // ui
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 // fetch-keys
 import { SLACK_CHANNEL_INFO } from "@/constants/fetch-keys";
 // hooks
@@ -87,7 +87,8 @@ export const SelectChannel: React.FC<Props> = observer(({ integration }) => {
   return (
     <>
       {projectIntegration ? (
-        <button
+        <Button
+          unstyled
           type="button"
           className={`relative inline-flex h-4 w-6 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-gray-700 transition-colors duration-200 ease-in-out focus:outline-none`}
           role="switch"
@@ -102,7 +103,7 @@ export const SelectChannel: React.FC<Props> = observer(({ integration }) => {
               slackChannelAvailabilityToggle ? "translate-x-3" : "translate-x-0"
             }`}
           />
-        </button>
+        </Button>
       ) : (
         <Loader>
           <Loader.Item height="35px" width="150px" />

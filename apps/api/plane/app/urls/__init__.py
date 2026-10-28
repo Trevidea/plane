@@ -9,6 +9,7 @@ from .issue import urlpatterns as issue_urls
 from .module import urlpatterns as module_urls
 from .notification import urlpatterns as notification_urls
 from .page import urlpatterns as page_urls
+from .player import urlpatterns as player_urls
 from .project import urlpatterns as project_urls
 from .roster import urlpatterns as roster_urls
 from .media_library import urlpatterns as media_library_urls
@@ -20,7 +21,6 @@ from .webhook import urlpatterns as webhook_urls
 from .workspace import urlpatterns as workspace_urls
 from .timezone import urlpatterns as timezone_urls
 from .exporter import urlpatterns as exporter_urls
-from .player import urlpatterns as player_urls
 
 urlpatterns = [
     *player_urls,

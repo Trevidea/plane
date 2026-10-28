@@ -1,12 +1,14 @@
 "use client";
 
 import type { FC } from "react";
+
 import { Info } from "lucide-react";
 // plane imports
 import { EEstimateSystem, ESTIMATE_SYSTEMS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TEstimateSystemKeys } from "@plane/types";
+import { Button } from "@plane/ui";
 // components
 import { convertMinutesToHoursMinutesString } from "@plane/utils";
 // plane web imports
@@ -73,7 +75,9 @@ export const EstimateCreateStageOne: FC<TEstimateCreateStageOne> = (props) => {
             <div className="text-sm font-medium text-custom-text-200">
               {t("project_settings.estimates.create.start_from_scratch")}
             </div>
-            <button
+            <Button
+              unstyled
+              type="submit"
               className="border border-custom-border-200 rounded-md p-3 py-2.5 text-left space-y-1 w-full block hover:bg-custom-background-90"
               onClick={() => handleEstimatePoints("custom")}
             >
@@ -82,7 +86,7 @@ export const EstimateCreateStageOne: FC<TEstimateCreateStageOne> = (props) => {
                 {/* TODO: Translate here */}
                 Add your own <span className="lowercase">{currentEstimateSystem.name}</span> from scratch.
               </p>
-            </button>
+            </Button>
           </div>
 
           <div className="space-y-1.5">
@@ -92,7 +96,9 @@ export const EstimateCreateStageOne: FC<TEstimateCreateStageOne> = (props) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {Object.keys(currentEstimateSystem.templates).map((name) =>
                 currentEstimateSystem.templates[name]?.hide ? null : (
-                  <button
+                  <Button
+                    unstyled
+                    type="submit"
                     key={name}
                     className="border border-custom-border-200 rounded-md p-3 py-2.5 text-left space-y-1 hover:bg-custom-background-90"
                     onClick={() => handleEstimatePoints(name)}
@@ -107,7 +113,7 @@ export const EstimateCreateStageOne: FC<TEstimateCreateStageOne> = (props) => {
                         )
                         ?.join(", ")}
                     </p>
-                  </button>
+                  </Button>
                 )
               )}
             </div>

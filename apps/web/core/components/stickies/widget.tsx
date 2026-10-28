@@ -1,8 +1,10 @@
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import { Plus } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
+import { Button } from "@plane/ui";
 // hooks
 import { useSticky } from "@/hooks/use-stickies";
 // local imports
@@ -28,7 +30,9 @@ export const StickiesWidget: React.FC = observer(() => {
         {/* actions */}
         <div className="flex gap-2">
           <StickySearch />
-          <button
+          <Button
+            unstyled
+            type="submit"
             onClick={() => {
               toggleShowNewSticky(true);
               stickyOperations.create();
@@ -45,7 +49,7 @@ export const StickiesWidget: React.FC = observer(() => {
                 aria-label="loading"
               />
             )}
-          </button>
+          </Button>
         </div>
       </div>
       <div className="-mx-2">

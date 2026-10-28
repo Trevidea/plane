@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { FileText, Image as ImageIcon, Video, X } from "lucide-react";
-import { ImageWithFallback } from "@plane/ui";
+import { Button, ImageWithFallback } from "@plane/ui";
 import { useMember } from "@/hooks/store/use-member";
 import type { TMediaItem } from "../types/media-library.types";
 import { getStructuredEventTags, isEventMediaItem } from "../utils/media-event";
@@ -43,7 +43,8 @@ const TagPill = ({ label, value }: { label: string; value: string }) => (
 const buildPreview = (item: TMediaItem, onPlay: () => void): ReactNode => {
   if (item.mediaType === "video") {
     return (
-      <button
+      <Button
+        unstyled
         type="button"
         onClick={onPlay}
         className="flex h-24 w-full items-center justify-center overflow-hidden rounded-md border border-custom-border-200 bg-custom-background-100 text-left"
@@ -56,7 +57,7 @@ const buildPreview = (item: TMediaItem, onPlay: () => void): ReactNode => {
             <span>Play preview</span>
           </div>
         )}
-      </button>
+      </Button>
     );
   }
 
@@ -147,7 +148,8 @@ export const TagsSection = ({ item, onPlay, editable = false, isSaving = false, 
                 className="inline-flex items-center gap-1 rounded-full border border-custom-primary-100/30 bg-custom-primary-100/15 px-2 py-0.5 text-[11px] font-medium text-custom-primary-100"
               >
                 {tag}
-                <button
+                <Button
+                  unstyled
                   type="button"
                   onClick={() => handleRemoveTag(tag)}
                   className="text-custom-primary-100/80 hover:text-custom-primary-100"
@@ -155,7 +157,7 @@ export const TagsSection = ({ item, onPlay, editable = false, isSaving = false, 
                   aria-label={`Remove ${tag}`}
                 >
                   <X className="h-3 w-3" />
-                </button>
+                </Button>
               </span>
             ))}
             {!structuredEventTags.length ? (

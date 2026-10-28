@@ -2,7 +2,7 @@ import { ArrowUpRight, Circle, Image as ImageIcon, Minus, Pencil, Square, Type }
 import type { TCustomPlaylistAnnotationStrokeStyle, TCustomPlaylistAnnotationTool } from "../types/annotation.types";
 import { VIDEO_ANNOTATION_START_TIME_OFFSET_SECONDS } from "./playlist-annotation-creation-time";
 
-const DEFAULT_VIDEO_ANNOTATION_COLOR = "#f97316";
+const DEFAULT_VIDEO_ANNOTATION_COLOR = "#38bdf8";
 const VIDEO_ANNOTATION_COLOR_PRESETS = [
   "#f97316",
   "#ef4444",

@@ -13,7 +13,7 @@ import { TOAST_TYPE, setToast, updateToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TIssueAttachment, TNameDescriptionLoader } from "@plane/types";
 import { EIssuesStoreType } from "@plane/types";
-import { AlertModalCore, Badge, CustomSelect } from "@plane/ui";
+import { Button, AlertModalCore, Badge, CustomSelect } from "@plane/ui";
 import { copyUrlToClipboard, generateWorkItemLink, getAssetIdFromUrl, getFileName, getFileURL } from "@plane/utils";
 // helpers
 import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
@@ -1053,9 +1053,9 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
           ) : (
             <>
               <Tooltip tooltipContent={t("common.close_peek_view")} isMobile={isMobile}>
-                <button onClick={removeRoutePeekId}>
+                <Button unstyled type="submit" onClick={removeRoutePeekId}>
                   <MoveRight className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-                </button>
+                </Button>
               </Tooltip>
 
               <Tooltip tooltipContent={t("issue.open_in_full_screen")} isMobile={isMobile}>
@@ -1070,9 +1070,9 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
                     onChange={(val: any) => setPeekMode(val)}
                     customButton={
                       <Tooltip tooltipContent={t("common.toggle_peek_view_layout")} isMobile={isMobile}>
-                        <button type="button" className="">
+                        <Button unstyled type="button" className="">
                           <currentMode.icon className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200" />
-                        </button>
+                        </Button>
                       </Tooltip>
                     }
                   >
@@ -1104,7 +1104,8 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
             )}
             {hasMediaAssets && (
               <Tooltip tooltipContent="Add assets in media library" isMobile={isMobile}>
-                <button
+                <Button
+                  unstyled
                   type="button"
                   onClick={handleAddAssetsClick}
                   disabled={disabled || isAddingToMediaLibrary}
@@ -1117,13 +1118,13 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
                         : "text-custom-text-300 hover:text-custom-text-200"
                     }`}
                   />
-                </button>
+                </Button>
               </Tooltip>
             )}
             <Tooltip tooltipContent={t("common.actions.copy_link")} isMobile={isMobile}>
-              <button type="button" onClick={handleCopyText}>
+              <Button unstyled type="button" onClick={handleCopyText}>
                 <Link2 className="h-4 w-4 -rotate-45 text-custom-text-300 hover:text-custom-text-200" />
-              </button>
+              </Button>
             </Tooltip>
             {issueDetails && (
               <WorkItemDetailQuickActions
@@ -1142,14 +1143,15 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
             )}
             {isCoachingCard && (
               <Tooltip tooltipContent="Close coaching card" isMobile={isMobile}>
-                <button
+                <Button
+                  unstyled
                   type="button"
                   aria-label="Close coaching card"
                   onClick={removeRoutePeekId}
                   className="rounded p-1 text-custom-text-300 hover:bg-custom-background-80 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
-                </button>
+                </Button>
               </Tooltip>
             )}
           </div>

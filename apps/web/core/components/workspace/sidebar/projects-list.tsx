@@ -13,7 +13,7 @@ import { EUserPermissions, EUserPermissionsLevel, PROJECT_TRACKER_ELEMENTS } fro
 import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
-import { Loader } from "@plane/ui";
+import { Button as UnstyledButton, Loader } from "@plane/ui";
 import { copyUrlToClipboard, cn, orderJoinedProjects } from "@plane/utils";
 // components
 import { CreateProjectModal } from "@/components/project/create-project-modal";
@@ -169,7 +169,8 @@ export const SidebarProjectsList: FC = observer(() => {
               <div className="flex items-center opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
                 {isAuthorizedUser && (
                   <Tooltip tooltipHeading={t("create_project")} tooltipContent="">
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       data-ph-element={PROJECT_TRACKER_ELEMENTS.SIDEBAR_CREATE_PROJECT_TOOLTIP}
                       className="p-0.5 rounded hover:bg-custom-sidebar-background-80 flex-shrink-0"
@@ -179,7 +180,7 @@ export const SidebarProjectsList: FC = observer(() => {
                       aria-label={t("aria_labels.projects_sidebar.create_new_project")}
                     >
                       <Plus className="size-3" />
-                    </button>
+                    </UnstyledButton>
                   </Tooltip>
                 )}
                 <Disclosure.Button
@@ -240,7 +241,8 @@ export const SidebarProjectsList: FC = observer(() => {
         </>
 
         {isAuthorizedUser && joinedProjects?.length === 0 && (
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             data-ph-element={PROJECT_TRACKER_ELEMENTS.SIDEBAR_CREATE_PROJECT_BUTTON}
             className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm leading-5 font-medium text-custom-sidebar-text-200 hover:bg-custom-sidebar-background-90 rounded-md"
@@ -249,7 +251,7 @@ export const SidebarProjectsList: FC = observer(() => {
             }}
           >
             {t("add_project")}
-          </button>
+          </UnstyledButton>
         )}
       </div>
     </>

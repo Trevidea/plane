@@ -4,6 +4,7 @@ import { observer } from "mobx-react";
 import { X } from "lucide-react";
 // hooks
 import { ModuleIcon } from "@plane/propel/icons";
+import { Button } from "@plane/ui";
 import { useModule } from "@/hooks/store/use-module";
 // ui
 
@@ -30,13 +31,14 @@ export const AppliedModuleFilters: React.FC<Props> = observer((props) => {
             <ModuleIcon className="h-3 w-3 flex-shrink-0" />
             <span className="normal-case truncate">{moduleDetails.name}</span>
             {editable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemove(moduleId)}
               >
                 <X size={10} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </div>
         );

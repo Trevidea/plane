@@ -56,7 +56,8 @@ export const InstanceGoogleConfigForm: FC<Props> = (props) => {
       description: (
         <>
           Your client ID lives in your Google API Console.{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://developers.google.com/identity/protocols/oauth2/javascript-implicit-flow#creatingcred"
             target="_blank"
@@ -64,7 +65,7 @@ export const InstanceGoogleConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             Learn more
-          </a>
+          </Link>
         </>
       ),
       placeholder: "840195096245-0p2tstej9j5nc4l8o1ah2dqondscqc1g.apps.googleusercontent.com",
@@ -78,7 +79,8 @@ export const InstanceGoogleConfigForm: FC<Props> = (props) => {
       description: (
         <>
           Your client secret should also be in your Google API Console.{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid"
             target="_blank"
@@ -86,7 +88,7 @@ export const InstanceGoogleConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             Learn more
-          </a>
+          </Link>
         </>
       ),
       placeholder: "GOCShX-ADp4cI0kPqav1gGCBg5bE02E",
@@ -104,14 +106,15 @@ export const InstanceGoogleConfigForm: FC<Props> = (props) => {
         <p>
           We will auto-generate this. Paste this into your{" "}
           <CodeBlock darkerShade>Authorized JavaScript origins</CodeBlock> field. For this OAuth client{" "}
-          <a
+          <Link
+            prefetch={false}
             href="https://console.cloud.google.com/apis/credentials/oauthclient"
             target="_blank"
             className="text-custom-primary-100 hover:underline"
             rel="noreferrer"
           >
             here.
-          </a>
+          </Link>
         </p>
       ),
     },
@@ -126,14 +129,15 @@ export const InstanceGoogleConfigForm: FC<Props> = (props) => {
         <p>
           We will auto-generate this. Paste this into your <CodeBlock darkerShade>Authorized Redirect URI</CodeBlock>{" "}
           field. For this OAuth client{" "}
-          <a
+          <Link
+            prefetch={false}
             href="https://console.cloud.google.com/apis/credentials/oauthclient"
             target="_blank"
             className="text-custom-primary-100 hover:underline"
             rel="noreferrer"
           >
             here.
-          </a>
+          </Link>
         </p>
       ),
     },

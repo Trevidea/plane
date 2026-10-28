@@ -3,6 +3,7 @@
 import type { FC } from "react";
 import { observer } from "mobx-react";
 import { Controller, useForm } from "react-hook-form";
+
 import { Check } from "lucide-react";
 // plane imports
 import { ONBOARDING_TRACKER_ELEMENTS, USER_TRACKER_EVENTS, USE_CASES } from "@plane/constants";
@@ -10,6 +11,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TUserProfile } from "@plane/types";
 import { EOnboardingSteps } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 import { cn } from "@plane/utils";
 // helpers
 import { captureError, captureSuccess, captureView } from "@/helpers/event-tracker.helper";
@@ -115,7 +117,9 @@ export const UseCaseSetupStep: FC<Props> = observer(({ handleStepChange }) => {
               {USE_CASES.map((useCase) => {
                 const isSelected = value === useCase;
                 return (
-                  <button
+                  <UnstyledButton
+                    unstyled
+                    type="submit"
                     key={useCase}
                     onClick={(e) => {
                       e.preventDefault();
@@ -143,7 +147,7 @@ export const UseCaseSetupStep: FC<Props> = observer(({ handleStepChange }) => {
                     </span>
 
                     <span className="font-medium">{useCase}</span>
-                  </button>
+                  </UnstyledButton>
                 );
               })}
             </div>

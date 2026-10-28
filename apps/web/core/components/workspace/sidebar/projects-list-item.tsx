@@ -17,7 +17,7 @@ import { useOutsideClickDetector } from "@plane/hooks";
 import { useTranslation } from "@plane/i18n";
 import { ArchiveIcon } from "@plane/propel/icons";
 import { Tooltip } from "@plane/propel/tooltip";
-import { CustomMenu, DropIndicator, DragHandle, ControlLink } from "@plane/ui";
+import { Button as UnstyledButton, CustomMenu, DropIndicator, DragHandle, ControlLink } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { Logo } from "@/components/common/logo";
@@ -239,7 +239,8 @@ export const SidebarProjectsListItem: React.FC<Props> = observer((props) => {
                 position="top-end"
                 disabled={isDragging}
               >
-                <button
+                <UnstyledButton
+                  unstyled
                   type="button"
                   className={cn(
                     "hidden group-hover/project-item:flex items-center justify-center absolute top-1/2 -left-3 -translate-y-1/2 rounded text-custom-sidebar-text-400 cursor-grab",
@@ -252,7 +253,7 @@ export const SidebarProjectsListItem: React.FC<Props> = observer((props) => {
                   ref={dragHandleRef}
                 >
                   <DragHandle className="bg-transparent" />
-                </button>
+                </UnstyledButton>
               </Tooltip>
             )}
             <>

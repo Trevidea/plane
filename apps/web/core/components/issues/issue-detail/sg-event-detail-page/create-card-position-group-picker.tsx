@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+
 import { ChevronDown, Search, X } from "lucide-react";
 import { Popover } from "@headlessui/react";
+import { Button as UnstyledButton } from "@plane/ui";
 
 type Props = {
   groups: string[];
@@ -45,7 +47,8 @@ export const CreateCardPositionGroupPicker = ({
                 {selectedGroup && (
                   <span className="inline-flex max-w-full items-center gap-2 rounded-md border border-custom-border-300 bg-custom-background-80 px-2 py-1 text-xs text-custom-text-100">
                     <span className="truncate">{selectedGroup}</span>
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       aria-label={`Remove ${selectedGroup} position group`}
                       onClick={() => onChange("")}
@@ -53,7 +56,7 @@ export const CreateCardPositionGroupPicker = ({
                       className="shrink-0 rounded text-custom-text-300 hover:text-custom-text-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-custom-primary-100 disabled:opacity-40"
                     >
                       <X aria-hidden="true" className="h-3 w-3" />
-                    </button>
+                    </UnstyledButton>
                   </span>
                 )}
                 <Popover.Button
@@ -93,7 +96,8 @@ export const CreateCardPositionGroupPicker = ({
                 >
                   {filteredGroups.length ? (
                     filteredGroups.map((group) => (
-                      <button
+                      <UnstyledButton
+                        unstyled
                         key={group}
                         type="button"
                         aria-pressed={selectedGroup === group}
@@ -111,7 +115,7 @@ export const CreateCardPositionGroupPicker = ({
                         <span className="min-w-0 flex-1 truncate" title={group}>
                           {group}
                         </span>
-                      </button>
+                      </UnstyledButton>
                     ))
                   ) : (
                     <p className="px-2 py-3 text-xs text-custom-text-300">No matching position groups.</p>
@@ -122,17 +126,23 @@ export const CreateCardPositionGroupPicker = ({
                     {selectedGroup ? `Selected: ${selectedGroup}` : "Select one position group"}
                   </span>
                   <span className="flex items-center gap-3">
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       onClick={() => onChange("")}
                       disabled={disabled || !selectedGroup}
                       className="text-custom-primary-100 hover:underline disabled:opacity-40"
                     >
                       Clear selection
-                    </button>
-                    <button type="button" onClick={() => close()} className="text-custom-primary-100 hover:underline">
+                    </UnstyledButton>
+                    <UnstyledButton
+                      unstyled
+                      type="button"
+                      onClick={() => close()}
+                      className="text-custom-primary-100 hover:underline"
+                    >
                       Done
-                    </button>
+                    </UnstyledButton>
                   </span>
                 </div>
               </Popover.Panel>
@@ -144,9 +154,14 @@ export const CreateCardPositionGroupPicker = ({
         {hasError ? (
           <>
             Unable to load the roster.{" "}
-            <button type="button" onClick={onRetry} className="text-custom-primary-100 hover:underline">
+            <UnstyledButton
+              unstyled
+              type="button"
+              onClick={onRetry}
+              className="text-custom-primary-100 hover:underline"
+            >
               Retry
-            </button>
+            </UnstyledButton>
           </>
         ) : isLoading ? (
           "Loading position groups…"

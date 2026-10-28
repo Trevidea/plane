@@ -3,12 +3,14 @@
 import { useCallback, useState } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import { ChevronDown } from "lucide-react";
 // plane imports
 import { EIssueFilterType, ISSUE_DISPLAY_FILTERS_BY_PAGE } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import type { IIssueDisplayFilterOptions, IIssueDisplayProperties } from "@plane/types";
 import { EIssuesStoreType, EIssueLayoutTypes } from "@plane/types";
+import { Button } from "@plane/ui";
 // components
 import { WorkItemsModal } from "@/components/analytics/work-items/modal";
 import {
@@ -97,12 +99,14 @@ export const ProjectIssuesMobileHeader = observer(() => {
           </FiltersDropdown>
         </div>
 
-        <button
+        <Button
+          unstyled
+          type="submit"
           onClick={() => setAnalyticsModal(true)}
           className="flex flex-grow justify-center border-l border-custom-border-200 text-sm text-custom-text-200"
         >
           {t("common.analytics")}
-        </button>
+        </Button>
       </div>
     </>
   );

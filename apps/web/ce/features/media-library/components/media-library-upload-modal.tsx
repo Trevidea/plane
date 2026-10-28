@@ -441,14 +441,15 @@ export const MediaLibraryUploadModal = observer(() => {
       <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-100 shadow-custom-shadow-md dark:border-[#353535] dark:bg-[#151515] dark:shadow-[0_24px_80px_rgba(15,15,15,0.45)]">
         <div className="flex items-center justify-between border-b border-custom-border-200 px-5 py-3.5 dark:border-[#2A2A2A]">
           <h2 className={`text-lg font-bold ${UPLOAD_MODAL_TEXT_CLASS.primary}`}>Upload Files</h2>
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={handleClose}
             className={UPLOAD_MODAL_TEXT_CLASS.mutedAction}
             aria-label="Close upload"
           >
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
@@ -602,14 +603,15 @@ export const MediaLibraryUploadModal = observer(() => {
                                 ) : null}
                               </div>
                               <div className="flex shrink-0 items-center gap-2">
-                                <button
+                                <Button
+                                  unstyled
                                   type="button"
                                   className={`inline-flex h-7 w-7 items-center justify-center rounded border border-transparent ${UPLOAD_MODAL_TEXT_CLASS.mutedAction} hover:border-custom-border-200 dark:hover:border-[#303030]`}
                                   aria-label={`Remove ${item.file.name}`}
                                   onClick={() => removeSelectedUpload(item.id)}
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           );

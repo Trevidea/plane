@@ -1,3 +1,4 @@
+import Link from "next/link";
 export const MaintenanceMessage = () => {
   const linkMap = [
     {
@@ -21,14 +22,15 @@ export const MaintenanceMessage = () => {
       <div className="flex items-center justify-start gap-6 mt-1">
         {linkMap.map((link) => (
           <div key={link.key}>
-            <a
+            <Link
+              prefetch={false}
               href={link.value}
               target="_blank"
               rel="noopener noreferrer"
               className="text-custom-primary-100 hover:underline text-sm"
             >
               {link.label}
-            </a>
+            </Link>
           </div>
         ))}
       </div>

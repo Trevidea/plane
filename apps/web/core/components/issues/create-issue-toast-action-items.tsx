@@ -2,6 +2,8 @@
 import type { FC } from "react";
 import React, { useState } from "react";
 import { observer } from "mobx-react";
+import { Button } from "@plane/ui";
+
 import { copyUrlToClipboard, generateWorkItemLink } from "@plane/utils";
 // plane imports
 // helpers
@@ -70,12 +72,14 @@ export const CreateIssueToastActionItems: FC<TCreateIssueToastActionItems> = obs
         </>
       ) : (
         <>
-          <button
+          <Button
+            unstyled
+            type="submit"
             className="cursor-pointer hidden group-hover:flex px-2 py-1 text-custom-text-300 hover:text-custom-text-200 hover:bg-custom-background-90 rounded"
             onClick={copyToClipboard}
           >
             Copy link
-          </button>
+          </Button>
         </>
       )}
     </div>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+
 import { observer } from "mobx-react";
 import { ArrowRight } from "lucide-react";
 // helpers
 import type { IBlockUpdateData, IGanttBlock } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
@@ -93,7 +95,8 @@ export const BlockRow: React.FC<Props> = observer((props) => {
       >
         {isBlockVisibleOnChart
           ? isHidden && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="sticky z-[5] grid h-8 w-8 translate-y-1.5 cursor-pointer place-items-center rounded border border-custom-border-300 bg-custom-background-80 text-custom-text-200 hover:text-custom-text-100"
                 style={{
@@ -106,7 +109,7 @@ export const BlockRow: React.FC<Props> = observer((props) => {
                     "rotate-180": isBlockHiddenOnLeft,
                   })}
                 />
-              </button>
+              </Button>
             )
           : enableAddBlock && <ChartAddBlock block={block} blockUpdateHandler={blockUpdateHandler} />}
       </div>

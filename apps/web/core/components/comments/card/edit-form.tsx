@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from "react";
 import { observer } from "mobx-react";
 import { useForm } from "react-hook-form";
+
 import { Check, X } from "lucide-react";
 // plane imports
 import type { EditorRefApi } from "@plane/editor";
 import type { TCommentsOperations, TIssueComment } from "@plane/types";
+import { Button } from "@plane/ui";
 import { isCommentEmpty } from "@plane/utils";
 // components
 import { LiteTextEditor } from "@/components/editor/lite-text";
@@ -102,7 +104,8 @@ export const CommentCardEditForm: React.FC<Props> = observer((props) => {
       </div>
       <div className="flex gap-1 self-end">
         {!isEmpty && (
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={handleSubmit(onEnter)}
             disabled={isDisabled}
@@ -113,9 +116,10 @@ export const CommentCardEditForm: React.FC<Props> = observer((props) => {
             <Check
               className={`h-3 w-3 text-green-500 duration-300 ${isEmpty ? "text-black" : "group-hover:text-white"}`}
             />
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          unstyled
           type="button"
           className="group rounded border border-red-500 bg-red-500/20 p-2 shadow-md duration-300 hover:bg-red-500"
           onClick={() => {
@@ -124,7 +128,7 @@ export const CommentCardEditForm: React.FC<Props> = observer((props) => {
           }}
         >
           <X className="size-3 text-red-500 duration-300 group-hover:text-white" />
-        </button>
+        </Button>
       </div>
     </form>
   );

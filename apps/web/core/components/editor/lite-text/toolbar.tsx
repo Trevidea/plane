@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+
 import type { LucideIcon } from "lucide-react";
 import { Globe2, Lock } from "lucide-react";
 import { EIssueCommentAccessSpecifier } from "@plane/constants";
@@ -11,6 +12,7 @@ import { useTranslation } from "@plane/i18n";
 // ui
 import { Button } from "@plane/propel/button";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button as UnstyledButton } from "@plane/ui";
 // constants
 import { cn } from "@plane/utils";
 import type { ToolbarMenuItem } from "@/constants/editor";
@@ -103,7 +105,8 @@ export const IssueCommentToolbar: React.FC<Props> = (props) => {
 
             return (
               <Tooltip key={access.key} tooltipContent={access.label}>
-                <button
+                <UnstyledButton
+                  unstyled
                   type="button"
                   onClick={() => handleAccessChange?.(access.key)}
                   className={cn("grid place-items-center aspect-square rounded-sm p-1 hover:bg-custom-background-80", {
@@ -116,7 +119,7 @@ export const IssueCommentToolbar: React.FC<Props> = (props) => {
                     })}
                     strokeWidth={2}
                   />
-                </button>
+                </UnstyledButton>
               </Tooltip>
             );
           })}
@@ -144,7 +147,8 @@ export const IssueCommentToolbar: React.FC<Props> = (props) => {
                       </p>
                     }
                   >
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       onClick={() => executeCommand(item)}
                       className={cn(
@@ -160,7 +164,7 @@ export const IssueCommentToolbar: React.FC<Props> = (props) => {
                         })}
                         strokeWidth={2.5}
                       />
-                    </button>
+                    </UnstyledButton>
                   </Tooltip>
                 );
               })}

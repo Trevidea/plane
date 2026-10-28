@@ -2,7 +2,9 @@
 
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
+
 import { ArrowLeft, Check, Download, FileText, FileWarning, Pencil } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import { ImageFullScreenModal } from "@plane/editor";
@@ -250,7 +252,8 @@ export const MediaDetailPreview = ({
   const annotationWorkspaceToggleContent = (
     <>
       {canAnnotateVideo && !isVideoAnnotationWorkspaceOpen ? (
-        <button
+        <Button
+          unstyled
           type="button"
           onClick={onOpenVideoAnnotationWorkspace}
           className={`${VIDEO_ANNOTATION_FLOATING_ACTION_CLASS} !border-custom-primary-100 !bg-custom-primary-100 !text-white hover:!bg-custom-primary-100/90`}
@@ -259,7 +262,7 @@ export const MediaDetailPreview = ({
         >
           <Pencil className="!h-4 !w-4 !shrink-0" />
           <span className="!whitespace-nowrap !leading-none">Annotate</span>
-        </button>
+        </Button>
       ) : null}
     </>
   );
@@ -428,6 +431,7 @@ export const MediaDetailPreview = ({
                   <ArrowLeft className="h-4 w-4 shrink-0" />
                   <span className="whitespace-nowrap leading-none">Back</span>
                 </Button>
+                <span className="text-xs text-custom-text-300">Annotation editor</span>
                 <div className="flex items-center gap-2">
                   <Button
                     unstyled
@@ -435,8 +439,8 @@ export const MediaDetailPreview = ({
                     onClick={handleRequestCloseVideoAnnotationWorkspace}
                     className={VIDEO_ANNOTATION_HEADER_ACTION_CLASS}
                     disabled={isNarrationRecordingLocked}
-                    aria-label="Close annotation editor"
-                    title="Close annotation editor"
+                    aria-label="Save annotations"
+                    title="Save annotations"
                   >
                     <Check className="h-4 w-4 shrink-0" />
                     <span className="whitespace-nowrap leading-none">Save</span>
@@ -479,12 +483,16 @@ export const MediaDetailPreview = ({
                 ) : null}
               </div>
               {showVideoTimeline ? (
-                <div
-                  ref={handleVideoAnnotationPropertiesElement}
-                  className="flex h-full min-h-0 w-full shrink-0 overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90 p-2 lg:w-[250px] xl:w-[280px]"
+                <aside
+                  className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90 p-2 lg:w-[250px] xl:w-[280px]"
                   style={videoPreviewHeightStyle}
                   aria-label="Annotation properties"
-                />
+                >
+                  <div className="flex shrink-0 items-center justify-between pb-2 text-xs text-custom-text-200">
+                    <span>Properties</span>
+                  </div>
+                  <div ref={handleVideoAnnotationPropertiesElement} className="flex min-h-0 flex-1 overflow-hidden" />
+                </aside>
               ) : null}
             </div>
             {showVideoTimeline ? (
@@ -496,7 +504,8 @@ export const MediaDetailPreview = ({
             className="overflow-hidden rounded-lg border border-custom-border-200 bg-custom-background-90"
             style={previewHeightStyle}
           >
-            <button
+            <Button
+              unstyled
               type="button"
               className={`h-full w-full bg-custom-background-100 ${imagePreviewAvailable ? "cursor-zoom-in" : "cursor-default"}`}
               onClick={() => {
@@ -535,7 +544,7 @@ export const MediaDetailPreview = ({
                   "h-full w-full"
                 )
               )}
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="rounded-lg border border-custom-border-200 bg-custom-background-90">
@@ -643,7 +652,8 @@ export const MediaDetailPreview = ({
             )}
             {documentDownloadSrc && !isUnsupportedDocument && !isDocumentCorrupted ? (
               <div className="flex justify-end border-t border-custom-border-200 p-3">
-                <a
+                <Link
+                  prefetch={false}
                   href={documentDownloadSrc}
                   target="_blank"
                   rel="noreferrer"
@@ -654,7 +664,7 @@ export const MediaDetailPreview = ({
                     <Download className="h-4 w-4" />
                   </span>
                   Download
-                </a>
+                </Link>
               </div>
             ) : null}
           </div>

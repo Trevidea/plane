@@ -1,12 +1,14 @@
 "use client";
 
 import React from "react";
+
 import { observer } from "mobx-react";
 import { Link2, MoveRight } from "lucide-react";
 import { Listbox, Transition } from "@headlessui/react";
 // ui
 import { CenterPanelIcon, FullScreenPanelIcon, SidePanelIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
+import { Button as UnstyledButton } from "@plane/ui";
 // helpers
 import { copyTextToClipboard } from "@/helpers/string.helper";
 // hooks
@@ -63,9 +65,14 @@ export const PeekOverviewHeader: React.FC<Props> = observer((props) => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {peekMode === "side" && (
-            <button type="button" onClick={handleClose} className="text-custom-text-300 hover:text-custom-text-200">
+            <UnstyledButton
+              unstyled
+              type="button"
+              onClick={handleClose}
+              className="text-custom-text-300 hover:text-custom-text-200"
+            >
               <MoveRight className="size-4" />
-            </button>
+            </UnstyledButton>
           )}
           <Listbox
             as="div"
@@ -113,14 +120,15 @@ export const PeekOverviewHeader: React.FC<Props> = observer((props) => {
         </div>
         {isClipboardWriteAllowed && (peekMode === "side" || peekMode === "modal") && (
           <div className="flex flex-shrink-0 items-center gap-2">
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               onClick={handleCopyLink}
               className="focus:outline-none text-custom-text-300 hover:text-custom-text-200"
               tabIndex={1}
             >
               <Link2 className="h-4 w-4 -rotate-45" />
-            </button>
+            </UnstyledButton>
           </div>
         )}
       </div>

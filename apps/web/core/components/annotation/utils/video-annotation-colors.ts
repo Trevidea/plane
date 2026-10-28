@@ -4,7 +4,7 @@ import { clampTimelineValue } from "./video-annotation-timeline";
 
 const getAnnotationColor = (annotation: TCustomPlaylistAnnotation) => {
   const style = annotation.style ?? {};
-  return typeof style.stroke === "string" ? style.stroke : typeof style.color === "string" ? style.color : "#f97316";
+  return typeof style.stroke === "string" ? style.stroke : typeof style.color === "string" ? style.color : "#38bdf8";
 };
 
 const normalizeAnnotationHexColor = (value: string) => {

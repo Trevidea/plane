@@ -1,8 +1,10 @@
 import { useRef } from "react";
+
 import { observer } from "mobx-react";
 import { ChevronRight, Menu } from "lucide-react";
 import { useOutsideClickDetector } from "@plane/hooks";
 import { useTranslation } from "@plane/i18n";
+import { Button } from "@plane/ui";
 import { useUserSettings } from "@/hooks/store/user";
 
 type Props = {
@@ -27,13 +29,14 @@ export const SettingsMobileNav = observer((props: Props) => {
       <div className="border-b border-custom-border-100 py-3 flex items-center gap-4">
         <div ref={sidebarRef} className="relative w-fit">
           {!sidebarCollapsed && <HamburgerContent isMobile />}
-          <button
+          <Button
+            unstyled
             type="button"
             className="z-50  group flex-shrink-0 size-6 grid place-items-center rounded border border-custom-border-200 transition-all bg-custom-background md:hidden"
             onClick={() => toggleSidebar()}
           >
             <Menu className="size-3.5 text-custom-text-200 transition-all group-hover:text-custom-text-100" />
-          </button>
+          </Button>
         </div>
         {/* path */}
         <div className="flex items-center gap-2">

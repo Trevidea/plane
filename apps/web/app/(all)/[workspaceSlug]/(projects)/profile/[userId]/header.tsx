@@ -9,7 +9,7 @@ import { PROFILE_VIEWER_TAB, PROFILE_ADMINS_TAB, EUserPermissions, EUserPermissi
 import { useTranslation } from "@plane/i18n";
 import { YourWorkIcon } from "@plane/propel/icons";
 import type { IUserProfileProjectSegregation } from "@plane/types";
-import { Breadcrumbs, Header, CustomMenu } from "@plane/ui";
+import { Button, Breadcrumbs, Header, CustomMenu } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { BreadcrumbLink } from "@/components/common/breadcrumb-link";
@@ -92,7 +92,9 @@ export const UserProfileHeader: FC<TUserProfileHeader> = observer((props) => {
               </CustomMenu.MenuItem>
             ))}
           </CustomMenu>
-          <button
+          <Button
+            unstyled
+            type="submit"
             className="block transition-all md:hidden"
             onClick={() => {
               toggleProfileSidebar();
@@ -104,7 +106,7 @@ export const UserProfileHeader: FC<TUserProfileHeader> = observer((props) => {
                 !profileSidebarCollapsed ? "text-[#3E63DD]" : "text-custom-text-200"
               )}
             />
-          </button>
+          </Button>
         </div>
       </Header.RightItem>
     </Header>

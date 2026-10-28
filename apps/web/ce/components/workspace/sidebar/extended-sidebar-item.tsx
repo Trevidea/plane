@@ -12,7 +12,7 @@ import type { IWorkspaceSidebarNavigationItem } from "@plane/constants";
 import { EUserPermissionsLevel } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { Tooltip } from "@plane/propel/tooltip";
-import { DragHandle, DropIndicator } from "@plane/ui";
+import { Button, DragHandle, DropIndicator } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { SidebarNavItem } from "@/components/sidebar/sidebar-navigation";
@@ -171,7 +171,8 @@ export const ExtendedSidebarItem: FC<TExtendedSidebarItemProps> = observer((prop
             position="top-end"
             disabled={isDragging}
           >
-            <button
+            <Button
+              unstyled
               type="button"
               className={cn(
                 "flex items-center justify-center absolute top-1/2 -left-3 -translate-y-1/2 rounded text-custom-sidebar-text-400 cursor-grab",
@@ -182,7 +183,7 @@ export const ExtendedSidebarItem: FC<TExtendedSidebarItemProps> = observer((prop
               ref={dragHandleRef}
             >
               <DragHandle className="bg-transparent" />
-            </button>
+            </Button>
           </Tooltip>
         )}
         <SidebarNavItem isActive={isActive}>

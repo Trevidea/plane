@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { PROJECT_DISPLAY_FILTER_OPTIONS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import type { TProjectAppliedDisplayFilterKeys } from "@plane/types";
+import { Button } from "@plane/ui";
 // constants
 
 type Props = {
@@ -25,13 +26,14 @@ export const AppliedProjectDisplayFilters: React.FC<Props> = observer((props) =>
           <div key={key} className="flex items-center gap-1 rounded px-1.5 py-1 text-xs bg-custom-background-80">
             {filterLabel && t(filterLabel)}
             {editable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemove(key)}
               >
                 <X size={10} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </div>
         );

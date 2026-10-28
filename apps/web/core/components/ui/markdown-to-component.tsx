@@ -1,4 +1,5 @@
 import React from "react";
+import NextLink from "next/link";
 import ReactMarkdown from "react-markdown";
 
 interface CustomComponentProps {
@@ -52,9 +53,15 @@ const UnorderedList: CustomComponent = ({ children }) => (
 );
 
 const Link: CustomComponent = ({ href, children }) => (
-  <a href={href} className="underline hover:no-underline" target="_blank" rel="noopener noreferrer">
+  <NextLink
+    prefetch={false}
+    href={href}
+    className="underline hover:no-underline"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
     {children}
-  </a>
+  </NextLink>
 );
 
 export const MarkdownRenderer: React.FC<Props> = ({ markdown, options = {} }) => {

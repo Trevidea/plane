@@ -10,7 +10,7 @@ import { ROLE, EUserPermissions, MEMBER_TRACKER_EVENTS } from "@plane/constants"
 import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import { Avatar, CustomSelect, CustomSearchSelect } from "@plane/ui";
+import { Button as UnstyledButton, Avatar, CustomSelect, CustomSearchSelect } from "@plane/ui";
 // helpers
 import { getFileURL } from "@plane/utils";
 // hooks
@@ -238,7 +238,11 @@ export const SendProjectInvitationModal: React.FC<Props> = observer((props) => {
                                   <CustomSearchSelect
                                     value={value}
                                     customButton={
-                                      <button className="flex w-full items-center justify-between gap-1 rounded-md border border-custom-border-200 px-3 py-2 text-left text-sm text-custom-text-200 shadow-sm duration-300 hover:bg-custom-background-80 hover:text-custom-text-100 focus:outline-none">
+                                      <UnstyledButton
+                                        unstyled
+                                        type="submit"
+                                        className="flex w-full items-center justify-between gap-1 rounded-md border border-custom-border-200 px-3 py-2 text-left text-sm text-custom-text-200 shadow-sm duration-300 hover:bg-custom-background-80 hover:text-custom-text-100 focus:outline-none"
+                                      >
                                         {value && value !== "" ? (
                                           <div className="flex items-center gap-2">
                                             <Avatar
@@ -251,7 +255,7 @@ export const SendProjectInvitationModal: React.FC<Props> = observer((props) => {
                                           <div className="flex items-center gap-2 py-0.5">Select co-worker</div>
                                         )}
                                         <ChevronDown className="h-3 w-3" aria-hidden="true" />
-                                      </button>
+                                      </UnstyledButton>
                                     }
                                     onChange={(val: string) => {
                                       onChange(val);
@@ -319,13 +323,14 @@ export const SendProjectInvitationModal: React.FC<Props> = observer((props) => {
 
                             {fields.length > 1 && (
                               <div className="flex-item flex w-6">
-                                <button
+                                <UnstyledButton
+                                  unstyled
                                   type="button"
                                   className="place-items-center self-center rounded"
                                   onClick={() => remove(index)}
                                 >
                                   <X className="h-4 w-4 text-custom-text-200" />
-                                </button>
+                                </UnstyledButton>
                               </div>
                             )}
                           </div>
@@ -335,14 +340,15 @@ export const SendProjectInvitationModal: React.FC<Props> = observer((props) => {
                   </div>
 
                   <div className="mt-5 flex items-center justify-between gap-2">
-                    <button
+                    <UnstyledButton
+                      unstyled
                       type="button"
                       className="flex items-center gap-2 bg-transparent py-2 pr-3 text-sm font-medium text-custom-primary outline-custom-primary"
                       onClick={appendField}
                     >
                       <Plus className="h-4 w-4" />
                       {t("common.add_more")}
-                    </button>
+                    </UnstyledButton>
                     <div className="flex items-center gap-2">
                       <Button variant="neutral-primary" size="sm" onClick={handleClose}>
                         {t("cancel")}

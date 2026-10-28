@@ -1,5 +1,7 @@
 import type { FC } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
+
 import { MessageSquare } from "lucide-react";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
@@ -28,38 +30,41 @@ export const IssueLinkActivity: FC<TIssueLinkActivity> = observer((props) => {
         {activity.verb === "created" ? (
           <>
             <span>added </span>
-            <a
+            <Link
+              prefetch={false}
               href={`${activity.new_value}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               link
-            </a>
+            </Link>
           </>
         ) : activity.verb === "updated" ? (
           <>
             <span>updated the </span>
-            <a
+            <Link
+              prefetch={false}
               href={`${activity.old_value}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               link
-            </a>
+            </Link>
           </>
         ) : (
           <>
             <span>removed this </span>
-            <a
+            <Link
+              prefetch={false}
               href={`${activity.old_value}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-medium text-custom-text-100 hover:underline"
             >
               link
-            </a>
+            </Link>
           </>
         )}
         {showIssue && (activity.verb === "created" ? ` to ` : ` from `)}

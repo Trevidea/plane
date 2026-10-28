@@ -1,11 +1,13 @@
 "use client";
 
 import React from "react";
+
 // plane constants
 import { ISSUE_LAYOUTS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { EIssueLayoutTypes } from "@plane/types";
+import { Button } from "@plane/ui";
 // ui
 // types
 import { IssueLayoutIcon } from "@/components/issues/issue-layouts/layout-icon";
@@ -32,7 +34,8 @@ export const LayoutSelection: React.FC<Props> = (props) => {
     <div className="flex items-center gap-1 rounded bg-custom-background-80 p-1">
       {ISSUE_LAYOUTS.filter((l) => layouts.includes(l.key)).map((layout) => (
         <Tooltip key={layout.key} tooltipContent={t(layout.i18n_title)} isMobile={isMobile}>
-          <button
+          <Button
+            unstyled
             type="button"
             className={`group grid h-[22px] w-7 place-items-center overflow-hidden rounded transition-all hover:bg-custom-background-100 ${
               selectedLayout == layout.key ? "bg-custom-background-100 shadow-custom-shadow-2xs" : ""
@@ -47,7 +50,7 @@ export const LayoutSelection: React.FC<Props> = (props) => {
                 selectedLayout == layout.key ? "text-custom-text-100" : "text-custom-text-200"
               }`}
             />
-          </button>
+          </Button>
         </Tooltip>
       ))}
     </div>

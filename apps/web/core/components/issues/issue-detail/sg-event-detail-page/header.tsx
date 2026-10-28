@@ -1,6 +1,6 @@
 import { Aperture, ArrowLeft, ChevronDown } from "lucide-react";
 import { EPillSize, EPillVariant, Pill } from "@plane/propel/pill";
-import { CustomSelect } from "@plane/ui";
+import { Button, CustomSelect } from "@plane/ui";
 import { cn } from "@plane/utils";
 import type { SgEventDevice } from "./types";
 import { formatLooseLabel } from "./utils";
@@ -28,14 +28,15 @@ export const SgEventHeader = ({
 }: SgEventHeaderProps) => (
   <div className="flex min-h-11 flex-wrap items-center justify-between gap-3">
     <div className="flex min-w-0 items-center gap-2">
-      <button
+      <Button
+        unstyled
         type="button"
         onClick={handleBack}
         className="inline-flex h-8 items-center gap-2 rounded-[5px] px-2 text-[12px] text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)]"
       >
         <ArrowLeft className="h-4 w-4" />
         <span>Back</span>
-      </button>
+      </Button>
       <div className="flex min-w-0 items-center gap-2 border-l border-[var(--sg-matrix-border)] pl-3">
         <h1 className="truncate text-[13px] font-medium text-[var(--sg-matrix-text)]">{eventTitle}</h1>
         <Pill variant={EPillVariant.PRIMARY} size={EPillSize.SM} className="shrink-0 border-none">
@@ -79,10 +80,14 @@ export const SgEventHeader = ({
             ))}
           </CustomSelect>
         ) : (
-          <button className="inline-flex h-8 items-center gap-2 rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel)] px-3 text-[12px] text-[var(--sg-matrix-text-secondary)]">
+          <Button
+            unstyled
+            type="submit"
+            className="inline-flex h-8 items-center gap-2 rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-panel)] px-3 text-[12px] text-[var(--sg-matrix-text-secondary)]"
+          >
             <span>{isLoadingViews ? "Loading views" : "View 1"}</span>
             <ChevronDown className="h-4 w-4 text-[var(--sg-matrix-text-muted)]" />
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -94,7 +99,8 @@ type SgFullStreamButtonProps = {
 };
 
 export const SgFullStreamButton = ({ onClick }: SgFullStreamButtonProps) => (
-  <button
+  <Button
+    unstyled
     type="button"
     onClick={onClick}
     title="Switch to full stream"
@@ -102,5 +108,5 @@ export const SgFullStreamButton = ({ onClick }: SgFullStreamButtonProps) => (
   >
     <Aperture className="h-3.5 w-3.5" />
     <span>Switch to full stream</span>
-  </button>
+  </Button>
 );

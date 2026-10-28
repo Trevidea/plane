@@ -4,11 +4,13 @@ import React from "react";
 import { observer } from "mobx-react";
 import type { Control } from "react-hook-form";
 import { Controller } from "react-hook-form";
+
 import { X } from "lucide-react";
 // plane imports
 import { ETabIndices } from "@plane/constants";
 // types
 import type { ISearchIssueResponse, TIssue } from "@plane/types";
+import { Button } from "@plane/ui";
 // helpers
 import { getTabIndex } from "@plane/utils";
 // hooks
@@ -55,7 +57,8 @@ export const IssueParentTag: React.FC<TIssueParentTagProps> = observer((props) =
               )}
             </span>
             <span className="truncate font-medium">{selectedParentIssue.name.substring(0, 50)}</span>
-            <button
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center"
               onClick={() => {
@@ -66,7 +69,7 @@ export const IssueParentTag: React.FC<TIssueParentTagProps> = observer((props) =
               tabIndex={getIndex("remove_parent")}
             >
               <X className="h-3 w-3 cursor-pointer" />
-            </button>
+            </Button>
           </div>
         </div>
       )}

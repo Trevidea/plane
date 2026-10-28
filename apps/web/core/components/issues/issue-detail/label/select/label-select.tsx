@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
 import { observer } from "mobx-react";
 import { usePopper } from "react-popper";
+
 import { Check, Loader, Search, Tag } from "lucide-react";
 import { Combobox } from "@headlessui/react";
 // plane imports
@@ -8,6 +9,7 @@ import { EUserPermissionsLevel, getRandomLabelColor } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import type { IIssueLabel } from "@plane/types";
 import { EUserProjectRoles } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 // helpers
 import { getTabIndex } from "@plane/utils";
 // hooks
@@ -128,14 +130,15 @@ export const IssueLabelSelect: React.FC<IIssueLabelSelect> = observer((props) =>
         multiple
       >
         <Combobox.Button as={Fragment}>
-          <button
+          <UnstyledButton
+            unstyled
             ref={setReferenceElement}
             type="button"
             className="cursor-pointer rounded"
             onClick={() => !projectLabels && fetchLabels()}
           >
             {label}
-          </button>
+          </UnstyledButton>
         </Combobox.Button>
 
         <Combobox.Options className="fixed z-10">

@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { MARKETING_PLANE_ONE_PAGE_LINK } from "@plane/constants";
 import { getButtonStyling } from "@plane/propel/button";
@@ -18,14 +19,15 @@ export const BulkOperationsUpgradeBanner: React.FC<Props> = (props) => {
           Change state, priority, and more for several work items at once. Save three minutes on an average per
           operation.
         </p>
-        <a
+        <Link
+          prefetch={false}
           href={MARKETING_PLANE_ONE_PAGE_LINK}
           target="_blank"
           rel="noopener noreferrer"
           className={cn(getButtonStyling("primary", "sm"), "flex-shrink-0")}
         >
           Upgrade to One
-        </a>
+        </Link>
       </div>
     </div>
   );

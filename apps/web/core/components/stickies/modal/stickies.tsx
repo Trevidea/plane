@@ -1,8 +1,10 @@
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import { Plus, X } from "lucide-react";
 // plane ui
 import { RecentStickyIcon } from "@plane/propel/icons";
+import { Button } from "@plane/ui";
 // hooks
 import { useSticky } from "@/hooks/use-stickies";
 // components
@@ -35,7 +37,9 @@ export const Stickies = observer((props: TProps) => {
         {/* actions */}
         <div className="flex gap-2">
           <StickySearch />
-          <button
+          <Button
+            unstyled
+            type="submit"
             onClick={() => {
               toggleShowNewSticky(true);
               stickyOperations.create();
@@ -53,15 +57,16 @@ export const Stickies = observer((props: TProps) => {
                 />
               </div>
             )}
-          </button>
+          </Button>
           {handleClose && (
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={handleClose}
               className="flex-shrink-0 grid place-items-center text-custom-text-300 hover:text-custom-text-100 hover:bg-custom-background-80 rounded p-1 transition-colors my-auto"
             >
               <X className="text-custom-text-400 size-4" />
-            </button>
+            </Button>
           )}
         </div>
       </div>

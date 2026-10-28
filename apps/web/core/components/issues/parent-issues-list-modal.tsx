@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
+
 // icons
 import { Rocket, Search } from "lucide-react";
 // headless ui
@@ -196,7 +198,8 @@ export const ParentIssuesListModal: React.FC<Props> = ({
                                   </span>{" "}
                                   <span className="truncate">{issue.name}</span>
                                 </div>
-                                <a
+                                <Link
+                                  prefetch={false}
                                   href={generateWorkItemLink({
                                     workspaceSlug: workspaceSlug.toString(),
                                     projectId: issue?.project_id,
@@ -210,7 +213,7 @@ export const ParentIssuesListModal: React.FC<Props> = ({
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <Rocket className="h-4 w-4" />
-                                </a>
+                                </Link>
                               </Combobox.Option>
                             ))}
                           </ul>

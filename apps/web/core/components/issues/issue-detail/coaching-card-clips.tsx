@@ -15,7 +15,6 @@ import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { IssueService } from "@/services/issue/issue.service";
 import { CoachingCardAddClip } from "./coaching-card-add-clip";
 import { CoachingCardClipBrowser } from "./coaching-card-clip-browser";
-import { CoachingCardStreamLink } from "./coaching-card-stream-link";
 import type { CoachingCardDetailClip, ClipGroup, ClipSort } from "./coaching-card-clips-model";
 import {
   buildCoachingCardClips,
@@ -25,6 +24,7 @@ import {
   filterAndSortClips,
   clipMutationPayload,
 } from "./coaching-card-clips-model";
+import { CoachingCardStreamLink } from "./coaching-card-stream-link";
 import { formatCardDuration } from "./sg-event-detail-page/create-card-model";
 import { buildCustomPlaylistThumbnailUrl, formatLooseLabel, getArchivedHlsBaseUrl } from "./sg-event-detail-page/utils";
 const CoachingCardClipPlayer = dynamic(
@@ -437,7 +437,8 @@ const CoachingCardClipManager = ({
                   activeClip?.key === clip.key && "border-custom-primary-100/50 bg-custom-primary-100/5"
                 )}
               >
-                <button
+                <Button
+                  unstyled
                   type="button"
                   aria-label={`Play clip: ${clip.title}`}
                   aria-pressed={activeClip?.key === clip.key}
@@ -487,7 +488,7 @@ const CoachingCardClipManager = ({
                       </span>
                     )}
                   </span>
-                </button>
+                </Button>
                 <div className="flex shrink-0 flex-col items-end gap-1">{menus(clip)}</div>
                 {clip.tags?.length ? (
                   <div className="hidden flex-wrap gap-1 sm:flex">
@@ -541,10 +542,7 @@ const CoachingCardClipManager = ({
 
 export const CoachingCardClips = ({
   viewOnly = false,
+  allowAdding = false,
   ...props
-}: Parameters<typeof CoachingCardClipManager>[0] & { viewOnly?: boolean }) =>
-  viewOnly ? (
-    <CoachingCardClipBrowser issue={props.issue} workspaceSlug={props.workspaceSlug} projectId={props.projectId} />
-  ) : (
-    <CoachingCardClipManager {...props} />
-  );
+}: Parameters<typeof CoachingCardClipManager>[0] & { viewOnly?: boolean; allowAdding?: boolean }) =>
+  viewOnly ? <CoachingCardClipBrowser {...props} allowAdding={allowAdding} /> : <CoachingCardClipManager {...props} />;

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { sortBy } from "lodash-es";
 import { observer } from "mobx-react";
 // plane ui
-import { Avatar, Loader } from "@plane/ui";
+import { Button, Avatar, Loader } from "@plane/ui";
 // components
 import { getFileURL } from "@plane/utils";
 import { FilterHeader, FilterOption } from "@/components/issues/issue-layouts/filters";
@@ -85,13 +85,14 @@ export const FilterLead: React.FC<Props> = observer((props: Props) => {
                   );
                 })}
                 {sortedOptions.length > 5 && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="ml-8 text-xs font-medium text-custom-primary-100"
                     onClick={handleViewToggle}
                   >
                     {itemsToRender === sortedOptions.length ? "View less" : "View all"}
-                  </button>
+                  </Button>
                 )}
               </>
             ) : (

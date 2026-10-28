@@ -13,7 +13,7 @@ import { setPromiseToast, setToast, TOAST_TYPE } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IProject } from "@plane/types";
 import type { TContextMenuItem } from "@plane/ui";
-import { ImageWithFallback, Avatar, AvatarGroup, ContextMenu, FavoriteStar } from "@plane/ui";
+import { Button as UnstyledButton, ImageWithFallback, Avatar, AvatarGroup, ContextMenu, FavoriteStar } from "@plane/ui";
 import { copyUrlToClipboard, cn, getFileURL, renderFormattedDate } from "@plane/utils";
 // components
 import { Logo } from "@/components/common/logo";
@@ -231,7 +231,9 @@ export const ProjectCard: React.FC<Props> = observer((props) => {
 
             {!isArchived && (
               <div data-prevent-progress className="flex h-full flex-shrink-0 items-center gap-2">
-                <button
+                <UnstyledButton
+                  unstyled
+                  type="submit"
                   className="flex h-6 w-6 items-center justify-center rounded bg-white/10"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -240,7 +242,7 @@ export const ProjectCard: React.FC<Props> = observer((props) => {
                   }}
                 >
                   <LinkIcon className="h-3 w-3 text-white" />
-                </button>
+                </UnstyledButton>
                 {shouldRenderFavorite && (
                   <FavoriteStar
                     buttonClassName="h-6 w-6 bg-white/10 rounded"

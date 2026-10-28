@@ -1,8 +1,10 @@
 import type { FC } from "react";
 import { useState, useRef, useEffect } from "react";
+
 import { Search, X } from "lucide-react";
 // plane helpers
 import { useOutsideClickDetector } from "@plane/hooks";
+import { Button } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 
@@ -39,7 +41,8 @@ export const PageSearchInput: FC<Props> = (props) => {
   return (
     <div className="flex">
       {!isSearchOpen && (
-        <button
+        <Button
+          unstyled
           type="button"
           className="flex-shrink-0 hover:bg-custom-background-80 rounded text-custom-text-400 relative flex justify-center items-center w-6 h-6 my-auto"
           onClick={() => {
@@ -48,7 +51,7 @@ export const PageSearchInput: FC<Props> = (props) => {
           }}
         >
           <Search className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       )}
       <div
         className={cn(
@@ -68,7 +71,8 @@ export const PageSearchInput: FC<Props> = (props) => {
           onKeyDown={handleInputKeyDown}
         />
         {isSearchOpen && (
-          <button
+          <Button
+            unstyled
             type="button"
             className="grid place-items-center"
             onClick={() => {
@@ -77,7 +81,7 @@ export const PageSearchInput: FC<Props> = (props) => {
             }}
           >
             <X className="h-3 w-3" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -1,8 +1,10 @@
 import { useState } from "react";
+
 import { observer } from "mobx-react";
 import { Search, X } from "lucide-react";
 import type { TViewFilterProps, TViewFilters } from "@plane/types";
 import { EViewAccess } from "@plane/types";
+import { Button } from "@plane/ui";
 // components
 import { FilterCreatedDate } from "@/components/common/filters/created-at";
 import { FilterCreatedBy } from "@/components/common/filters/created-by";
@@ -64,9 +66,14 @@ export const ViewFiltersSelection: React.FC<Props> = observer((props) => {
             autoFocus={!isMobile}
           />
           {filtersSearchQuery !== "" && (
-            <button type="button" className="grid place-items-center" onClick={() => setFiltersSearchQuery("")}>
+            <Button
+              unstyled
+              type="button"
+              className="grid place-items-center"
+              onClick={() => setFiltersSearchQuery("")}
+            >
               <X className="text-custom-text-300" size={12} strokeWidth={2} />
-            </button>
+            </Button>
           )}
         </div>
       </div>

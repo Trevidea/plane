@@ -3,6 +3,7 @@
 import type { FC } from "react";
 import { observer } from "mobx-react";
 import { Controller, useForm } from "react-hook-form";
+
 import { Box, Check, PenTool, Rocket, Monitor, RefreshCw } from "lucide-react";
 // plane imports
 import { ONBOARDING_TRACKER_ELEMENTS, USER_TRACKER_EVENTS } from "@plane/constants";
@@ -11,6 +12,7 @@ import { ViewsIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TUserProfile } from "@plane/types";
 import { EOnboardingSteps } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 // helpers
 import { captureError, captureSuccess, captureView } from "@/helpers/event-tracker.helper";
 // hooks
@@ -123,7 +125,9 @@ export const RoleSetupStep: FC<Props> = observer(({ handleStepChange }) => {
                 const isSelected = value === role.id;
 
                 return (
-                  <button
+                  <UnstyledButton
+                    unstyled
+                    type="submit"
                     key={role.id}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -142,14 +146,16 @@ export const RoleSetupStep: FC<Props> = observer(({ handleStepChange }) => {
                     </div>
                     {isSelected && (
                       <>
-                        <button
+                        <UnstyledButton
+                          unstyled
+                          type="submit"
                           className={`size-4 rounded border-2 flex items-center justify-center bg-blue-500 border-blue-500`}
                         >
                           <Check className="w-3 h-3 text-white" />
-                        </button>
+                        </UnstyledButton>
                       </>
                     )}
-                  </button>
+                  </UnstyledButton>
                 );
               })}
             </div>

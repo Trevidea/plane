@@ -11,6 +11,7 @@ import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element
 import { orderBy } from "lodash-es";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import { ChevronRight, FolderPlus } from "lucide-react";
 import { Disclosure, Transition } from "@headlessui/react";
 import { IS_FAVORITE_MENU_OPEN } from "@plane/constants";
@@ -19,6 +20,7 @@ import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IFavorite } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 // constants
 
 // helpers
@@ -202,7 +204,8 @@ export const SidebarFavoritesMenu = observer(() => {
           </Disclosure.Button>
           <div className="flex items-center opacity-0 pointer-events-none group-hover/favorites-button:opacity-100 group-hover/favorites-button:pointer-events-auto">
             <Tooltip tooltipHeading={t("create_folder")} tooltipContent="">
-              <button
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="p-0.5 rounded hover:bg-custom-sidebar-background-80 flex-shrink-0 grid place-items-center"
                 onClick={() => {
@@ -212,7 +215,7 @@ export const SidebarFavoritesMenu = observer(() => {
                 aria-label={t("aria_labels.projects_sidebar.create_favorites_folder")}
               >
                 <FolderPlus className="size-3" />
-              </button>
+              </UnstyledButton>
             </Tooltip>
             <Disclosure.Button
               as="button"

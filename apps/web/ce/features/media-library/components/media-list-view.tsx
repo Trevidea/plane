@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, File, FolderOpen, Image, LoaderCircle, PencilLine, Video } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  File,
+  FolderOpen,
+  Image,
+  LoaderCircle,
+  PencilLine,
+  Upload,
+  Video,
+} from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@plane/propel/table";
 import { ImageWithFallback } from "@plane/ui";
 import type { TMediaItem, TMediaSection } from "../types/media-library.types";
@@ -45,10 +56,10 @@ const MediaListRow = ({
         : (item.linkedMediaType ?? item.mediaType);
   const dateLabel = isEventItem ? item.eventDateLabel || item.createdAt : item.createdAt;
   const showLinkedTypeIndicator = item.mediaType === "image" && Boolean(item.link) && Boolean(item.linkedMediaType);
-  const isLinkedDocumentThumbnail = item.mediaType === "image" && item.linkedMediaType === "document";
+  const isLinkedDocumentThumbnail = !isEventItem && item.mediaType === "image" && item.linkedMediaType === "document";
   const linkedTypeLabel = showLinkedTypeIndicator
     ? isEventItem
-      ? "Video"
+      ? "Event"
       : item.linkedMediaType === "video"
         ? "Video"
         : item.linkedMediaType === "image"
@@ -57,7 +68,7 @@ const MediaListRow = ({
     : "";
   const LinkedTypeIcon = showLinkedTypeIndicator
     ? isEventItem
-      ? Video
+      ? CalendarDays
       : item.linkedMediaType === "video"
         ? Video
         : item.linkedMediaType === "image"
@@ -101,7 +112,13 @@ const MediaListRow = ({
         {children}
       </div>
     ) : (
-      <Link href={itemHref} onClick={handleItemClick} className={className}>
+      <Link
+        href={itemHref}
+        onClick={handleItemClick}
+        className={`${className} select-none`}
+        draggable={false}
+        onDragStart={(event) => event.preventDefault()}
+      >
         {children}
       </Link>
     );
@@ -129,6 +146,12 @@ const MediaListRow = ({
             ) : (
               thumbnailUnavailableFallback
             )}
+            {isEventItem || isVideoLike ? (
+              <span className="absolute right-1 top-1 inline-flex items-center gap-1 rounded bg-custom-background-100/85 px-1 py-0.5 text-[10px] font-medium text-custom-text-100">
+                {isEventItem ? <CalendarDays className="h-3 w-3" /> : <Upload className="h-3 w-3" />}
+                {isEventItem ? "Event" : "Upload"}
+              </span>
+            ) : null}
             {showAnnotatedIndicator ? (
               <span
                 className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[#505050] bg-[#303030]/95 text-[#F5A524] shadow-[0_1px_3px_rgba(0,0,0,0.45)]"

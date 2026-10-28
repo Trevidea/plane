@@ -10,7 +10,7 @@ import { ACCEPTED_AVATAR_IMAGE_MIME_TYPES_FOR_REACT_DROPZONE, MAX_FILE_SIZE } fr
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { EFileAssetType } from "@plane/types";
-import { ImageWithFallback } from "@plane/ui";
+import { Button as UnstyledButton, ImageWithFallback } from "@plane/ui";
 import { getAssetIdFromUrl, getFileURL, checkURLValidity } from "@plane/utils";
 // services
 import { FileService } from "@/services/file.service";
@@ -133,12 +133,13 @@ export const UserImageUploadModal: React.FC<Props> = observer((props) => {
                       >
                         {image !== null || (value && value !== "") ? (
                           <>
-                            <button
+                            <UnstyledButton
+                              unstyled
                               type="button"
                               className="absolute right-0 top-0 z-40 -translate-y-1/2 translate-x-1/2 rounded bg-custom-background-90 px-2 py-0.5 text-xs font-medium text-custom-text-200"
                             >
                               Edit
-                            </button>
+                            </UnstyledButton>
                             <ImageWithFallback
                               src={image ? URL.createObjectURL(image) : value ? getFileURL(value) : ""}
                               alt="image"

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+
 import { Palette, Trash2 } from "lucide-react";
 // editor
 import type { EditorRefApi } from "@plane/editor";
@@ -8,6 +9,7 @@ import type { EditorRefApi } from "@plane/editor";
 import { useOutsideClickDetector } from "@plane/hooks";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TSticky } from "@plane/types";
+import { Button } from "@plane/ui";
 // constants
 import { cn } from "@plane/utils";
 import type { ToolbarMenuItem } from "@/constants/editor";
@@ -70,13 +72,14 @@ export const StickyEditorToolbar: React.FC<Props> = (props) => {
             </p>
           }
         >
-          <button
+          <Button
+            unstyled
             type="button"
             onClick={() => setShowColorPalette(!showColorPalette)}
             className="flex text-custom-text-100/50"
           >
             <Palette className="size-4 my-auto" />
-          </button>
+          </Button>
         </Tooltip>
 
         <div className="flex w-fit items-stretch justify-between gap-4 rounded p-1 my-auto">
@@ -96,7 +99,8 @@ export const StickyEditorToolbar: React.FC<Props> = (props) => {
                         </p>
                       }
                     >
-                      <button
+                      <Button
+                        unstyled
                         type="button"
                         onClick={() => executeCommand(item)}
                         className={cn(
@@ -110,7 +114,7 @@ export const StickyEditorToolbar: React.FC<Props> = (props) => {
                           })}
                           strokeWidth={2.5}
                         />
-                      </button>
+                      </Button>
                     </Tooltip>
                   );
                 })}
@@ -127,9 +131,9 @@ export const StickyEditorToolbar: React.FC<Props> = (props) => {
           </p>
         }
       >
-        <button type="button" onClick={handleDelete} className="my-auto text-custom-text-100/50">
+        <Button unstyled type="button" onClick={handleDelete} className="my-auto text-custom-text-100/50">
           <Trash2 className="size-4" />
-        </button>
+        </Button>
       </Tooltip>
     </div>
   );

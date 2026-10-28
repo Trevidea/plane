@@ -84,7 +84,7 @@ const normalizeStroke = (style: TCustomPlaylistAnnotationStyle, legacyColor?: un
   const stroke = typeof style.stroke === "string" ? style.stroke : undefined;
   const color = typeof style.color === "string" ? style.color : undefined;
   const fallback = typeof legacyColor === "string" ? legacyColor : undefined;
-  return stroke ?? color ?? fallback ?? "#f97316";
+  return stroke ?? color ?? fallback ?? "#38bdf8";
 };
 
 const normalizeStrokeWidth = (style: TCustomPlaylistAnnotationStyle, legacyStrokeWidth?: unknown) => {

@@ -2,6 +2,7 @@
 
 import type { Dispatch, FC, SetStateAction } from "react";
 import { Fragment } from "react";
+
 import { observer } from "mobx-react";
 import { Clock } from "lucide-react";
 import { Popover, Transition } from "@headlessui/react";
@@ -10,6 +11,7 @@ import { NOTIFICATION_SNOOZE_OPTIONS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button as UnstyledButton } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { useWorkspaceNotifications } from "@/hooks/store/notifications";
@@ -118,7 +120,9 @@ export const NotificationItemSnoozeOption: FC<TNotificationItemSnoozeOption> = o
                 <Popover.Panel className="absolute mt-2 right-0 z-10 min-w-44 select-none">
                   <div className="p-2 rounded-md border border-custom-border-200 bg-custom-background-100 space-y-1">
                     {data.snoozed_till && (
-                      <button
+                      <UnstyledButton
+                        unstyled
+                        type="submit"
                         className="w-full text-left cursor-pointer px-2 p-1 transition-all hover:bg-custom-background-80 rounded-sm text-custom-text-200 text-sm"
                         onClick={(e) => {
                           e.preventDefault();
@@ -127,11 +131,13 @@ export const NotificationItemSnoozeOption: FC<TNotificationItemSnoozeOption> = o
                         }}
                       >
                         <div>{t("notification.options.mark_unsnooze")}</div>
-                      </button>
+                      </UnstyledButton>
                     )}
 
                     {NOTIFICATION_SNOOZE_OPTIONS.map((option) => (
-                      <button
+                      <UnstyledButton
+                        unstyled
+                        type="submit"
                         key={option.key}
                         className="w-full text-left cursor-pointer px-2 p-1 transition-all hover:bg-custom-background-80 rounded-sm text-custom-text-200 text-sm"
                         onClick={(e) => {
@@ -141,7 +147,7 @@ export const NotificationItemSnoozeOption: FC<TNotificationItemSnoozeOption> = o
                         }}
                       >
                         <div>{t(option?.i18n_label)}</div>
-                      </button>
+                      </UnstyledButton>
                     ))}
                   </div>
                 </Popover.Panel>

@@ -7,7 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 // ui
 import { CycleIcon } from "@plane/propel/icons";
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 // hooks
@@ -83,7 +83,8 @@ export const CycleDropdown: React.FC<Props> = observer((props) => {
   const comboButton = (
     <>
       {button ? (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn(
@@ -95,9 +96,10 @@ export const CycleDropdown: React.FC<Props> = observer((props) => {
           tabIndex={tabIndex}
         >
           {button}
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn(
@@ -129,7 +131,7 @@ export const CycleDropdown: React.FC<Props> = observer((props) => {
               <ChevronDown className={cn("h-2.5 w-2.5 flex-shrink-0", dropdownArrowClassName)} aria-hidden="true" />
             )}
           </DropdownButton>
-        </button>
+        </Button>
       )}
     </>
   );

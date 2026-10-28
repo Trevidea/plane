@@ -10,7 +10,7 @@ import { useOutsideClickDetector } from "@plane/hooks";
 // types
 import type { IIssueLabel } from "@plane/types";
 // ui
-import { CustomMenu, DragHandle } from "@plane/ui";
+import { Button, CustomMenu, DragHandle } from "@plane/ui";
 // helpers
 import { cn } from "@plane/utils";
 // components
@@ -91,7 +91,9 @@ export const LabelItemBlock = (props: ILabelItemBlock) => {
           </CustomMenu>
           {!isLabelGroup && (
             <div className="py-0.5">
-              <button
+              <Button
+                unstyled
+                type="submit"
                 className="flex size-5 items-center justify-center rounded hover:bg-custom-background-80"
                 onClick={() => {
                   handleLabelDelete(label);
@@ -99,7 +101,7 @@ export const LabelItemBlock = (props: ILabelItemBlock) => {
                 data-ph-element={PROJECT_SETTINGS_TRACKER_ELEMENTS.LABELS_DELETE_BUTTON}
               >
                 <X className="size-3.5 flex-shrink-0 text-custom-sidebar-text-300" />
-              </button>
+              </Button>
             </div>
           )}
         </div>

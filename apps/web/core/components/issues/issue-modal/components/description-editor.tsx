@@ -12,7 +12,7 @@ import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TIssue } from "@plane/types";
 import { EFileAssetType } from "@plane/types";
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 import { getDescriptionPlaceholderI18n, getTabIndex } from "@plane/utils";
 // components
 import { GptAssistantPopover } from "@/components/core/modals/gpt-assistant-popover";
@@ -227,7 +227,8 @@ export const IssueDescriptionEditor: React.FC<TIssueDescriptionEditorProps> = ob
           />
           <div className="border-0.5 z-10 flex items-center justify-end gap-2 p-3">
             {issueName && issueName.trim() !== "" && config?.has_llm_configured && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className={`flex items-center gap-1 rounded bg-custom-background-90 hover:bg-custom-background-80 px-1.5 py-1 text-xs ${
                   iAmFeelingLucky ? "cursor-wait" : ""
@@ -243,7 +244,7 @@ export const IssueDescriptionEditor: React.FC<TIssueDescriptionEditorProps> = ob
                     <Sparkle className="h-3.5 w-3.5" />I{"'"}m feeling lucky
                   </>
                 )}
-              </button>
+              </Button>
             )}
             {config?.has_llm_configured && projectId && (
               <GptAssistantPopover
@@ -258,7 +259,8 @@ export const IssueDescriptionEditor: React.FC<TIssueDescriptionEditorProps> = ob
                 }}
                 placement="top-end"
                 button={
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="flex items-center gap-1 rounded px-1.5 py-1 text-xs bg-custom-background-90 hover:bg-custom-background-80"
                     onClick={() => setGptAssistantModal((prevData) => !prevData)}
@@ -266,7 +268,7 @@ export const IssueDescriptionEditor: React.FC<TIssueDescriptionEditorProps> = ob
                   >
                     <Sparkle className="h-4 w-4" />
                     AI
-                  </button>
+                  </Button>
                 }
                 workspaceId={workspaceId}
                 workspaceSlug={workspaceSlug}

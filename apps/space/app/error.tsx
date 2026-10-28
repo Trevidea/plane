@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 // ui
 import { Button } from "@plane/propel/button";
@@ -16,18 +17,19 @@ const ErrorPage = () => {
           <p className="mx-auto md:w-1/2 text-sm text-custom-text-200">
             That crashed Plane, pun intended. No worries, though. Our engineers have been notified. If you have more
             details, please write to{" "}
-            <a href="mailto:support@plane.so" className="text-custom-primary">
+            <Link prefetch={false} href="mailto:support@plane.so" className="text-custom-primary">
               support@plane.so
-            </a>{" "}
+            </Link>{" "}
             or on our{" "}
-            <a
+            <Link
+              prefetch={false}
               href="https://discord.com/invite/A92xrEGCge"
               target="_blank"
               className="text-custom-primary"
               rel="noopener noreferrer"
             >
               Discord
-            </a>
+            </Link>
             .
           </p>
         </div>

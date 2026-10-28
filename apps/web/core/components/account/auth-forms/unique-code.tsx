@@ -5,7 +5,7 @@ import { CircleCheck, XCircle } from "lucide-react";
 import { API_BASE_URL, AUTH_TRACKER_ELEMENTS, AUTH_TRACKER_EVENTS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
-import { Input, Spinner } from "@plane/ui";
+import { Button as UnstyledButton, Input, Spinner } from "@plane/ui";
 // constants
 // helpers
 import { EAuthModes } from "@/helpers/authentication.helper";
@@ -135,14 +135,15 @@ export const AuthUniqueCodeForm: React.FC<TAuthUniqueCodeForm> = (props) => {
             disabled
           />
           {uniqueCodeFormData.email.length > 0 && (
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               className="absolute right-3 size-5 grid place-items-center"
               aria-label={t("aria_labels.auth_forms.clear_email")}
               onClick={handleEmailClear}
             >
               <XCircle className="size-5 stroke-custom-text-400" />
-            </button>
+            </UnstyledButton>
           )}
         </div>
       </div>
@@ -165,7 +166,8 @@ export const AuthUniqueCodeForm: React.FC<TAuthUniqueCodeForm> = (props) => {
             <CircleCheck height={12} width={12} />
             {t("auth.common.unique_code.paste_code")}
           </p>
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             data-ph-element={AUTH_TRACKER_ELEMENTS.REQUEST_NEW_CODE}
             onClick={() => generateNewCode(uniqueCodeFormData.email)}
@@ -181,7 +183,7 @@ export const AuthUniqueCodeForm: React.FC<TAuthUniqueCodeForm> = (props) => {
               : isRequestingNewCode
                 ? t("auth.common.unique_code.requesting_new_code")
                 : t("common.resend")}
-          </button>
+          </UnstyledButton>
         </div>
       </div>
 

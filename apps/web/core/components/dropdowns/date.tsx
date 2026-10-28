@@ -9,7 +9,7 @@ import { Combobox } from "@headlessui/react";
 // ui
 import type { Matcher } from "@plane/propel/calendar";
 import { Calendar } from "@plane/propel/calendar";
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 import { cn, renderFormattedDate, getDate } from "@plane/utils";
 // helpers
 // hooks
@@ -114,7 +114,8 @@ export const DateDropdown: React.FC<Props> = observer((props) => {
   if (maxDate) disabledDays.push({ after: maxDate });
 
   const comboButton = (
-    <button
+    <Button
+      unstyled
       type="button"
       className={cn(
         "clickable block h-full max-w-full outline-none",
@@ -152,7 +153,7 @@ export const DateDropdown: React.FC<Props> = observer((props) => {
           />
         )}
       </DropdownButton>
-    </button>
+    </Button>
   );
 
   return (

@@ -3,11 +3,13 @@
 import React from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
+
 import { Pencil, X } from "lucide-react";
 // Plane
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { ISearchIssueResponse } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn, generateWorkItemLink } from "@plane/utils";
 // components
 import { ExistingIssuesListModal } from "@/components/core/modals/existing-issues-list-modal";
@@ -86,7 +88,8 @@ export const IssueRelationSelect: React.FC<TIssueRelationSelect> = observer((pro
         workspaceLevelToggle
       />
 
-      <button
+      <Button
+        unstyled
         type="button"
         className={cn(
           "group flex items-center gap-2 rounded px-2 py-0.5 outline-none",
@@ -161,7 +164,7 @@ export const IssueRelationSelect: React.FC<TIssueRelationSelect> = observer((pro
             </span>
           )}
         </div>
-      </button>
+      </Button>
     </>
   );
 });

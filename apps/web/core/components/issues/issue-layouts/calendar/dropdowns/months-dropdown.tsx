@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { observer } from "mobx-react";
 import { usePopper } from "react-popper";
+
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Popover, Transition } from "@headlessui/react";
+import { Button as UnstyledButton } from "@plane/ui";
 //hooks
 // icons
 // constants
@@ -82,7 +84,8 @@ export const CalendarMonthsDropdown: React.FC<Props> = observer((props: Props) =
   return (
     <Popover className="relative">
       <Popover.Button as={React.Fragment}>
-        <button
+        <UnstyledButton
+          unstyled
           type="button"
           ref={setReferenceElement}
           className="text-xl font-semibold outline-none"
@@ -91,7 +94,7 @@ export const CalendarMonthsDropdown: React.FC<Props> = observer((props: Props) =
           {calendarLayout === "month"
             ? `${MONTHS_LIST[activeMonthDate.getMonth() + 1].title} ${activeMonthDate.getFullYear()}`
             : getWeekLayoutHeader()}
-        </button>
+        </UnstyledButton>
       </Popover.Button>
       <Transition
         as={React.Fragment}
@@ -110,7 +113,8 @@ export const CalendarMonthsDropdown: React.FC<Props> = observer((props: Props) =
             className="w-56 divide-y divide-custom-border-200 rounded border border-custom-border-200 bg-custom-background-100 p-3 shadow-custom-shadow-rg"
           >
             <div className="flex items-center justify-between gap-2 pb-3">
-              <button
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="grid place-items-center"
                 onClick={() => {
@@ -119,9 +123,10 @@ export const CalendarMonthsDropdown: React.FC<Props> = observer((props: Props) =
                 }}
               >
                 <ChevronLeft size={14} />
-              </button>
+              </UnstyledButton>
               <span className="text-xs">{activeMonthDate.getFullYear()}</span>
-              <button
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="grid place-items-center"
                 onClick={() => {
@@ -130,11 +135,12 @@ export const CalendarMonthsDropdown: React.FC<Props> = observer((props: Props) =
                 }}
               >
                 <ChevronRight size={14} />
-              </button>
+              </UnstyledButton>
             </div>
             <div className="grid grid-cols-4 items-stretch justify-items-stretch gap-4 pt-3">
               {Object.values(MONTHS_LIST).map((month, index) => (
-                <button
+                <UnstyledButton
+                  unstyled
                   key={month.shortTitle}
                   type="button"
                   className="rounded py-0.5 text-xs hover:bg-custom-background-80"
@@ -144,7 +150,7 @@ export const CalendarMonthsDropdown: React.FC<Props> = observer((props: Props) =
                   }}
                 >
                   {month.shortTitle}
-                </button>
+                </UnstyledButton>
               ))}
             </div>
           </div>

@@ -3,6 +3,7 @@ import { PanelRight } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { PageToolbar } from "@/components/pages/editor/toolbar";
@@ -54,13 +55,14 @@ export const PageEditorToolbarRoot: React.FC<Props> = observer((props) => {
             <div className="flex items-center gap-2">
               <PageCollaboratorsList page={page} />
               {!isNavigationPaneOpen && (
-                <button
+                <Button
+                  unstyled
                   type="button"
                   className="flex-shrink-0 size-6 grid place-items-center rounded text-custom-text-200 hover:text-custom-text-100 hover:bg-custom-background-80 transition-colors"
                   onClick={handleOpenNavigationPane}
                 >
                   <PanelRight className="size-3.5" />
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -70,14 +72,15 @@ export const PageEditorToolbarRoot: React.FC<Props> = observer((props) => {
         <div className="absolute z-10 top-0 right-0 h-[52px] px-page-x flex items-center">
           {!isNavigationPaneOpen && (
             <Tooltip tooltipContent={t("page_navigation_pane.open_button")}>
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="flex-shrink-0 size-6 grid place-items-center rounded text-custom-text-200 hover:text-custom-text-100 hover:bg-custom-background-80 transition-colors"
                 onClick={handleOpenNavigationPane}
                 aria-label={t("page_navigation_pane.open_button")}
               >
                 <PanelRight className="size-3.5" />
-              </button>
+              </Button>
             </Tooltip>
           )}
         </div>

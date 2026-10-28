@@ -2,7 +2,7 @@ import { useState } from "react";
 import { observer } from "mobx-react";
 import { SmilePlus } from "lucide-react";
 // plane imports
-import { EmojiIconPicker, EmojiIconPickerTypes } from "@plane/ui";
+import { Button, EmojiIconPicker, EmojiIconPickerTypes } from "@plane/ui";
 import { cn } from "@plane/utils";
 // store
 import type { TPageInstance } from "@/store/pages/base-page";
@@ -38,7 +38,8 @@ export const PageEditorHeaderRoot: React.FC<Props> = observer((props) => {
               className="flex items-center justify-center"
               buttonClassName="flex items-center justify-center"
               label={
-                <button
+                <Button
+                  unstyled
                   type="button"
                   className={cn(
                     "flex items-center gap-1 p-1 rounded font-medium text-sm hover:bg-custom-background-80 text-custom-text-300 outline-none transition-colors",
@@ -49,7 +50,7 @@ export const PageEditorHeaderRoot: React.FC<Props> = observer((props) => {
                 >
                   <SmilePlus className="flex-shrink-0 size-4" />
                   Icon
-                </button>
+                </Button>
               }
               onChange={updatePageLogo}
               defaultIconColor={

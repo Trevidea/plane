@@ -1,5 +1,6 @@
 import { observer } from "mobx-react";
 import { X } from "lucide-react";
+import { Button } from "@plane/ui";
 // components
 import { Logo } from "@/components/common/logo";
 // hooks
@@ -30,13 +31,14 @@ export const AppliedProjectFilters: React.FC<Props> = observer((props) => {
             </span>
             <span className="normal-case">{projectDetails.name}</span>
             {editable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemove(projectId)}
               >
                 <X size={10} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </div>
         );

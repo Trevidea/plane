@@ -11,7 +11,7 @@ import { Popover, Transition } from "@headlessui/react";
 import type { EditorRefApi } from "@plane/editor";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import { Input } from "@plane/ui";
+import { Button as UnstyledButton, Input } from "@plane/ui";
 // components
 import { RichTextEditor } from "@/components/editor/rich-text";
 // services
@@ -194,9 +194,9 @@ export const GptAssistantPopover: React.FC<Props> = (props) => {
   return (
     <Popover as="div" className={`relative w-min text-left`}>
       <Popover.Button as={Fragment}>
-        <button ref={setReferenceElement} className="flex items-center" tabIndex={-1}>
+        <UnstyledButton unstyled type="submit" ref={setReferenceElement} className="flex items-center" tabIndex={-1}>
           {button}
-        </button>
+        </UnstyledButton>
       </Popover.Button>
       <Transition
         show={isOpen}

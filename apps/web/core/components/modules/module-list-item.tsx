@@ -6,7 +6,7 @@ import { useParams, usePathname, useSearchParams } from "next/navigation";
 // icons
 import { Check, Info } from "lucide-react";
 // ui
-import { CircularProgressIndicator } from "@plane/ui";
+import { Button, CircularProgressIndicator } from "@plane/ui";
 // components
 import { generateQueryParams } from "@plane/utils";
 import { ListItem } from "@/components/core/list";
@@ -86,12 +86,14 @@ export const ModuleListItem: React.FC<Props> = observer((props) => {
         </CircularProgressIndicator>
       }
       appendTitleElement={
-        <button
+        <Button
+          unstyled
+          type="submit"
           onClick={openModuleOverview}
           className={`z-[5] flex-shrink-0 ${isMobile ? "flex" : "hidden group-hover:flex"}`}
         >
           <Info className="h-4 w-4 text-custom-text-400" />
-        </button>
+        </Button>
       }
       actionableItems={<ModuleListItemAction moduleId={moduleId} moduleDetails={moduleDetails} parentRef={parentRef} />}
       quickActionElement={

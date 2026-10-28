@@ -1,7 +1,8 @@
 import { Fragment } from "react";
+import { Popover, Transition } from "@headlessui/react";
+import { Button as UnstyledButton } from "@plane/ui";
 
 // headless ui
-import { Popover, Transition } from "@headlessui/react";
 
 // helper
 import { Icon } from "@/components/ui";
@@ -55,7 +56,8 @@ export const ReactionSelector: React.FC<Props> = (props) => {
               <div className="rounded-md border border-custom-border-200 bg-custom-sidebar-background-100 p-1 shadow-custom-shadow-sm">
                 <div className="flex gap-x-1">
                   {reactionEmojis.map((emoji) => (
-                    <button
+                    <UnstyledButton
+                      unstyled
                       key={emoji}
                       type="button"
                       onClick={() => {
@@ -67,7 +69,7 @@ export const ReactionSelector: React.FC<Props> = (props) => {
                       }`}
                     >
                       {renderEmoji(emoji)}
-                    </button>
+                    </UnstyledButton>
                   ))}
                 </div>
               </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
+
 import useSWR, { mutate } from "swr";
 // icons
 import { RefreshCw } from "lucide-react";
@@ -13,6 +14,7 @@ import { useTranslation } from "@plane/i18n";
 // types
 import { Button } from "@plane/propel/button";
 import type { IImporterService } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 import Image from "@/components/common/image-with-fallback";
 // ui
 // components
@@ -129,7 +131,8 @@ const IntegrationGuide = observer(() => {
               <div className="flex items-center border-b border-custom-border-100 pb-3.5 pt-7">
                 <h3 className="flex gap-2 text-xl font-medium">
                   Previous Imports
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     className="flex flex-shrink-0 items-center gap-1 rounded bg-custom-background-80 px-1.5 py-1 text-xs outline-none"
                     onClick={() => {
@@ -139,7 +142,7 @@ const IntegrationGuide = observer(() => {
                   >
                     <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />{" "}
                     {refreshing ? "Refreshing..." : "Refresh status"}
-                  </button>
+                  </UnstyledButton>
                 </h3>
               </div>
               <div className="flex flex-col">

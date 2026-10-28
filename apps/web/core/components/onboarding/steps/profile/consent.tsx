@@ -2,6 +2,7 @@
 
 import type { FC } from "react";
 import { Check } from "lucide-react";
+import { Button } from "@plane/ui";
 
 type Props = {
   isChecked: boolean;
@@ -10,7 +11,8 @@ type Props = {
 
 export const MarketingConsent: FC<Props> = ({ isChecked, handleChange }) => (
   <div className="flex items-center justify-center gap-1.5">
-    <button
+    <Button
+      unstyled
       type="button"
       onClick={() => handleChange(!isChecked)}
       className={`size-4 rounded border-2 flex items-center justify-center ${
@@ -18,7 +20,7 @@ export const MarketingConsent: FC<Props> = ({ isChecked, handleChange }) => (
       }`}
     >
       {isChecked && <Check className="w-3 h-3 text-white" />}
-    </button>
+    </Button>
     <span className="text-sm text-custom-text-300">I agree to Plane marketing communications</span>
   </div>
 );

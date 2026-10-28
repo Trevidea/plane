@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
+
 import { Download } from "lucide-react";
 // plane imports
 import { CORE_EXTENSIONS } from "@plane/editor";
@@ -63,7 +65,8 @@ const AssetItem = observer((props: AssetItemProps) => {
 
   if ([CORE_EXTENSIONS.IMAGE, CORE_EXTENSIONS.CUSTOM_IMAGE].includes(asset.type as CORE_EXTENSIONS))
     return (
-      <a
+      <Link
+        prefetch={false}
         href={asset.href}
         className="relative group/asset-item h-12 flex items-center gap-2 pr-2 rounded border border-custom-border-200 hover:bg-custom-background-80 transition-colors"
       >
@@ -77,7 +80,8 @@ const AssetItem = observer((props: AssetItemProps) => {
           <p className="text-sm font-medium truncate">{asset.name}</p>
           <div className="flex items-end justify-between gap-2">
             <p className="shrink-0 text-xs text-custom-text-200" />
-            <a
+            <Link
+              prefetch={false}
               href={assetDownloadSrc}
               target="_blank"
               rel="noreferrer noopener"
@@ -85,10 +89,10 @@ const AssetItem = observer((props: AssetItemProps) => {
             >
               <Download className="shrink-0 size-3" />
               <span className="text-xs font-medium">{t("page_navigation_pane.tabs.assets.download_button")}</span>
-            </a>
+            </Link>
           </div>
         </div>
-      </a>
+      </Link>
     );
 
   return (

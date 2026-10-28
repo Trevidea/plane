@@ -17,7 +17,7 @@ import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IWorkspace } from "@plane/types";
-import { ImageWithFallback, CustomSelect, Input } from "@plane/ui";
+import { Button as UnstyledButton, ImageWithFallback, CustomSelect, Input } from "@plane/ui";
 import { WORKSPACE_DATE_FORMAT_OPTIONS, copyUrlToClipboard, getFileURL } from "@plane/utils";
 // components
 import { LogoSpinner } from "@/components/common/logo-spinner";
@@ -162,7 +162,7 @@ export const WorkspaceDetails: FC = observer(() => {
       <div className={`w-full md:pr-9 pr-4 ${isAdmin ? "" : "opacity-60"}`}>
         <div className="flex gap-5 border-b border-custom-border-100 pb-7 items-start">
           <div className="flex flex-col gap-1">
-            <button type="button" onClick={() => setIsImageUploadModalOpen(true)} disabled={!isAdmin}>
+            <UnstyledButton unstyled type="button" onClick={() => setIsImageUploadModalOpen(true)} disabled={!isAdmin}>
               {workspaceLogo && workspaceLogo !== "" ? (
                 <div className="relative mx-auto flex h-14 w-14">
                   <ImageWithFallback
@@ -176,15 +176,22 @@ export const WorkspaceDetails: FC = observer(() => {
                   {currentWorkspace?.name?.charAt(0) ?? "N"}
                 </div>
               )}
-            </button>
+            </UnstyledButton>
           </div>
           <div className="flex flex-col gap-1">
             <div className="text-lg font-semibold leading-6 mb:-my-5">{watch("name")}</div>
-            <button type="button" onClick={handleCopyUrl} className="text-sm tracking-tight text-left">{`${
+            <UnstyledButton
+              unstyled
+              type="button"
+              onClick={handleCopyUrl}
+              className="text-sm tracking-tight text-left"
+            >{`${
               typeof window !== "undefined" && window.location.origin.replace("http://", "").replace("https://", "")
-            }/${currentWorkspace.slug}`}</button>
+            }/${currentWorkspace.slug}`}</UnstyledButton>
             {isAdmin && (
-              <button
+              <UnstyledButton
+                unstyled
+                type="submit"
                 className="flex items-center gap-1.5 text-left text-xs font-medium text-custom-primary-100"
                 onClick={() => setIsImageUploadModalOpen(true)}
               >
@@ -196,7 +203,7 @@ export const WorkspaceDetails: FC = observer(() => {
                 ) : (
                   t("workspace_settings.settings.general.upload_logo")
                 )}
-              </button>
+              </UnstyledButton>
             )}
           </div>
         </div>

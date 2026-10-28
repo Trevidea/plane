@@ -1,11 +1,14 @@
 "use client";
 
 import type { FC } from "react";
+import NextLink from "next/link";
+
 // hooks
 // ui
 import { Pencil, Trash2, ExternalLink } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { getIconForLink, copyTextToClipboard, calculateTimeAgo } from "@plane/utils";
 // icons
 // types
@@ -75,7 +78,8 @@ export const IssueLinkDetail: FC<TIssueLinkDetail> = (props) => {
 
           {!isNotAllowed && (
             <div className="z-[1] flex flex-shrink-0 items-center gap-2">
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="flex items-center justify-center p-1 hover:bg-custom-background-80"
                 onClick={(e) => {
@@ -85,16 +89,18 @@ export const IssueLinkDetail: FC<TIssueLinkDetail> = (props) => {
                 }}
               >
                 <Pencil className="h-3 w-3 stroke-[1.5] text-custom-text-200" />
-              </button>
-              <a
+              </Button>
+              <NextLink
+                prefetch={false}
                 href={linkDetail.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center p-1 hover:bg-custom-background-80"
               >
                 <ExternalLink className="h-3 w-3 stroke-[1.5] text-custom-text-200" />
-              </a>
-              <button
+              </NextLink>
+              <Button
+                unstyled
                 type="button"
                 className="flex items-center justify-center p-1 hover:bg-custom-background-80"
                 onClick={(e) => {
@@ -104,7 +110,7 @@ export const IssueLinkDetail: FC<TIssueLinkDetail> = (props) => {
                 }}
               >
                 <Trash2 className="h-3 w-3" />
-              </button>
+              </Button>
             </div>
           )}
         </div>

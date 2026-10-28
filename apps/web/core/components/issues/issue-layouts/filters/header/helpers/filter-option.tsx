@@ -1,6 +1,8 @@
 import React from "react";
-// lucide icons
 import { Check } from "lucide-react";
+import { Button } from "@plane/ui";
+
+// lucide icons
 
 type Props = {
   icon?: React.ReactNode;
@@ -15,7 +17,8 @@ export const FilterOption: React.FC<Props> = (props) => {
   const { icon, isChecked, multiple = true, onClick, title, activePulse = false } = props;
 
   return (
-    <button
+    <Button
+      unstyled
       type="button"
       className="flex w-full items-center gap-2 rounded p-1.5 hover:bg-custom-background-80"
       onClick={onClick}
@@ -34,6 +37,6 @@ export const FilterOption: React.FC<Props> = (props) => {
       {activePulse && (
         <div className="flex-shrink-0 text-xs w-2 h-2 rounded-full bg-custom-primary-100 animate-pulse ml-auto" />
       )}
-    </button>
+    </Button>
   );
 };

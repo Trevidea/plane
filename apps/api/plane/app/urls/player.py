@@ -9,4 +9,10 @@ urlpatterns = [
         PlayerProgramConfigEndpoint.as_view(),
         name="player-program-config",
     ),
+    # Preserve the alternate reverse name introduced by spip-dev.
+    path(
+        "player/workspaces/<str:slug>/projects/<uuid:project_id>/coaching-card-config/",
+        PlayerProgramConfigEndpoint.as_view(),
+        name="player-coaching-card-config",
+    ),
 ]

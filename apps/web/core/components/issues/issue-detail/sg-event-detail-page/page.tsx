@@ -42,6 +42,7 @@ import {
   createMatrixPlaylist as createCustomPlaylist,
 } from "./matrix-view/utils/create-matrix-playlist";
 import { buildTimelinePlayerLabelMap } from "./media-thumbnail-lookup";
+import { SgEventPlayerResizeHandle } from "./player-resize-handle";
 import type { PlaylistDraft } from "./playlist-draft";
 import { SgEventVideoPlayer } from "./sg-event-video-player";
 import { SgEventTagsPanel } from "./tags-view";
@@ -439,6 +440,8 @@ export const SgEventDetailPage = ({
     activeTimelineTagId,
     activeVideo,
     clearActiveTimelineTag,
+    clipPlayback,
+    handlePlayTagRows,
     fullStreamPlaybackItem,
     handlePlayTagRow,
     handlePlaybackTimeChange,
@@ -959,11 +962,19 @@ export const SgEventDetailPage = ({
       ? timelinePlaylistRows
       : selectedRows;
   const isTagRowsLoading = isMediaLoading || (shouldUseKanavioTagApi && isKanavioTagsLoading);
-  const playbackAnnotationVideoSrc = isPlaybackOverrideActive ? playbackItem?.videoSrc : selectedViewDevice?.hlsUrl;
-  const playbackAnnotationViewLabel = isPlaybackOverrideActive ? playbackItem?.title : selectedViewDevice?.name;
+  const playbackAnnotationSourceItem =
+    !isPlaybackOverrideActive && sgMediaPayload?.eventItem?.packageId
+      ? sgMediaPayload.eventItem
+      : playbackAnnotationItem;
+  const playbackAnnotationVideoSrc = isPlaybackOverrideActive
+    ? playbackItem?.videoSrc
+    : (selectedViewDevice?.hlsUrl ?? playbackItem?.videoSrc);
+  const playbackAnnotationViewLabel = isPlaybackOverrideActive
+    ? playbackItem?.title
+    : (selectedViewDevice?.name ?? playbackItem?.title);
   const playbackAnnotationPageItem = useMemo(
     () =>
-      buildSgEventAnnotationVideoItem(playbackAnnotationItem, {
+      buildSgEventAnnotationVideoItem(playbackAnnotationSourceItem, {
         deviceId: selectedViewDevice?.id,
         eventPayload,
         streamId: selectedViewDevice?.streamId,
@@ -973,7 +984,7 @@ export const SgEventDetailPage = ({
       }),
     [
       eventPayload,
-      playbackAnnotationItem,
+      playbackAnnotationSourceItem,
       playbackAnnotationVideoSrc,
       playbackAnnotationViewLabel,
       selectedViewDevice?.id,
@@ -1129,12 +1140,13 @@ export const SgEventDetailPage = ({
               <div className="grid min-w-0 gap-[10px] lg:grid-cols-[minmax(0,76fr)_minmax(260px,24fr)]">
                 <div className="min-w-0 rounded-[5px] bg-[var(--sg-matrix-video-bg)]">
                   <SgEventVideoPlayer
+                    clipPlayback={clipPlayback}
                     item={playbackItem}
                     annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                     compactEmpty={!hasPlayableVideo}
                     onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
-                    showAnnotationButton={false}
-                    showAnnotations={false}
+                    showAnnotationButton={!isPlaybackOverrideActive}
+                    showAnnotations={!isPlaybackOverrideActive}
                     onPlaybackTimeChange={handlePlaybackTimeChange}
                     onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
                     seekRequestId={pendingSeekRequestId}
@@ -1162,6 +1174,7 @@ export const SgEventDetailPage = ({
                 </div>
               )}
 
+              <SgEventPlayerResizeHandle />
               <div className="flex flex-col gap-2">
                 <MatrixView
                   activeRowId={activeMatrixRowId}
@@ -1176,6 +1189,7 @@ export const SgEventDetailPage = ({
                   onCreateCard={canManageCards ? handleCreateMatrixCard : undefined}
                   onCreatePlaylist={handleCreateMatrixPlaylist}
                   onFocusedRowsChange={setFocusedMatrixRows}
+                  onPlayTagRows={handlePlayTagRows}
                   onPlayTagRow={handlePlayTagRow}
                   preferenceKey={matrixPreferenceKey}
                   sport={resolvedSport || ""}
@@ -1191,12 +1205,13 @@ export const SgEventDetailPage = ({
                   <div className="grid min-w-0 gap-[10px] lg:grid-cols-[minmax(0,76fr)_minmax(260px,24fr)]">
                     <div className="min-w-0 rounded-[5px] bg-[var(--sg-matrix-video-bg)]">
                       <SgEventVideoPlayer
+                        clipPlayback={clipPlayback}
                         item={playbackItem}
                         annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                         compactEmpty={!hasPlayableVideo}
                         onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
-                        showAnnotationButton={false}
-                        showAnnotations={false}
+                        showAnnotationButton={!isPlaybackOverrideActive}
+                        showAnnotations={!isPlaybackOverrideActive}
                         onPlaybackTimeChange={handlePlaybackTimeChange}
                         onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
                         seekRequestId={pendingSeekRequestId}
@@ -1225,6 +1240,7 @@ export const SgEventDetailPage = ({
                   )}
                 </div>
 
+                <SgEventPlayerResizeHandle />
                 {tagViewMode === "timeline" ? (
                   <SgEventTimelinePanel
                     activePlaybackOverrideId={activePlaybackOverrideId}
@@ -1270,6 +1286,7 @@ export const SgEventDetailPage = ({
                     isMediaLoading={isTagRowsLoading}
                     isSearchOpen={isSearchOpen}
                     onCreatePlaylist={() => void handleCreateCustomPlaylist(activePlaylistRows)}
+                    onCreateCard={canManageCards ? () => handleCreateMatrixCard(activePlaylistRows) : undefined}
                     onPlayTagRow={handlePlayTagRow}
                     onRemoveTag={handleRemoveTag}
                     onRowFilterModeChange={setRowFilterMode}

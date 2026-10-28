@@ -9,7 +9,7 @@ import { Plus, X, Loader } from "lucide-react";
 import { Popover } from "@headlessui/react";
 import type { IIssueLabel } from "@plane/types";
 // hooks
-import { Input } from "@plane/ui";
+import { Button as UnstyledButton, Input } from "@plane/ui";
 // ui
 // types
 import type { TLabelOperations } from "./root";
@@ -97,7 +97,12 @@ export const LabelCreate: FC<ILabelCreate> = (props) => {
                 <Popover>
                   <>
                     <Popover.Button as={Fragment}>
-                      <button type="button" ref={setReferenceElement} className="grid place-items-center outline-none">
+                      <UnstyledButton
+                        unstyled
+                        type="button"
+                        ref={setReferenceElement}
+                        className="grid place-items-center outline-none"
+                      >
                         {value && value?.trim() !== "" && (
                           <span
                             className="h-5 w-5 rounded"
@@ -106,7 +111,7 @@ export const LabelCreate: FC<ILabelCreate> = (props) => {
                             }}
                           />
                         )}
-                      </button>
+                      </UnstyledButton>
                     </Popover.Button>
                     <Popover.Panel className="fixed z-10">
                       <div
@@ -144,21 +149,27 @@ export const LabelCreate: FC<ILabelCreate> = (props) => {
               />
             )}
           />
-          <button
+          <UnstyledButton
+            unstyled
             type="button"
             className="grid place-items-center rounded bg-red-500 p-1"
             onClick={() => setIsCreateToggle(false)}
             disabled={disabled}
           >
             <X className="h-3.5 w-3.5 text-white" />
-          </button>
-          <button type="submit" className="grid place-items-center rounded bg-green-500 p-1" disabled={isSubmitting}>
+          </UnstyledButton>
+          <UnstyledButton
+            unstyled
+            type="submit"
+            className="grid place-items-center rounded bg-green-500 p-1"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? (
               <Loader className="spin h-3.5 w-3.5 text-white" />
             ) : (
               <Plus className="h-3.5 w-3.5 text-white" />
             )}
-          </button>
+          </UnstyledButton>
         </form>
       )}
     </>

@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 import requests
 from celery import shared_task
 from django.conf import settings
+from django.db import transaction
 from rest_framework.exceptions import APIException
 
 from plane.bgtasks import service_gateway_sync_helpers as sg
@@ -224,8 +225,39 @@ def _trigger_event_send_for_ids(
     service_gateway_event_ids: list[Optional[int]],
     issue_id: Any,
     timeout: int,
+    defer_until_commit: bool = True,
 ) -> None:
-    for service_gateway_event_id in sg._unique_positive_ints(service_gateway_event_ids):
+    event_ids = tuple(sg._unique_positive_ints(service_gateway_event_ids))
+    if not event_ids:
+        return
+
+    if defer_until_commit and transaction.get_connection().in_atomic_block:
+        # The sync session closes before the caller's transaction commits. Only
+        # the notification is deferred; gateway writes still fail synchronously.
+        def notify_after_commit() -> None:
+            try:
+                with requests.Session() as notification_session:
+                    notification_session.headers.update({"Content-Type": "application/json"})
+                    for service_gateway_event_id in event_ids:
+                        _trigger_event_send(
+                            session=notification_session,
+                            event_api=event_api,
+                            event_send_api=event_send_api,
+                            service_gateway_event_id=service_gateway_event_id,
+                            issue_id=issue_id,
+                            timeout=timeout,
+                        )
+            except Exception as exc:
+                logger.warning(
+                    "Could not trigger service-gateway notifications for Plane work-item %s: %s",
+                    issue_id,
+                    exc,
+                )
+
+        transaction.on_commit(notify_after_commit)
+        return
+
+    for service_gateway_event_id in event_ids:
         _trigger_event_send(
             session=session,
             event_api=event_api,
@@ -619,6 +651,8 @@ def _sync_deleted_event(
         service_gateway_event_ids=event_ids,
         issue_id=event_data.get("id"),
         timeout=timeout,
+        # The gateway must load the event to build its notification before DELETE.
+        defer_until_commit=False,
     )
 
     for service_gateway_event_id in event_ids:

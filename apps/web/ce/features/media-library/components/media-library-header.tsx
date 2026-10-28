@@ -8,7 +8,7 @@ import { CalendarClock, ChevronDown, Clock3, LayoutGrid, List, ListFilter, Searc
 // UI
 import { Button } from "@plane/propel/button";
 import { COMPARISON_OPERATOR, LOGICAL_OPERATOR } from "@plane/types";
-import { Breadcrumbs, Header, Tooltip } from "@plane/ui";
+import { Button as UnstyledButton, Breadcrumbs, Header, Tooltip } from "@plane/ui";
 import { renderFormattedPayloadDate } from "@plane/utils";
 
 // Components
@@ -324,7 +324,8 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
             }}
           />
           {query && (
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               onClick={() => {
                 setQuery("");
@@ -338,7 +339,7 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
               className="absolute right-2 top-1/2 -translate-y-1/2 text-custom-text-200 hover:text-custom-text-100"
             >
               <X className="h-4 w-4" />
-            </button>
+            </UnstyledButton>
           )}
         </div>
       </div>
@@ -488,7 +489,8 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
           <div className="flex flex-shrink-0 items-center gap-1 rounded bg-custom-background-80 p-1">
             {normalizedLayouts.map((layout) => (
               <Tooltip key={layout.key} tooltipContent={layout.i18n_title} isMobile={isMobile}>
-                <button
+                <UnstyledButton
+                  unstyled
                   type="button"
                   onClick={() => handleLayoutChange(layout.key)}
                   aria-label={`${layout.i18n_title} view`}
@@ -503,11 +505,13 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
                   ) : (
                     <List size={14} strokeWidth={2} className="text-custom-text-100" />
                   )}
-                </button>
+                </UnstyledButton>
               </Tooltip>
             ))}
           </div>
-          {hasFilterOptions ? <FiltersToggle inactiveIconClassName="text-custom-text-200" filter={mediaFilters} /> : null}
+          {hasFilterOptions ? (
+            <FiltersToggle inactiveIconClassName="text-custom-text-200" filter={mediaFilters} />
+          ) : null}
           <MediaLibraryUploadStatus />
           {/* Upload */}
           <Button variant="primary" size="sm" className="gap-1.5 px-2 @4xl:px-3" onClick={openUpload}>

@@ -1,6 +1,8 @@
 import { Fragment } from "react";
+
 import { SmilePlus } from "lucide-react";
 import { Popover, Transition } from "@headlessui/react";
+import { Button as UnstyledButton } from "@plane/ui";
 // helper
 import { renderEmoji } from "@/helpers/emoji.helper";
 // icons
@@ -51,7 +53,8 @@ export const ReactionSelector: React.FC<Props> = (props) => {
               <div className="rounded-md border border-custom-border-200 bg-custom-sidebar-background-100 p-1">
                 <div className="flex gap-x-1">
                   {reactionEmojis.map((emoji) => (
-                    <button
+                    <UnstyledButton
+                      unstyled
                       key={emoji}
                       type="button"
                       onClick={() => {
@@ -61,7 +64,7 @@ export const ReactionSelector: React.FC<Props> = (props) => {
                       className="flex select-none items-center justify-between rounded-md p-1 text-sm hover:bg-custom-sidebar-background-90"
                     >
                       {renderEmoji(emoji)}
-                    </button>
+                    </UnstyledButton>
                   ))}
                 </div>
               </div>

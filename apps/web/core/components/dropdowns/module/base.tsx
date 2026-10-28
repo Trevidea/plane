@@ -6,7 +6,7 @@ import { observer } from "mobx-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import type { IModule } from "@plane/types";
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { useDropdown } from "@/hooks/use-dropdown";
@@ -110,7 +110,8 @@ export const ModuleDropdownBase: React.FC<TModuleDropdownBaseProps> = observer((
   const comboButton = (
     <>
       {button ? (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn(
@@ -122,9 +123,10 @@ export const ModuleDropdownBase: React.FC<TModuleDropdownBaseProps> = observer((
           tabIndex={tabIndex}
         >
           {button}
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn(
@@ -169,7 +171,7 @@ export const ModuleDropdownBase: React.FC<TModuleDropdownBaseProps> = observer((
               className={itemClassName}
             />
           </DropdownButton>
-        </button>
+        </Button>
       )}
     </>
   );

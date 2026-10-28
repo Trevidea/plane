@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import { CycleGroupIcon } from "@plane/propel/icons";
 import type { TCycleGroups } from "@plane/types";
 // components
-import { Loader } from "@plane/ui";
+import { Button, Loader } from "@plane/ui";
 import { FilterHeader, FilterOption } from "@/components/issues/issue-layouts/filters";
 import { useCycle } from "@/hooks/store/use-cycle";
 // ui
@@ -81,13 +81,14 @@ export const FilterCycle: React.FC<Props> = observer((props) => {
                   />
                 ))}
                 {sortedOptions.length > 5 && (
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     className="ml-8 text-xs font-medium text-custom-primary-100"
                     onClick={handleViewToggle}
                   >
                     {itemsToRender === sortedOptions.length ? "View less" : "View all"}
-                  </button>
+                  </Button>
                 )}
               </>
             ) : (

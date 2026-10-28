@@ -2,6 +2,8 @@
 
 import type { ChangeEvent, DragEvent } from "react";
 import { useRef, useState } from "react";
+import Link from "next/link";
+
 import { FileSpreadsheet, ShieldCheck, UploadCloud, Users } from "lucide-react";
 import { Button } from "@plane/propel/button";
 import { useRoster } from "../store/roster-context";
@@ -62,17 +64,26 @@ export const RosterEmptyState = () => {
 
         <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row">
           {canManage ? (
-            <Button variant="primary" size="sm" className="w-full sm:w-auto" prependIcon={<UploadCloud />} onClick={openImportRosterModal}>
+            <Button
+              variant="primary"
+              size="sm"
+              className="w-full sm:w-auto"
+              prependIcon={<UploadCloud />}
+              onClick={openImportRosterModal}
+            >
               Import roster
             </Button>
           ) : null}
-          <a
+          <Link
+            prefetch={false}
             href="/templates/roster-template.xlsx"
             download="roster-template.xlsx"
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex w-full items-center justify-center rounded px-4 py-1.5 text-xs font-medium text-custom-primary-100 transition-colors hover:text-custom-primary-200 sm:w-auto"
           >
             Download template
-          </a>
+          </Link>
         </div>
 
         <div className="mt-6 flex max-w-2xl flex-col items-center gap-3">

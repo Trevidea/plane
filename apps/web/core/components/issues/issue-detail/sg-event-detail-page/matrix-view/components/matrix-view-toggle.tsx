@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Grid3x3, List } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 
 export type MatrixViewMode = "list" | "matrix";
@@ -38,7 +39,8 @@ export const MatrixViewToggle = ({
 
       return (
         <Tooltip key={option.value} tooltipContent={`${option.label} view`} isMobile={isMobile}>
-          <button
+          <Button
+            unstyled
             type="button"
             aria-label={`${option.label} view`}
             aria-pressed={isActive}
@@ -55,7 +57,7 @@ export const MatrixViewToggle = ({
             }}
           >
             <Icon aria-hidden="true" className="h-3.5 w-3.5" size={14} strokeWidth={2} />
-          </button>
+          </Button>
         </Tooltip>
       );
     })}

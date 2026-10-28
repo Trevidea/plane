@@ -4,6 +4,8 @@ import React from "react";
 import { observer } from "mobx-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
+
 // plane imports
 import { cn } from "@plane/utils";
 // ui
@@ -94,7 +96,8 @@ export const CommentReactions: React.FC<Props> = observer((props) => {
                 </div>
               }
             >
-              <button
+              <Button
+                unstyled
                 type="button"
                 onClick={() => {
                   if (isInIframe) return;
@@ -122,7 +125,7 @@ export const CommentReactions: React.FC<Props> = observer((props) => {
                 >
                   {groupedReactions?.[reaction].length}{" "}
                 </span>
-              </button>
+              </Button>
             </Tooltip>
           );
       })}

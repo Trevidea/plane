@@ -10,7 +10,7 @@ import { Combobox } from "@headlessui/react";
 import { useTranslation } from "@plane/i18n";
 import { StateGroupIcon } from "@plane/propel/icons";
 import type { IState } from "@plane/types";
-import { ComboDropDown, Spinner } from "@plane/ui";
+import { Button, ComboDropDown, Spinner } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { DropdownButton } from "@/components/dropdowns/buttons";
@@ -134,7 +134,8 @@ export const WorkItemStateDropdownBase: React.FC<TWorkItemStateDropdownBaseProps
   const comboButton = (
     <>
       {button ? (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn("clickable block h-full w-full outline-none", buttonContainerClassName)}
@@ -143,9 +144,10 @@ export const WorkItemStateDropdownBase: React.FC<TWorkItemStateDropdownBaseProps
           tabIndex={tabIndex}
         >
           {button}
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
+          unstyled
           tabIndex={tabIndex}
           ref={setReferenceElement}
           type="button"
@@ -190,7 +192,7 @@ export const WorkItemStateDropdownBase: React.FC<TWorkItemStateDropdownBaseProps
               </>
             )}
           </DropdownButton>
-        </button>
+        </Button>
       )}
     </>
   );

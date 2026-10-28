@@ -16,7 +16,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IUser, TUserProfile, TOnboardingSteps } from "@plane/types";
 // ui
-import { ImageWithFallback, Input, PasswordStrengthIndicator, Spinner } from "@plane/ui";
+import { Button as UnstyledButton, ImageWithFallback, Input, PasswordStrengthIndicator, Spinner } from "@plane/ui";
 // components
 import { getFileURL, getPasswordStrength } from "@plane/utils";
 import { UserImageUploadModal } from "@/components/core/modals/user-image-upload-modal";
@@ -313,7 +313,7 @@ export const ProfileSetup: React.FC<Props> = observer((props) => {
                 )}
               />
               <div className="space-y-1 flex items-center justify-center">
-                <button type="button" onClick={() => setIsImageUploadModalOpen(true)}>
+                <UnstyledButton unstyled type="button" onClick={() => setIsImageUploadModalOpen(true)}>
                   {!userAvatar || userAvatar === "" ? (
                     <div className="flex flex-col items-center justify-between">
                       <div className="relative h-14 w-14 overflow-hidden">
@@ -335,7 +335,7 @@ export const ProfileSetup: React.FC<Props> = observer((props) => {
                       />
                     </div>
                   )}
-                </button>
+                </UnstyledButton>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">

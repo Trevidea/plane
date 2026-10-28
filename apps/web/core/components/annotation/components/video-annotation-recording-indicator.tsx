@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useRef } from "react";
+
 import { Pause, Play, Square, X, Loader2 } from "lucide-react";
 import { Button } from "@plane/propel/button";
+import { Button as UnstyledButton } from "@plane/ui";
 import { narrationTime } from "../utils/voice-narration";
 import type { VoiceRecorder, RecorderSnapshot } from "../utils/voice-recorder";
 import { narrationRecordingLabel } from "../utils/voice-recorder";
@@ -71,7 +73,8 @@ export const VideoAnnotationRecordingIndicator = ({
             </Button>
           </>
         ) : null}
-        <button
+        <UnstyledButton
+          unstyled
           type="button"
           onClick={recorder.cancel}
           title="Discard current recording"
@@ -79,7 +82,7 @@ export const VideoAnnotationRecordingIndicator = ({
           className="grid size-8 place-items-center rounded text-custom-text-300 hover:bg-custom-background-80 focus-visible:ring-2 focus-visible:ring-custom-primary-100"
         >
           <X className="size-4" />
-        </button>
+        </UnstyledButton>
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ import { TransferIcon, WorkItemsIcon } from "@plane/propel/icons";
 import { setPromiseToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { ICycle, TCycleGroups } from "@plane/types";
-import { Avatar, AvatarGroup, FavoriteStar } from "@plane/ui";
+import { Button, Avatar, AvatarGroup, FavoriteStar } from "@plane/ui";
 import { getDate, getFileURL, generateQueryParams } from "@plane/utils";
 // components
 import { DateRangeDropdown } from "@/components/dropdowns/date-range";
@@ -209,13 +209,15 @@ export const CycleListItemAction: FC<Props> = observer((props) => {
         isOpen={transferIssuesModal}
         cycleId={cycleId.toString()}
       />
-      <button
+      <Button
+        unstyled
+        type="submit"
         onClick={openCycleOverview}
         className={`z-[1] flex text-custom-primary-200 text-xs gap-1 flex-shrink-0 ${isMobile || (isActive && !searchParams.has("peekCycle")) ? "flex" : "hidden group-hover:flex"}`}
       >
         <Eye className="h-4 w-4 my-auto  text-custom-primary-200" />
         <span>{t("project_cycles.more_details")}</span>
-      </button>
+      </Button>
       {showIssueCount && (
         <div className="flex items-center gap-1">
           <WorkItemsIcon className="h-4 w-4 text-custom-text-300" />

@@ -1,3 +1,4 @@
+import NextLink from "next/link";
 import { Mail, MessageCircle } from "lucide-react";
 import { DiscordIcon } from "@plane/propel/icons";
 import { EProductSubscriptionEnum } from "@plane/types";
@@ -1229,9 +1230,15 @@ export const PLANS_COMPARISON_LIST: TPlansComparisonDetails[] = [
         description: (
           <>
             Get business-friendly SLAs with higher plans. SLAs are by priority of work item and tiers{" "}
-            <a href="https://plane.so/talk-to-sales" target="_blank" rel="noopener noreferrer" className="underline">
+            <NextLink
+              prefetch={false}
+              href="https://plane.so/talk-to-sales"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
               can be requested
-            </a>
+            </NextLink>
             .
           </>
         ),

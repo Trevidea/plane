@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { usePopper } from "react-popper";
 import { Ban, MapPin, Search, X } from "lucide-react";
 
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { DropdownButton } from "@/components/dropdowns/buttons";
 import { BUTTON_VARIANTS_WITH_TEXT } from "@/components/dropdowns/constants";
@@ -75,7 +75,8 @@ export const LocationDropdown: React.FC<Props> = observer((props) => {
   const displayValue = value || placeholder;
 
   const comboButton = (
-    <button
+    <Button
+      unstyled
       type="button"
       ref={setReferenceElement}
       onClick={handleOnClick}
@@ -115,7 +116,7 @@ export const LocationDropdown: React.FC<Props> = observer((props) => {
           />
         )}
       </DropdownButton>
-    </button>
+    </Button>
   );
 
   return (

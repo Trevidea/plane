@@ -6,6 +6,7 @@ import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
 import type { IApiToken } from "@plane/types";
+import { Button as UnstyledButton } from "@plane/ui";
 // ui
 import { renderFormattedDate, renderFormattedTime, copyTextToClipboard } from "@plane/utils";
 // helpers
@@ -38,7 +39,8 @@ export const GeneratedTokenDetails: React.FC<Props> = (props) => {
         <h3 className="text-lg font-medium leading-6 text-custom-text-100">{t("workspace_settings.key_created")}</h3>
         <p className="text-sm text-custom-text-400">{t("workspace_settings.copy_key")}</p>
       </div>
-      <button
+      <UnstyledButton
+        unstyled
         type="button"
         onClick={() => copyApiToken(tokenDetails.token ?? "")}
         className="mt-4 flex truncate w-full items-center justify-between rounded-md border-[0.5px] border-custom-border-200 px-3 py-2 text-sm font-medium outline-none"
@@ -47,7 +49,7 @@ export const GeneratedTokenDetails: React.FC<Props> = (props) => {
         <Tooltip tooltipContent="Copy secret key" isMobile={isMobile}>
           <Copy className="h-4 w-4 text-custom-text-400 flex-shrink-0" />
         </Tooltip>
-      </button>
+      </UnstyledButton>
       <div className="mt-6 flex items-center justify-between">
         <p className="text-xs text-custom-text-400">
           {tokenDetails.expired_at

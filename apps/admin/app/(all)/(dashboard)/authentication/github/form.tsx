@@ -59,7 +59,8 @@ export const InstanceGithubConfigForm: FC<Props> = (props) => {
       description: (
         <>
           You will get this from your{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://github.com/settings/applications/new"
             target="_blank"
@@ -67,7 +68,7 @@ export const InstanceGithubConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             GitHub OAuth application settings.
-          </a>
+          </Link>
         </>
       ),
       placeholder: "70a44354520df8bd9bcd",
@@ -81,7 +82,8 @@ export const InstanceGithubConfigForm: FC<Props> = (props) => {
       description: (
         <>
           Your client secret is also found in your{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://github.com/settings/applications/new"
             target="_blank"
@@ -89,7 +91,7 @@ export const InstanceGithubConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             GitHub OAuth application settings.
-          </a>
+          </Link>
         </>
       ),
       placeholder: "9b0050f94ec1b744e32ce79ea4ffacd40d4119cb",
@@ -115,7 +117,8 @@ export const InstanceGithubConfigForm: FC<Props> = (props) => {
       description: (
         <>
           We will auto-generate this. Paste this into the <CodeBlock darkerShade>Authorized origin URL</CodeBlock> field{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://github.com/settings/applications/new"
             target="_blank"
@@ -123,7 +126,7 @@ export const InstanceGithubConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             here.
-          </a>
+          </Link>
         </>
       ),
     },
@@ -138,7 +141,8 @@ export const InstanceGithubConfigForm: FC<Props> = (props) => {
         <>
           We will auto-generate this. Paste this into your <CodeBlock darkerShade>Authorized Callback URI</CodeBlock>{" "}
           field{" "}
-          <a
+          <Link
+            prefetch={false}
             tabIndex={-1}
             href="https://github.com/settings/applications/new"
             target="_blank"
@@ -146,7 +150,7 @@ export const InstanceGithubConfigForm: FC<Props> = (props) => {
             rel="noreferrer"
           >
             here.
-          </a>
+          </Link>
         </>
       ),
     },

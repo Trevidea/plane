@@ -1,8 +1,10 @@
 "use client";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
+
 import { Eraser, RotateCw } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import type { TCustomPlaylistAnnotation, TCustomPlaylistAnnotationPoint } from "../types/annotation.types";
 import type {
   AnnotationBounds,
@@ -98,7 +100,8 @@ export const PlaylistAnnotationSelectionControls = ({
               transform: "translate(-50%, -50%)",
             }}
           >
-            <button
+            <Button
+              unstyled
               type="button"
               onPointerCancel={onCancelAnnotationTransform}
               onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "resize", handle)}
@@ -108,7 +111,7 @@ export const PlaylistAnnotationSelectionControls = ({
               aria-label={`Resize annotation ${label}`}
             >
               <span className="block h-3 w-3 rounded-full border-2 border-[#facc15] bg-transparent shadow-[0_2px_8px_rgba(0,0,0,0.35)]" />
-            </button>
+            </Button>
           </span>
         ))}
         <span
@@ -120,7 +123,8 @@ export const PlaylistAnnotationSelectionControls = ({
           }}
         >
           <Tooltip tooltipContent="Rotate annotation" position="top" sideOffset={8}>
-            <button
+            <Button
+              unstyled
               type="button"
               onPointerCancel={onCancelAnnotationTransform}
               onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "rotate")}
@@ -130,18 +134,19 @@ export const PlaylistAnnotationSelectionControls = ({
               aria-label="Rotate annotation"
             >
               <RotateCw className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
-            </button>
+            </Button>
           </Tooltip>
           {onDeleteAnnotation ? (
             <Tooltip tooltipContent="Delete annotation" position="top" sideOffset={8}>
-              <button
+              <Button
+                unstyled
                 type="button"
                 onPointerDown={(event) => handleDeleteAnnotationPointerDown(event, selectedAnnotation.id)}
                 className="pointer-events-auto relative flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-red-500/70 bg-custom-background-100 text-red-500 shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/45"
                 aria-label="Delete selected annotation"
               >
                 <Eraser className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
-              </button>
+              </Button>
             </Tooltip>
           ) : null}
         </span>
@@ -173,7 +178,8 @@ export const PlaylistAnnotationSelectionControls = ({
       style={selectionBoundsStyle}
     >
       {shouldRenderMoveSurface ? (
-        <button
+        <Button
+          unstyled
           type="button"
           onPointerCancel={onCancelAnnotationTransform}
           onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "move")}
@@ -181,7 +187,9 @@ export const PlaylistAnnotationSelectionControls = ({
           onPointerUp={onFinishAnnotationTransform}
           className="pointer-events-auto absolute inset-0 touch-none cursor-move rounded-[4px] bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[#facc15]/50"
           aria-label={`Move selected ${selectedAnnotation.type} annotation`}
-        />
+        >
+          {null}
+        </Button>
       ) : null}
       {selectedAnnotationCanResize
         ? ANNOTATION_RESIZE_HANDLES.map(({ className: handleClassName, cursorClassName, handle, label }) => (
@@ -189,7 +197,8 @@ export const PlaylistAnnotationSelectionControls = ({
               key={handle}
               className={`pointer-events-none absolute flex h-4 w-4 items-center justify-center ${handleClassName}`}
             >
-              <button
+              <Button
+                unstyled
                 type="button"
                 onPointerCancel={onCancelAnnotationTransform}
                 onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "resize", handle)}
@@ -202,14 +211,15 @@ export const PlaylistAnnotationSelectionControls = ({
                 aria-label={`Resize annotation ${label}`}
               >
                 <span className="block h-2.5 w-2.5 rounded-[2px] border border-[#facc15] bg-custom-background-100 shadow-[0_2px_8px_rgba(0,0,0,0.35)]" />
-              </button>
+              </Button>
             </span>
           ))
         : null}
       <span className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 -translate-y-full bg-[#facc15]" />
       <span className="pointer-events-none absolute left-1/2 top-0 flex -translate-x-1/2 -translate-y-[calc(100%+1.5rem)] items-center justify-center gap-1">
         <Tooltip tooltipContent="Rotate annotation" position="top" sideOffset={8}>
-          <button
+          <Button
+            unstyled
             type="button"
             onPointerCancel={onCancelAnnotationTransform}
             onPointerDown={(event) => onStartAnnotationTransform(event, selectedAnnotation, "rotate")}
@@ -222,11 +232,12 @@ export const PlaylistAnnotationSelectionControls = ({
             aria-label="Rotate annotation"
           >
             <RotateCw className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
-          </button>
+          </Button>
         </Tooltip>
         {onDeleteAnnotation ? (
           <Tooltip tooltipContent="Delete annotation" position="top" sideOffset={8}>
-            <button
+            <Button
+              unstyled
               type="button"
               onPointerDown={(event) => handleDeleteAnnotationPointerDown(event, selectedAnnotation.id)}
               className="pointer-events-auto relative flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-red-500/70 bg-custom-background-100 text-red-500 shadow-[0_8px_20px_rgba(0,0,0,0.32)] outline-none transition-colors hover:bg-red-500/10 focus-visible:ring-2 focus-visible:ring-red-500/45"
@@ -236,7 +247,7 @@ export const PlaylistAnnotationSelectionControls = ({
               aria-label="Delete selected annotation"
             >
               <Eraser className="absolute left-1/2 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2" />
-            </button>
+            </Button>
           </Tooltip>
         ) : null}
       </span>

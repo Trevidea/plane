@@ -2,11 +2,13 @@
 
 import type { FC } from "react";
 import { useCallback, useMemo, useState } from "react";
+
 import { Plus } from "lucide-react";
 // plane imports
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { TIssueLink } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
+import { Button } from "@plane/ui";
 // hooks
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 // local imports
@@ -120,7 +122,8 @@ export const IssueLinkRoot: FC<TIssueLinkRoot> = (props) => {
         <div className="flex items-center justify-between gap-2">
           <h4>Links</h4>
           {!disabled && (
-            <button
+            <Button
+              unstyled
               type="button"
               className={`grid h-7 w-7 place-items-center rounded p-1 outline-none duration-300 hover:bg-custom-background-90 ${
                 disabled ? "cursor-not-allowed" : "cursor-pointer"
@@ -129,7 +132,7 @@ export const IssueLinkRoot: FC<TIssueLinkRoot> = (props) => {
               disabled={disabled}
             >
               <Plus className="h-4 w-4" />
-            </button>
+            </Button>
           )}
         </div>
 

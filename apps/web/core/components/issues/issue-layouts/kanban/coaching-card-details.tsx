@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { CalendarDays, Layers3, UserRound, UsersRound } from "lucide-react";
 import type { TCoachingCardStageConfig, TIssue } from "@plane/types";
@@ -16,10 +17,12 @@ export const CoachingCardKanbanDetails = ({
   issue,
   projectIdentifier,
   cardStageConfig,
+  headerActions,
 }: {
   issue: TIssue;
   projectIdentifier?: string;
   cardStageConfig?: TCoachingCardStageConfig;
+  headerActions?: ReactNode;
 }) => {
   const { workspaceSlug } = useParams() as { workspaceSlug: string };
   const { getStateById } = useProjectState();
@@ -79,7 +82,7 @@ export const CoachingCardKanbanDetails = ({
 
   return (
     <div className="min-w-0 space-y-2 text-xs">
-      <div className="flex min-w-0 items-center gap-1.5 pr-6 text-[11px] leading-4">
+      <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-4">
         <span className="shrink-0 font-medium text-custom-text-300">
           {projectIdentifier ? `${projectIdentifier}-${issue.sequence_id}` : `#${issue.sequence_id}`}
         </span>
@@ -107,6 +110,7 @@ export const CoachingCardKanbanDetails = ({
         >
           {stageBadge}
         </span>
+        {headerActions}
       </div>
 
       <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-custom-text-300">

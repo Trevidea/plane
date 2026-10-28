@@ -1,6 +1,7 @@
 import { observer } from "mobx-react";
 import { useTranslation } from "@plane/i18n";
 import type { TIssue, TPaginationData } from "@plane/types";
+import { Button } from "@plane/ui";
 // components
 import { renderFormattedPayloadDate } from "@plane/utils";
 // helpers
@@ -99,13 +100,14 @@ export const CalendarIssueBlocks: React.FC<Props> = observer((props) => {
 
       {showLoadMore && shouldLoadMore && !isPaginating && (
         <div className="flex items-center px-2.5 py-1">
-          <button
+          <Button
+            unstyled
             type="button"
             className="w-min whitespace-nowrap rounded text-xs px-1.5 py-1 font-medium  hover:bg-custom-background-80 text-custom-primary-100 hover:text-custom-primary-200"
             onClick={() => loadMoreIssues(formattedDatePayload)}
           >
             {t("common.load_more")}
-          </button>
+          </Button>
         </div>
       )}
     </>

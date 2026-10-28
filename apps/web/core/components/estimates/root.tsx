@@ -1,6 +1,8 @@
 import type { FC } from "react";
 import { useState } from "react";
 import { observer } from "mobx-react";
+import Link from "next/link";
+
 import useSWR from "swr";
 // plane imports
 import { useTranslation } from "@plane/i18n";
@@ -87,13 +89,14 @@ export const EstimateRoot: FC<TEstimateRoot> = observer((props) => {
                 <p className="text-sm text-custom-text-200">
                   Estimates have gone through a change, these are the estimates you had in your older versions which
                   were not in use. Read more about them&nbsp;
-                  <a
+                  <Link
+                    prefetch={false}
                     href={"https://docs.plane.so/core-concepts/projects/run-project#estimate"}
                     target="_blank"
                     className="text-custom-primary-100/80 hover:text-custom-primary-100"
                   >
                     here.
-                  </a>
+                  </Link>
                 </p>
               </div>
               <EstimateList estimateIds={archivedEstimateIds} isAdmin={isAdmin} />

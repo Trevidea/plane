@@ -19,7 +19,7 @@ export const ProfileWorkload: React.FC<Props> = ({ stateDistribution }) => {
       <div className="grid grid-cols-1 justify-stretch gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stateDistribution.map((group) => (
           <div key={group.state_group}>
-            <a>
+            <div>
               <Card direction={ECardDirection.ROW} spacing={ECardSpacing.SM}>
                 <div
                   className="h-3 w-3 rounded-sm my-2"
@@ -38,7 +38,7 @@ export const ProfileWorkload: React.FC<Props> = ({ stateDistribution }) => {
                   <p className="text-xl font-semibold">{group.state_count}</p>
                 </div>
               </Card>
-            </a>
+            </div>
           </div>
         ))}
       </div>

@@ -12,7 +12,7 @@ import { useTranslation } from "@plane/i18n";
 // ui
 import type { DateRange, Matcher } from "@plane/propel/calendar";
 import { Calendar } from "@plane/propel/calendar";
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 import { cn, renderFormattedDate } from "@plane/utils";
 // helpers
 // hooks
@@ -156,7 +156,8 @@ export const DateRangeDropdown: React.FC<Props> = observer((props) => {
   }, [value]);
 
   const comboButton = (
-    <button
+    <Button
+      unstyled
       ref={setReferenceElement}
       type="button"
       className={cn(
@@ -256,7 +257,7 @@ export const DateRangeDropdown: React.FC<Props> = observer((props) => {
           </>
         )}
       </DropdownButton>
-    </button>
+    </Button>
   );
 
   const comboOptions = (

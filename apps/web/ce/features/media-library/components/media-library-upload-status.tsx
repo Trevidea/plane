@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
+
 import { AlertTriangle, CheckCircle2, Clock3, Loader2, RefreshCw, Trash2, UploadCloud, X } from "lucide-react";
 import { Popover, Transition } from "@headlessui/react";
+import { Button as UnstyledButton } from "@plane/ui";
 import { useMediaLibrary } from "../store/media-library-context";
 import type { TMediaLibraryUploadJob } from "../utils/media-library-upload-jobs";
 import {
@@ -82,33 +84,36 @@ export const MediaLibraryUploadJobRow = ({ job }: { job: TMediaLibraryUploadJob 
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {job.status === "queued" || job.status === "uploading" ? (
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               className="rounded px-2 py-1 text-[11px] font-medium text-custom-text-400 hover:bg-custom-background-80 hover:text-custom-text-100"
               onClick={() => cancelUploadJob(job.id)}
             >
               Cancel
-            </button>
+            </UnstyledButton>
           ) : null}
           {job.status === "failed" || job.status === "cancelled" ? (
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               className="inline-flex h-7 w-7 items-center justify-center rounded text-custom-primary-100 hover:bg-custom-background-80"
               aria-label={`Retry ${job.file.name}`}
               onClick={() => retryUploadJob(job.id)}
             >
               <RefreshCw className="h-3.5 w-3.5" />
-            </button>
+            </UnstyledButton>
           ) : null}
           {isFinished ? (
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               className="inline-flex h-7 w-7 items-center justify-center rounded text-custom-text-400 hover:bg-custom-background-80 hover:text-custom-text-100"
               aria-label={`Dismiss ${job.file.name}`}
               onClick={() => dismissUploadJob(job.id)}
             >
               <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            </UnstyledButton>
           ) : null}
         </div>
       </div>
@@ -183,13 +188,14 @@ export const MediaLibraryUploadStatus = () => {
               <div className="text-[11px] text-custom-text-400">{summary.label}</div>
             </div>
             {summary.finishedCount > 0 ? (
-              <button
+              <UnstyledButton
+                unstyled
                 type="button"
                 className="text-xs font-medium text-custom-text-400 hover:text-custom-text-100"
                 onClick={clearCompletedUploadJobs}
               >
                 Clear finished
-              </button>
+              </UnstyledButton>
             ) : null}
           </div>
           <div className="max-h-80 overflow-y-auto">

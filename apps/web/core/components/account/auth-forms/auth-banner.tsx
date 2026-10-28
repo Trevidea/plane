@@ -1,7 +1,9 @@
 import type { FC } from "react";
+
 import { Info, X } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
+import { Button } from "@plane/ui";
 // helpers
 import type { TAuthErrorInfo } from "@/helpers/authentication.helper";
 
@@ -26,14 +28,15 @@ export const AuthBanner: FC<TAuthBanner> = (props) => {
         <Info size={16} className="text-custom-primary-100" />
       </div>
       <p className="w-full text-sm font-medium text-custom-primary-100">{bannerData?.message}</p>
-      <button
+      <Button
+        unstyled
         type="button"
         className="relative ml-auto size-6 rounded-sm grid place-items-center transition-all hover:bg-custom-primary-100/20 text-custom-primary-100/80"
         onClick={() => handleBannerData?.(undefined)}
         aria-label={t("aria_labels.auth_forms.close_alert")}
       >
         <X className="size-4" />
-      </button>
+      </Button>
     </div>
   );
 };

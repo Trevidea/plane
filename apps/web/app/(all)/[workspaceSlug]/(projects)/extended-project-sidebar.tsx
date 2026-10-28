@@ -3,12 +3,14 @@
 import React, { useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 // plane imports
 import { Plus, Search } from "lucide-react";
 import { EUserPermissions, EUserPermissionsLevel, PROJECT_TRACKER_ELEMENTS } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import { copyUrlToClipboard, orderJoinedProjects } from "@plane/utils";
 // components
 import { CreateProjectModal } from "@/components/project/create-project-modal";
@@ -109,7 +111,8 @@ export const ExtendedProjectSidebar = observer(() => {
             <span className="text-sm font-semibold text-custom-text-300 py-1.5">Programs</span>
             {isAuthorizedUser && (
               <Tooltip tooltipHeading={t("create_project")} tooltipContent="">
-                <button
+                <Button
+                  unstyled
                   type="button"
                   data-ph-element={PROJECT_TRACKER_ELEMENTS.EXTENDED_SIDEBAR_ADD_BUTTON}
                   className="p-0.5 rounded hover:bg-custom-sidebar-background-80 flex-shrink-0"
@@ -118,7 +121,7 @@ export const ExtendedProjectSidebar = observer(() => {
                   }}
                 >
                   <Plus className="size-3" />
-                </button>
+                </Button>
               </Tooltip>
             )}
           </div>

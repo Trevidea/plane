@@ -2,6 +2,7 @@
 import React, { useMemo } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import { ChevronRight, Ellipsis } from "lucide-react";
 import { Disclosure, Transition } from "@headlessui/react";
 // plane imports
@@ -11,6 +12,7 @@ import {
   WORKSPACE_SIDEBAR_STATIC_PINNED_NAVIGATION_ITEMS_LINKS,
 } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
+import { Button as UnstyledButton } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { SidebarNavItem } from "@/components/sidebar/sidebar-navigation";
@@ -114,7 +116,8 @@ export const SidebarMenuItems = observer(() => {
                   <SidebarItem key={`dynamic_${_index}`} item={item} />
                 ))}
                 <SidebarNavItem>
-                  <button
+                  <UnstyledButton
+                    unstyled
                     type="button"
                     onClick={() => toggleExtendedSidebar()}
                     className="flex items-center gap-1.5 text-sm font-medium flex-grow text-custom-text-350"
@@ -127,7 +130,7 @@ export const SidebarMenuItems = observer(() => {
                   >
                     <Ellipsis className="flex-shrink-0 size-4" />
                     <span>{isExtendedSidebarOpened ? "Hide" : "More"}</span>
-                  </button>
+                  </UnstyledButton>
                 </SidebarNavItem>
               </>
             </Disclosure.Panel>

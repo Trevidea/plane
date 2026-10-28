@@ -4,9 +4,11 @@ import type { FC } from "react";
 import { useState } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
+
 import { AlertCircle, X } from "lucide-react";
 // ui
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 import {
   convertBytesToSize,
   getFileExtension,
@@ -97,9 +99,9 @@ export const IssueAttachmentsDetail: FC<TIssueAttachmentsDetail> = observer((pro
         </Link>
 
         {!disabled && (
-          <button type="button" onClick={() => setIsDeleteIssueAttachmentModalOpen(true)}>
+          <Button unstyled type="button" onClick={() => setIsDeleteIssueAttachmentModalOpen(true)}>
             <X className="h-4 w-4 text-custom-text-200 hover:text-custom-text-100" />
-          </button>
+          </Button>
         )}
       </div>
     </>

@@ -82,9 +82,9 @@ const CreateWorkspacePage = observer(() => {
                 <Button variant="primary" onClick={() => router.back()}>
                   {t("common.go_back")}
                 </Button>
-                <a href={getMailtoHref()} className={getButtonStyling("outline-primary", "md")}>
+                <Link prefetch={false} href={getMailtoHref()} className={getButtonStyling("outline-primary", "md")}>
                   {t("workspace_creation.errors.creation_disabled.request_button")}
-                </a>
+                </Link>
               </div>
             </div>
           ) : (

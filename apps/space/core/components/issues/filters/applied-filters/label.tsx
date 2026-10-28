@@ -1,6 +1,7 @@
 "use client";
-
 import { X } from "lucide-react";
+import { Button } from "@plane/ui";
+
 // types
 import type { IIssueLabel } from "@/types/issue";
 
@@ -29,13 +30,14 @@ export const AppliedLabelsFilters: React.FC<Props> = (props) => {
               }}
             />
             <span className="normal-case">{labelDetails.name}</span>
-            <button
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
               onClick={() => handleRemove(labelId)}
             >
               <X size={10} strokeWidth={2} />
-            </button>
+            </Button>
           </div>
         );
       })}

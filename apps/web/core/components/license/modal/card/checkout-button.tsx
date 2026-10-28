@@ -4,7 +4,7 @@ import { observer } from "mobx-react";
 // plane imports
 import { getButtonStyling } from "@plane/propel/button";
 import type { EProductSubscriptionEnum, IPaymentProduct, TSubscriptionPrice } from "@plane/types";
-import { getUpgradeButtonStyle, Loader } from "@plane/ui";
+import { Button, getUpgradeButtonStyle, Loader } from "@plane/ui";
 import { cn } from "@plane/utils";
 // local imports
 import { DiscountInfo } from "./discount-info";
@@ -76,7 +76,9 @@ export const PlanCheckoutButton: FC<Props> = observer((props) => {
         </Loader>
       ) : (
         <div className="flex flex-col items-center justify-center w-full space-y-4 transition-all duration-300 animate-fade-in">
-          <button
+          <Button
+            unstyled
+            type="submit"
             className={cn(
               upgradeButtonStyle,
               "relative inline-flex items-center justify-center w-56 px-4 py-2 text-sm font-medium rounded-lg focus:outline-none"
@@ -93,7 +95,7 @@ export const PlanCheckoutButton: FC<Props> = observer((props) => {
             disabled={!!upgradeLoaderType}
           >
             {upgradeLoaderType === planVariant ? "Redirecting to Stripe" : (upgradeCTA ?? `Upgrade to ${planeName}`)}
-          </button>
+          </Button>
           {isTrialAllowed && !isSelfHosted && (
             <div className="mt-4 h-4 transition-all duration-300 animate-fade-in">
               {renderTrialButton &&

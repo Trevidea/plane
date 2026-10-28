@@ -3,11 +3,13 @@
 import React, { useState } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
+
 import { AlertCircle, Search, X } from "lucide-react";
 import { Dialog, Transition } from "@headlessui/react";
 import { CycleIcon, TransferIcon } from "@plane/propel/icons";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { EIssuesStoreType } from "@plane/types";
+import { Button } from "@plane/ui";
 import { useCycle } from "@/hooks/store/use-cycle";
 import { useIssues } from "@/hooks/store/use-issues";
 //icons
@@ -115,9 +117,9 @@ export const TransferIssuesModal: React.FC<Props> = observer((props) => {
                       <TransferIcon className="w-5 fill-custom-text-100" />
                       <h4 className="text-xl font-medium text-custom-text-100">Transfer work items</h4>
                     </div>
-                    <button onClick={handleClose}>
+                    <Button unstyled type="submit" onClick={handleClose}>
                       <X className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
                   <div className="flex items-center gap-2 border-b border-custom-border-200 px-5 pb-3">
                     <Search className="h-4 w-4 text-custom-text-200" />
@@ -137,7 +139,9 @@ export const TransferIssuesModal: React.FC<Props> = observer((props) => {
                           if (!cycleDetails) return;
 
                           return (
-                            <button
+                            <Button
+                              unstyled
+                              type="submit"
                               key={optionId}
                               className="flex w-full items-center gap-4 rounded px-4 py-3 text-sm text-custom-text-200 hover:bg-custom-background-90"
                               onClick={() => {
@@ -156,7 +160,7 @@ export const TransferIssuesModal: React.FC<Props> = observer((props) => {
                                   </span>
                                 )}
                               </div>
-                            </button>
+                            </Button>
                           );
                         })
                       ) : (

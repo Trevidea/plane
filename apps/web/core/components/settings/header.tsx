@@ -2,11 +2,13 @@
 
 import { observer } from "mobx-react";
 import Link from "next/link";
+
 import { useTheme } from "next-themes";
 import { ChevronLeftIcon } from "lucide-react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import { getButtonStyling } from "@plane/propel/button";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // hooks
 import { useWorkspace } from "@/hooks/store/use-workspace";
@@ -50,7 +52,9 @@ export const SettingsHeader = observer(() => {
           !isScrolled ? "hover:bg-custom-background-100 hover:border-custom-border-200 items-center pr-2 " : " h-0 m-0"
         )}
       >
-        <button
+        <Button
+          unstyled
+          type="submit"
           className={cn(
             getButtonStyling("neutral-primary", "sm"),
             "h-6 w-6 rounded-lg p-1 hover:bg-custom-background-100 hover:border-custom-border-200",
@@ -59,7 +63,7 @@ export const SettingsHeader = observer(() => {
           )}
         >
           <ChevronLeftIcon className={cn("h-4 w-4", !isScrolled ? "my-auto" : "")} />
-        </button>
+        </Button>
         <div
           className={cn("flex gap-2 h-full w-full transition-[height] duration-300  ease-in-out", {
             "h-0 w-0 overflow-hidden": isScrolled,

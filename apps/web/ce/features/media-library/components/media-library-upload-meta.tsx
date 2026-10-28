@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
-import { CustomSelect } from "@plane/ui";
+import { Button, CustomSelect } from "@plane/ui";
 import { CategoryDropdown } from "@/components/dropdowns/category-property";
 import { LevelDropdown } from "@/components/dropdowns/level-property";
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
@@ -182,13 +182,14 @@ export const MediaLibraryUploadMetaForm = ({
             className="inline-flex items-center gap-1 rounded-full border border-custom-primary-100/30 bg-custom-primary-100/15 px-2 py-0.5 text-[11px] font-medium text-custom-primary-100 dark:border-[#2D9CDB]/30 dark:bg-[#2D9CDB]/15 dark:text-[#2D9CDB]"
           >
             {tag}
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={() => onRemoveTag(tag)}
               className="text-custom-primary-100/80 hover:text-custom-primary-100 dark:text-[#2D9CDB]/80 dark:hover:text-[#2D9CDB]"
             >
               <X className="h-3 w-3" />
-            </button>
+            </Button>
           </span>
         ))}
         <input

@@ -3,10 +3,12 @@
 import type { Ref } from "react";
 import { Fragment, useState } from "react";
 import { usePopper } from "react-popper";
+
 import { Popover } from "@headlessui/react";
 // popper
 // helper
 import { getButtonStyling } from "@plane/propel/button";
+import { Button as UnstyledButton } from "@plane/ui";
 
 type Props = {
   label: string;
@@ -46,7 +48,7 @@ export const ComicBoxButton: React.FC<Props> = (props) => {
   return (
     <Popover as="div" className="relative">
       <Popover.Button as={Fragment}>
-        <button type="button" ref={setReferenceElement} onClick={onClick} disabled={disabled}>
+        <UnstyledButton unstyled type="button" ref={setReferenceElement} onClick={onClick} disabled={disabled}>
           <div className={`flex items-center gap-2.5 ${getButtonStyling("primary", "lg", disabled)}`}>
             {icon}
             <span className="leading-4">{label}</span>
@@ -59,7 +61,7 @@ export const ComicBoxButton: React.FC<Props> = (props) => {
               <div className={`absolute bg-blue-400/40 right-0 h-1.5 w-1.5 mt-0.5 mr-0.5 rounded-full`} />
             </span>
           </div>
-        </button>
+        </UnstyledButton>
       </Popover.Button>
       {isHovered && (
         <Popover.Panel className="fixed z-10" static>

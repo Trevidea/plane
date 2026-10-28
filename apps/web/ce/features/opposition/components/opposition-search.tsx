@@ -2,6 +2,8 @@
 
 import React, { useRef, useState } from "react";
 import { Search, X } from "lucide-react";
+import { Button } from "@plane/ui";
+
 import { cn } from "@plane/utils";
 
 interface Props {
@@ -23,7 +25,8 @@ const OppositionSearch: React.FC<Props> = ({ searchQuery, updateSearchQuery }) =
   return (
     <div className="flex items-center">
       {!isSearchOpen && (
-        <button
+        <Button
+          unstyled
           type="button"
           className="-mr-1 p-2 hover:bg-custom-background-80 rounded text-custom-text-400 grid place-items-center"
           onClick={() => {
@@ -32,15 +35,14 @@ const OppositionSearch: React.FC<Props> = ({ searchQuery, updateSearchQuery }) =
           }}
         >
           <Search className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       )}
 
       <div
         className={cn(
           "ml-auto flex items-center justify-start gap-1 rounded-md border border-transparent bg-custom-background-100 text-custom-text-400 w-0 transition-all ease-linear overflow-hidden opacity-0",
           {
-            "w-30 md:w-64 px-2.5 py-1.5 border-custom-border-200 opacity-100":
-              isSearchOpen,
+            "w-30 md:w-64 px-2.5 py-1.5 border-custom-border-200 opacity-100": isSearchOpen,
           }
         )}
       >
@@ -56,7 +58,8 @@ const OppositionSearch: React.FC<Props> = ({ searchQuery, updateSearchQuery }) =
         />
 
         {isSearchOpen && (
-          <button
+          <Button
+            unstyled
             type="button"
             className="grid place-items-center"
             onClick={() => {
@@ -65,7 +68,7 @@ const OppositionSearch: React.FC<Props> = ({ searchQuery, updateSearchQuery }) =
             }}
           >
             <X className="h-3 w-3" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

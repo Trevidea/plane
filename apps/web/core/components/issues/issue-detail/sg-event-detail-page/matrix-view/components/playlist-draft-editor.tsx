@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ListPlus, MoveDown, X } from "lucide-react";
+import { Button } from "@plane/ui";
+
 import { cn } from "@plane/utils";
 import { getPlaylistDraftRows, PLAYLIST_TAG_DRAG_TYPE, readPlaylistTagDragData } from "../../playlist-draft";
 import type { PlaylistDraft } from "../../playlist-draft";
@@ -119,7 +121,8 @@ export const PlaylistDraftEditor = ({
           required
           value={draft.name}
         />
-        <button
+        <Button
+          unstyled
           type="button"
           aria-label="Cancel new playlist"
           title="Cancel new playlist"
@@ -128,7 +131,7 @@ export const PlaylistDraftEditor = ({
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[var(--sg-matrix-text-muted)] hover:bg-[var(--sg-matrix-hover)] disabled:opacity-40"
         >
           <X className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       </div>
 
       <div
@@ -176,7 +179,8 @@ export const PlaylistDraftEditor = ({
                 <span className="shrink-0 text-[9px] tabular-nums text-[var(--sg-matrix-text-muted)]">
                   {formatTagDuration(row)}
                 </span>
-                <button
+                <Button
+                  unstyled
                   type="button"
                   aria-label={`Remove clip ${index + 1} from new playlist`}
                   disabled={isSaving}
@@ -187,7 +191,7 @@ export const PlaylistDraftEditor = ({
                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--sg-matrix-text-muted)] hover:bg-[var(--sg-matrix-hover)] disabled:opacity-40"
                 >
                   <X className="h-3 w-3" />
-                </button>
+                </Button>
               </li>
             );
           })}
@@ -199,22 +203,24 @@ export const PlaylistDraftEditor = ({
         </p>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
+        <Button
+          unstyled
           type="button"
           disabled={isSaving || selectedRows.length === 0}
           onClick={() => addClips(selectedRows.map((row) => row.id))}
           className="text-[10px] text-[var(--sg-matrix-primary-blue)] hover:underline disabled:opacity-40"
         >
           Add selected clips
-        </button>
-        <button
+        </Button>
+        <Button
+          unstyled
           type="submit"
           disabled={isSaving || draftRows.length === 0 || !draft.name.trim()}
           className="inline-flex h-7 items-center gap-1.5 rounded bg-custom-primary-100 px-2 text-[10px] font-medium text-white hover:bg-custom-primary-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ListPlus className="h-3 w-3" />
           {isSaving ? "Saving…" : `Save playlist (${draftRows.length})`}
-        </button>
+        </Button>
       </div>
     </form>
   );

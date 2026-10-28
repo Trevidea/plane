@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { usePopper } from "react-popper";
 import { Ban, Search, Volleyball, X } from "lucide-react";
 
-import { ComboDropDown } from "@plane/ui";
+import { Button as UnstyledButton, ComboDropDown } from "@plane/ui";
 import { cn } from "@plane/utils";
 import { DropdownButton } from "@/components/dropdowns/buttons";
 import { BUTTON_VARIANTS_WITH_TEXT } from "@/components/dropdowns/constants";
@@ -102,7 +102,8 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
 
   /* ─────────────── Button ─────────────── */
   const comboButton = (
-    <button
+    <UnstyledButton
+      unstyled
       type="button"
       ref={setReferenceElement}
       onClick={handleOnClick}
@@ -139,7 +140,7 @@ export const SportDropdown: React.FC<Props> = observer((props) => {
           />
         )}
       </DropdownButton>
-    </button>
+    </UnstyledButton>
   );
 
   return (

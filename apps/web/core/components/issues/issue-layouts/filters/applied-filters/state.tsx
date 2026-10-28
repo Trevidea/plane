@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { EIconSize } from "@plane/constants";
 import { StateGroupIcon } from "@plane/propel/icons";
 import type { IState } from "@plane/types";
+import { Button } from "@plane/ui";
 
 type Props = {
   handleRemove: (val: string) => void;
@@ -35,13 +36,14 @@ export const AppliedStateFilters: React.FC<Props> = observer((props) => {
             />
             {stateDetails.name}
             {editable && (
-              <button
+              <Button
+                unstyled
                 type="button"
                 className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
                 onClick={() => handleRemove(stateId)}
               >
                 <X size={10} strokeWidth={2} />
-              </button>
+              </Button>
             )}
           </div>
         );

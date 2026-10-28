@@ -2,6 +2,7 @@ import { observer } from "mobx-react";
 // plane package imports
 import { Expand, Shrink, X } from "lucide-react";
 import type { ICycle, IModule } from "@plane/types";
+import { Button } from "@plane/ui";
 // icons
 
 type Props = {
@@ -22,20 +23,22 @@ export const WorkItemsModalHeader: React.FC<Props> = observer((props) => {
         Analytics for {title} {cycle && `in ${cycle.name}`} {module && `in ${module.name}`}
       </h3>
       <div className="flex items-center gap-2">
-        <button
+        <Button
+          unstyled
           type="button"
           className="hidden place-items-center p-1 text-custom-text-200 hover:text-custom-text-100 md:grid"
           onClick={() => setFullScreen((prevData) => !prevData)}
         >
           {fullScreen ? <Shrink size={14} strokeWidth={2} /> : <Expand size={14} strokeWidth={2} />}
-        </button>
-        <button
+        </Button>
+        <Button
+          unstyled
           type="button"
           className="grid place-items-center p-1 text-custom-text-200 hover:text-custom-text-100"
           onClick={handleClose}
         >
           <X size={14} strokeWidth={2} />
-        </button>
+        </Button>
       </div>
     </div>
   );

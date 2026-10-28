@@ -9,7 +9,7 @@ import { CircleAlert, XCircle } from "lucide-react";
 import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
 import type { IEmailCheckData } from "@plane/types";
-import { Input, Spinner } from "@plane/ui";
+import { Button as UnstyledButton, Input, Spinner } from "@plane/ui";
 import { cn, checkEmailValidity } from "@plane/utils";
 // helpers
 type TAuthEmailForm = {
@@ -75,7 +75,8 @@ export const AuthEmailForm: FC<TAuthEmailForm> = observer((props) => {
             ref={inputRef}
           />
           {email.length > 0 && (
-            <button
+            <UnstyledButton
+              unstyled
               type="button"
               onClick={() => {
                 setEmail("");
@@ -86,7 +87,7 @@ export const AuthEmailForm: FC<TAuthEmailForm> = observer((props) => {
               tabIndex={-1}
             >
               <XCircle className="size-5 stroke-custom-text-400" />
-            </button>
+            </UnstyledButton>
           )}
         </div>
         {emailError?.email && !isFocused && (

@@ -7,7 +7,7 @@ import { useTranslation } from "@plane/i18n";
 import { PageIcon } from "@plane/propel/icons";
 // ui
 import { Tooltip } from "@plane/propel/tooltip";
-import { CustomMenu } from "@plane/ui";
+import { Button, CustomMenu } from "@plane/ui";
 // components
 import { cn } from "@plane/utils";
 import { ProductUpdatesModal } from "@/components/global";
@@ -75,14 +75,15 @@ export const HelpMenu: React.FC<WorkspaceHelpSectionProps> = observer(() => {
           </CustomMenu.MenuItem>
           {config?.intercom_app_id && config?.is_intercom_enabled && (
             <CustomMenu.MenuItem>
-              <button
+              <Button
+                unstyled
                 type="button"
                 onClick={handleCrispWindowShow}
                 className="flex w-full items-center gap-x-2 rounded text-xs hover:bg-custom-background-80"
               >
                 <MessagesSquare className="h-3.5 w-3.5 text-custom-text-200" />
                 <span className="text-xs">{t("message_support")}</span>
-              </button>
+              </Button>
             </CustomMenu.MenuItem>
           )}
           <CustomMenu.MenuItem onClick={() => window.open("mailto:sales@plane.so", "_blank", "noopener,noreferrer")}>
@@ -93,22 +94,24 @@ export const HelpMenu: React.FC<WorkspaceHelpSectionProps> = observer(() => {
           </CustomMenu.MenuItem>
           <div className="my-1 border-t border-custom-border-200" />
           <CustomMenu.MenuItem>
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={() => toggleShortcutModal(true)}
               className="flex w-full items-center justify-start text-xs hover:bg-custom-background-80"
             >
               <span className="text-xs">{t("keyboard_shortcuts")}</span>
-            </button>
+            </Button>
           </CustomMenu.MenuItem>
           <CustomMenu.MenuItem>
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={() => setProductUpdatesModalOpen(true)}
               className="flex w-full items-center justify-start text-xs hover:bg-custom-background-80"
             >
               <span className="text-xs">{t("whats_new")}</span>
-            </button>
+            </Button>
           </CustomMenu.MenuItem>
           <CustomMenu.MenuItem
             onClick={() => window.open("https://go.plane.so/p-discord", "_blank", "noopener,noreferrer")}

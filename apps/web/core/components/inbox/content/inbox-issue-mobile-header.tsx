@@ -16,7 +16,7 @@ import {
   MoveRight,
 } from "lucide-react";
 import type { TNameDescriptionLoader } from "@plane/types";
-import { Header, CustomMenu, EHeaderVariant } from "@plane/ui";
+import { Button, Header, CustomMenu, EHeaderVariant } from "@plane/ui";
 import { cn, findHowManyDaysLeft, generateWorkItemLink } from "@plane/utils";
 // components
 import { NameDescriptionUpdateStatus } from "@/components/issues/issue-update-status";
@@ -99,9 +99,9 @@ export const InboxIssueActionsMobileHeader: React.FC<Props> = observer((props) =
   return (
     <Header variant={EHeaderVariant.SECONDARY} className="justify-start">
       {isNotificationEmbed && (
-        <button onClick={embedRemoveCurrentNotification}>
+        <Button unstyled type="submit" onClick={embedRemoveCurrentNotification}>
           <MoveRight className="h-4 w-4 text-custom-text-300 hover:text-custom-text-200 mr-2" />
-        </button>
+        </Button>
       )}
       <PanelLeft
         onClick={() => setIsMobileSidebar(!isMobileSidebar)}
@@ -112,20 +112,22 @@ export const InboxIssueActionsMobileHeader: React.FC<Props> = observer((props) =
       />
       <div className="flex items-center gap-2 w-full bg-custom-background-100 z-[15]">
         <div className="flex items-center gap-x-2">
-          <button
+          <Button
+            unstyled
             type="button"
             className="rounded border border-custom-border-200 p-1.5"
             onClick={() => handleInboxIssueNavigation("prev")}
           >
             <ChevronUp size={14} strokeWidth={2} />
-          </button>
-          <button
+          </Button>
+          <Button
+            unstyled
             type="button"
             className="rounded border border-custom-border-200 p-1.5"
             onClick={() => handleInboxIssueNavigation("next")}
           >
             <ChevronDown size={14} strokeWidth={2} />
-          </button>
+          </Button>
         </div>
         <div className="flex items-center gap-4">
           <InboxIssueStatus inboxIssue={inboxIssue} iconSize={12} />

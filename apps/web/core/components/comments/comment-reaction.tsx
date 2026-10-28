@@ -1,10 +1,12 @@
 "use client";
 
 import type { FC } from "react";
+
 import { observer } from "mobx-react";
 // plane imports
 import { Tooltip } from "@plane/propel/tooltip";
 import type { TCommentsOperations, TIssueComment } from "@plane/types";
+import { Button } from "@plane/ui";
 import { cn } from "@plane/utils";
 // helpers
 import { renderEmoji } from "@/helpers/emoji.helper";
@@ -41,7 +43,8 @@ export const CommentReactions: FC<TProps> = observer((props) => {
             reactionIds[reaction]?.length > 0 && (
               <>
                 <Tooltip tooltipContent={activityOperations.getReactionUsers(reaction, reactionIds)}>
-                  <button
+                  <Button
+                    unstyled
                     type="button"
                     onClick={() => !disabled && activityOperations.react(comment.id, reaction, userReactions)}
                     key={reaction}
@@ -57,7 +60,7 @@ export const CommentReactions: FC<TProps> = observer((props) => {
                     <span className={userReactions.includes(reaction) ? "text-custom-primary-100" : ""}>
                       {(reactionIds || {})[reaction].length}{" "}
                     </span>
-                  </button>
+                  </Button>
                 </Tooltip>
               </>
             )

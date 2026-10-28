@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { Download } from "lucide-react";
 import type { IExportData } from "@plane/types";
-import { ImageWithFallback } from "@plane/ui";
+import { Button, ImageWithFallback } from "@plane/ui";
 import { getDate, getFileURL, renderFormattedDate } from "@plane/utils";
 
 type RowData = IExportData;
@@ -94,12 +95,16 @@ export const useExportColumns = () => {
         checkExpiry(rowData.created_at) ? (
           <>
             {rowData.status == "completed" ? (
-              <a target="_blank" href={rowData?.url} rel="noopener noreferrer">
-                <button className="w-full flex items-center gap-1 text-custom-primary-100 font-medium">
+              <Link prefetch={false} target="_blank" href={rowData?.url} rel="noopener noreferrer">
+                <Button
+                  unstyled
+                  type="submit"
+                  className="w-full flex items-center gap-1 text-custom-primary-100 font-medium"
+                >
                   <Download className="h-4 w-4" />
                   <div>Download</div>
-                </button>
-              </a>
+                </Button>
+              </Link>
             ) : (
               "-"
             )}

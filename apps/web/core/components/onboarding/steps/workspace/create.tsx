@@ -15,7 +15,7 @@ import { useTranslation } from "@plane/i18n";
 import { Button } from "@plane/propel/button";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IUser, IWorkspace } from "@plane/types";
-import { Spinner } from "@plane/ui";
+import { Button as UnstyledButton, Spinner } from "@plane/ui";
 import { cn } from "@plane/utils";
 // helpers
 import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
@@ -264,7 +264,9 @@ export const WorkspaceCreateStep: React.FC<Props> = observer(
                     {ORGANIZATION_SIZE.map((size) => {
                       const isSelected = value === size;
                       return (
-                        <button
+                        <UnstyledButton
+                          unstyled
+                          type="submit"
                           key={size}
                           onClick={(e) => {
                             e.preventDefault();
@@ -282,7 +284,7 @@ export const WorkspaceCreateStep: React.FC<Props> = observer(
                           />
 
                           <span className="font-medium">{size}</span>
-                        </button>
+                        </UnstyledButton>
                       );
                     })}
                   </div>

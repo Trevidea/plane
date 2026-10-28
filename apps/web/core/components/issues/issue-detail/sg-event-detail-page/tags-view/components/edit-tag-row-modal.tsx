@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { EModalPosition, EModalWidth, Input, ModalCore } from "@plane/ui";
+import { Button, EModalPosition, EModalWidth, Input, ModalCore } from "@plane/ui";
 import type { SgTagRow, SgTagRowEditPayload } from "../../types";
 
 const EDITABLE_TAG_FIELDS: Array<{ key: keyof SgTagRowEditPayload; label: string; placeholder: string }> = [
@@ -32,14 +32,15 @@ export const EditTagRowModal = ({ draft, isOpen, onChange, onClose, onSubmit, ro
             {row ? `${row.action || "Tag"} · ${row.timecode || "No timecode"}` : "Update row details"}
           </p>
         </div>
-        <button
+        <Button
+          unstyled
           type="button"
           onClick={onClose}
           className="rounded-md p-1.5 text-custom-text-400 transition-colors hover:bg-custom-background-90 hover:text-custom-text-200"
           aria-label="Close edit tag row modal"
         >
           <X className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
     </div>
     <form
@@ -63,19 +64,21 @@ export const EditTagRowModal = ({ draft, isOpen, onChange, onClose, onSubmit, ro
         ))}
       </div>
       <div className="flex items-center justify-end gap-2 border-t border-custom-border-200 px-5 py-4">
-        <button
+        <Button
+          unstyled
           type="button"
           onClick={onClose}
           className="inline-flex h-8 items-center rounded-md border border-custom-border-200 bg-custom-background-100 px-3 text-sm font-medium text-custom-text-300 transition-colors hover:bg-custom-background-90 hover:text-custom-text-100"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          unstyled
           type="submit"
           className="inline-flex h-8 items-center rounded-md bg-custom-primary-100 px-3 text-sm font-medium text-white transition-colors hover:bg-custom-primary-200"
         >
           Save changes
-        </button>
+        </Button>
       </div>
     </form>
   </ModalCore>

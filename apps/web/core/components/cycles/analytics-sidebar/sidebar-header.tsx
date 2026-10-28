@@ -4,6 +4,7 @@ import type { FC } from "react";
 import React, { useEffect } from "react";
 import { observer } from "mobx-react";
 import { Controller, useForm } from "react-hook-form";
+
 import { ArrowRight, ChevronRight } from "lucide-react";
 // Plane Imports
 import {
@@ -16,6 +17,7 @@ import {
 import { useTranslation } from "@plane/i18n";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { ICycle } from "@plane/types";
+import { Button } from "@plane/ui";
 import { getDate, renderFormattedPayloadDate } from "@plane/utils";
 // components
 import { DateRangeDropdown } from "@/components/dropdowns/date-range";
@@ -156,12 +158,14 @@ export const CycleSidebarHeader: FC<Props> = observer((props) => {
     <>
       <div className="sticky z-10 top-0 pt-2 flex items-center justify-between bg-custom-sidebar-background-100">
         <div className="flex items-center justify-center size-5">
-          <button
+          <Button
+            unstyled
+            type="submit"
             className="flex size-4 items-center justify-center rounded-full bg-custom-border-200"
             onClick={() => handleClose()}
           >
             <ChevronRight className="h-3 w-3 stroke-2 text-white" />
-          </button>
+          </Button>
         </div>
       </div>
       <div className="flex flex-col gap-2 w-full">

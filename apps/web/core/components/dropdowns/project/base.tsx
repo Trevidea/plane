@@ -7,7 +7,7 @@ import { Combobox } from "@headlessui/react";
 // plane imports
 import { useTranslation } from "@plane/i18n";
 import { ProjectIcon } from "@plane/propel/icons";
-import { ComboDropDown } from "@plane/ui";
+import { Button, ComboDropDown } from "@plane/ui";
 import { cn } from "@plane/utils";
 // components
 import { Logo } from "@/components/common/logo";
@@ -169,7 +169,8 @@ export const ProjectDropdownBase: React.FC<Props> = observer((props) => {
   const comboButton = (
     <>
       {button ? (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn("clickable block h-full w-full outline-none", buttonContainerClassName)}
@@ -177,9 +178,10 @@ export const ProjectDropdownBase: React.FC<Props> = observer((props) => {
           disabled={disabled}
         >
           {button}
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
+          unstyled
           ref={setReferenceElement}
           type="button"
           className={cn(
@@ -210,7 +212,7 @@ export const ProjectDropdownBase: React.FC<Props> = observer((props) => {
               <ChevronDown className={cn("h-2.5 w-2.5 flex-shrink-0", dropdownArrowClassName)} aria-hidden="true" />
             )}
           </DropdownButton>
-        </button>
+        </Button>
       )}
     </>
   );

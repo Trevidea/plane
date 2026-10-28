@@ -335,10 +335,11 @@ test("successful next-stage actions use the existing transition API and board re
   });
 });
 
-test("footer retains the next action but has no Choose stage button or Move card dialog", () => {
-  const markup = render({}, {}, CoachingCardActions);
-  assert.match(markup, /Next: Ready for Coach Review/);
-  assert.doesNotMatch(markup, /Choose coaching card stage|Choose stage|Move card|ListFilter/);
+test("footers omit stage buttons in every stage", () => {
+  for (const stage of config.stages) {
+    const markup = render({ state_id: stage.id }, {}, CoachingCardActions);
+    assert.doesNotMatch(markup, /Next:|Move to|Choose coaching card stage|Choose stage|Move card|ListFilter/);
+  }
 });
 
 test("first-stage cards expose recipient editing without restoring the Next Assigned button", () => {

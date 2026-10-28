@@ -12,7 +12,7 @@ import { Popover, Transition } from "@headlessui/react";
 import { API_BASE_URL } from "@plane/constants";
 import { Button } from "@plane/propel/button";
 import { AuthService } from "@plane/services";
-import { Avatar } from "@plane/ui";
+import { Button as UnstyledButton, Avatar } from "@plane/ui";
 import { getFileURL } from "@plane/utils";
 // helpers
 import { queryParamGenerator } from "@/helpers/query-param-generator";
@@ -63,7 +63,9 @@ export const UserAvatar: FC = observer(() => {
         <div>
           <Popover as="div">
             <Popover.Button as={Fragment}>
-              <button
+              <UnstyledButton
+                unstyled
+                type="submit"
                 ref={setReferenceElement}
                 className="flex items-center gap-2 rounded border border-custom-border-200 p-2"
               >
@@ -80,7 +82,7 @@ export const UserAvatar: FC = observer(() => {
                     currentUser?.email ||
                     "User"}
                 </h6>
-              </button>
+              </UnstyledButton>
             </Popover.Button>
             <Transition
               as={Fragment}
@@ -102,13 +104,14 @@ export const UserAvatar: FC = observer(() => {
                     <form method="POST" action={`${API_BASE_URL}/auth/spaces/sign-out/`} onSubmit={signOut}>
                       <input type="hidden" name="csrfmiddlewaretoken" value={csrfToken} />
                       <input type="hidden" name="next_path" value={`${pathName}?${queryParam}`} />
-                      <button
+                      <UnstyledButton
+                        unstyled
                         type="submit"
                         className="flex items-center gap-2 rounded p-2 whitespace-nowrap hover:bg-custom-background-80 text-sm min-w-36 cursor-pointer"
                       >
                         <LogOut size={12} className="flex-shrink-0 text-red-500" />
                         <div>Sign out</div>
-                      </button>
+                      </UnstyledButton>
                     </form>
                   )}
                 </div>

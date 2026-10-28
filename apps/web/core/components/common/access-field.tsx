@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 // plane ui
 import { useTranslation } from "@plane/i18n";
 import { Tooltip } from "@plane/propel/tooltip";
+import { Button } from "@plane/ui";
 // plane utils
 import { cn } from "@plane/utils";
 
@@ -28,7 +29,8 @@ export const AccessField = (props: Props) => {
         const label = access.i18n_label ? t(access.i18n_label) : access.label;
         return (
           <Tooltip key={access.key} tooltipContent={label} isMobile={isMobile}>
-            <button
+            <Button
+              unstyled
               type="button"
               onClick={() => onChange(access.key)}
               className={cn(
@@ -44,7 +46,7 @@ export const AccessField = (props: Props) => {
                 )}
                 strokeWidth={2}
               />
-            </button>
+            </Button>
           </Tooltip>
         );
       })}

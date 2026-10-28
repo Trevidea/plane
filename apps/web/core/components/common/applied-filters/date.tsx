@@ -3,6 +3,7 @@ import { observer } from "mobx-react";
 import { X } from "lucide-react";
 // plane constants
 import { DATE_BEFORE_FILTER_OPTIONS } from "@plane/constants";
+import { Button } from "@plane/ui";
 import { renderFormattedDate, capitalizeFirstLetter } from "@plane/utils";
 // helpers
 type Props = {
@@ -39,13 +40,14 @@ export const AppliedDateFilters: React.FC<Props> = observer((props) => {
         <div key={date} className="flex items-center gap-1 rounded bg-custom-background-80 py-1 px-1.5 text-xs">
           <span className="normal-case">{getDateLabel(date)}</span>
           {editable && (
-            <button
+            <Button
+              unstyled
               type="button"
               className="grid place-items-center text-custom-text-300 hover:text-custom-text-200"
               onClick={() => handleRemove(date)}
             >
               <X size={10} strokeWidth={2} />
-            </button>
+            </Button>
           )}
         </div>
       ))}

@@ -1,4 +1,6 @@
 import { memo } from "react";
+import { Button } from "@plane/ui";
+
 import { cn } from "@plane/utils";
 import { writePlaylistTagDragData } from "../../playlist-draft";
 import type { MatrixCell as MatrixCellData } from "../types/matrix.types";
@@ -63,7 +65,8 @@ export const MatrixCell = memo(function MatrixCell({
       )}
     >
       {isInteractive && cell ? (
-        <button
+        <Button
+          unstyled
           type="button"
           aria-current={isActive ? "true" : undefined}
           aria-label={`${count} ${count === 1 ? "tag" : "tags"} for ${rowLabel} and ${columnLabel}`}
@@ -91,7 +94,7 @@ export const MatrixCell = memo(function MatrixCell({
           style={{ backgroundColor: cellBackground }}
         >
           <span className="relative z-[1]">{String(count).padStart(2, "0")}</span>
-        </button>
+        </Button>
       ) : (
         <span aria-label={`No tags for ${rowLabel} and ${columnLabel}`} className="sr-only">
           No tags
