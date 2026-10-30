@@ -44,6 +44,7 @@ export const STATUS_SELECT_OPTIONS = STATUS_VALUES.map((value) => ({
 
 export const ROSTER_HEADER_MAP: Record<keyof IRosterPlayerPayload, string[]> = {
   player_name: ["player name", "name", "player"],
+  email: ["email", "email address", "player email", "e-mail"],
   jersey_number: ["jersey #", "jersey", "jersey number", "number", "#"],
   position: ["position", "pos"],
   height: ["height", "ht"],

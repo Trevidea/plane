@@ -28,6 +28,7 @@ from plane.db.models import (
 )
 from plane.db.models.project import ProjectNetwork
 from plane.utils.host import base_host
+from plane.bgtasks.project_invitation_task import project_invitation
 
 
 class ProjectInvitationsViewset(BaseViewSet):
@@ -55,11 +56,14 @@ class ProjectInvitationsViewset(BaseViewSet):
             return Response({"error": "Emails are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         for email in emails:
-            workspace_role = WorkspaceMember.objects.filter(
-                workspace__slug=slug, member__email=email.get("email"), is_active=True
-            ).role
+            membership = WorkspaceMember.objects.filter(
+                workspace__slug=slug, member__email__iexact=email.get("email", ""), is_active=True
+            ).first()
+            workspace_role = membership.role if membership else None
+            if email.get("role", 5) not in [1, 5, 15, 20]:
+                return Response({"error": "Invalid role."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if workspace_role in [5, 20] and workspace_role != email.get("role", 5):
+            if workspace_role in [1, 5, 20] and workspace_role != email.get("role", 5):
                 return Response({"error": "You cannot invite a user with different role than workspace role"})
 
         workspace = Workspace.objects.get(slug=slug)
@@ -98,7 +102,7 @@ class ProjectInvitationsViewset(BaseViewSet):
 
         # Send invitations
         for invitation in project_invitations:
-            project_invitations.delay(
+            project_invitation.delay(
                 invitation.email,
                 project_id,
                 invitation.token,
@@ -199,6 +203,9 @@ class ProjectJoinEndpoint(BaseAPIView):
                 # Check if the user account exists
                 user = User.objects.filter(email=email).first()
 
+                if user is None:
+                    return Response({"message": "Project Invitation Accepted"}, status=status.HTTP_200_OK)
+
                 # Check if user is a part of workspace
                 workspace_member = WorkspaceMember.objects.filter(workspace__slug=slug, member=user).first()
                 # Add him to workspace
@@ -213,20 +220,17 @@ class ProjectJoinEndpoint(BaseAPIView):
                     workspace_member.is_active = True
                     workspace_member.save()
 
-                # Check if the user was already a member of project then activate the user
-                project_member = ProjectMember.objects.filter(
-                    workspace_id=project_invite.workspace_id, member=user
-                ).first()
-                if project_member is None:
-                    # Create a Project Member
-                    _ = ProjectMember.objects.create(
-                        workspace_id=project_invite.workspace_id,
-                        member=user,
-                        role=project_invite.role,
-                    )
-                else:
+                role = 1 if workspace_member is not None and workspace_member.role == 1 else project_invite.role
+                project_member, created = ProjectMember.objects.get_or_create(
+                    project_id=project_invite.project_id,
+                    workspace_id=project_invite.workspace_id,
+                    member=user,
+                    defaults={"role": role},
+                )
+                if not created:
                     project_member.is_active = True
-                    project_member.role = project_member.role
+                    if project_member.role != 1:
+                        project_member.role = role
                     project_member.save()
 
                 return Response(

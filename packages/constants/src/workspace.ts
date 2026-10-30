@@ -68,7 +68,7 @@ export const RESTRICTED_URLS = [
   "licenses",
   "instances",
   "instance",
-  "opposition"
+  "opposition",
 ];
 
 export const WORKSPACE_SETTINGS = {
@@ -120,7 +120,7 @@ export const WORKSPACE_SETTINGS = {
     href: `/settings/devices`,
     access: [EUserWorkspaceRoles.ADMIN],
     highlight: (pathname: string, baseUrl: string) => pathname === `${baseUrl}/settings/devices/`,
-  }
+  },
 };
 
 export const WORKSPACE_SETTINGS_ACCESS = Object.fromEntries(
@@ -144,12 +144,17 @@ export const WORKSPACE_SETTINGS_LINKS: {
 ];
 
 export const ROLE = {
+  [EUserWorkspaceRoles.USER]: "User",
   [EUserWorkspaceRoles.GUEST]: "Guest",
   [EUserWorkspaceRoles.MEMBER]: "Member",
   [EUserWorkspaceRoles.ADMIN]: "Admin",
 };
 
 export const ROLE_DETAILS = {
+  [EUserWorkspaceRoles.USER]: {
+    i18n_title: "role_details.user.title",
+    i18n_description: "role_details.user.description",
+  },
   [EUserWorkspaceRoles.GUEST]: {
     i18n_title: "role_details.guest.title",
     i18n_description: "role_details.guest.description",

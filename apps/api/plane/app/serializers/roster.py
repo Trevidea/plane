@@ -6,10 +6,12 @@ from django.db import transaction
 
 # Third Party imports
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 # Module imports
 from .base import BaseSerializer
-from plane.db.models import RosterPlayer, RosterPlayerStatus, User, WorkspaceMember
+from plane.db.models import RosterPlayer, RosterPlayerStatus, User, Workspace, WorkspaceMember
+from plane.utils.roster_membership import attach_imported_roster_member
 
 
 class RosterPlayerSerializer(BaseSerializer):
@@ -22,6 +24,7 @@ class RosterPlayerSerializer(BaseSerializer):
             "id",
             "program_id",
             "user",
+            "email",
             "player_name",
             "jersey_number",
             "position",
@@ -33,7 +36,7 @@ class RosterPlayerSerializer(BaseSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "program_id", "created_at", "updated_at"]
+        read_only_fields = ["id", "program_id", "email", "created_at", "updated_at"]
 
     def validate_status(self, value):
         if not value:
@@ -98,6 +101,7 @@ class RosterPlayerImportSerializer(serializers.Serializer):
         validated_rows = []
         row_errors = []
         imported_jersey_numbers = {}
+        imported_emails = set()
 
         for row_number, payload in enumerate(players, start=1):
             serializer = RosterPlayerSerializer(data=payload, context=self.context)
@@ -106,6 +110,32 @@ class RosterPlayerImportSerializer(serializers.Serializer):
                 continue
 
             validated_row = dict(serializer.validated_data)
+            email_field = serializers.EmailField(allow_blank=True, allow_null=True, max_length=254)
+            try:
+                email = (email_field.run_validation(payload.get("email", "")) or "").strip().lower()
+            except serializers.ValidationError:
+                row_errors.append(f"Row {row_number}: Provide a valid email address.")
+                continue
+            if email:
+                request = self.context.get("request")
+                if (
+                    not request
+                    or not WorkspaceMember.objects.filter(
+                        workspace=project.workspace, member=request.user, is_active=True, role__in=[15, 20]
+                    ).exists()
+                ):
+                    raise PermissionDenied("Workspace invitation permission is required to import player emails.")
+                if (
+                    email in imported_emails
+                    or RosterPlayer.objects.filter(project=project, email__iexact=email).exists()
+                ):
+                    row_errors.append(f"Row {row_number}: Email is already used by a player in this program.")
+                    continue
+                if validated_row.get("user") and validated_row["user"].email.lower() != email:
+                    row_errors.append(f"Row {row_number}: Email does not match the selected member account.")
+                    continue
+                imported_emails.add(email)
+            validated_row["email"] = email
             jersey_number = validated_row.get("jersey_number")
 
             if jersey_number:
@@ -141,7 +171,17 @@ class RosterPlayerImportSerializer(serializers.Serializer):
         players = []
 
         with transaction.atomic():
+            Workspace.objects.select_for_update().get(pk=project.workspace_id)
+            # Serializes imports into a program with invitation acceptance linking.
+            type(project).objects.select_for_update().get(pk=project.pk)
             for player_data in validated_data["players"]:
-                players.append(RosterPlayer.objects.create(project=project, **player_data))
+                if (
+                    player_data.get("email")
+                    and RosterPlayer.objects.filter(project=project, email__iexact=player_data["email"]).exists()
+                ):
+                    raise serializers.ValidationError({"players": ["Email is already used in this program."]})
+                player = RosterPlayer.objects.create(project=project, **player_data)
+                attach_imported_roster_member(player, self.context.get("request"))
+                players.append(player)
 
         return players

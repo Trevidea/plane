@@ -17,6 +17,7 @@ class RosterPlayerStatus(models.TextChoices):
 
 class RosterPlayer(ProjectBaseModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    email = models.EmailField(max_length=254, blank=True, default="")
     player_name = models.CharField(max_length=255)
     jersey_number = models.CharField(max_length=20, null=True, blank=True)
     position = models.CharField(max_length=50, null=True, blank=True)
@@ -28,6 +29,11 @@ class RosterPlayer(ProjectBaseModel):
 
     class Meta:
         constraints = [
+            models.UniqueConstraint(
+                fields=["project", "email"],
+                condition=Q(deleted_at__isnull=True) & ~Q(email=""),
+                name="roster_player_unique_program_email",
+            ),
             models.UniqueConstraint(
                 fields=["project", "user"],
                 condition=Q(deleted_at__isnull=True) & Q(user__isnull=False),

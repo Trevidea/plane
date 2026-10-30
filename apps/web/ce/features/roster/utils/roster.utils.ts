@@ -42,6 +42,7 @@ export const mapImportedRows = (rows: Record<string, unknown>[]): IRosterPlayerP
   rows.reduce<IRosterPlayerPayload[]>((accumulator, row, index) => {
     const mappedRow: IRosterPlayerPayload = {
       player_name: String(getMappedValue(row, ROSTER_HEADER_MAP.player_name) ?? "").trim(),
+      email: toOptionalString(getMappedValue(row, ROSTER_HEADER_MAP.email))?.toLowerCase() ?? null,
       jersey_number: toOptionalString(getMappedValue(row, ROSTER_HEADER_MAP.jersey_number)),
       position: toOptionalString(getMappedValue(row, ROSTER_HEADER_MAP.position)),
       height: toOptionalString(getMappedValue(row, ROSTER_HEADER_MAP.height)),
@@ -59,6 +60,7 @@ export const mapImportedRows = (rows: Record<string, unknown>[]): IRosterPlayerP
 
     const hasRosterValue = [
       mappedRow.player_name,
+      mappedRow.email,
       mappedRow.jersey_number,
       mappedRow.position,
       mappedRow.height,

@@ -266,7 +266,8 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
           <div>
             <h3 className="text-lg font-semibold text-custom-text-100">Import roster</h3>
             <p className="mt-1 text-sm text-custom-text-300">
-              Upload a roster file with player name, jersey number, position, height, weight, and status.
+              Upload a roster file with player name, email (optional), jersey number, position, height, weight, and
+              status.
             </p>
           </div>
           <UnstyledButton
@@ -281,6 +282,10 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
         </div>
       </div>
       <div className="space-y-5 p-5">
+        <p className="text-sm text-custom-text-300">
+          Emails link existing workspace members to their player records. Other players receive a User invitation and
+          are linked when they accept. Leave Email blank to import without inviting anyone.
+        </p>
         <div
           className={cn(
             "rounded-xl border border-dashed p-6 transition-colors",
@@ -345,6 +350,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                 <thead className="sticky top-0 z-[1] border-b border-custom-border-200 bg-custom-background-90">
                   <tr className="text-left text-xs font-medium uppercase tracking-wide text-custom-text-400">
                     <th className="px-4 py-3">Player</th>
+                    <th className="px-4 py-3">Email</th>
                     <th className="px-4 py-3">Jersey #</th>
                     <th className="px-4 py-3">Position</th>
                     <th className="px-4 py-3">Height</th>
@@ -360,6 +366,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                         className="border-b border-custom-border-200 text-sm text-custom-text-200 last:border-b-0"
                       >
                         <td className="px-4 py-3">{row.player_name || "—"}</td>
+                        <td className="px-4 py-3">{row.email || "—"}</td>
                         <td className="px-4 py-3">{row.jersey_number ? `#${row.jersey_number}` : "—"}</td>
                         <td className="px-4 py-3">{row.position || "—"}</td>
                         <td className="px-4 py-3">{row.height || "—"}</td>
@@ -369,7 +376,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                     ))
                   ) : (
                     <tr className="text-sm text-custom-text-300">
-                      <td className="px-4 py-6 text-center" colSpan={6}>
+                      <td className="px-4 py-6 text-center" colSpan={7}>
                         Choose a roster file to preview imported rows.
                       </td>
                     </tr>

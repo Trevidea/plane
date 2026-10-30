@@ -15,13 +15,14 @@ from plane.db.mixins import AuditModel
 # Module imports
 from .base import BaseModel
 
-ROLE_CHOICES = ((20, "Admin"), (15, "Member"), (5, "Guest"))
+ROLE_CHOICES = ((20, "Admin"), (15, "Member"), (5, "Guest"), (1, "User"))
 
 
 class ROLE(Enum):
     ADMIN = 20
     MEMBER = 15
     GUEST = 5
+    USER = 1
 
 
 class ProjectNetwork(Enum):

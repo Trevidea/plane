@@ -3,6 +3,8 @@ export type TRosterPlayerStatus = "active" | "injured" | "inactive" | "pending";
 export interface IRosterPlayer {
   id: string;
   program_id: string;
+  email?: string;
+  user?: string | null;
   player_name: string;
   jersey_number: string | null;
   position: string | null;
@@ -24,6 +26,7 @@ export interface IRosterFilters {
 
 export interface IRosterPlayerPayload {
   player_name: string;
+  email?: string | null;
   jersey_number?: string | null;
   position?: string | null;
   height?: string | null;
