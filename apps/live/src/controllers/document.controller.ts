@@ -4,7 +4,8 @@ import { z } from "zod";
 import { Controller, Post } from "@plane/decorators";
 import { convertHTMLDocumentToAllFormats } from "@plane/editor";
 // logger
-import { logger } from "@plane/logger";
+
+import { legacyLiveLog } from "@/lib/diagnostics";
 import { type TConvertDocumentRequestBody } from "@/types";
 
 // Define the schema with more robust validation
@@ -43,7 +44,7 @@ export class DocumentController {
           path: err.path.join("."),
           message: err.message,
         }));
-        logger.error("DOCUMENT_CONTROLLER: Validation error", {
+        legacyLiveLog("error", "LIVE_4154341F64D4", "DOCUMENT_CONTROLLER: Validation error", {
           validationErrors,
         });
         return res.status(400).json({
@@ -53,7 +54,7 @@ export class DocumentController {
           },
         });
       } else {
-        logger.error("DOCUMENT_CONTROLLER: Internal server error", error);
+        legacyLiveLog("error", "LIVE_29B19E8C2EF3", "DOCUMENT_CONTROLLER: Internal server error", error);
         return res.status(500).json({
           message: `Internal server error.`,
         });

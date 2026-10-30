@@ -17,6 +17,7 @@ from plane.license.utils.instance_value import get_configuration_value
 from plane.utils.exception_logger import log_exception
 
 from ..base import BaseAPIView
+from plane.utils.diagnostic_logging import dependency_call
 
 
 class LLMProvider:
@@ -235,5 +236,5 @@ class UnsplashEndpoint(BaseAPIView):
 
         headers = {"Content-Type": "application/json"}
 
-        resp = requests.get(url=url, headers=headers)
+        resp = dependency_call(requests.get, url=url, headers=headers, dependency="external-api", action="get")
         return Response(resp.json(), status=resp.status_code)

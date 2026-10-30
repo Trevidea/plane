@@ -54,6 +54,7 @@ INSTALLED_APPS = [
 # Middlewares
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "plane.middleware.logger.RequestLoggerMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "plane.authentication.middleware.session.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -64,7 +65,6 @@ MIDDLEWARE = [
     "django.middleware.gzip.GZipMiddleware",
     "plane.middleware.request_body_size.RequestBodySizeLimitMiddleware",
     "plane.middleware.logger.APITokenLogMiddleware",
-    "plane.middleware.logger.RequestLoggerMiddleware",
 ]
 
 # Rest Framework settings

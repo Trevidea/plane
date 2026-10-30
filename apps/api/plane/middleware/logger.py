@@ -1,6 +1,9 @@
 # Python imports
 import logging
 import time
+import hashlib
+import json
+from contextlib import ExitStack
 
 # Django imports
 from django.http import HttpRequest
@@ -11,6 +14,7 @@ from rest_framework.request import Request
 # Module imports
 from plane.utils.ip_address import get_client_ip
 from plane.db.models import APIActivityLog
+from plane.utils.diagnostic_logging import context, current, emit, outgoing_headers
 
 api_logger = logging.getLogger("plane.api.request")
 
@@ -29,44 +33,54 @@ class RequestLoggerMiddleware:
         return True
 
     def __call__(self, request):
-        # get the start time
-        start_time = time.time()
+        if not self._should_log_route(request):
+            return self.get_response(request)
+        from django.db import connections
 
-        # Get the response
-        response = self.get_response(request)
+        token = current.set(context(request.headers))
+        started, status_code = time.perf_counter(), 500
+        database = {"count": 0, "duration": 0.0, "errors": 0}
 
-        # calculate the duration
-        duration = time.time() - start_time
+        def observe(execute, sql, params, many, execution_context):
+            begin = time.perf_counter()
+            try:
+                return execute(sql, params, many, execution_context)
+            except BaseException:
+                database["errors"] += 1
+                raise
+            finally:
+                database["count"] += 1
+                database["duration"] += (time.perf_counter() - begin) * 1000
 
-        # Check if logging is required
-        log_true = self._should_log_route(request=request)
-
-        # If logging is not required, return the response
-        if not log_true:
+        try:
+            with ExitStack() as stack:
+                for connection in connections.all():
+                    stack.enter_context(connection.execute_wrapper(observe))
+                response = self.get_response(request)
+            status_code = response.status_code
+            for key, value in outgoing_headers().items():
+                if not response.has_header(key):
+                    response[key] = value
             return response
-
-        user_id = (
-            request.user.id if getattr(request, "user") and getattr(request.user, "is_authenticated", False) else None
-        )
-
-        user_agent = request.META.get("HTTP_USER_AGENT", "")
-
-        # Log the request information
-        api_logger.info(
-            f"{request.method} {request.get_full_path()} {response.status_code}",
-            extra={
-                "path": request.path,
-                "method": request.method,
-                "status_code": response.status_code,
-                "duration_ms": int(duration * 1000),
-                "remote_addr": get_client_ip(request),
-                "user_agent": user_agent,
-                "user_id": user_id,
-            },
-        )
-
-        # return the response
-        return response
+        finally:
+            emit(
+                "api.request.completed",
+                duration_ms=(time.perf_counter() - started) * 1000,
+                outcome="error" if status_code >= 400 else "ok",
+                fields={"status_code": status_code, "action": request.method},
+            )
+            if database["count"]:
+                emit(
+                    "db.request.completed",
+                    duration_ms=database["duration"],
+                    outcome="error" if database["errors"] else "ok",
+                    fields={
+                        "query_count": database["count"],
+                        "error_count": database["errors"],
+                        "dependency": "postgres",
+                    },
+                )
+            current.reset(token)
 
 
 class APITokenLogMiddleware:
@@ -74,9 +88,8 @@ class APITokenLogMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        request_body = request.body
         response = self.get_response(request)
-        self.process_request(request, response, request_body)
+        self.process_request(request, response, None)
         return response
 
     def _safe_decode_body(self, content):
@@ -111,20 +124,20 @@ class APITokenLogMiddleware:
         if api_key:
             try:
                 APIActivityLog.objects.create(
-                    token_identifier=api_key,
+                    token_identifier="sha256:" + hashlib.sha256(api_key.encode()).hexdigest(),
                     path=request.path,
                     method=request.method,
-                    query_params=request.META.get("QUERY_STRING", ""),
-                    headers=str(request.headers),
-                    body=(self._safe_decode_body(request_body) if request_body else None),
-                    response_body=(self._safe_decode_body(response.content) if response.content else None),
+                    query_params=json.dumps(sorted(request.GET.keys())[:64]),
+                    headers=json.dumps({"Content-Type": request.headers.get("Content-Type", "")[:100]}),
+                    body=None,
+                    response_body=None,
                     response_code=response.status_code,
                     ip_address=get_client_ip(request=request),
                     user_agent=request.META.get("HTTP_USER_AGENT", None),
                 )
 
-            except Exception as e:
-                api_logger.exception(e)
+            except Exception:
+                emit("audit.write.failed", outcome="error", fields={"error_code": "AUDIT_STORAGE_FAILED"})
                 # If the token does not exist, you can decide whether to log this as an invalid attempt
 
         return None

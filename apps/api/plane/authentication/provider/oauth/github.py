@@ -13,6 +13,7 @@ from plane.authentication.adapter.error import (
     AuthenticationException,
     AUTHENTICATION_ERROR_CODES,
 )
+from plane.utils.diagnostic_logging import dependency_call
 
 
 class GitHubOAuthProvider(OauthAdapter):
@@ -108,7 +109,9 @@ class GitHubOAuthProvider(OauthAdapter):
         try:
             # Github does not provide email in user response
             emails_url = "https://api.github.com/user/emails"
-            emails_response = requests.get(emails_url, headers=headers).json()
+            emails_response = dependency_call(
+                requests.get, emails_url, headers=headers, dependency="github-oauth", action="get"
+            ).json()
             email = next((email["email"] for email in emails_response if email["primary"]), None)
             return email
         except requests.RequestException:
@@ -119,10 +122,10 @@ class GitHubOAuthProvider(OauthAdapter):
 
     def is_user_in_organization(self, github_username):
         headers = {"Authorization": f"Bearer {self.token_data.get('access_token')}"}
-        response = requests.get(
+        response = dependency_call(requests.get,
             f"{self.org_membership_url}/{self.organization_id}/memberships/{github_username}",
             headers=headers,
-        )
+        dependency="github-oauth", action="get")
         return response.status_code == 200  # 200 means the user is a member
 
     def set_user_data(self):

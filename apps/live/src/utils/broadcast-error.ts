@@ -1,6 +1,7 @@
 import { type Hocuspocus } from "@hocuspocus/server";
 import { createRealtimeEvent } from "@plane/editor";
-import { logger } from "@plane/logger";
+
+import { legacyLiveLog } from "@/lib/diagnostics";
 import type { FetchPayloadWithContext, StorePayloadWithContext } from "@/types";
 import { broadcastMessageToPage } from "./broadcast-message";
 
@@ -33,6 +34,6 @@ export const broadcastError = async (
 
     await broadcastMessageToPage(hocuspocusServerInstance, pageId, errorEvent);
   } catch (broadcastError) {
-    logger.error("Error broadcasting error message to frontend:", broadcastError);
+    legacyLiveLog("error", "LIVE_147FBC70A083", "Error broadcasting error message to frontend:", broadcastError);
   }
 };

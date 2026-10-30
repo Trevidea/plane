@@ -116,6 +116,9 @@ importers:
       '@plane/hooks':
         specifier: workspace:*
         version: link:../../packages/hooks
+      '@plane/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@plane/propel':
         specifier: workspace:*
         version: link:../../packages/propel
@@ -343,6 +346,9 @@ importers:
       '@plane/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@plane/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@plane/propel':
         specifier: workspace:*
         version: link:../../packages/propel
@@ -494,6 +500,9 @@ importers:
       '@plane/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@plane/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
       '@plane/propel':
         specifier: workspace:*
         version: link:../../packages/propel

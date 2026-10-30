@@ -36,6 +36,7 @@ if not os.path.exists(LOG_DIR):
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
+    "filters": {"diagnostic_redaction": {"()": "plane.utils.diagnostic_redaction.DiagnosticRedactionFilter"}},
     "formatters": {
         "verbose": {
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
@@ -48,6 +49,7 @@ LOGGING = {
     },
     "handlers": {
         "console": {
+            "filters": ["diagnostic_redaction"],
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "json",

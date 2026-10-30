@@ -67,6 +67,7 @@ from plane.utils.media_library import (
     write_manifest_atomic,
 )
 from plane.utils.paginator import BadPaginationError, Cursor, CursorResult
+from plane.utils.diagnostic_logging import dependency_call
 
 _IMAGE_FORMATS = {
     "jpg",
@@ -1089,11 +1090,13 @@ def _transcode_service_url(path: str) -> str:
 
 
 def _transcode_service_headers() -> dict[str, str]:
+    from plane.utils.diagnostic_logging import outgoing_headers
+
     headers = {"Content-Type": "application/json"}
     token = (getattr(settings, "MEDIA_TRANSCODE_INTERNAL_API_TOKEN", "") or "").strip()
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    return headers
+    return outgoing_headers(headers)
 
 
 def _call_transcode_service(method: str, path: str, payload: dict | None = None) -> tuple[int, dict]:
@@ -1108,7 +1111,9 @@ def _call_transcode_service(method: str, path: str, payload: dict | None = None)
     )
     timeout = getattr(settings, "MEDIA_TRANSCODE_REQUEST_TIMEOUT", 10)
     try:
-        with urlrequest.urlopen(request, timeout=timeout) as response:
+        with dependency_call(
+            urlrequest.urlopen, request, timeout=timeout, dependency="media-upstream", action="urlopen"
+        ) as response:
             raw_body = response.read(1024 * 1024)
             if not raw_body:
                 return response.status, {}

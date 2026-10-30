@@ -22,6 +22,7 @@
     "@plane/constants": "workspace:*",
     "@plane/editor": "workspace:*",
     "@plane/i18n": "workspace:*",
+    "@plane/logger": "workspace:*",
     "@plane/propel": "workspace:*",
     "@plane/services": "workspace:*",
     "@plane/types": "workspace:*",

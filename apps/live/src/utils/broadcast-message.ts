@@ -1,7 +1,8 @@
 import { Hocuspocus } from "@hocuspocus/server";
 import { BroadcastedEvent } from "@plane/editor";
-import { logger } from "@plane/logger";
+
 import { Redis } from "@/extensions/redis";
+import { legacyLiveLog } from "@/lib/diagnostics";
 import { AppError } from "@/lib/errors";
 
 export const broadcastMessageToPage = async (
@@ -13,14 +14,14 @@ export const broadcastMessageToPage = async (
     const appError = new AppError("HocusPocus server not available or initialized", {
       context: { operation: "broadcastMessageToPage", documentName },
     });
-    logger.error("Error while broadcasting message:", appError);
+    legacyLiveLog("error", "LIVE_275BC21988A7", "Error while broadcasting message:", appError);
     return false;
   }
 
   const redisExtension = hocuspocusServerInstance.configuration.extensions.find((ext) => ext instanceof Redis);
 
   if (!redisExtension) {
-    logger.error("BROADCAST_MESSAGE_TO_PAGE: Redis extension not found");
+    legacyLiveLog("error", "LIVE_89BFE2F2E8A9", "BROADCAST_MESSAGE_TO_PAGE: Redis extension not found");
     return false;
   }
 
@@ -28,7 +29,7 @@ export const broadcastMessageToPage = async (
     await redisExtension.broadcastToDocument(documentName, eventData);
     return true;
   } catch (error) {
-    logger.error(`BROADCAST_MESSAGE_TO_PAGE: Error broadcasting to ${documentName}:`, error);
+    legacyLiveLog("error", "LIVE_E7A3BBD910D7", `BROADCAST_MESSAGE_TO_PAGE: Error broadcasting to ${documentName}:`, error);
     return false;
   }
 };

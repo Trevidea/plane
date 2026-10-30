@@ -30,6 +30,7 @@
     "@plane/editor": "workspace:*",
     "@plane/hooks": "workspace:*",
     "@plane/i18n": "workspace:*",
+    "@plane/logger": "workspace:*",
     "@plane/propel": "workspace:*",
     "@plane/services": "workspace:*",
     "@plane/shared-state": "workspace:*",

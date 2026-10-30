@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
+import { useEffect } from "react";
 import { AppProgressProvider as ProgressProvider } from "@bprogress/next";
 import dynamic from "next/dynamic";
 import { useTheme, ThemeProvider } from "next-themes";
@@ -8,6 +9,7 @@ import { SWRConfig } from "swr";
 // Plane Imports
 import { WEB_SWR_CONFIG } from "@plane/constants";
 import { TranslationProvider } from "@plane/i18n";
+import { installFrontendDiagnostics } from "@plane/logger/diagnostics-browser";
 import { Toast } from "@plane/propel/toast";
 //helpers
 import { resolveGeneralTheme } from "@plane/utils";
@@ -32,6 +34,7 @@ const ToastWithTheme = () => {
 };
 
 export const AppProvider: FC<IAppProvider> = (props) => {
+  useEffect(() => installFrontendDiagnostics(), []);
   const { children } = props;
   // themes
   return (

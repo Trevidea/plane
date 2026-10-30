@@ -1,7 +1,8 @@
 // plane imports
 import type { IncomingHttpHeaders } from "http";
 import type { TUserDetails } from "@plane/editor";
-import { logger } from "@plane/logger";
+
+import { legacyLiveLog, createDiagnosticContext, observeLiveOperation } from "@/lib/diagnostics";
 import { AppError } from "@/lib/errors";
 // services
 import { UserService } from "@/services/user.service";
@@ -26,43 +27,46 @@ export const onAuthenticate = async ({
   requestParameters: URLSearchParams;
   token: string;
 }) => {
-  let cookie: string | undefined = undefined;
-  let userId: string | undefined = undefined;
+  context.diagnostics = createDiagnosticContext(requestHeaders);
+  return observeLiveOperation("collaboration.authentication.completed", context.diagnostics, async () => {
+    let cookie: string | undefined = undefined;
+    let userId: string | undefined = undefined;
 
-  // Extract cookie (fallback to request headers) and userId from token (for scenarios where
-  // the cookies are not passed in the request headers)
-  try {
-    const parsedToken = JSON.parse(token) as TUserDetails;
-    userId = parsedToken.id;
-    cookie = parsedToken.cookie;
-  } catch (error) {
-    const appError = new AppError(error, {
-      context: { operation: "onAuthenticate" },
-    });
-    logger.error("Token parsing failed, using request headers", appError);
-  } finally {
-    // If cookie is still not found, fallback to request headers
-    if (!cookie) {
-      cookie = requestHeaders.cookie?.toString();
+    // Extract cookie (fallback to request headers) and userId from token (for scenarios where
+    // the cookies are not passed in the request headers)
+    try {
+      const parsedToken = JSON.parse(token) as TUserDetails;
+      userId = parsedToken.id;
+      cookie = parsedToken.cookie;
+    } catch (error) {
+      const appError = new AppError(error, {
+        context: { operation: "onAuthenticate" },
+      });
+      legacyLiveLog("error", "LIVE_4FBB01A5A4EF", "Token parsing failed, using request headers", appError);
+    } finally {
+      // If cookie is still not found, fallback to request headers
+      if (!cookie) {
+        cookie = requestHeaders.cookie?.toString();
+      }
     }
-  }
 
-  if (!cookie || !userId) {
-    const appError = new AppError("Credentials not provided", { code: "AUTH_MISSING_CREDENTIALS" });
-    logger.error("Credentials not provided", appError);
-    throw appError;
-  }
+    if (!cookie || !userId) {
+      const appError = new AppError("Credentials not provided", { code: "AUTH_MISSING_CREDENTIALS" });
+      legacyLiveLog("error", "LIVE_77B3500A2FBE", "Credentials not provided", appError);
+      throw appError;
+    }
 
-  // set cookie in context, so it can be used throughout the ws connection
-  context.cookie = cookie ?? requestParameters.get("cookie") ?? "";
-  context.documentType = requestParameters.get("documentType")?.toString() as TDocumentTypes;
-  context.projectId = requestParameters.get("projectId");
-  context.userId = userId;
-  context.workspaceSlug = requestParameters.get("workspaceSlug");
+    // set cookie in context, so it can be used throughout the ws connection
+    context.cookie = cookie ?? requestParameters.get("cookie") ?? "";
+    context.documentType = requestParameters.get("documentType")?.toString() as TDocumentTypes;
+    context.projectId = requestParameters.get("projectId");
+    context.userId = userId;
+    context.workspaceSlug = requestParameters.get("workspaceSlug");
 
-  return await handleAuthentication({
-    cookie: context.cookie,
-    userId: context.userId,
+    return await handleAuthentication({
+      cookie: context.cookie,
+      userId: context.userId,
+    });
   });
 };
 
@@ -85,7 +89,7 @@ export const handleAuthentication = async ({ cookie, userId }: { cookie: string;
     const appError = new AppError(error, {
       context: { operation: "handleAuthentication" },
     });
-    logger.error("Authentication failed", appError);
+    legacyLiveLog("error", "LIVE_7EC170C2F57A", "Authentication failed", appError);
     throw new AppError("Authentication unsuccessful", { code: appError.code });
   }
 };

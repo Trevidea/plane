@@ -1,10 +1,15 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
 
 // ui
+import { reportFrontendFailure } from "@plane/logger/diagnostics-browser";
 import { Button } from "@plane/propel/button";
 
-const ErrorPage = () => {
+const ErrorPage = ({ error }: { error: Error }) => {
+  useEffect(() => {
+    reportFrontendFailure(error, process.env.NEXT_PUBLIC_SPACE_BASE_PATH || "");
+  }, [error]);
   const handleRetry = () => {
     window.location.reload();
   };
