@@ -1,7 +1,7 @@
 import { observer } from "mobx-react";
 import useSWR from "swr";
 import { ArrowRight, Eye } from "lucide-react";
-import { EActivityFilterType, E_SORT_ORDER } from "@plane/constants";
+import { EActivityFilterType, EIssueCommentAccessSpecifier, E_SORT_ORDER } from "@plane/constants";
 import type { TIssue, TWorkspaceBaseActivity } from "@plane/types";
 import { Button } from "@plane/ui";
 import { CommentCreate } from "@/components/comments/comment-create";
@@ -26,6 +26,7 @@ type Props = {
 export const CoachingCardDiscussion = observer(({ issue, workspaceSlug, projectId, disabled, mode }: Props) => {
   const {
     activity: { getActivityAndCommentsByIssueId },
+    comment: { fetchComments },
   } = useIssueDetail();
   const { getUserDetails } = useMember();
   const { getProjectById } = useProject();
@@ -42,6 +43,11 @@ export const CoachingCardDiscussion = observer(({ issue, workspaceSlug, projectI
     { revalidateOnFocus: false }
   );
   const isDiscussion = mode === "comments";
+  const { error: threadError, mutate: refreshThread } = useSWR(
+    isDiscussion ? ["coaching-card-thread", workspaceSlug, projectId, issue.id] : null,
+    () => fetchComments(workspaceSlug, projectId, issue.id, "mutate"),
+    { refreshInterval: 10000, revalidateOnFocus: true }
+  );
   const relevantEntries = entries?.filter((entry) => (entry.activity_type === "COMMENT") === isDiscussion);
   const card = issue.coaching_card_data;
   const views = Object.entries(card?.review?.viewed_by ?? {});
@@ -62,6 +68,19 @@ export const CoachingCardDiscussion = observer(({ issue, workspaceSlug, projectI
   });
   return (
     <section aria-label={isDiscussion ? "Thread" : "Audit"} className="space-y-4 py-3">
+      {isDiscussion && (
+        <p className="text-xs text-custom-text-300">
+          Shared comments are visible to all assigned players and coaching staff. Internal comments stay private.
+        </p>
+      )}
+      {isDiscussion && threadError && (
+        <div role="alert" className="space-y-2 text-sm text-custom-text-300">
+          <p>Unable to refresh the conversation.</p>
+          <Button variant="neutral-primary" size="sm" onClick={() => void refreshThread()}>
+            Retry
+          </Button>
+        </div>
+      )}
       {!entries && <IssueActivityLoader />}
       {isDiscussion && entries && !relevantEntries?.length && (
         <div className="py-5 text-sm text-custom-text-300">
@@ -126,6 +145,7 @@ export const CoachingCardDiscussion = observer(({ issue, workspaceSlug, projectI
         disabled={disabled}
         activityOperations={operations}
         contentMode={mode}
+        showAccessSpecifier={isDiscussion}
         selectedFilters={
           isDiscussion
             ? [EActivityFilterType.COMMENT]
@@ -140,6 +160,8 @@ export const CoachingCardDiscussion = observer(({ issue, workspaceSlug, projectI
           entityId={issue.id}
           activityOperations={operations}
           showToolbarInitially
+          defaultAccess={EIssueCommentAccessSpecifier.EXTERNAL}
+          showAccessSpecifier
         />
       )}
     </section>

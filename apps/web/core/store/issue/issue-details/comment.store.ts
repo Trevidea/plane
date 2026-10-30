@@ -93,7 +93,9 @@ export class IssueCommentStore implements IIssueCommentStore {
 
     let props = {};
     const _commentIds = this.getCommentsByIssueId(issueId);
-    if (_commentIds && _commentIds.length > 0) {
+    // A background refresh reconciles edits/deletions as well as new replies.
+    const fullRefresh = loaderType === "mutate";
+    if (!fullRefresh && _commentIds && _commentIds.length > 0) {
       const _comment = this.getCommentById(_commentIds[_commentIds.length - 1]);
       if (_comment) props = { created_at__gt: _comment.created_at };
     }
@@ -103,7 +105,7 @@ export class IssueCommentStore implements IIssueCommentStore {
     const commentIds = comments.map((comment) => comment.id);
     runInAction(() => {
       update(this.comments, issueId, (_commentIds) => {
-        if (!_commentIds) return commentIds;
+        if (fullRefresh || !_commentIds) return commentIds;
         return uniq(concat(_commentIds, commentIds));
       });
       comments.forEach((comment) => {

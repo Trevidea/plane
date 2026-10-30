@@ -19,6 +19,8 @@ type TCommentCreate = {
   workspaceSlug: string;
   activityOperations: TCommentsOperations;
   showToolbarInitially?: boolean;
+  defaultAccess?: EIssueCommentAccessSpecifier;
+  showAccessSpecifier?: boolean;
   projectId?: string;
   onSubmitCallback?: (elementId: string) => void;
 };
@@ -32,6 +34,8 @@ export const CommentCreate: FC<TCommentCreate> = observer((props) => {
     entityId,
     activityOperations,
     showToolbarInitially = false,
+    defaultAccess = EIssueCommentAccessSpecifier.INTERNAL,
+    showAccessSpecifier = false,
     projectId,
     onSubmitCallback,
   } = props;
@@ -53,13 +57,23 @@ export const CommentCreate: FC<TCommentCreate> = observer((props) => {
   } = useForm<Partial<TIssueComment>>({
     defaultValues: {
       comment_html: "<p></p>",
+      access: defaultAccess,
     },
   });
 
   const onSubmit = async (formData: Partial<TIssueComment>) => {
     try {
       const comment = await activityOperations.createComment(formData);
-      if (comment?.id) onSubmitCallback?.(comment.id);
+      // Operations can handle their own error toast and return undefined on failure.
+      // Keep the draft and its pending uploads available for retry in that case.
+      if (!comment?.id) return;
+      // Creation is committed; later callback or asset failures must not make it retryable.
+      reset({
+        comment_html: "<p></p>",
+        access: defaultAccess,
+      });
+      editorRef.current?.clearEditor();
+      onSubmitCallback?.(comment.id);
       if (uploadedAssetIds.length > 0) {
         if (projectId) {
           await fileService.updateBulkProjectAssetsUploadStatus(workspaceSlug, projectId.toString(), entityId, {
@@ -74,11 +88,6 @@ export const CommentCreate: FC<TCommentCreate> = observer((props) => {
       }
     } catch (error) {
       console.error(error);
-    } finally {
-      reset({
-        comment_html: "<p></p>",
-      });
-      editorRef.current?.clearEditor();
     }
   };
 
@@ -125,7 +134,8 @@ export const CommentCreate: FC<TCommentCreate> = observer((props) => {
                 initialValue={value ?? "<p></p>"}
                 containerClassName="min-h-min"
                 onChange={(comment_json, comment_html) => onChange(comment_html)}
-                accessSpecifier={accessValue ?? EIssueCommentAccessSpecifier.INTERNAL}
+                accessSpecifier={accessValue ?? defaultAccess}
+                showAccessSpecifier={showAccessSpecifier}
                 handleAccessChange={onAccessChange}
                 isSubmitting={isSubmitting}
                 uploadFile={async (blockId, file) => {

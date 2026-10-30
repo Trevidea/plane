@@ -28,9 +28,13 @@ class PlayerProgramContractTests(TestCase):
         cls.workspace = Workspace.objects.create(name="Fixture School", slug="fixture-school", owner=cls.other)
         cls.membership = WorkspaceMember.objects.create(workspace=cls.workspace, member=cls.user, role=5)
         cls.project = Project.objects.create(
-            workspace=cls.workspace, name="Football", identifier="FB", sport="Football"
+            workspace=cls.workspace, name="Football", identifier="FB", sport="Football",
+            logo_props={"in_use": "emoji", "emoji": {"value": "9200"}},
         )
-        cls.player = RosterPlayer.objects.create(project=cls.project, user=cls.user, player_name="Fixture Player")
+        cls.player = RosterPlayer.objects.create(
+            project=cls.project, user=cls.user, player_name="Fixture Player",
+            jersey_number="00", position="OL", class_year="2027",
+        )
         cls.stage = State.objects.create(
             project=cls.project, name="Identified", group="backlog", sequence=1, lifecycle_role="identified"
         )
@@ -64,9 +68,16 @@ class PlayerProgramContractTests(TestCase):
                         "name": "Football",
                         "identifier": "FB",
                         "sport": "Football",
+                        "logo_props": {"in_use": "emoji", "emoji": {"value": "9200"}},
                         "workspace_slug": "fixture-school",
                         "workspace_name": "Fixture School",
                         "player_id": str(self.player.id),
+                        "roster": {
+                            "player_name": "Fixture Player",
+                            "jersey_number": "00",
+                            "position": "OL",
+                            "class_year": "2027",
+                        },
                     }
                 ],
             },
@@ -148,3 +159,14 @@ class PlayerProgramContractTests(TestCase):
         self.assertEqual(self.client.post("/api/player/programs/", {}, format="json").status_code, 405)
         url = f"/api/player/workspaces/{self.workspace.slug}/projects/{self.project.id}/coaching-card-config/"
         self.assertEqual(self.client.post(url, {}, format="json").status_code, 405)
+
+    def test_discovery_preserves_missing_optional_roster_details(self):
+        RosterPlayer.objects.filter(pk=self.player.pk).update(
+            jersey_number=None, position=None, class_year=None
+        )
+        response = self.programs()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["results"][0]["roster"], {
+            "player_name": "Fixture Player", "jersey_number": None,
+            "position": None, "class_year": None,
+        })

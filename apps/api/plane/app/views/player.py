@@ -52,9 +52,16 @@ class PlayerProgramsEndpoint(BaseAPIView):
                 "name": player.project.name,
                 "identifier": player.project.identifier,
                 "sport": player.project.sport or "",
+                "logo_props": player.project.logo_props,
                 "workspace_slug": player.project.workspace.slug,
                 "workspace_name": player.project.workspace.name,
                 "player_id": str(player.id),
+                "roster": {
+                    "player_name": player.player_name,
+                    "jersey_number": player.jersey_number,
+                    "position": player.position,
+                    "class_year": player.class_year,
+                },
             }
             for player in players[offset : offset + limit]
         ]
