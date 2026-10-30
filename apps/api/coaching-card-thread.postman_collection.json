@@ -1,0 +1,284 @@
+{
+  "info": {
+    "name": "Coaching Card Thread",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Session cookie authentication. Use a disposable assigned card. Set playerEmail and playerPassword as local secrets. Run 01\u201308 in order; they create and delete one player comment. The coach folder requires a coach session and creates a real reply; run separately. See coaching-card-thread.md."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://plane.local:8000"
+    },
+    {
+      "key": "workspaceSlug",
+      "value": ""
+    },
+    {
+      "key": "projectId",
+      "value": ""
+    },
+    {
+      "key": "cardId",
+      "value": ""
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    },
+    {
+      "key": "commentId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01.1 - Get CSRF token for player",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('CSRF token received', function () {",
+              "  pm.expect(pm.response.code).to.equal(200);",
+              "  const token = pm.response.json().csrf_token;",
+              "  pm.expect(token).to.be.a('string').and.not.empty;",
+              "  pm.collectionVariables.set('csrfToken', token);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/get-csrf-token/"
+      }
+    },
+    {
+      "name": "01.2 - Sign in player",
+      "protocolProfileBehavior": {
+        "followRedirects": false
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Sign-in redirects after credential check', function () {",
+              "  pm.expect([302, 303]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          },
+          {
+            "key": "X-CSRFToken",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "email",
+              "value": "{{playerEmail}}",
+              "type": "text"
+            },
+            {
+              "key": "password",
+              "value": "{{playerPassword}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/auth/sign-in/"
+      }
+    },
+    {
+      "name": "03 - List shared thread",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/player/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/thread/?limit=50&offset=0"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Expected HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Only external messages', () => pm.response.json().results.forEach(m => pm.expect(m.access).to.equal('EXTERNAL')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Create own shared message",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/player/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/thread/",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"comment_html\": \"<p>Postman thread check.</p>\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Expected HTTP 201', () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) pm.collectionVariables.set('commentId', pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Read own message",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/player/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/thread/{{commentId}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Expected HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Edit own message",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/player/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/thread/{{commentId}}/",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"comment_html\": \"<p>Updated Postman thread check.</p>\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Expected HTTP 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Delete own message",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/player/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/thread/{{commentId}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Expected HTTP 204', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Confirm deletion",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/player/workspaces/{{workspaceSlug}}/projects/{{projectId}}/coaching-cards/{{cardId}}/thread/{{commentId}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Expected HTTP 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coach session only - shared reply",
+      "item": [
+        {
+          "name": "Create shared coach reply",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/workspaces/{{workspaceSlug}}/projects/{{projectId}}/issues/{{cardId}}/comments/",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"comment_html\": \"<p>Coach reply.</p>\", \"access\": \"EXTERNAL\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

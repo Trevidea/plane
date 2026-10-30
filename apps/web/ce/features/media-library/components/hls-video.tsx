@@ -4,6 +4,8 @@ import type { RefObject } from "react";
 import { useEffect, useRef } from "react";
 import Hls from "hls.js";
 
+import { resolveHlsPlaybackSource } from "../utils/hls-playback";
+
 type THlsVideoProps = {
   src: string;
   poster?: string;
@@ -29,6 +31,7 @@ export const HlsVideo = ({
   useEffect(() => {
     const video = targetRef.current;
     if (!video || !src) return;
+    const playbackSrc = resolveHlsPlaybackSource(src, window.location.origin);
 
     // Prefer MediaSource playback: Chrome can advertise native HLS support
     // but reject the proxied playlist with MEDIA_ERR_SRC_NOT_SUPPORTED.
@@ -37,14 +40,14 @@ export const HlsVideo = ({
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) onError?.();
       });
-      hls.loadSource(src);
+      hls.loadSource(playbackSrc);
       hls.attachMedia(video);
       return () => {
         hls.destroy();
       };
     }
 
-    video.src = src;
+    video.src = playbackSrc;
     video.load();
     return () => {
       video.pause();
