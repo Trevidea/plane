@@ -35,7 +35,7 @@ class PlayerActivityEndpoint(BaseAPIView):
                 "id": str(event.id),
                 "card": {"id": str(event.issue_id), "title": event.issue.name, "sequence_id": event.issue.sequence_id},
                 "actor": (
-                    {"id": str(event.changed_by_id), "display_name": event.changed_by.display_name or "Coach"}
+                    {"id": str(event.changed_by_id), "display_name": event.changed_by.display_name or "Coach", "avatar_url": event.changed_by.avatar_url}
                     if event.changed_by_id
                     else None
                 ),
