@@ -1,10 +1,16 @@
 from django.urls import path
 
 from plane.app.views.player import PlayerProgramConfigEndpoint, PlayerProgramsEndpoint
+from plane.app.views.player_activity import PlayerActivityEndpoint
 from plane.app.views.player_media import PlayerCardPlaybackEndpoint, PlayerSignedMediaEndpoint
 from plane.app.views.player_thread import PlayerThreadEndpoint, PlayerThreadMessageEndpoint
 
 urlpatterns = [
+    path(
+        "player/workspaces/<str:slug>/projects/<uuid:project_id>/activity/",
+        PlayerActivityEndpoint.as_view(),
+        name="player-activity",
+    ),
     path(
         "player/workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/thread/",
         PlayerThreadEndpoint.as_view(),
