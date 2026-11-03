@@ -13,6 +13,7 @@ import { IssueService } from "@/services/issue/issue.service";
 import { IssueActivityCommentRoot } from "../../issue-detail/issue-activity/activity-comment-root";
 import { useCommentOperations } from "../../issue-detail/issue-activity/helper";
 import { IssueActivityLoader } from "../../issue-detail/issue-activity/loader";
+import { CoachPrivateConversation } from "./private-conversation";
 
 const service = new IssueService();
 type Props = {
@@ -23,7 +24,21 @@ type Props = {
   mode: "comments" | "activity";
 };
 
-export const CoachingCardDiscussion = observer(({ issue, workspaceSlug, projectId, disabled, mode }: Props) => {
+export const CoachingCardDiscussion = observer((props: Props) =>
+  props.mode === "comments" ? (
+    <CoachPrivateConversation
+      key={`${props.workspaceSlug}:${props.projectId}:${props.issue.id}`}
+      issueId={props.issue.id}
+      workspaceSlug={props.workspaceSlug}
+      projectId={props.projectId}
+      disabled={props.disabled}
+    />
+  ) : (
+    <CoachingCardAudit {...props} mode="activity" />
+  )
+);
+
+const CoachingCardAudit = observer(({ issue, workspaceSlug, projectId, disabled, mode }: Props) => {
   const {
     activity: { getActivityAndCommentsByIssueId },
     comment: { fetchComments },

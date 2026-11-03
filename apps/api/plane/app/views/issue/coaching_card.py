@@ -292,6 +292,7 @@ def _linked_player(request, project_id, slug):
 
 def _player_card_response(card, player_id, annotation_cache=None):
     response = _card_response(card)
+    response["coach_id"] = str(card.created_by_id) if card.created_by_id else None
     data = player_card_annotations(card, annotation_cache)
     recipient_ids = data.pop("recipient_ids", None) or ([str(card.roster_player_id)] if card.roster_player_id else [])
     data.pop("recipients", None)
