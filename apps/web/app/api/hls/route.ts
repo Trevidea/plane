@@ -2,8 +2,6 @@
 
 import net from "node:net";
 
-const DEFAULT_ALLOWED_HOSTS = ["drake.in", "localhost", "192.168.1.55", "127.0.0.1"];
-
 const getAllowedHosts = () => {
   const raw = process.env.HLS_PROXY_ALLOWED_HOSTS;
   const envHosts = (raw ?? "")
@@ -13,8 +11,7 @@ const getAllowedHosts = () => {
 
   if (envHosts.includes("*")) return ["*"];
 
-  // Always include default local/test hosts unless wildcard is used.
-  return [...new Set([...DEFAULT_ALLOWED_HOSTS, ...envHosts])];
+  return [...new Set(envHosts)];
 };
 
 const isPrivateHostname = (hostname: string) => {

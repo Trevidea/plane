@@ -3,7 +3,7 @@ import { Database as HocuspocusDatabase } from "@hocuspocus/extension-database";
 import {
   getAllDocumentFormatsFromDocumentEditorBinaryData,
   getBinaryDataFromDocumentEditorHTMLString,
-} from "@plane/editor";
+} from "@plane/editor/lib";
 // logger
 
 import { legacyLiveLog, observeLiveOperation } from "@/lib/diagnostics";

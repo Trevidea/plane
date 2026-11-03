@@ -67,7 +67,7 @@ from plane.utils.media_library import (
     write_manifest_atomic,
 )
 from plane.utils.paginator import BadPaginationError, Cursor, CursorResult
-from plane.utils.diagnostic_logging import dependency_call
+from plane.utils.diagnostic_logging import dependency_call, job_scope
 
 _IMAGE_FORMATS = {
     "jpg",
@@ -2185,7 +2185,8 @@ class MediaArtifactTranscodeJobAPIView(BaseAPIView):
         validate_segment(package_id, "packageId")
         validate_segment(artifact_id, "artifactId")
 
-        upstream_status, upstream_payload = _call_transcode_service("GET", f"/transcoding/jobs/{job_id}")
+        with job_scope(job_id):
+            upstream_status, upstream_payload = _call_transcode_service("GET", f"/transcoding/jobs/{job_id}")
         if upstream_status >= 400:
             return Response(upstream_payload, status=upstream_status)
 

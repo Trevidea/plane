@@ -15,9 +15,11 @@ from celery.signals import (
 )
 
 from plane.utils.diagnostic_logging import SCOPE, context, current, emit, identity, database_observation
+from plane.utils.diagnostic_job_monitor import JobMonitor, task_limits
 
 _publishes = {}
 _publish_lock = threading.Lock()
+_runtime = JobMonitor(emit)
 
 
 @before_task_publish.connect(weak=False)
@@ -78,7 +80,16 @@ def diagnostic_task_started(task_id=None, task=None, **kwargs):
         ctx["service"] = "plane-worker"
         task.request._diagnostic_token = current.set(ctx)
         task.request._diagnostic_start = time.perf_counter()
-        emit("job.started", service="plane-worker", fields={"attempt": getattr(task.request, "retries", 0)})
+        deadline, retry_limit = task_limits(task)
+        task.request._diagnostic_limits = (deadline, retry_limit)
+        fields = {"attempt": getattr(task.request, "retries", 0)}
+        if deadline is not None:
+            fields["timeout_ms"] = deadline
+        if retry_limit is not None:
+            fields["retry_limit"] = retry_limit
+        emit("job.started", service="plane-worker", fields=fields)
+        if ctx["job_id"]:
+            _runtime.start(ctx["job_id"], ctx, fields["attempt"], deadline, retry_limit)
         from django.db import connections
 
         database = database_observation(connections.all())
@@ -91,6 +102,7 @@ def diagnostic_task_started(task_id=None, task=None, **kwargs):
 @task_postrun.connect(weak=False)
 def diagnostic_task_finished(task=None, state=None, **kwargs):
     try:
+        _runtime.finish((current.get() or {}).get("job_id"))
         database = getattr(task.request, "_diagnostic_database", None)
         if database is not None:
             try:
@@ -101,6 +113,7 @@ def diagnostic_task_finished(task=None, state=None, **kwargs):
                 del task.request._diagnostic_database
         start = getattr(task.request, "_diagnostic_start", None)
         if start is not None:
+            deadline, retry_limit = getattr(task.request, "_diagnostic_limits", (None, None))
             emit(
                 "job.completed" if state == "SUCCESS" else "job.retry" if state == "RETRY" else "job.failed",
                 service="plane-worker",
@@ -109,6 +122,8 @@ def diagnostic_task_finished(task=None, state=None, **kwargs):
                 fields={
                     "attempt": getattr(task.request, "retries", 0),
                     "error_code": "TASK_FAILED" if state != "SUCCESS" else "NONE",
+                    **({"timeout_ms": deadline} if deadline is not None else {}),
+                    **({"retry_limit": retry_limit} if retry_limit is not None else {}),
                 },
             )
     except Exception:

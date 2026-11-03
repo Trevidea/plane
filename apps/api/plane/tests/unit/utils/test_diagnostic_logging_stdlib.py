@@ -15,6 +15,27 @@ SPEC.loader.exec_module(logs)
 
 
 class DiagnosticLoggingTests(unittest.TestCase):
+    def test_dependency_failure_types_are_classified_without_messages_or_retries(self):
+        for error, expected in (
+            (TimeoutError("private URL and token"), "UPSTREAM_TIMEOUT"),
+            (ConnectionRefusedError("private endpoint"), "UPSTREAM_CONNECTION_FAILED"),
+            (RuntimeError("private payload"), "UPSTREAM_REQUEST_FAILED"),
+        ):
+            calls = []
+
+            def run():
+                calls.append(1)
+                raise error
+
+            with patch.object(logs.logger, "log") as output:
+                with self.assertRaises(type(error)) as caught:
+                    logs.dependency_call(run, dependency="gateway", action="get")
+            self.assertIs(caught.exception, error)
+            self.assertEqual(len(calls), 1)
+            record = output.call_args.kwargs["extra"]
+            self.assertEqual(record["attributes"]["error_code"], expected)
+            self.assertNotIn("private", str(record))
+
     def test_urllib_style_status_is_measured_without_consuming_the_body(self):
         response = SimpleNamespace(status=503, read=lambda: self.fail("Body must not be consumed"))
         with patch.object(logs.logger, "log") as output:
@@ -123,6 +144,21 @@ class DiagnosticLoggingTests(unittest.TestCase):
                 with logs.measured("api.request.completed"):
                     raise original
         self.assertIs(caught.exception, original)
+
+    def test_job_status_scope_restores_parent_context_and_preserves_business_exception(self):
+        parent = {"operation_id": "status-read", "request_id": "request-1"}
+        token = logs.current.set(parent)
+        error = RuntimeError("business error")
+        try:
+            with self.assertRaises(RuntimeError) as caught:
+                with logs.job_scope("job-1"):
+                    self.assertEqual(logs.current.get()["job_id"], "job-1")
+                    self.assertEqual(logs.current.get()["operation_id"], "status-read")
+                    raise error
+            self.assertIs(caught.exception, error)
+            self.assertIs(logs.current.get(), parent)
+        finally:
+            logs.current.reset(token)
 
 
 if __name__ == "__main__":

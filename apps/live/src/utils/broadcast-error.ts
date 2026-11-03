@@ -1,5 +1,5 @@
 import { type Hocuspocus } from "@hocuspocus/server";
-import { createRealtimeEvent } from "@plane/editor";
+import { createRealtimeEvent } from "@plane/editor/lib";
 
 import { legacyLiveLog } from "@/lib/diagnostics";
 import type { FetchPayloadWithContext, StorePayloadWithContext } from "@/types";

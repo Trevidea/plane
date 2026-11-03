@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 // helpers
 import { Controller, Post } from "@plane/decorators";
-import { convertHTMLDocumentToAllFormats } from "@plane/editor";
+import { convertHTMLDocumentToAllFormats } from "@plane/editor/lib";
 // logger
 
 import { legacyLiveLog } from "@/lib/diagnostics";

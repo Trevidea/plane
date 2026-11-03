@@ -14,7 +14,18 @@ from uuid import uuid4
 ID = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 LABEL = re.compile(r"^[A-Za-z0-9_.:-]{1,100}$")
 SCOPE = re.compile(r"^[A-Za-z0-9_.:/|\-]{1,400}$")
-NUMBERS = {"status_code", "query_count", "error_count", "attempt", "queue_depth", "input_bytes", "output_bytes"}
+NUMBERS = {
+    "status_code",
+    "query_count",
+    "error_count",
+    "attempt",
+    "queue_depth",
+    "input_bytes",
+    "output_bytes",
+    "running_duration_ms",
+    "timeout_ms",
+    "retry_limit",
+}
 LABELS = {"error_code", "dependency", "action"}
 current = ContextVar("kanavio_diagnostics", default=None)
 CLOCK = "plane:" + uuid4().hex
@@ -145,6 +156,24 @@ def measured(event, **fields):
 
 
 @contextmanager
+def job_scope(job_id):
+    token = None
+    try:
+        if identity(job_id):
+            token = current.set({**(current.get() or {}), "job_id": job_id})
+    except Exception:
+        pass
+    try:
+        yield
+    finally:
+        if token is not None:
+            try:
+                current.reset(token)
+            except (ValueError, RuntimeError):
+                pass
+
+
+@contextmanager
 def database_observation(connections):
     """One aggregate per scope, never SQL, parameters or one log per query."""
     totals = {"count": 0, "errors": 0, "duration": 0.0}
@@ -179,7 +208,7 @@ def dependency_call(run, *args, dependency, action, internal_headers=False, **kw
     """Observe existing calls without changing timeouts, retries, bodies or failures."""
     if internal_headers:
         kwargs["headers"] = outgoing_headers(kwargs.get("headers"))
-    started, outcome, status = time.perf_counter(), "ok", None
+    started, outcome, status, error_code = time.perf_counter(), "ok", None, None
     try:
         result = run(*args, **kwargs)
         try:
@@ -190,13 +219,32 @@ def dependency_call(run, *args, dependency, action, internal_headers=False, **kw
             status = None
         outcome = "error" if isinstance(status, int) and status >= 400 else "ok"
         return result
-    except BaseException:
+    except BaseException as error:
         outcome = "error"
+        # Classify types only. Never inspect/serialize exception text, URLs or bodies.
+        try:
+            classes = {cls.__name__ for cls in type(error).__mro__}
+            error_code = (
+                "UPSTREAM_TIMEOUT"
+                if classes & {
+                    "TimeoutError", "Timeout", "ReadTimeout", "ConnectTimeout",
+                    "ReadTimeoutError", "ConnectTimeoutError"
+                }
+                else "UPSTREAM_TLS_FAILED" if classes & {"SSLError", "SSLCertVerificationError"}
+                else "UPSTREAM_CONNECTION_FAILED"
+                if classes & {
+                    "ConnectionError", "ConnectionRefusedError", "ConnectionResetError",
+                    "NewConnectionError", "EndpointConnectionError"
+                }
+                else "UPSTREAM_REQUEST_FAILED"
+            )
+        except Exception:
+            error_code = "UPSTREAM_REQUEST_FAILED"
         raise
     finally:
         emit(
             "api.dependency.completed",
             duration_ms=(time.perf_counter() - started) * 1000,
             outcome=outcome,
-            fields={"dependency": dependency, "action": action, "status_code": status},
+            fields={"dependency": dependency, "action": action, "status_code": status, "error_code": error_code},
         )

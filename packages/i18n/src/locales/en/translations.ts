@@ -1615,6 +1615,7 @@ export default {
       profile: "Profile",
       security: "Security",
       activity: "Activity",
+      diagnostics: "Diagnostics",
       preferences: "Preferences",
       notifications: "Notifications",
       "api-tokens": "Personal Access Tokens",

@@ -16,6 +16,7 @@ import { resolveGeneralTheme } from "@plane/utils";
 // polyfills
 import "@/lib/polyfills";
 // mobx store provider
+import { WorkflowReporting } from "@/components/profile/diagnostics/workflow-reporting";
 import { StoreProvider } from "@/lib/store-context";
 // wrappers
 import { InstanceWrapper } from "@/lib/wrappers/instance-wrapper";
@@ -53,7 +54,10 @@ export const AppProvider: FC<IAppProvider> = (props) => {
                 <InstanceWrapper>
                   <IntercomProvider>
                     <PostHogProvider>
-                      <SWRConfig value={WEB_SWR_CONFIG}>{children}</SWRConfig>
+                      <SWRConfig value={WEB_SWR_CONFIG}>
+                        {children}
+                        <WorkflowReporting />
+                      </SWRConfig>
                     </PostHogProvider>
                   </IntercomProvider>
                 </InstanceWrapper>

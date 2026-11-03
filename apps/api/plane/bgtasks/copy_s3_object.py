@@ -75,7 +75,7 @@ def sync_with_external_service(entity_name, description_html):
         url = normalize_url_path(f"{live_url}/convert-document/")
 
         response = dependency_call(
-            requests.post, url, json=data, headers=None, dependency="media-notification", action="post"
+            requests.post, url, json=data, headers=None, dependency="plane-live", action="post", internal_headers=True
         )
         if response.status_code == 200:
             return response.json()

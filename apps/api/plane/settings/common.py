@@ -119,6 +119,11 @@ CORS_ALLOW_HEADERS = [
     "X-API-Key",
     "x-request-id",
     "x-upload-id",
+    "x-trace-id",
+    "x-kanavio-operation-id",
+    "x-kanavio-operation-kind",
+    "x-kanavio-scope",
+    "x-kanavio-environment",
 ]
 
 # Application Settings
@@ -295,6 +300,7 @@ MEDIA_LIBRARY_STREAM_CHUNK_BYTES = int(os.environ.get("MEDIA_LIBRARY_STREAM_CHUN
 MEDIA_LIBRARY_THUMBNAIL_MAX_BYTES = int(os.environ.get("MEDIA_LIBRARY_THUMBNAIL_MAX_BYTES", 51200))
 MEDIA_TRANSCODE_SERVICE_URL = os.environ.get("MEDIA_TRANSCODE_SERVICE_URL", "http://thumbnail-service:5000")
 MEDIA_EVENT_HLS_BASE_URL = os.environ.get("MEDIA_EVENT_HLS_BASE_URL", "http://llhls-server:59919")
+PLAYER_ARCHIVED_HLS_BASE_URL = os.environ.get("PLAYER_ARCHIVED_HLS_BASE_URL", "")
 MEDIA_EVENT_THUMBNAIL_TIMEOUT = float(os.environ.get("MEDIA_EVENT_THUMBNAIL_TIMEOUT", 25))
 MEDIA_TRANSCODE_INTERNAL_API_TOKEN = os.environ.get("MEDIA_TRANSCODE_INTERNAL_API_TOKEN", "")
 MEDIA_TRANSCODE_REQUEST_TIMEOUT = float(os.environ.get("MEDIA_TRANSCODE_REQUEST_TIMEOUT", 10))
@@ -485,6 +491,13 @@ if ENABLE_DRF_SPECTACULAR:
 # MongoDB Settings
 MONGO_DB_URL = os.environ.get("MONGO_DB_URL", False)
 MONGO_DB_DATABASE = os.environ.get("MONGO_DB_DATABASE", False)
+
+# The customer-local diagnostics service is opt-in; the browser never receives its credential.
+CUSTOMER_DIAGNOSTICS_ENABLED = os.environ.get("CUSTOMER_DIAGNOSTICS_ENABLED", "false").lower() == "true"
+CUSTOMER_DIAGNOSTICS_WORKSPACE = os.environ.get("CUSTOMER_DIAGNOSTICS_WORKSPACE", "")
+CUSTOMER_DIAGNOSTICS_URL = os.environ.get("CUSTOMER_DIAGNOSTICS_URL", "")
+CUSTOMER_DIAGNOSTICS_BRIDGE_KEY_FILE = os.environ.get("CUSTOMER_DIAGNOSTICS_BRIDGE_KEY_FILE", "")
+CUSTOMER_DIAGNOSTICS_IDENTITY_KEY_FILE = os.environ.get("CUSTOMER_DIAGNOSTICS_IDENTITY_KEY_FILE", "")
 
 # Service Gateway Webhook Sync
 SERVICE_GATEWAY_EVENT_API = os.environ.get("SERVICE_GATEWAY_EVENT_API", "")

@@ -7,6 +7,8 @@ import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { FilterInstance } from "@plane/shared-state";
 import type { TFilterConfig, TFilterValue } from "@plane/types";
 
+import { beginWorkflow, failWorkflow } from "@/helpers/workflow-diagnostics";
+import type { WorkflowOperation } from "@/helpers/workflow-diagnostics";
 import type { TMediaArtifactPayload, TMediaTranscodeJobStatus } from "@/services/media-library.service";
 import { MediaLibraryService } from "@/services/media-library.service";
 import { getDocumentThumbnailPath } from "../utils/media-items";
@@ -106,6 +108,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
   const [uploadJobs, setUploadJobs] = useState<TMediaLibraryUploadJob[]>([]);
   const [trackedTranscodeJobs, setTrackedTranscodeJobs] = useState<Record<string, TMediaTranscodeJobTrackerInput>>({});
   const uploadJobsRef = useRef(uploadJobs);
+  const finalizationOperations = useRef(new Map<string, WorkflowOperation>());
   const trackedTranscodeJobsRef = useRef(trackedTranscodeJobs);
   const isMediaLibraryPathRef = useRef(false);
   const filterInstancesRef = useRef(
@@ -113,6 +116,13 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
   );
   const filterConfigsRef = useRef(new Map<string, TFilterConfig<TMediaLibraryFilterProperty, TFilterValue>[]>());
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
+  useEffect(() => {
+    const operations = finalizationOperations.current;
+    return () => {
+      operations.forEach((operation) => operation.abandon());
+      operations.clear();
+    };
+  }, []);
 
   const updateUploadJob = useCallback((jobId: string, updates: Partial<TMediaLibraryUploadJob>) => {
     setUploadJobs((prev) =>
@@ -171,6 +181,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
       const action = isVideoUploadFormat(format) ? "play" : isImageUploadFormat(format) ? "view" : "download";
       const meta = { ...job.meta };
       const requestId = buildUploadAttemptRequestId(job.uploadId, job.retryCount ?? 0);
+      const diagnostic = beginWorkflow(job.workspaceSlug, job.projectId, "upload");
       meta.upload_id = job.uploadId;
       meta.request_id = requestId;
       meta.upload_client = "plane-web";
@@ -235,6 +246,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
           artifactPayload,
           file,
           (progressEvent) => {
+            diagnostic?.progress(progressEvent.loaded);
             const total = progressEvent.total ?? 0;
             if (!total) return;
             const currentJob = uploadJobsRef.current.find((entry) => entry.id === job.id);
@@ -283,13 +295,16 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
           {
             signal: abortController.signal,
             headers: {
+              ...diagnostic?.headers,
               "X-Upload-ID": job.uploadId,
               "X-Request-ID": requestId,
             },
-          }
+          },
+          diagnostic
         );
 
         const uploadCompletedAtMs = Date.now();
+        diagnostic?.complete();
         const uploadDurationMs = uploadCompletedAtMs - startedAtMs;
         const transcodeJobId = artifact.transcode_job?.job_id;
         logMediaUploadLifecycle({
@@ -355,6 +370,8 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
         const wasCancelled =
           error && typeof error === "object" && (error as Record<string, unknown>).code === "ERR_CANCELED";
         const errorMessage = wasCancelled ? "Cancelled" : getUploadErrorMessage(error);
+        if (wasCancelled) diagnostic?.abandon();
+        else failWorkflow(diagnostic, error);
         logMediaUploadLifecycle({
           level: wasCancelled ? "warn" : "error",
           event: wasCancelled ? "upload_cancelled" : "upload_failed",
@@ -594,18 +611,28 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
 
         await Promise.all(
           jobs.map(async ([jobKey, job]) => {
+            if (!finalizationOperations.current.has(jobKey)) {
+              const operation = beginWorkflow(job.workspaceSlug, job.projectId, "media-finalization");
+              if (operation) finalizationOperations.current.set(jobKey, operation);
+            }
+            const diagnostic = finalizationOperations.current.get(jobKey);
             try {
               const result = await mediaLibraryService.getArtifactTranscodeJob(
                 job.workspaceSlug,
                 job.projectId,
                 job.packageId,
                 job.artifactId,
-                job.jobId
+                job.jobId,
+                diagnostic?.headers
               );
               if (isDisposed) return;
 
               shouldRefreshLibrary = true;
               if (TERMINAL_TRANSCODE_STATUSES.has(result.status)) {
+                if (["COMPLETED", "READY", "UPLOADED"].includes(result.status)) diagnostic?.complete();
+                else if (result.status === "CANCELLED") diagnostic?.abandon();
+                else diagnostic?.fail();
+                finalizationOperations.current.delete(jobKey);
                 terminalJobKeys.push(jobKey);
                 if (job.uploadJobId) {
                   if (result.status === "FAILED" || result.status === "QUEUE_FAILED" || result.status === "CANCELLED") {

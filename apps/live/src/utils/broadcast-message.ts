@@ -1,5 +1,5 @@
 import { Hocuspocus } from "@hocuspocus/server";
-import { BroadcastedEvent } from "@plane/editor";
+import type { BroadcastedEvent } from "@plane/editor/lib";
 
 import { Redis } from "@/extensions/redis";
 import { legacyLiveLog } from "@/lib/diagnostics";
@@ -29,7 +29,12 @@ export const broadcastMessageToPage = async (
     await redisExtension.broadcastToDocument(documentName, eventData);
     return true;
   } catch (error) {
-    legacyLiveLog("error", "LIVE_E7A3BBD910D7", `BROADCAST_MESSAGE_TO_PAGE: Error broadcasting to ${documentName}:`, error);
+    legacyLiveLog(
+      "error",
+      "LIVE_E7A3BBD910D7",
+      `BROADCAST_MESSAGE_TO_PAGE: Error broadcasting to ${documentName}:`,
+      error
+    );
     return false;
   }
 };

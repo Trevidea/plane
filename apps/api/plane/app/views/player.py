@@ -50,8 +50,15 @@ class PlayerProgramsEndpoint(BaseAPIView):
                         "name": player.project.name,
                         "identifier": player.project.identifier,
                         "sport": player.project.sport or "",
+                        "logo_props": player.project.logo_props,
                         "player_id": str(player.id),
                         "stages": stages.get(player.project_id, []),
+                        "roster": {
+                            "player_name": player.player_name,
+                            "jersey_number": player.jersey_number,
+                            "position": player.position,
+                            "class_year": player.class_year,
+                        },
                     }
                     for player in page
                 ],

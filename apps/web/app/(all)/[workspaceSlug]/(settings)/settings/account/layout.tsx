@@ -18,6 +18,7 @@ const ProfileSettingsLayout = observer((props: Props) => {
   const { children } = props;
   // router
   const pathname = usePathname();
+  const isDiagnostics = pathname.replace(/\/$/, "").endsWith("/settings/account/diagnostics");
 
   return (
     <>
@@ -26,8 +27,8 @@ const ProfileSettingsLayout = observer((props: Props) => {
         <div className="hidden md:block">
           <ProfileSidebar />
         </div>
-        <div className="w-full h-full overflow-y-scroll md:pt-page-y">
-          <SettingsContentWrapper>{children}</SettingsContentWrapper>
+        <div className="min-w-0 w-full h-full overflow-y-scroll md:pt-page-y">
+          <SettingsContentWrapper size={isDiagnostics ? "lg" : "md"}>{children}</SettingsContentWrapper>
         </div>
       </div>
     </>

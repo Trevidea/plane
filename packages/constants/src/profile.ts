@@ -19,6 +19,12 @@ export const PROFILE_SETTINGS = {
     href: `/settings/account/activity`,
     highlight: (pathname: string) => pathname === "/settings/account/activity/",
   },
+  diagnostics: {
+    key: "diagnostics",
+    i18n_label: "profile.actions.diagnostics",
+    href: "/settings/account/diagnostics",
+    highlight: (pathname: string) => pathname === "/settings/account/diagnostics/",
+  },
   preferences: {
     key: "preferences",
     i18n_label: "profile.actions.preferences",
@@ -47,6 +53,7 @@ export const PROFILE_ACTION_LINKS: {
   PROFILE_SETTINGS["profile"],
   PROFILE_SETTINGS["security"],
   PROFILE_SETTINGS["activity"],
+  PROFILE_SETTINGS["diagnostics"],
   PROFILE_SETTINGS["preferences"],
   PROFILE_SETTINGS["notifications"],
   PROFILE_SETTINGS["api-tokens"],

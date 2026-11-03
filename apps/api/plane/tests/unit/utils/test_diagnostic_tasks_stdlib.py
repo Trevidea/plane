@@ -18,6 +18,7 @@ def load(name, filename):
 
 
 logs = load("diagnostic_logging", "diagnostic_logging.py")
+monitor = load("diagnostic_job_monitor", "diagnostic_job_monitor.py")
 signals = SimpleNamespace(
     **{
         name: SimpleNamespace(connect=lambda **_: lambda fn: fn)
@@ -40,6 +41,7 @@ with patch.dict(
         "plane": ModuleType("plane"),
         "plane.utils": ModuleType("plane.utils"),
         "plane.utils.diagnostic_logging": logs,
+        "plane.utils.diagnostic_job_monitor": monitor,
         "django.db": SimpleNamespace(connections=SimpleNamespace(all=lambda: [])),
     },
 ):
