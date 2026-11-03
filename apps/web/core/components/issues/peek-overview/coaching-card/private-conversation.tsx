@@ -34,8 +34,8 @@ export const CoachPrivateConversation = observer((props: Props) => {
   );
   const recipient = recipients?.find((r) => r.id === selected) || recipients?.[0];
   return (
-    <section aria-label="Private player conversations" className="space-y-3 py-3">
-      <h3 className="text-sm font-medium text-custom-text-100">Private player conversations</h3>
+    <section aria-label="Private player conversations" className="space-y-4 py-3">
+      <h3 className="text-sm font-medium">Private player conversations</h3>
       <p className="text-xs text-custom-text-300">Each conversation is visible only to you and the selected player.</p>
       {error ? (
         <div role="alert" className="space-y-2 text-sm">
@@ -53,13 +53,13 @@ export const CoachPrivateConversation = observer((props: Props) => {
         <p className="text-sm text-custom-text-300">No eligible linked players are currently assigned.</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-3 border-b border-custom-border-200 pb-4">
-            <span className="text-xs font-medium text-custom-text-300">Conversation with</span>
+          <div className="block space-y-2 text-sm">
+            <span>Player</span>
             <CustomSelect
               value={recipient.id}
               label={<span className="truncate">{recipient.name}</span>}
               onChange={setSelected}
-              className="w-full sm:w-64"
+              className="w-full"
               buttonClassName="w-full rounded-md border border-custom-border-200 bg-custom-background-90 px-3 py-2 text-sm text-custom-text-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100"
               optionsClassName="z-50 w-64 max-w-[calc(100vw-2rem)]"
             >
@@ -141,12 +141,7 @@ function RecipientConversation(props: Props & { coach: string; recipient: string
         <p>Loading private messages…</p>
       ) : (
         <>
-          {!page?.results.length && (
-            <div className="rounded-md border border-dashed border-custom-border-200 bg-custom-background-90 px-4 py-6 text-center">
-              <p className="text-sm text-custom-text-200">No private messages yet.</p>
-              <p className="mt-1 text-xs text-custom-text-300">Send a reply to start this conversation.</p>
-            </div>
-          )}
+          {!page?.results.length && <p className="text-sm text-custom-text-300">No private messages yet.</p>}
           {page?.results.map((message) => (
             <article key={message.id} className="rounded border border-custom-border-200 p-3 text-sm">
               <div className="flex justify-between gap-2 text-xs text-custom-text-300">
@@ -156,26 +151,24 @@ function RecipientConversation(props: Props & { coach: string; recipient: string
               <p className="mt-2 whitespace-pre-wrap break-words">{message.text}</p>
             </article>
           ))}
-          {page && page.total > 50 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="neutral-primary"
-                disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - 50))}
-              >
-                Previous messages
-              </Button>
-              <Button
-                size="sm"
-                variant="neutral-primary"
-                disabled={!page || offset + page.results.length >= page.total}
-                onClick={() => setOffset(offset + 50)}
-              >
-                Next messages
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="neutral-primary"
+              disabled={offset === 0}
+              onClick={() => setOffset(Math.max(0, offset - 50))}
+            >
+              Previous messages
+            </Button>
+            <Button
+              size="sm"
+              variant="neutral-primary"
+              disabled={!page || offset + page.results.length >= page.total}
+              onClick={() => setOffset(offset + 50)}
+            >
+              Next messages
+            </Button>
+          </div>
         </>
       )}
       {uncertain && (
@@ -194,8 +187,7 @@ function RecipientConversation(props: Props & { coach: string; recipient: string
           maxLength={300}
           disabled={sending || props.disabled}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Write a private reply…"
-          className="block min-h-24 w-full resize-y rounded-md border border-custom-border-200 bg-custom-background-90 px-3 py-2 text-sm text-custom-text-100 placeholder:text-custom-text-400 focus:border-custom-primary-100 focus:outline-none focus:ring-1 focus:ring-custom-primary-100 disabled:opacity-50"
+          className="block min-h-24 w-full rounded border border-custom-border-200 bg-custom-background-100 p-2"
         />
       </label>
       <Button
