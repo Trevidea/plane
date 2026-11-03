@@ -15,7 +15,7 @@ class PlayerActivityTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.coach = User.objects.create(
-            email="activity-coach@test.invalid", username="activity-coach", display_name="Coach"
+            email="activity-coach@test.invalid", username="activity-coach", display_name="Coach", avatar="activity-photo.png"
         )
         cls.user = User.objects.create(email="activity-player@test.invalid", username="activity-player")
         cls.workspace = Workspace.objects.create(name="School", slug="activity-school", owner=cls.coach)
@@ -64,7 +64,7 @@ class PlayerActivityTests(TestCase):
         self.assertEqual(
             event["card"], {"id": str(self.card.id), "title": self.card.name, "sequence_id": self.card.sequence_id}
         )
-        self.assertEqual(event["actor"], {"id": str(self.coach.id), "display_name": "Coach"})
+        self.assertEqual(event["actor"], {"id": str(self.coach.id), "display_name": "Coach", "avatar_url": self.coach.avatar_url})
         self.assertEqual(event["from_stage"], "Assigned")
         self.assertEqual(event["to_stage"], "Action Required")
         self.assertEqual(event["reason"], "Focus on technique")
