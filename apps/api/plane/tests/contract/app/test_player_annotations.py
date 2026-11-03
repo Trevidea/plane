@@ -298,3 +298,18 @@ class PlayerAnnotationContractTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertLess(len(response.content), 2 * 1024 * 1024)
+
+
+    def test_saved_video_metadata_drawings_are_visible_without_a_json_artifact(self):
+        self.manifest["artifacts"][0].update(format="m3u8", path="https://fixture.invalid/event.m3u8")
+        self.manifest["metadata"]["event"] = {**self.meta, **self.payload}
+        (self.root / "manifest.json").write_text(json.dumps(self.manifest))
+        clips = self.clips()
+        self.assertEqual(clips[0].get("annotations"), [])
+        self.assertEqual(clips[1].get("annotations"), [{**self.drawing, "startTime": 166, "endTime": 168}])
+
+    def test_video_metadata_cannot_supply_drawings_for_a_different_event(self):
+        self.manifest["artifacts"][0].update(format="m3u8", work_item_id="other-event")
+        self.manifest["metadata"]["event"] = {**self.meta, **self.payload}
+        (self.root / "manifest.json").write_text(json.dumps(self.manifest))
+        self.assertFalse(any(c.get("annotations") for c in self.clips()))
