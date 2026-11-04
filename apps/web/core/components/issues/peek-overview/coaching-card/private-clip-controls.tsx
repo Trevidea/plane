@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Video } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
-import { Button } from "@plane/ui";
+import { Button, Input } from "@plane/ui";
 import type { APIService } from "@/services/api.service";
 import { privateClip, privateClipBounds, privateClipGrant, MAX_PRIVATE_VIDEO_BYTES } from "./private-thread-model";
 
@@ -89,7 +89,7 @@ export function PrivateClipControls({
       >
         Upload clip from device
       </Button>
-      <input
+      <Input
         ref={input}
         type="file"
         accept="video/mp4,video/quicktime,.mp4,.mov"
