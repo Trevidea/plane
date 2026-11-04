@@ -84,3 +84,10 @@ test("conversation clock handles full recordings and short legacy exports", asyn
     { start: 4, end: 9 },
   );
 });
+
+test("document and image attachment metadata rejects unsafe MIME types", () => {
+  for (const [media_type, content_type] of [["image", "image/png"], ["document", "application/pdf"]])
+    assert.equal(privateClip({...clip, duration: 0, end_seconds: null, media_type, content_type}).media_type, media_type);
+  assert.throws(() => privateClip({...clip, media_type: "image", content_type: "text/html"}));
+  assert.throws(() => privateClip({...clip, media_type: "document", content_type: "video/mp4"}));
+});

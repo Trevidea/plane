@@ -107,10 +107,29 @@ export type PrivateClip = {
   kind: "upload" | "card_clip";
   name: string;
   size: number;
+  media_type?: "video" | "image" | "document";
+  content_type?: string;
   duration: number;
   start_seconds: number;
   end_seconds: number | null;
 };
+export const PRIVATE_ATTACHMENT_TYPES: Record<string, string> = {
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
+export const privateAttachmentMime = (name: string) =>
+  PRIVATE_ATTACHMENT_TYPES[name.split(".").pop()?.toLowerCase() || ""];
 export const MAX_PRIVATE_VIDEO_BYTES = 1024 * 1024 * 1024;
 export function clipSelection(value: ClipSelection): ClipSelection {
   if (value.kind === "upload") return { kind: "upload", id: id(value.id) };
@@ -143,7 +162,20 @@ export function privateClip(value: unknown): PrivateClip {
         row.end_seconds <= row.start_seconds))
   )
     throw new Error("Invalid private video");
+  if (
+    row.media_type !== undefined &&
+    (!["video", "image", "document"].includes(String(row.media_type)) ||
+      !Object.values(PRIVATE_ATTACHMENT_TYPES).includes(String(row.content_type)) ||
+      (row.media_type === "image" && !String(row.content_type).startsWith("image/")) ||
+      (row.media_type === "video" && !String(row.content_type).startsWith("video/")) ||
+      (row.media_type === "document" && !String(row.content_type).startsWith("application/")) ||
+      (row.kind === "card_clip" && row.media_type !== "video"))
+  )
+    throw new Error("Invalid attachment type");
   return {
+    ...(row.media_type === undefined
+      ? {}
+      : { media_type: row.media_type as "video" | "image" | "document", content_type: row.content_type as string }),
     id: id(row.id),
     kind: row.kind as PrivateClip["kind"],
     name: text(row.name, 255),
@@ -242,4 +274,22 @@ export function privateClipBounds(value: unknown, duration: number): { start: nu
         ? from + (row.duration_seconds as number)
         : duration;
   return { start: from, end: Math.max(from, Math.min(to, duration)) };
+}
+
+export function privateFileGrant(value: unknown) {
+  const row = object(value);
+  const path = text(row.source_url, 4096);
+  if (
+    !/^\/api\/player\/media\/[A-Za-z0-9_.:-]{20,2048}\/attachment\.(jpg|jpeg|png|webp|pdf|doc|docx|xls|xlsx|ppt|pptx)$/.test(
+      path
+    ) ||
+    !["image", "document"].includes(String(row.content_type)) ||
+    !Object.values(PRIVATE_ATTACHMENT_TYPES).includes(String(row.mime_type)) ||
+    (row.content_type === "image" && !String(row.mime_type).startsWith("image/")) ||
+    (row.content_type === "document" && !String(row.mime_type).startsWith("application/")) ||
+    !Number.isFinite(Date.parse(text(row.expires_at, 64))) ||
+    Date.parse(String(row.expires_at)) <= Date.now()
+  )
+    throw new Error("Attachment unavailable");
+  return { path, type: row.content_type as "image" | "document" };
 }

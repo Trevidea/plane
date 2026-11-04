@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { observer } from "mobx-react";
 import useSWR from "swr";
-import { Lock, Play, Video } from "lucide-react";
+import { FileText, Image as ImageIcon, Lock, Play, Video } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
 import { Avatar, Button, CustomSelect } from "@plane/ui";
 import { useUser } from "@/hooks/store/user";
 import { APIService } from "@/services/api.service";
-import { PrivateClipControls, PrivateClipPlayer } from "./private-clip-controls";
+import { PrivateAttachmentFile, PrivateClipControls, PrivateClipPlayer } from "./private-clip-controls";
 import { privateMessage, privatePage, privateRecipients, privateReply } from "./private-thread-model";
 
 import type { ClipSelection, PrivateClip } from "./private-thread-model";
@@ -252,22 +252,53 @@ function RecipientConversation(props: Props & { coach: string; recipient: string
                     )}
                     {clip &&
                       (playing?.id === clip.id ? (
-                        <PrivateClipPlayer service={service} path={path} clip={clip} onClose={() => setPlaying(null)} />
+                        clip.media_type === "image" || clip.media_type === "document" ? (
+                          <PrivateAttachmentFile
+                            key={clip.id}
+                            service={service}
+                            path={path}
+                            clip={clip}
+                            onClose={() => setPlaying(null)}
+                          />
+                        ) : (
+                          <PrivateClipPlayer
+                            service={service}
+                            path={path}
+                            clip={clip}
+                            onClose={() => setPlaying(null)}
+                          />
+                        )
                       ) : (
                         <button
                           type="button"
-                          aria-label={`Play clip: ${clip.name}`}
+                          aria-label={`${clip.media_type === "image" ? "View image" : clip.media_type === "document" ? "Open document" : "Play clip"}: ${clip.name}`}
                           onClick={() => setPlaying(clip)}
                           className="flex w-full max-w-md items-center gap-3 rounded-md border border-custom-border-200 bg-custom-background-100 px-3 py-2.5 text-left hover:bg-custom-background-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100"
                         >
                           <span className="flex size-8 shrink-0 items-center justify-center rounded bg-custom-background-80 text-custom-text-200">
-                            <Video className="size-4" aria-hidden="true" />
+                            {clip.media_type === "image" ? (
+                              <ImageIcon className="size-4" aria-hidden="true" />
+                            ) : clip.media_type === "document" ? (
+                              <FileText className="size-4" aria-hidden="true" />
+                            ) : (
+                              <Video className="size-4" aria-hidden="true" />
+                            )}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-xs font-medium text-custom-text-100">{clip.name}</span>
                             <span className="mt-0.5 block text-xs text-custom-text-300">
-                              Video · {Math.floor(clip.duration / 60)}:
-                              {String(Math.floor(clip.duration % 60)).padStart(2, "0")}
+                              {clip.media_type === "image"
+                                ? "Image"
+                                : clip.media_type === "document"
+                                  ? "Document"
+                                  : "Video"}{" "}
+                              {(!clip.media_type || clip.media_type === "video") && (
+                                <>
+                                  {" "}
+                                  · {Math.floor(clip.duration / 60)}:
+                                  {String(Math.floor(clip.duration % 60)).padStart(2, "0")}
+                                </>
+                              )}
                               {clip.size > 0 ? ` · ${(clip.size / (1024 * 1024)).toFixed(1)} MB` : ""}
                             </span>
                           </span>
@@ -330,17 +361,19 @@ function RecipientConversation(props: Props & { coach: string; recipient: string
             className="block min-h-20 w-full resize-y bg-transparent py-1 text-sm text-custom-text-100 placeholder:text-custom-text-300 focus:outline-none"
           />
         </label>
-        <PrivateClipControls
-          key={attachmentVersion}
-          service={service}
-          path={path}
-          disabled={props.disabled || sending || uncertain || isLoading || !page || !!error}
-          onSelect={setAttachment}
-          onBusy={setUploading}
-        />
+        <div role="toolbar" aria-label="Comment attachments" className="border-t border-custom-border-200 pt-2">
+          <PrivateClipControls
+            key={attachmentVersion}
+            service={service}
+            path={path}
+            disabled={props.disabled || sending || uncertain || isLoading || !page || !!error}
+            onSelect={setAttachment}
+            onBusy={setUploading}
+          />
+        </div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-custom-text-300">
-            {uploading ? "Uploading video…" : `${draft.length}/300 · Private conversation`}
+            {uploading ? "Uploading file…" : `${draft.length}/300 · Private conversation`}
           </span>
           <Button
             size="sm"

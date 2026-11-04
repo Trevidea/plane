@@ -16,9 +16,11 @@ await writeFile(path.join(temp,"mocks.tsx"),`
 import React from "react";
 export const CustomSelect=Object.assign(({children,value,onChange})=><select value={value} onChange={event=>onChange(event.target.value)}>{children}</select>,{Option:({children,value})=><option value={value}>{children}</option>});
 export const Avatar=({name})=><span aria-label={name}>{name?.[0]}</span>;
+export const Input=React.forwardRef((props,ref)=><input ref={ref} {...props}/>);
 export const API_BASE_URL="";
 export const useUser=()=>({data:{id:"coach"}});
-export const Button=({children,onClick,disabled})=><button disabled={disabled} onClick={onClick}>{children}</button>;
+export const Tooltip=({children,tooltipContent})=><span title={tooltipContent}>{children}</span>;
+export const Button=({children,onClick,disabled,"aria-label":label})=><button aria-label={label} disabled={disabled} onClick={onClick}>{children}</button>;
 `);
 const component=path.join(web,"core/components/issues/peek-overview/coaching-card/private-conversation.tsx");
 await writeFile(path.join(temp,"fixture.tsx"),`
@@ -43,9 +45,9 @@ const button=text=>[...document.querySelectorAll("button")].find(node=>node.text
  await until(()=>[...document.querySelectorAll("article p")].some(node=>node.textContent==="Private beta reply"));
  check(document.querySelector("textarea").value==="","confirmed send clears draft");
  check(!button("Attach clip"),"there must be no attachment choices menu");
- check(!!button("Upload clip from device"),"direct device upload must be offered");
+ check(!!document.querySelector('button[aria-label="Attach file"]'),"paperclip attachment action must be offered");
  await until(()=>document.querySelector('input[type="file"]'));
- const fileInput=document.querySelector('input[type="file"]');let pickerOpened=false;fileInput.addEventListener("click",event=>{event.preventDefault();pickerOpened=true;});button("Upload clip from device").click();check(pickerOpened,"one button must open device picker directly");
+ const fileInput=document.querySelector('input[type="file"]');let pickerOpened=false;fileInput.addEventListener("click",event=>{event.preventDefault();pickerOpened=true;});document.querySelector('button[aria-label="Attach file"]').click();check(pickerOpened,"one button must open device picker directly");
  const input=document.querySelector('input[type="file"]');const files=new DataTransfer();files.items.add(new File([new Uint8Array([1,2,3])],"practice.mp4",{type:"video/mp4"}));input.files=files.files;input.dispatchEvent(new Event("change",{bubbles:true}));
  await until(()=>document.body.textContent.includes("practice.mp4")&&!button("Send private reply").disabled);button("Send private reply").click();
  await until(()=>document.querySelector('button[aria-label="Play clip: practice.mp4"]'));
@@ -56,6 +58,15 @@ const button=text=>[...document.querySelectorAll("button")].find(node=>node.text
  check(!document.querySelector('[role="dialog"]'),"video must play inside its message bubble");
  button("Close video").click();
  await until(()=>!document.querySelector("video"));
+ for (const [name,type,label] of [["notes.pdf","application/pdf","Open document"],["photo.png","image/png","View image"]]) {
+  const chooser=document.querySelector('input[type="file"]'),data=new DataTransfer();data.items.add(new File([new Uint8Array([1,2,3])],name,{type}));chooser.files=data.files;chooser.dispatchEvent(new Event("change",{bubbles:true}));
+  await until(()=>document.body.textContent.includes(name)&&!button("Send private reply").disabled);button("Send private reply").click();
+  await until(()=>document.querySelector('button[aria-label="'+label+': '+name+'"]'));
+  document.querySelector('button[aria-label="'+label+': '+name+'"]').click();
+  if(type==="application/pdf")await until(()=>[...document.querySelectorAll("a")].some(node=>node.download===name&&node.href.includes("/api/player/media/")));
+  else await until(()=>document.querySelector('img[alt="photo.png"]'));
+  button("Close attachment").click();
+ }
  await setDraft("FAIL_FIXTURE");button("Send private reply").click();
  await until(()=>document.body.textContent.includes("could not be confirmed"));
  check(document.querySelector("textarea").value==="FAIL_FIXTURE","failed send keeps draft");
@@ -71,7 +82,7 @@ const bundle=await build({entryPoints:[path.join(temp,"fixture.tsx")],bundle:tru
  alias:{"@plane/constants":path.join(temp,"mocks.tsx"),"@plane/ui":path.join(temp,"mocks.tsx"),"@/hooks/store/user":path.join(temp,"mocks.tsx"),"@/services/api.service":path.join(web,"core/services/api.service.ts")},
  nodePaths:[path.join(web,"node_modules"),path.join(root,"node_modules")],define:{"process.env.NODE_ENV":'"development"'}});
 const {createServer}=await import("node:http");
-const requests=[];let revoked=false;
+const requests=[];let revoked=false;const uploads={};let uploadCount=0;
 const audience={visibility:"private",issue:"card",coach_id:"coach"};
 const messages={alpha:[{id:"alpha-msg",text:"Alpha secret"}],beta:[{id:"beta-msg",text:"Beta secret"}]};
 const server=createServer(async(req,res)=>{
@@ -79,6 +90,7 @@ const server=createServer(async(req,res)=>{
  const json=(status,data)=>{res.writeHead(status,{"Content-Type":"application/json"});res.end(JSON.stringify(data));};
  if(url.pathname==="/fixture.js")return res.writeHead(200,{"Content-Type":"text/javascript"}).end(bundle.outputFiles[0].text);
  if(url.pathname==="/control/revoke"){revoked=true;return json(200,{});}
+ if(url.pathname.startsWith("/api/player/media/")){ res.writeHead(200,{"Content-Type":"image/png"});return res.end(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1kAAAAASUVORK5CYII=","base64")); }
  if(url.pathname.startsWith("/api/")){
   requests.push({method:req.method,path:url.pathname});
   const prefix="/api/workspaces/school/projects/program/coaching-cards/card/private-threads/";
@@ -91,14 +103,20 @@ const server=createServer(async(req,res)=>{
    if(req.method==="GET")return json(200,{...audience,recipient_id:recipient,max_bytes:1073741824,clips:[{kind:"card_clip",clip_index:0,revision:"a".repeat(64),name:"Kickoff"}]});
    let length=0;for await(const chunk of req)length+=chunk.length;
    if(length!==3||req.headers["x-video-size"]!=="3")return json(400,{});
-   return json(201,{id:"phone-upload",kind:"upload",name:"practice.mp4",size:3,duration:2,start_seconds:0,end_seconds:2});
+   const content_type=req.headers["content-type"],name=decodeURIComponent(req.headers["x-video-name"]||"practice.mp4"),media_type=content_type.startsWith("image/")?"image":content_type.startsWith("video/")?"video":"document";
+   const upload={id:"file-"+(++uploadCount),kind:"upload",name,size:3,duration:media_type==="video"?2:0,start_seconds:0,end_seconds:media_type==="video"?2:null,media_type,content_type};uploads[upload.id]=upload;return json(201,upload);
+  }
+  if(remaining.endsWith("/playback")) {
+   const item=uploads[remaining.split("/")[2]];
+   if(!item)return json(404,{});
+   return json(200,{source_url:"/api/player/media/"+"a".repeat(30)+"/attachment."+item.name.split(".").pop(),content_type:item.media_type,mime_type:item.content_type,start_seconds:0,end_seconds:null,expires_at:new Date(Date.now()+300000).toISOString()});
   }
   const serialize=m=>({...audience,recipient_id:recipient,id:m.id,actor:m.actor||recipient,actor_detail:{id:m.actor||recipient,display_name:m.actor==="coach"?"Coach":recipient},access:"PRIVATE",comment_stripped:m.text,...(m.attachment?{attachment:m.attachment}:{}),created_at:"2026-11-03T00:00:00Z"});
   if(req.method==="POST"){
    let raw="";for await(const part of req)raw+=part;const body=JSON.parse(raw);
    if(body.visibility!=="private")return json(400,{});
    if(body.comment_html.includes("FAIL_FIXTURE"))return json(500,{});
-   const msg={id:"reply-"+messages[recipient].length,actor:"coach",text:body.comment_html.replace(/<[^>]*>/g,""),...(body.attachment?{attachment:{id:body.attachment.kind==="upload"?body.attachment.id:"existing-clip",kind:body.attachment.kind,name:body.attachment.kind==="upload"?"practice.mp4":"Kickoff",size:3,duration:2,start_seconds:0,end_seconds:2}}:{})};messages[recipient].push(msg);return json(201,serialize(msg));
+   const msg={id:"reply-"+messages[recipient].length,actor:"coach",text:body.comment_html.replace(/<[^>]*>/g,""),...(body.attachment?{attachment:uploads[body.attachment.id]}:{})};messages[recipient].push(msg);return json(201,serialize(msg));
   }
   return json(200,{...audience,recipient_id:recipient,limit:50,offset:0,total_count:messages[recipient].length,results:messages[recipient].map(serialize)});
  }
@@ -113,5 +131,5 @@ try{
  assert.ok(output.includes("PRIVATE-CHAT-PASS"),failure||"Private browser fixture did not finish");
  assert.ok(requests.every(r=>r.path.includes("/private-threads/")),"no shared-thread requests allowed");
  assert.ok(requests.some(r=>r.method==="POST"&&r.path.endsWith("/beta/")),"reply must target selected player");
- console.log("Private coach UI: player/draft isolation, text reply, direct raw phone upload, attachment-only sends, uncertain-send recovery and revoked-access hiding passed.");
+ console.log("Private coach UI: player/draft isolation, text reply, direct raw phone upload, attachment-only sends, image previews, document download links, uncertain-send recovery and revoked-access hiding passed.");
 }finally{server.close();}

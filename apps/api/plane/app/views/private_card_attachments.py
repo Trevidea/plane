@@ -33,6 +33,8 @@ from plane.db.models import CoachingCardPrivateAttachment, User
 from plane.utils.coaching_card_clips import normalize_card_clips
 from plane.utils.media_library import media_library_root
 
+from .private_conversation_files import FILE_TYPES, inspect_attachment
+
 MAX_BYTES = 1024 * 1024 * 1024
 
 
@@ -46,6 +48,8 @@ def storage_root():
 
 
 def upload_file(attachment):
+    # Opaque storage suffix is retained for existing cleanup and video compatibility.
+    # Delivery uses inspected source MIME metadata, never this internal suffix.
     return storage_root() / (str(attachment.id) + ".mp4")
 
 
@@ -143,6 +147,8 @@ def attachment_data(item):
         "duration": item.duration,
         "start_seconds": item.source.get("start", 0),
         "end_seconds": item.source.get("end"),
+        "media_type": item.source.get("media_type", "video"),
+        "content_type": item.source.get("content_type", "video/mp4"),
     }
 
 
@@ -273,8 +279,8 @@ class PrivateClipUploadEndpoint(BaseAPIView):
             declared = int(request.headers.get("X-Video-Size", request.headers.get("Content-Length", "0")))
         except ValueError:
             raise ValidationError("Invalid video size.")
-        if content_type not in {"video/mp4", "video/quicktime"} or declared <= 0 or declared > MAX_BYTES:
-            raise ValidationError("Choose an MP4/MOV video up to 1 GB.")
+        if content_type not in {value[1] for value in FILE_TYPES.values()} or declared <= 0 or declared > MAX_BYTES:
+            raise ValidationError("Choose a supported video, image or document up to 1 GB.")
         if (
             CoachingCardPrivateAttachment.objects.filter(
                 actor=request.user, message__isnull=True, consumed_at__isnull=True, expires_at__gt=timezone.now()
@@ -286,6 +292,10 @@ class PrivateClipUploadEndpoint(BaseAPIView):
         from urllib.parse import unquote
 
         name = Path(unquote(raw_name).replace("\\", "/")).name[:255] or "video.mp4"
+        if any(ord(character) < 32 or ord(character) == 127 for character in name):
+            raise ValidationError("Choose a file with a valid name.")
+        if FILE_TYPES.get(Path(name).suffix.lower(), (None, None))[1] != content_type:
+            raise ValidationError("Choose a supported video, image or document.")
         with tempfile.NamedTemporaryFile(dir=storage_root(), prefix="upload-", suffix=".mp4") as temporary:
             size = 0
             while True:
@@ -299,7 +309,9 @@ class PrivateClipUploadEndpoint(BaseAPIView):
             temporary.flush()
             if size != declared:
                 raise ValidationError("Video upload was incomplete.")
-            duration = inspect_video(Path(temporary.name))
+            media_type, mime_type, duration = inspect_attachment(
+                Path(temporary.name), name, content_type, inspect_video
+            )
             # Recheck access after the potentially slow transfer/inspection.
             card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
             item = CoachingCardPrivateAttachment(
@@ -311,7 +323,12 @@ class PrivateClipUploadEndpoint(BaseAPIView):
                 name=name,
                 size=size,
                 duration=duration,
-                source={"start": 0, "end": duration},
+                source={
+                    "start": 0,
+                    "end": duration if media_type == "video" else None,
+                    "media_type": media_type,
+                    "content_type": mime_type,
+                },
                 expires_at=timezone.now() + timedelta(days=1),
             )
             destination = upload_file(item)
@@ -339,7 +356,8 @@ class PrivateClipPlaybackEndpoint(BaseAPIView):
             message__isnull=False,
         )
         hls = False
-        resource = "video.mp4"
+        media_type = item.source.get("media_type", "video")
+        resource = "video.mp4" if media_type == "video" else "attachment" + Path(item.name).suffix.lower()
         if item.kind == "card_clip":
             main, hls, _, delivery, _, _ = clip_source(
                 card,
@@ -373,7 +391,8 @@ class PrivateClipPlaybackEndpoint(BaseAPIView):
         return private_response(
             {
                 "source_url": reverse("player-signed-media", kwargs={"token": token, "resource": resource}),
-                "content_type": "hls" if hls else "progressive",
+                "content_type": ("hls" if hls else "progressive") if media_type == "video" else media_type,
+                "mime_type": item.source.get("content_type", "video/mp4"),
                 "expires_at": (timezone.now() + timedelta(seconds=GRANT_SECONDS)).isoformat(),
                 "start_seconds": item.source.get("start", 0),
                 "end_seconds": item.source.get("end"),
@@ -406,9 +425,17 @@ def signed_attachment_media(request, grant, token, resource):
         message__isnull=False,
     )
     if item.kind == "upload":
-        if resource != "video.mp4" or not upload_file(item).is_file():
+        media_type = item.source.get("media_type", "video")
+        expected = "video.mp4" if media_type == "video" else "attachment" + Path(item.name).suffix.lower()
+        if resource != expected or not upload_file(item).is_file():
             raise NotFound()
         response = _file_response(request, upload_file(item))
+        response["Content-Type"] = item.source.get("content_type", "video/mp4")
+        if media_type == "document":
+            from django.utils.http import content_disposition_header
+
+            response["Content-Disposition"] = content_disposition_header(True, item.name)
+            response["Content-Security-Policy"] = "sandbox; default-src 'none'"
     else:
         main, hls, _, delivery, _, _ = clip_source(
             card, item.source["clip_index"], item.source["revision"], grant["slug"], grant["origin"]

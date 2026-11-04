@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { Video } from "lucide-react";
+import { Paperclip, Video } from "lucide-react";
 import { API_BASE_URL } from "@plane/constants";
-import { Button, Input } from "@plane/ui";
+import { Button, ImageWithFallback, Input, Tooltip } from "@plane/ui";
 import type { APIService } from "@/services/api.service";
-import { privateClip, privateClipBounds, privateClipGrant, MAX_PRIVATE_VIDEO_BYTES } from "./private-thread-model";
+import {
+  PRIVATE_ATTACHMENT_TYPES,
+  privateAttachmentMime,
+  privateFileGrant,
+  privateClip,
+  privateClipBounds,
+  privateClipGrant,
+  MAX_PRIVATE_VIDEO_BYTES,
+} from "./private-thread-model";
 
 import type { ClipSelection, PrivateClip } from "./private-thread-model";
 
@@ -38,8 +46,9 @@ export function PrivateClipControls({
   }, []);
   const upload = async (video: File) => {
     if (controller.current) return;
-    if (!video.size || video.size > MAX_PRIVATE_VIDEO_BYTES || !/\.(mp4|mov)$/i.test(video.name)) {
-      setError("Choose an MP4/MOV video up to 1 GB.");
+    const mime = privateAttachmentMime(video.name);
+    if (!video.size || video.size > MAX_PRIVATE_VIDEO_BYTES || !mime) {
+      setError("Choose a supported video, image or document up to 1 GB.");
       return;
     }
     const abort = new AbortController();
@@ -53,7 +62,7 @@ export function PrivateClipControls({
         signal: abort.signal,
         timeout: 30 * 60 * 1000,
         headers: {
-          "Content-Type": /\.mov$/i.test(video.name) ? "video/quicktime" : "video/mp4",
+          "Content-Type": mime,
           "X-Video-Size": String(video.size),
           "X-Video-Name": encodeURIComponent(video.name),
         },
@@ -70,7 +79,7 @@ export function PrivateClipControls({
       }
     } catch {
       if (active.current && !abort.signal.aborted)
-        setError("Upload failed. Use H.264 MP4/MOV with AAC audio and retry.");
+        setError("Upload failed. Check the file format and connection, then retry.");
     } finally {
       controller.current = null;
       if (active.current) {
@@ -81,20 +90,28 @@ export function PrivateClipControls({
   };
   return (
     <div className="space-y-2 text-sm">
-      <Button
-        size="sm"
-        variant="neutral-primary"
-        disabled={disabled || progress !== null}
-        onClick={() => input.current?.click()}
-      >
-        Upload clip from device
-      </Button>
+      <Tooltip tooltipContent="Attach a video, image or document" position="top">
+        <span className="inline-flex">
+          <Button
+            size="sm"
+            variant="neutral-primary"
+            aria-label="Attach file"
+            disabled={disabled || progress !== null}
+            onClick={() => input.current?.click()}
+            className="px-2"
+          >
+            <Paperclip className="size-4" aria-hidden="true" />
+          </Button>
+        </span>
+      </Tooltip>
       <Input
         ref={input}
         type="file"
-        accept="video/mp4,video/quicktime,.mp4,.mov"
+        accept={Object.entries(PRIVATE_ATTACHMENT_TYPES)
+          .flatMap(([extension, type]) => ["." + extension, type])
+          .join(",")}
         className="hidden"
-        aria-label="Choose private video"
+        aria-label="Choose private attachment"
         disabled={disabled || progress !== null}
         onChange={(event) => {
           const video = event.target.files?.[0];
@@ -114,8 +131,8 @@ export function PrivateClipControls({
           </p>
           {progress !== null ? (
             <>
-              <progress aria-label="Video upload progress" value={progress} max={100} />
-              <p>{progress}% · Uploading and checking video…</p>
+              <progress aria-label="File upload progress" value={progress} max={100} />
+              <p>{progress}% · Uploading and checking file…</p>
               <Button
                 size="sm"
                 variant="neutral-primary"
@@ -141,7 +158,7 @@ export function PrivateClipControls({
                 onSelect(undefined);
               }}
             >
-              Remove clip
+              Remove attachment
             </Button>
           )}
         </div>
@@ -272,6 +289,83 @@ export function PrivateClipPlayer({
             Retry video
           </Button>
         </>
+      )}
+    </div>
+  );
+}
+
+export function PrivateAttachmentFile({
+  service,
+  path,
+  clip,
+  onClose,
+}: {
+  service: APIService;
+  path: string;
+  clip: PrivateClip;
+  onClose: () => void;
+}) {
+  const [source, setSource] = useState<{ path: string; type: "image" | "document" }>();
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    void service
+      .get(path + "attachments/" + encodeURIComponent(clip.id) + "/playback/", {}, { signal: controller.signal })
+      .then((response) => {
+        const grant = privateFileGrant(response.data);
+        if (!controller.signal.aborted) setSource(grant);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      });
+    return () => controller.abort();
+  }, [service, path, clip.id, attempt]);
+  return (
+    <div className="w-full max-w-md space-y-2 rounded-md border border-custom-border-200 p-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-xs font-medium">{clip.name}</span>
+        <Button size="sm" variant="neutral-primary" onClick={onClose}>
+          Close attachment
+        </Button>
+      </div>
+      {error ? (
+        <>
+          <p role="alert" className="text-xs">
+            Attachment unavailable. Refresh or retry.
+          </p>
+          <Button
+            size="sm"
+            variant="neutral-primary"
+            onClick={() => {
+              setError(false);
+              setSource(undefined);
+              setAttempt((value) => value + 1);
+            }}
+          >
+            Retry attachment
+          </Button>
+        </>
+      ) : !source ? (
+        <p className="text-xs">Loading attachment…</p>
+      ) : source.type === "image" ? (
+        <ImageWithFallback
+          src={API_BASE_URL + source.path}
+          alt={clip.name}
+          referrerPolicy="no-referrer"
+          className="h-auto max-h-80 w-full object-contain"
+          onError={() => setError(true)}
+        />
+      ) : (
+        <a
+          href={API_BASE_URL + source.path}
+          target="_blank"
+          rel="noopener noreferrer"
+          download={clip.name}
+          className="text-xs text-custom-primary-100 hover:underline"
+        >
+          Download {clip.name}
+        </a>
       )}
     </div>
   );

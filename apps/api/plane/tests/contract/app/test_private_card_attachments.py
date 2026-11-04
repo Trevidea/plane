@@ -341,3 +341,94 @@ class PrivateCardAttachmentTests(PrivateCardThreadTests):
                 call_command("cleanup_private_clips", stdout=StringIO())
         self.assertTrue(all(path.exists() for path in live))
         self.assertTrue(all(not path.exists() for path in orphan))
+
+    def send_file(self, content, name, content_type, client_id="file-message", url=None):
+        uploaded = self.client.post(
+            (url or self.url) + "attachments/",
+            content,
+            content_type=content_type,
+            HTTP_X_VIDEO_NAME=name,
+            HTTP_X_VIDEO_SIZE=str(len(content)),
+        )
+        self.assertEqual(uploaded.status_code, 201, uploaded.data)
+        sent = self.client.post(
+            url or self.url,
+            {
+                "visibility": "private",
+                "comment_html": "",
+                "attachment": {"kind": "upload", "id": uploaded.json()["id"]},
+                "client_id": client_id,
+            },
+            format="json",
+        )
+        self.assertEqual(sent.status_code, 201, sent.data)
+        grant = self.client.get((url or self.url) + "attachments/" + uploaded.json()["id"] + "/playback/")
+        self.assertEqual(grant.status_code, 200)
+        return uploaded.json(), grant.json(), sent.json()
+
+    def test_pdf_is_private_download_and_revoked_after_message_deletion(self):
+        pdf = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF"
+        uploaded, grant, sent = self.send_file(pdf, "session-notes.pdf", "application/pdf")
+        self.assertEqual(uploaded["media_type"], "document")
+        self.assertEqual(grant["content_type"], "document")
+        response = self.client.get(grant["source_url"])
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn('attachment; filename="session-notes.pdf"', response["Content-Disposition"])
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(b"".join(response.streaming_content), pdf)
+        self.client.force_authenticate(self.coach)
+        self.assertEqual(self.client.get(self.coach_url).json()["results"][0]["attachment"]["media_type"], "document")
+        self.client.force_authenticate(self.players[0])
+        self.assertEqual(self.client.delete(self.url + sent["id"] + "/").status_code, 204)
+        self.assertEqual(self.client.get(grant["source_url"]).status_code, 404)
+
+    def test_png_preview_reuses_private_participant_authorization(self):
+        import base64
+
+        png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1kAAAAASUVORK5CYII="
+        )
+        uploaded, grant, _ = self.send_file(png, "technique.png", "image/png")
+        self.assertEqual(uploaded["media_type"], "image")
+        self.assertEqual(grant["content_type"], "image")
+        response = self.client.get(grant["source_url"])
+        self.assertEqual(response["Content-Type"], "image/png")
+        self.assertEqual(b"".join(response.streaming_content), png)
+        self.client.force_authenticate(self.players[1])
+        self.assertEqual(self.client.get(self.url + "attachments/" + uploaded["id"] + "/playback/").status_code, 404)
+
+    def test_office_documents_validate_container_before_accepting(self):
+        from io import BytesIO
+        import zipfile
+
+        data = BytesIO()
+        with zipfile.ZipFile(data, "w") as archive:
+            archive.writestr("[Content_Types].xml", "<Types/>")
+            archive.writestr("word/document.xml", "<document/>")
+        self.client.force_authenticate(self.coach)
+        uploaded, grant, _ = self.send_file(
+            data.getvalue(),
+            "feedback.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            url=self.coach_url,
+        )
+        self.assertEqual(uploaded["media_type"], "document")
+        self.assertEqual(self.client.get(grant["source_url"]).status_code, 200)
+
+    def test_spoofed_documents_images_and_active_file_types_are_rejected(self):
+        for name, mime, payload in (
+            ("notes.pdf", "application/pdf", b"<html>not PDF</html>"),
+            ("photo.png", "image/png", b"not an image"),
+            ("notes.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"not a package"),
+            ("page.html", "text/html", b"<html/>"),
+        ):
+            with self.subTest(name=name):
+                response = self.client.post(
+                    self.url + "attachments/",
+                    payload,
+                    content_type=mime,
+                    HTTP_X_VIDEO_NAME=name,
+                    HTTP_X_VIDEO_SIZE=str(len(payload)),
+                )
+                self.assertEqual(response.status_code, 400)
