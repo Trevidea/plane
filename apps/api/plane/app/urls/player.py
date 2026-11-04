@@ -12,7 +12,29 @@ from plane.app.views.private_card_thread import (
     CoachPrivateRecipientsEndpoint,
 )
 
+from plane.app.views.private_card_attachments import PrivateClipUploadEndpoint, PrivateClipPlaybackEndpoint
+
 urlpatterns = [
+    path(
+        "player/workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/private-thread/attachments/",
+        PrivateClipUploadEndpoint.as_view(),
+        name="player-private-clips",
+    ),
+    path(
+        "player/workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/private-thread/attachments/<uuid:attachment_id>/playback/",
+        PrivateClipPlaybackEndpoint.as_view(),
+        name="player-private-clip-playback",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/private-threads/<uuid:recipient_user_id>/attachments/",
+        PrivateClipUploadEndpoint.as_view(),
+        name="coach-private-clips",
+    ),
+    path(
+        "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/private-threads/<uuid:recipient_user_id>/attachments/<uuid:attachment_id>/playback/",
+        PrivateClipPlaybackEndpoint.as_view(),
+        name="coach-private-clip-playback",
+    ),
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/private-threads/",
         CoachPrivateRecipientsEndpoint.as_view(),

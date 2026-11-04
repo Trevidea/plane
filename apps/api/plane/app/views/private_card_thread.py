@@ -1,5 +1,8 @@
 """Participant-only conversations for an existing assigned coaching card."""
 
+import hashlib
+import json
+from django.db import transaction
 from html import unescape
 from django.shortcuts import get_object_or_404
 from django.db.models import Exists, OuterRef
@@ -11,22 +14,46 @@ from rest_framework.response import Response
 from plane.app.serializers.user import UserLiteSerializer
 from plane.app.views.base import BaseAPIView
 from plane.app.views.player import PlayerProgramQuerySerializer, _eligible_roster
-from plane.app.views.player_thread import PlayerThreadWriteSerializer
 from plane.db.models import CoachingCardPrivateMessage, Issue, ProjectMember, RosterPlayer, User, WorkspaceMember
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY
+from plane.utils.content_validator import validate_html_content
+from rest_framework.exceptions import APIException
+from .private_card_attachments import attachment_data, attach_clip
 
 
-class PrivateWriteSerializer(PlayerThreadWriteSerializer):
+class PrivateWriteSerializer(serializers.Serializer):
     visibility = serializers.ChoiceField(choices=["private"])
+    comment_html = serializers.CharField(max_length=20000, trim_whitespace=True, allow_blank=True, default="")
+    attachment = serializers.JSONField(required=False)
+    client_id = serializers.RegexField(r"^[A-Za-z0-9_-]{1,128}$", required=False)
 
     def to_internal_value(self, data):
-        if not isinstance(data, dict):
-            raise serializers.ValidationError("Expected a private message object.")
-        unknown = set(data) - {"comment_html", "visibility"}
-        if unknown:
-            raise serializers.ValidationError({key: "This field is not writable." for key in unknown})
-        # Bypass the shared serializer's field allowlist, retaining its HTML validator.
-        return serializers.Serializer.to_internal_value(self, data)
+        if not isinstance(data, dict) or set(data) - {"visibility", "comment_html", "attachment", "client_id"}:
+            raise serializers.ValidationError({"detail": "Invalid private message fields."})
+        return super().to_internal_value(data)
+
+    def validate_comment_html(self, value):
+        if not value:
+            return ""
+        valid, error, cleaned = validate_html_content(value)
+        if not valid:
+            raise serializers.ValidationError(error)
+        text = unescape(strip_tags(cleaned or "")).strip()
+        if len(text) > 300:
+            raise serializers.ValidationError("Write up to 300 characters.")
+        return cleaned if text else ""
+
+    def validate(self, data):
+        if not data.get("comment_html") and not data.get("attachment"):
+            raise serializers.ValidationError("Write a message or attach a clip.")
+        if data.get("attachment") and not data.get("client_id"):
+            raise serializers.ValidationError("Clip messages require a client ID.")
+        return data
+
+
+class MessageConflict(APIException):
+    status_code = 409
+    default_detail = "This send ID was already used for another message."
 
 
 def private_card(request, slug, project_id, card_id, *, coach_request=False):
@@ -83,7 +110,9 @@ def audience(card, recipient):
 
 
 def serialize_message(message, card, recipient):
+    item = getattr(message, "clip_attachment", None)
     return {
+        **({"attachment": attachment_data(item)} if item else {}),
         **audience(card, recipient),
         "id": str(message.id),
         "actor": str(message.actor_id),
@@ -104,7 +133,7 @@ def private_response(data=None, status_code=status.HTTP_200_OK):
 def messages(card, recipient):
     return CoachingCardPrivateMessage.objects.filter(
         issue=card, coach_id=card.created_by_id, recipient=recipient
-    ).select_related("actor")
+    ).select_related("actor", "clip_attachment")
 
 
 class PrivateCardThreadEndpoint(BaseAPIView):
@@ -128,13 +157,35 @@ class PrivateCardThreadEndpoint(BaseAPIView):
         card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
         payload = PrivateWriteSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        message = CoachingCardPrivateMessage.objects.create(
-            issue=card,
-            coach_id=card.created_by_id,
-            recipient=recipient,
-            actor=request.user,
-            comment_html=payload.validated_data["comment_html"],
-        )
+        data = payload.validated_data
+        fingerprint = hashlib.sha256(
+            json.dumps(
+                {"comment_html": data["comment_html"], "attachment": data.get("attachment")},
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        with transaction.atomic():
+            # Serialize send/retry for this card to enforce attachment ownership atomically.
+            Issue.issue_objects.select_related(None).select_for_update(of=("self",)).get(pk=card.id)
+            card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
+            if data.get("client_id"):
+                existing = messages(card, recipient).filter(actor=request.user, client_id=data["client_id"]).first()
+                if existing:
+                    if existing.request_hash != fingerprint:
+                        raise MessageConflict()
+                    return private_response(serialize_message(existing, card, recipient))
+            message = CoachingCardPrivateMessage.objects.create(
+                issue=card,
+                coach_id=card.created_by_id,
+                recipient=recipient,
+                actor=request.user,
+                comment_html=data["comment_html"],
+                client_id=data.get("client_id"),
+                request_hash=fingerprint,
+            )
+            if data.get("attachment"):
+                attach_clip(request, card, recipient, data["attachment"], message)
         return private_response(serialize_message(message, card, recipient), status.HTTP_201_CREATED)
 
 
@@ -154,7 +205,18 @@ class PrivateCardMessageEndpoint(BaseAPIView):
         card, recipient, message = self.message(
             request, slug, project_id, card_id, comment_id, recipient_user_id, writing=True
         )
-        payload = PrivateWriteSerializer(data=request.data)
+        if set(request.data) - {"visibility", "comment_html"}:
+            raise serializers.ValidationError("Attachments cannot be replaced by editing a message.")
+        payload = PrivateWriteSerializer(
+            data={
+                **request.data,
+                **(
+                    {"attachment": {"existing": True}, "client_id": "edit"}
+                    if getattr(message, "clip_attachment", None)
+                    else {}
+                ),
+            }
+        )
         payload.is_valid(raise_exception=True)
         message.comment_html = payload.validated_data["comment_html"]
         message.edited_at = timezone.now()

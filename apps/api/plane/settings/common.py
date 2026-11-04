@@ -119,6 +119,8 @@ CORS_ALLOW_HEADERS = [
     "X-API-Key",
     "x-request-id",
     "x-upload-id",
+    "x-video-name",
+    "x-video-size",
 ]
 
 # Application Settings

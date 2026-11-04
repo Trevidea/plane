@@ -271,6 +271,9 @@ class PlayerSignedMediaEndpoint(BaseAPIView):
             grant = signing.loads(token, salt=GRANT_SALT, max_age=GRANT_SECONDS)
         except signing.BadSignature:
             raise PermissionDenied("Playback link expired or invalid. Retry the video.")
+        if 'attachment' in grant:
+            from .private_card_attachments import signed_attachment_media
+            return signed_attachment_media(request, grant, token, resource)
         user = get_object_or_404(User, pk=grant["user"])
         card = _assigned(user, grant["slug"], grant["project"], grant["card"])
         main, is_hls, revision, delivery = _source(card, grant["clip"], grant["slug"], grant["origin"])

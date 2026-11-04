@@ -15,6 +15,7 @@ const temp=await mkdtemp(path.join(tmpdir(),"private-chat-browser-"));
 await writeFile(path.join(temp,"mocks.tsx"),`
 import React from "react";
 export const CustomSelect=Object.assign(({children,value,onChange})=><select value={value} onChange={event=>onChange(event.target.value)}>{children}</select>,{Option:({children,value})=><option value={value}>{children}</option>});
+export const Avatar=({name})=><span aria-label={name}>{name?.[0]}</span>;
 export const API_BASE_URL="";
 export const useUser=()=>({data:{id:"coach"}});
 export const Button=({children,onClick,disabled})=><button disabled={disabled} onClick={onClick}>{children}</button>;
@@ -41,6 +42,20 @@ const button=text=>[...document.querySelectorAll("button")].find(node=>node.text
  await setDraft("Private beta reply");button("Send private reply").click();
  await until(()=>[...document.querySelectorAll("article p")].some(node=>node.textContent==="Private beta reply"));
  check(document.querySelector("textarea").value==="","confirmed send clears draft");
+ check(!button("Attach clip"),"there must be no attachment choices menu");
+ check(!!button("Upload clip from device"),"direct device upload must be offered");
+ await until(()=>document.querySelector('input[type="file"]'));
+ const fileInput=document.querySelector('input[type="file"]');let pickerOpened=false;fileInput.addEventListener("click",event=>{event.preventDefault();pickerOpened=true;});button("Upload clip from device").click();check(pickerOpened,"one button must open device picker directly");
+ const input=document.querySelector('input[type="file"]');const files=new DataTransfer();files.items.add(new File([new Uint8Array([1,2,3])],"practice.mp4",{type:"video/mp4"}));input.files=files.files;input.dispatchEvent(new Event("change",{bubbles:true}));
+ await until(()=>document.body.textContent.includes("practice.mp4")&&!button("Send private reply").disabled);button("Send private reply").click();
+ await until(()=>document.querySelector('button[aria-label="Play clip: practice.mp4"]'));
+ check(!document.querySelector("video"),"video players must wait until a clip is opened");
+ const play=document.querySelector('button[aria-label="Play clip: practice.mp4"]');
+ check(!!play,"sent video must have an accessible play card");play.click();
+ await until(()=>document.querySelector("article video"));
+ check(!document.querySelector('[role="dialog"]'),"video must play inside its message bubble");
+ button("Close video").click();
+ await until(()=>!document.querySelector("video"));
  await setDraft("FAIL_FIXTURE");button("Send private reply").click();
  await until(()=>document.body.textContent.includes("could not be confirmed"));
  check(document.querySelector("textarea").value==="FAIL_FIXTURE","failed send keeps draft");
@@ -68,15 +83,22 @@ const server=createServer(async(req,res)=>{
   requests.push({method:req.method,path:url.pathname});
   const prefix="/api/workspaces/school/projects/program/coaching-cards/card/private-threads/";
   if(url.pathname===prefix)return json(200,{...audience,recipients:[{id:"alpha",name:"Alpha"},{id:"beta",name:"Beta"}]});
-  const recipient=url.pathname.slice(prefix.length).replace(/\/$/,"");
+  const remaining=url.pathname.slice(prefix.length).replace(/\/$/,"");
+  const recipient=remaining.split("/")[0];
   if(!["alpha","beta"].includes(recipient))return json(404,{});
   if(revoked)return json(403,{});
-  const serialize=m=>({...audience,recipient_id:recipient,id:m.id,actor:m.actor||recipient,actor_detail:{id:m.actor||recipient,display_name:m.actor==="coach"?"Coach":recipient},access:"PRIVATE",comment_stripped:m.text,created_at:"2026-11-03T00:00:00Z"});
+  if(remaining.endsWith("/attachments")) {
+   if(req.method==="GET")return json(200,{...audience,recipient_id:recipient,max_bytes:1073741824,clips:[{kind:"card_clip",clip_index:0,revision:"a".repeat(64),name:"Kickoff"}]});
+   let length=0;for await(const chunk of req)length+=chunk.length;
+   if(length!==3||req.headers["x-video-size"]!=="3")return json(400,{});
+   return json(201,{id:"phone-upload",kind:"upload",name:"practice.mp4",size:3,duration:2,start_seconds:0,end_seconds:2});
+  }
+  const serialize=m=>({...audience,recipient_id:recipient,id:m.id,actor:m.actor||recipient,actor_detail:{id:m.actor||recipient,display_name:m.actor==="coach"?"Coach":recipient},access:"PRIVATE",comment_stripped:m.text,...(m.attachment?{attachment:m.attachment}:{}),created_at:"2026-11-03T00:00:00Z"});
   if(req.method==="POST"){
    let raw="";for await(const part of req)raw+=part;const body=JSON.parse(raw);
    if(body.visibility!=="private")return json(400,{});
    if(body.comment_html.includes("FAIL_FIXTURE"))return json(500,{});
-   const msg={id:"reply-"+messages[recipient].length,actor:"coach",text:body.comment_html.replace(/<[^>]*>/g,"")};messages[recipient].push(msg);return json(201,serialize(msg));
+   const msg={id:"reply-"+messages[recipient].length,actor:"coach",text:body.comment_html.replace(/<[^>]*>/g,""),...(body.attachment?{attachment:{id:body.attachment.kind==="upload"?body.attachment.id:"existing-clip",kind:body.attachment.kind,name:body.attachment.kind==="upload"?"practice.mp4":"Kickoff",size:3,duration:2,start_seconds:0,end_seconds:2}}:{})};messages[recipient].push(msg);return json(201,serialize(msg));
   }
   return json(200,{...audience,recipient_id:recipient,limit:50,offset:0,total_count:messages[recipient].length,results:messages[recipient].map(serialize)});
  }
@@ -91,5 +113,5 @@ try{
  assert.ok(output.includes("PRIVATE-CHAT-PASS"),failure||"Private browser fixture did not finish");
  assert.ok(requests.every(r=>r.path.includes("/private-threads/")),"no shared-thread requests allowed");
  assert.ok(requests.some(r=>r.method==="POST"&&r.path.endsWith("/beta/")),"reply must target selected player");
- console.log("Private coach UI: player isolation, draft isolation, private reply, uncertain-send recovery and revoked-access hiding passed.");
+ console.log("Private coach UI: player/draft isolation, text reply, direct raw phone upload, attachment-only sends, uncertain-send recovery and revoked-access hiding passed.");
 }finally{server.close();}

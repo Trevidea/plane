@@ -1,5 +1,10 @@
 (plane_proxy) {
-	request_body {
+	@private_video_upload path /api/player/workspaces/*/projects/*/coaching-cards/*/private-thread/attachments/ /api/workspaces/*/projects/*/coaching-cards/*/private-threads/*/attachments/
+	@other_requests not path /api/player/workspaces/*/projects/*/coaching-cards/*/private-thread/attachments/ /api/workspaces/*/projects/*/coaching-cards/*/private-threads/*/attachments/
+	request_body @private_video_upload {
+		max_size 1073741824
+	}
+	request_body @other_requests {
 		max_size {$FILE_SIZE_LIMIT}
 	}
 
