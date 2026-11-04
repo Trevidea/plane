@@ -1,6 +1,6 @@
 """Read-only stage audit history for currently assigned player cards."""
 
-from django.db.models import Q
+from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 
@@ -26,6 +26,10 @@ class PlayerActivityEndpoint(BaseAPIView):
         )
         history = (
             CardStageHistory.objects.filter(issue_id__in=cards.values("id"))
+            # Shared-card reviews by another assigned player stay out of this account's feed.
+            .filter(
+                Q(changed_by=request.user) | Q(changed_by_id=F("issue__created_by_id")) | Q(changed_by__isnull=True)
+            )
             .select_related("issue", "changed_by")
             .order_by("-changed_at", "-id")
         )
@@ -35,7 +39,11 @@ class PlayerActivityEndpoint(BaseAPIView):
                 "id": str(event.id),
                 "card": {"id": str(event.issue_id), "title": event.issue.name, "sequence_id": event.issue.sequence_id},
                 "actor": (
-                    {"id": str(event.changed_by_id), "display_name": event.changed_by.display_name or "Coach", "avatar_url": event.changed_by.avatar_url}
+                    {
+                        "id": str(event.changed_by_id),
+                        "display_name": event.changed_by.display_name or "Coach",
+                        "avatar_url": event.changed_by.avatar_url,
+                    }
                     if event.changed_by_id
                     else None
                 ),
