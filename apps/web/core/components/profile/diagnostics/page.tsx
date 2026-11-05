@@ -26,6 +26,7 @@ import { DiagnosticsService } from "@/services/diagnostics.service";
 import { HistoryCharts, ResourceCharts } from "./charts";
 import { AnalysisHistory, ReportedIssues, StateBadge } from "./history";
 import { formatDate, label, resourceSnapshot } from "./model";
+import { PipelineStatus } from "./pipeline-status";
 import type { DiagnosticsOverview } from "./types";
 
 const service = new DiagnosticsService();
@@ -135,7 +136,17 @@ function FindingsAndSchedule({ data, now }: { data: DiagnosticsOverview; now: nu
   );
 }
 
-function Dashboard({ data, now, online }: { data: DiagnosticsOverview; now: number; online: boolean }) {
+function Dashboard({
+  data,
+  now,
+  online,
+  workspaceSlug,
+}: {
+  data: DiagnosticsOverview;
+  now: number;
+  online: boolean;
+  workspaceSlug: string;
+}) {
   const snapshot = resourceSnapshot(data, online ? now : Infinity);
   const color =
     snapshot.tone === "good"
@@ -209,14 +220,29 @@ function Dashboard({ data, now, online }: { data: DiagnosticsOverview; now: numb
                 Missing observations: {snapshot.sample.missing.map(label).join(", ")}
               </p>
             ) : null}
+            <PipelineStatus data={data.pipeline} online={online} />
             <HistoryCharts runs={data.runs} />
             <FindingsAndSchedule data={data} now={online ? now : Infinity} />
           </Tab.Panel>
           <Tab.Panel className="outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100">
-            <AnalysisHistory runs={data.runs} />
+            <AnalysisHistory
+              runs={data.runs}
+              exportUrl={
+                data.export_enabled
+                  ? (id) => `/api/workspaces/${encodeURIComponent(workspaceSlug)}/diagnostics/reports/${id}/export/`
+                  : undefined
+              }
+            />
           </Tab.Panel>
           <Tab.Panel className="outline-none focus-visible:ring-2 focus-visible:ring-custom-primary-100">
-            <ReportedIssues incidents={data.incidents} />
+            <ReportedIssues
+              incidents={data.incidents}
+              exportUrl={
+                data.export_enabled
+                  ? (id) => `/api/workspaces/${encodeURIComponent(workspaceSlug)}/diagnostics/reports/${id}/export/`
+                  : undefined
+              }
+            />
           </Tab.Panel>
         </Tab.Panels>
       </Tab.Group>
@@ -351,7 +377,13 @@ export const AccountDiagnosticsPage = observer(function AccountDiagnosticsPage({
           </p>
         </div>
       ) : overview && !forbidden ? (
-        <Dashboard key={workspaceSlug} data={overview} now={Math.max(now, Date.now())} online={online} />
+        <Dashboard
+          key={workspaceSlug}
+          data={overview}
+          now={Math.max(now, Date.now())}
+          online={online}
+          workspaceSlug={workspaceSlug}
+        />
       ) : !error ? (
         <div className="py-8" role="status">
           <span className="sr-only">Loading diagnostics</span>

@@ -132,7 +132,22 @@ function overview() {
   };
   return {
     version: 1,
+    export_enabled: true,
     observed_at: new Date(now).toISOString(),
+    pipeline: {
+      version: 1,
+      observed_at: new Date(now - 1000).toISOString(),
+      collection: {
+        state: "observed",
+        observed_at: new Date(now - 1000).toISOString(),
+        sources: 12,
+        failed_sources: 0,
+        limited_sources: 0,
+        reason: "OBSERVED",
+      },
+      analysis: { state: "idle", pending: 0, failed_recent: 0, reason: "NO_PENDING_WORK" },
+      delivery: { state: "disabled", pending: null, blocked: null, reason: "SHARING_DISABLED" },
+    },
     current: {
       status: "observed",
       samples: [sample],
@@ -156,7 +171,7 @@ function overview() {
     },
     sharing_enabled: false,
     runs: Array.from({ length: 5 }, (_, i) => ({
-      id: "run-" + i,
+      id: String(i + 1).padStart(32, "0"),
       kind: "scheduled",
       status: "completed",
       reason_code: "",
@@ -222,8 +237,28 @@ function overview() {
 }
 let scenario = "healthy";
 let delay = 0;
+let exportStatus = 200,
+  exportRequests = 0,
+  exportDelay = 0;
 const calls = [];
 const server = createServer(async (req, res) => {
+  const exported = req.url.match(/^\/api\/workspaces\/school\/diagnostics\/reports\/([a-f0-9]{32})\/export\/$/);
+  if (exported) {
+    exportRequests++;
+    if (exportDelay) await new Promise((resolve) => setTimeout(resolve, exportDelay));
+    if (exportStatus !== 200) return res.writeHead(exportStatus, { "content-type": "application/json" }).end("{}");
+    return res.writeHead(200, { "content-type": "application/json" }).end(
+      JSON.stringify({
+        format: "kanavio-diagnostic-export",
+        version: 1,
+        installation_id: "a".repeat(32),
+        analysis_id: exported[1],
+        incident_id: null,
+        report_sha256: "c".repeat(64),
+        report: { schema_version: "2.10.0", metadata: {} },
+      })
+    );
+  }
   if (req.url === "/fixture.js")
     return res.writeHead(200, { "content-type": "text/javascript" }).end(bundle.outputFiles[0].text);
   if (req.url === "/fixture.css") return res.writeHead(200, { "content-type": "text/css" }).end(stylesheet);
@@ -233,6 +268,12 @@ const server = createServer(async (req, res) => {
     let status = 200;
     if (scenario === "stale") value.current.samples[0].observed_at = "2020-01-01T00:00:00Z";
     if (scenario === "partial") value.current.interval.cpu_busy_ratio = null;
+    if (scenario === "pipeline-stale") value.pipeline.collection.observed_at = "2020-01-01T00:00:00Z";
+    if (scenario === "pipeline-failed") {
+      value.pipeline.analysis = { state: "attention", pending: 0, failed_recent: 2, reason: "RECENT_ANALYSIS_FAILURE" };
+      value.pipeline.delivery = { state: "attention", pending: 2, blocked: 1, reason: "DELIVERY_BLOCKED" };
+    }
+    if (scenario === "pipeline-legacy") delete value.pipeline;
     if (scenario === "warning") {
       value.current.interval.cpu_busy_ratio = 0.96;
       value.current.interval.network_errors_delta = 2;
@@ -310,6 +351,7 @@ try {
   };
   await load("healthy");
   await page.getByText("Resources within observed thresholds", { exact: true }).waitFor();
+  await page.locator('[data-pipeline="Log collection"]').getByText("Collecting", { exact: true }).waitFor();
   assert.equal(await page.locator('a[href="/school/settings/account/diagnostics"]:visible').count(), 1);
   assert.ok((await page.locator("svg.recharts-surface").count()) >= 5);
   await page.screenshot({ path: path.join(temporary, "desktop.png"), fullPage: true });
@@ -317,6 +359,41 @@ try {
   await page.screenshot({ path: path.join(temporary, "desktop-light.png"), fullPage: true });
   await page.evaluate(() => (document.documentElement.dataset.theme = "dark"));
   await page.getByRole("tab", { name: "Analysis history" }).click();
+  const downloadEvent = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: /^Export JSON/ })
+    .first()
+    .click({ timeout: 5000 });
+  const downloaded = await downloadEvent;
+  assert.match(downloaded.suggestedFilename(), /^diagnostic-[a-f0-9]{32}\.json$/);
+  assert.equal(JSON.parse(await readFile(await downloaded.path(), "utf8")).format, "kanavio-diagnostic-export");
+  for (const [code, message] of [
+    [403, "Administrator access is required."],
+    [404, "The report is unavailable or expired."],
+    [503, "The report is unavailable or expired."],
+  ]) {
+    exportStatus = code;
+    await page
+      .getByRole("button", { name: /^Export JSON/ })
+      .first()
+      .click();
+    await page.getByRole("alert").getByText(message, { exact: true }).waitFor();
+    await page.getByRole("tab", { name: "Analysis history" }).waitFor();
+  }
+  exportStatus = 200;
+  exportDelay = 150;
+  const beforeExports = exportRequests;
+  const repeatDownload = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: /^Export JSON/ })
+    .first()
+    .evaluate((button) => {
+      button.click();
+      button.click();
+    });
+  await repeatDownload;
+  assert.equal(exportRequests, beforeExports + 1);
+  exportDelay = 0;
   await page
     .getByRole("button", { name: /^View analysis/ })
     .first()
@@ -366,6 +443,9 @@ try {
     ["partial", "Current health is not fully measured"],
     ["stale", "Current health is not fully measured"],
     ["warning", "Attention required"],
+    ["pipeline-stale", "Collection delayed"],
+    ["pipeline-failed", "Delivery requires operator review. The report is not confirmed received."],
+    ["pipeline-legacy", "Pipeline status is unavailable on this installation."],
     ["disabled", "Diagnostics is not enabled"],
     ["forbidden", "Diagnostics access unavailable"],
     ["unavailable", "Unable to refresh diagnostics"],
@@ -403,6 +483,9 @@ try {
         "forbidden",
         "unavailable",
         "empty",
+        "pipeline-stale",
+        "pipeline-failed",
+        "pipeline-legacy",
       ],
       requests: calls.length,
       pageErrors: errors.length,

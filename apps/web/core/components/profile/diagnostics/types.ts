@@ -24,6 +24,7 @@ export type DiagnosticsRun = {
 
 export type DiagnosticsIncident = {
   id: string;
+  analysis_id?: string;
   reference: string;
   action: string;
   received_at: string;
@@ -51,6 +52,7 @@ export type DiagnosticsObservation = {
 
 export type DiagnosticsOverview = {
   version: 1;
+  export_enabled?: boolean;
   observed_at: string;
   current: {
     status: string;
@@ -63,6 +65,20 @@ export type DiagnosticsOverview = {
       network_errors_delta: number | null;
       network_dropped_delta: number | null;
     };
+  };
+  pipeline?: {
+    version: 1;
+    observed_at: string;
+    collection: {
+      state: string;
+      observed_at: string | null;
+      sources: number | null;
+      failed_sources: number | null;
+      limited_sources: number | null;
+      reason: string;
+    };
+    analysis: { state: string; pending: number | null; failed_recent: number | null; reason: string };
+    delivery: { state: string; pending: number | null; blocked: number | null; reason: string };
   };
   automation: {
     enabled: boolean;

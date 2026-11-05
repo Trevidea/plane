@@ -1,5 +1,5 @@
 from django.urls import path
-from plane.app.views.workspace.diagnostics import WorkspaceDiagnosticsEndpoint
+from plane.app.views.workspace.diagnostics import WorkspaceDiagnosticsEndpoint, WorkspaceDiagnosticsReportExportEndpoint
 from plane.app.views.workspace.operation_diagnostics import ProjectOperationDiagnosticsEndpoint
 
 
@@ -38,6 +38,11 @@ from plane.app.views import (
 
 
 urlpatterns = [
+    path(
+        "workspaces/<str:slug>/diagnostics/reports/<str:analysis_id>/export/",
+        WorkspaceDiagnosticsReportExportEndpoint.as_view(),
+        name="workspace-diagnostics-report-export",
+    ),
     path(
         "workspaces/<str:slug>/projects/<uuid:project_id>/diagnostics/operations/",
         ProjectOperationDiagnosticsEndpoint.as_view(),

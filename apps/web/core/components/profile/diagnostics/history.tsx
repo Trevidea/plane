@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight, FileClock, Inbox } from "lucide-react";
 import { cn } from "@plane/utils";
 import { formatDate, formatMilliseconds, label, submissionLabel } from "./model";
+import { ReportExportButton } from "./report-export-button";
 import type { DiagnosticsIncident, DiagnosticsRun } from "./types";
 
 export function StateBadge({ value }: { value: string }) {
@@ -21,7 +22,7 @@ export function StateBadge({ value }: { value: string }) {
   );
 }
 
-export function AnalysisHistory({ runs }: { runs: DiagnosticsRun[] }) {
+export function AnalysisHistory({ runs, exportUrl }: { runs: DiagnosticsRun[]; exportUrl?: (id: string) => string }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   if (!runs.length)
     return (
@@ -36,13 +37,20 @@ export function AnalysisHistory({ runs }: { runs: DiagnosticsRun[] }) {
         <caption className="sr-only">Retained diagnostics analyses</caption>
         <thead className="border-b border-custom-border-200 text-xs text-custom-text-300">
           <tr>
-            {["", "Analysis · UTC", "Status", "Evidence", "Operations", "P95 confirmation", "Error events"].map(
-              (name) => (
-                <th key={name} scope="col" className="px-3 py-3 font-medium">
-                  {name}
-                </th>
-              )
-            )}
+            {[
+              "",
+              "Analysis · UTC",
+              "Status",
+              "Evidence",
+              "Operations",
+              "P95 confirmation",
+              "Error events",
+              "Export",
+            ].map((name) => (
+              <th key={name} scope="col" className="px-3 py-3 font-medium">
+                {name}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -74,10 +82,15 @@ export function AnalysisHistory({ runs }: { runs: DiagnosticsRun[] }) {
                   {formatMilliseconds(run.statistics?.summary.latency_ms.p95)}
                 </td>
                 <td className="px-3 py-4 tabular-nums">{run.statistics?.summary.error_events ?? "Not recorded"}</td>
+                <td className="px-3 py-4">
+                  {exportUrl && run.status === "completed" && run.report_available ? (
+                    <ReportExportButton id={run.id} url={exportUrl(run.id)} />
+                  ) : null}
+                </td>
               </tr>
               {expanded === run.id ? (
                 <tr id={`analysis-${run.id}`} className="border-b border-custom-border-200">
-                  <td colSpan={7} className="bg-custom-background-90 px-5 py-4">
+                  <td colSpan={8} className="bg-custom-background-90 px-5 py-4">
                     <p className="font-medium">
                       {run.customer_summary?.headline || "No customer summary is available."}
                     </p>
@@ -107,7 +120,13 @@ export function AnalysisHistory({ runs }: { runs: DiagnosticsRun[] }) {
   );
 }
 
-export function ReportedIssues({ incidents }: { incidents: DiagnosticsIncident[] }) {
+export function ReportedIssues({
+  incidents,
+  exportUrl,
+}: {
+  incidents: DiagnosticsIncident[];
+  exportUrl?: (id: string) => string;
+}) {
   const [filter, setFilter] = useState("all");
   const visible = incidents.filter(
     (item) =>
@@ -137,11 +156,13 @@ export function ReportedIssues({ incidents }: { incidents: DiagnosticsIncident[]
             <caption className="sr-only">Customer-reported issues and support delivery status</caption>
             <thead className="border-b border-custom-border-200 text-xs text-custom-text-300">
               <tr>
-                {["Reference", "Reported · UTC", "Action", "Local analysis", "Support delivery"].map((name) => (
-                  <th key={name} scope="col" className="px-3 py-3 font-medium">
-                    {name}
-                  </th>
-                ))}
+                {["Reference", "Reported · UTC", "Action", "Local analysis", "Support delivery", "Export"].map(
+                  (name) => (
+                    <th key={name} scope="col" className="px-3 py-3 font-medium">
+                      {name}
+                    </th>
+                  )
+                )}
               </tr>
             </thead>
             <tbody>
@@ -172,6 +193,11 @@ export function ReportedIssues({ incidents }: { incidents: DiagnosticsIncident[]
                     ) : null}
                     {incident.submission_reason ? (
                       <p className="mt-1 text-xs text-custom-text-300">{label(incident.submission_reason)}</p>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-4">
+                    {exportUrl && incident.analysis_status === "completed" && incident.analysis_id ? (
+                      <ReportExportButton id={incident.analysis_id} url={exportUrl(incident.analysis_id)} />
                     ) : null}
                   </td>
                 </tr>
