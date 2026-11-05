@@ -43,3 +43,17 @@ soft-deletes their linked roster records across all programs in that workspace,
 alongside deactivating workspace and project memberships. Unlinked players and
 records in other workspaces are preserved. Coaching work items are retained with
 their optional roster reference cleared.
+
+## Account status
+
+The default **Account status** column is separate from player availability
+(Active/Injured/Inactive/Pending). It is calculated from current server records:
+
+- **Email missing**: no roster email and no account link.
+- **Not linked**: an email exists, but the roster has no account link or pending invitation.
+- **Invitation pending**: an unanswered workspace invitation exists for that email in this workspace.
+- **Linked**: the roster's user field identifies its Plane account, including manually linked players without a roster email.
+
+This indicates invitation/account linkage, not SMTP delivery. Refresh the roster
+after a player accepts an invitation to see the updated link. The column can be
+hidden through Display settings; player availability remains editable separately.

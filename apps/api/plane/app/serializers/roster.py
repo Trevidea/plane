@@ -10,13 +10,14 @@ from rest_framework.exceptions import PermissionDenied
 
 # Module imports
 from .base import BaseSerializer
-from plane.db.models import RosterPlayer, RosterPlayerStatus, User, Workspace, WorkspaceMember
+from plane.db.models import RosterPlayer, RosterPlayerStatus, User, Workspace, WorkspaceMember, WorkspaceMemberInvite
 from plane.utils.roster_membership import attach_imported_roster_member
 
 
 class RosterPlayerSerializer(BaseSerializer):
     program_id = serializers.UUIDField(source="project_id", read_only=True)
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
+    account_status = serializers.SerializerMethodField()
 
     class Meta:
         model = RosterPlayer
@@ -25,6 +26,7 @@ class RosterPlayerSerializer(BaseSerializer):
             "program_id",
             "user",
             "email",
+            "account_status",
             "player_name",
             "jersey_number",
             "position",
@@ -37,6 +39,21 @@ class RosterPlayerSerializer(BaseSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "program_id", "email", "created_at", "updated_at"]
+
+    def get_account_status(self, player):
+        if player.user_id is not None:
+            return "linked"
+        if not player.email:
+            return "email_missing"
+        pending = getattr(player, "_has_pending_invitation", None)
+        if pending is None:
+            pending = WorkspaceMemberInvite.objects.filter(
+                workspace_id=player.workspace_id,
+                email__iexact=player.email,
+                accepted=False,
+                responded_at__isnull=True,
+            ).exists()
+        return "invitation_pending" if pending else "not_linked"
 
     def validate_status(self, value):
         if not value:

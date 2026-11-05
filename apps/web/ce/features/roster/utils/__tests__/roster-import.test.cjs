@@ -15,7 +15,7 @@ const load = (filename) => {
   vm.runInThisContext(`(function(require, module, exports) { ${source}\n})`)(localRequire, module, module.exports);
   return module.exports;
 };
-const { mapImportedRows } = load(path.resolve(__dirname, "../roster.utils.ts"));
+const { mapImportedRows, getRosterAccountStatus } = load(path.resolve(__dirname, "../roster.utils.ts"));
 
 test("CSV/XLSX email headers are preserved and normalized", () => {
   for (const header of ["Email", "Email Address", "Player Email", "E-mail"]) {
@@ -34,4 +34,14 @@ test("email-less legacy files remain importable", () => {
 test("a row containing only email is retained for backend name validation", () => {
   assert.equal(mapImportedRows([{ Email: "player@example.com" }]).length, 1);
   assert.equal(mapImportedRows([{ Email: "" }]).length, 0);
+});
+
+test("account status uses real invitation state rather than treating every email as invited", () => {
+  assert.equal(getRosterAccountStatus({ email: "" }), "email_missing");
+  assert.equal(getRosterAccountStatus({ email: "player@example.com" }), "not_linked");
+  assert.equal(getRosterAccountStatus({ user: "member-id", email: "" }), "linked");
+  assert.equal(
+    getRosterAccountStatus({ email: "player@example.com", account_status: "invitation_pending" }),
+    "invitation_pending"
+  );
 });

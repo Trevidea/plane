@@ -7,12 +7,14 @@ from unittest.mock import patch
 
 from django.core import mail
 from django.core.mail.backends.locmem import EmailBackend
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from plane.utils.player_invitations import ticket_data
 
 from plane.bgtasks.workspace_invitation_task import workspace_invitation
 from plane.db.models import Project, RosterPlayer, User, Workspace, WorkspaceMemberInvite
 
 
+@override_settings(PLAYER_APP_API_URL="https://sports.example")
 class PlayerInvitationEmailTests(TestCase):
     def setUp(self):
         self.coach = User.objects.create(email="coach@invite.test", username="invite-coach", first_name="Coach")
@@ -60,7 +62,7 @@ class PlayerInvitationEmailTests(TestCase):
             self.assertIn("Jordan Player", content)
             self.assertIn("Football", content)
             self.assertIn("School", content)
-            self.assertIn("Accept invitation", content)
+            self.assertRegex(content, r"Accept (?:invitation|the invite)")
             self.assertIn(self.email, content)
         self.assertEqual(message.to, [self.email])
         self.assertEqual(message.from_email, "Coach <coach@invite.test>")
@@ -82,11 +84,10 @@ class PlayerInvitationEmailTests(TestCase):
         url = urlsplit(href)
         self.assertEqual(url.scheme, "https")
         self.assertEqual(url.netloc, "sports.example")
-        self.assertEqual(url.path, "/workspace-invitations/")
-        self.assertEqual(
-            parse_qs(url.query),
-            {"email": [self.email], "slug": [self.workspace.slug], "invitation_id": [str(self.invitation.id)]},
-        )
+        self.assertEqual(url.path, "/auth/player-invitation/")
+        ticket = parse_qs(url.query)["token"][0]
+        self.assertEqual(ticket_data(ticket)["id"], str(self.invitation.id))
+        self.assertEqual(ticket_data(ticket)["nonce"], self.invitation.token)
         self.assertIn(href, message.body)
 
     def test_programs_are_limited_to_invited_workspace_and_email(self):

@@ -5,6 +5,7 @@ export interface IRosterPlayer {
   program_id: string;
   email?: string;
   user?: string | null;
+  account_status?: "email_missing" | "not_linked" | "invitation_pending" | "linked";
   player_name: string;
   jersey_number: string | null;
   position: string | null;

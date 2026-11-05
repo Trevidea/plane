@@ -3,11 +3,22 @@
 from uuid import uuid4
 
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 from rest_framework.exceptions import ValidationError
 
 from plane.bgtasks.workspace_invitation_task import workspace_invitation
 from plane.db.models import Project, RosterPlayer, Workspace, WorkspaceMember, WorkspaceMemberInvite
 from plane.utils.exception_logger import log_exception
+
+
+def roster_with_account_status(queryset):
+    pending = WorkspaceMemberInvite.objects.filter(
+        workspace_id=OuterRef("workspace_id"),
+        email__iexact=OuterRef("email"),
+        accepted=False,
+        responded_at__isnull=True,
+    )
+    return queryset.annotate(_has_pending_invitation=Exists(pending))
 
 
 def link_roster_memberships(user, workspace_ids):

@@ -24,7 +24,7 @@ import type { IRosterPlayer, TRosterPlayerStatus } from "@plane/types";
 import { Checkbox, CustomMenu, cn } from "@plane/ui";
 import type { IRosterGroup, IRosterGroupedResponse } from "../store/roster-context";
 import { useRoster } from "../store/roster-context";
-import { formatTimestamp, toDisplayStatus } from "../utils/roster.utils";
+import { formatTimestamp, getRosterAccountStatus, toDisplayStatus } from "../utils/roster.utils";
 
 type TRosterColumnKey =
   | "jersey_number"
@@ -33,6 +33,7 @@ type TRosterColumnKey =
   | "weight"
   | "class_year"
   | "status"
+  | "account_status"
   | "created_at"
   | "updated_at";
 
@@ -93,6 +94,31 @@ const RosterStatusPill = ({ status }: { status: TRosterPlayerStatus }) => (
     {toDisplayStatus(status)}
   </span>
 );
+
+const accountStatusLabels = {
+  email_missing: "Email missing",
+  not_linked: "Not linked",
+  invitation_pending: "Invitation pending",
+  linked: "Linked",
+};
+
+const RosterAccountStatusPill = ({ player }: { player: IRosterPlayer }) => {
+  const status = getRosterAccountStatus(player);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium leading-4",
+        status === "linked"
+          ? statusStyles.active
+          : status === "invitation_pending"
+            ? statusStyles.pending
+            : statusStyles.inactive
+      )}
+    >
+      {accountStatusLabels[status]}
+    </span>
+  );
+};
 
 const parseNumberValue = (value: string | null | undefined) => {
   if (!value) return null;
@@ -220,6 +246,14 @@ const ROSTER_COLUMNS: TRosterColumn[] = [
     headerClassName: "min-w-40",
     cellClassName: "min-w-40",
     render: (player) => <RosterStatusPill status={player.status} />,
+  },
+  {
+    key: "account_status",
+    label: "Account status",
+    icon: CircleDot,
+    headerClassName: "min-w-44",
+    cellClassName: "min-w-44",
+    render: (player) => <RosterAccountStatusPill player={player} />,
   },
   {
     key: "created_at",

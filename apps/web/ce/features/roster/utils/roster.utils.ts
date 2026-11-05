@@ -3,6 +3,9 @@ import { ROSTER_HEADER_MAP, STATUS_VALUES } from "../constants/roster.constants"
 
 export const toDisplayStatus = (status: string) => status.charAt(0).toUpperCase() + status.slice(1);
 
+export const getRosterAccountStatus = (player: Pick<IRosterPlayer, "user" | "email" | "account_status">) =>
+  player.account_status ?? (player.user ? "linked" : player.email?.trim() ? "not_linked" : "email_missing");
+
 export const formatTimestamp = (value: string | null | undefined) =>
   value && !Number.isNaN(new Date(value).getTime())
     ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value))

@@ -1,4 +1,5 @@
 from django.urls import path
+from .views.player_invitation import PlayerInvitationAcceptEndpoint, PlayerInvitationLandingEndpoint
 
 from .views import (
     CSRFTokenEndpoint,
@@ -42,6 +43,8 @@ from .views import (
 )
 
 urlpatterns = [
+    path("player-invitation/", PlayerInvitationLandingEndpoint.as_view(), name="player-invitation-landing"),
+    path("player-invitation/accept/", PlayerInvitationAcceptEndpoint.as_view(), name="player-invitation-accept"),
     # coach auth
     path("coach/sign-in/", CoachSignInEndpoint.as_view(), name="coach-sign-in"),
     path("coach/sign-out/", CoachSignOutEndpoint.as_view(), name="coach-sign-out"),

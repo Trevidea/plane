@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from plane.app.permissions import ProjectEntityPermission, allow_permission, ROLE
 from plane.app.serializers import RosterPlayerImportSerializer, RosterPlayerSerializer
 from plane.db.models import Project, RosterPlayer, Workspace
+from plane.utils.roster_membership import roster_with_account_status
 from .base import BaseViewSet
 
 
@@ -27,11 +28,15 @@ class RosterPlayerViewSet(BaseViewSet):
             .filter(project_id=self.kwargs.get("project_id"))
         )
 
-        return queryset.order_by(RosterPlayer.jersey_number_ordering(), "player_name", "created_at")
+        return roster_with_account_status(queryset).order_by(
+            RosterPlayer.jersey_number_ordering(), "player_name", "created_at"
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context["project"] = Project.objects.get(workspace__slug=self.kwargs.get("slug"), pk=self.kwargs.get("project_id"))
+        context["project"] = Project.objects.get(
+            workspace__slug=self.kwargs.get("slug"), pk=self.kwargs.get("project_id")
+        )
         return context
 
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
@@ -77,7 +82,10 @@ class RosterPlayerViewSet(BaseViewSet):
         with transaction.atomic():
             players = serializer.save()
 
-        response_serializer = self.get_serializer(players, many=True)
+        statuses = roster_with_account_status(
+            RosterPlayer.objects.filter(pk__in=[player.pk for player in players])
+        ).in_bulk()
+        response_serializer = self.get_serializer([statuses[player.pk] for player in players], many=True)
         return Response(
             {
                 "success": True,

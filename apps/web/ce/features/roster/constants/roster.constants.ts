@@ -14,6 +14,7 @@ export const ROSTER_DISPLAY_PROPERTIES: { key: TRosterDisplayPropertyKey; label:
   { key: "weight", label: "Weight" },
   { key: "class_year", label: "Class/Year" },
   { key: "status", label: "Status" },
+  { key: "account_status", label: "Account status" },
   { key: "created_at", label: "Created on" },
   { key: "updated_at", label: "Updated on" },
 ];
