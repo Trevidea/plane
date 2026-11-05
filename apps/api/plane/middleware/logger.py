@@ -52,8 +52,9 @@ class RequestLoggerMiddleware:
         user_agent = request.META.get("HTTP_USER_AGENT", "")
 
         # Log the request information
+        path = request.path if request.path.startswith("/auth/player-invitation/") else request.get_full_path()
         api_logger.info(
-            f"{request.method} {request.get_full_path()} {response.status_code}",
+            f"{request.method} {path} {response.status_code}",
             extra={
                 "path": request.path,
                 "method": request.method,
@@ -74,6 +75,9 @@ class APITokenLogMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if request.path.startswith("/auth/player-invitation/") or request.path == "/api/player/invitations/preview/":
+            # Never persist invitation tickets or account passwords in API-key logs.
+            return self.get_response(request)
         request_body = request.body
         response = self.get_response(request)
         self.process_request(request, response, request_body)

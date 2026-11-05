@@ -37,6 +37,8 @@ def _eligible_roster(user):
 
 
 class PlayerProgramsEndpoint(BaseAPIView):
+    user_role_access = True
+
     def get(self, request):
         query = PlayerProgramQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
@@ -72,6 +74,8 @@ class PlayerProgramsEndpoint(BaseAPIView):
 
 
 class PlayerCoachingCardConfigEndpoint(BaseAPIView):
+    user_role_access = True
+
     def get(self, request, slug, project_id):
         player = get_object_or_404(_eligible_roster(request.user), project_id=project_id, project__workspace__slug=slug)
         return Response(get_project_card_stage_config(player.project), headers={"Cache-Control": "private, no-store"})

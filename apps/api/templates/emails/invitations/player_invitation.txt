@@ -1,0 +1,21 @@
+{% autoescape off %}Your player invitation to {{ workspace_name }}
+
+Hi {{ player_name|default:"there" }},
+
+{{ first_name }} has invited you to join {{ workspace_name }} as a player.
+{% if program_names %}
+Your program{{ program_names|pluralize }}:
+{% for program in program_names %}- {{ program }}
+{% endfor %}{% endif %}
+Your player area lets you view assigned activities and personal feedback,
+record progress, complete your own activities, and comment or react.
+
+Accept invitation:
+{{ abs_url }}
+
+Sign up or sign in using {{ email }}. After joining, you can access your assigned programs,
+activities, and personal feedback.
+
+If you were not expecting this invitation, you can ignore this email.
+For help with your roster or assignments, contact your coach.
+{% endautoescape %}

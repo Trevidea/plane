@@ -29,6 +29,7 @@ export type TRosterDisplayPropertyKey =
   | "weight"
   | "class_year"
   | "status"
+  | "account_status"
   | "notes"
   | "created_at"
   | "updated_at";
@@ -140,6 +141,7 @@ const DEFAULT_DISPLAY_PROPERTIES: Record<TRosterDisplayPropertyKey, boolean> = {
   weight: true,
   class_year: true,
   status: true,
+  account_status: true,
   notes: false,
   created_at: false,
   updated_at: false,

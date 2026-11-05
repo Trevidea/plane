@@ -1,3 +1,4 @@
+from plane.utils.user_role_access import UserRoleAccessMixin
 # Python imports
 import traceback
 
@@ -41,7 +42,7 @@ class TimezoneMixin:
             timezone.deactivate()
 
 
-class BaseViewSet(TimezoneMixin, ReadReplicaControlMixin, ModelViewSet, BasePaginator):
+class BaseViewSet(UserRoleAccessMixin, TimezoneMixin, ReadReplicaControlMixin, ModelViewSet, BasePaginator):
     model = None
 
     permission_classes = [IsAuthenticated]
@@ -142,7 +143,7 @@ class BaseViewSet(TimezoneMixin, ReadReplicaControlMixin, ModelViewSet, BasePagi
         return expand if expand else None
 
 
-class BaseAPIView(TimezoneMixin, ReadReplicaControlMixin, APIView, BasePaginator):
+class BaseAPIView(UserRoleAccessMixin, TimezoneMixin, ReadReplicaControlMixin, APIView, BasePaginator):
     permission_classes = [IsAuthenticated]
 
     filter_backends = (DjangoFilterBackend, SearchFilter)

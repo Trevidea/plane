@@ -77,6 +77,13 @@ class PlayerActivityTests(TestCase):
         self.assertEqual(event["reason"], "Focus on technique")
         self.assertEqual(set(event), {"id", "card", "actor", "from_stage", "to_stage", "changed_at", "reason"})
 
+    def test_user_role_can_read_own_stage_history(self):
+        self.membership.role = 1
+        self.membership.save(update_fields=["role"])
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual([row["id"] for row in response.data["results"]], [str(self.event.id)])
+
     def test_other_cards_and_programs_are_excluded_before_counting(self):
         other = Issue.objects.create(
             project=self.project,

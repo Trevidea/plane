@@ -80,6 +80,7 @@ REST_FRAMEWORK = {
 
 # Django Auth Backend
 AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)  # default
+PLAYER_APP_API_URL = os.environ.get("PLAYER_APP_API_URL", "")
 
 # Root Urls
 ROOT_URLCONF = "plane.urls"

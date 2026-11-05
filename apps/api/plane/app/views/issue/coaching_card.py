@@ -1,3 +1,4 @@
+from plane.utils.user_role_access import has_user_role
 from html import escape
 from math import isfinite
 from datetime import timedelta
@@ -19,7 +20,6 @@ from plane.db.models import (
     Project,
     RosterPlayer,
     State,
-    WorkspaceMember,
 )
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY, COACHING_CARD_KIND
 from plane.utils.coaching_card_clips import CLIP_TYPES, mutate_card_clips
@@ -277,26 +277,57 @@ def _card_response(card):
 
 
 def _linked_player(request, project_id, slug):
-    player = RosterPlayer.objects.filter(
-        project_id=project_id, project__workspace__slug=slug, user=request.user
-    ).first()
-    if (
-        player is None
-        or not WorkspaceMember.objects.filter(
-            workspace_id=player.workspace_id, member=request.user, is_active=True
-        ).exists()
-    ):
-        return None
-    return player
+    from plane.app.views.player import _eligible_roster
+
+    return _eligible_roster(request.user).filter(project_id=project_id, project__workspace__slug=slug).first()
 
 
-def _player_card_response(card, player_id, annotation_cache=None):
+def _player_card_response(card, player_id, restricted_user=None, annotation_cache=None):
     response = _card_response(card)
     response["coach_id"] = str(card.created_by_id) if card.created_by_id else None
     data = player_card_annotations(card, annotation_cache)
     recipient_ids = data.pop("recipient_ids", None) or ([str(card.roster_player_id)] if card.roster_player_id else [])
     data.pop("recipients", None)
     data["review"] = _player_review_response(data, player_id, recipient_ids)
+    if restricted_user is not None:
+        from plane.utils.player_activity_access import activity_data
+
+        personal = activity_data(card, restricted_user)
+        clips = [
+            {
+                "id": clip["key"],
+                "key": clip["key"],
+                "title": clip["title"],
+                "source_url": clip["sourceUrl"],
+                "start_seconds": clip["startSeconds"],
+                "end_seconds": clip["endSeconds"],
+                "duration_seconds": clip["durationSeconds"],
+                "playback_mode": clip.get("playbackMode"),
+                "source_start_seconds": clip.get("sourceStartSeconds"),
+            }
+            for clip in personal["clips"]
+        ]
+        data = {
+            "schema_version": 2,
+            "kind": "coaching_card",
+            "feedback": personal["feedback"],
+            "playlists": [{"id": str(card.id), "name": "Assigned feedback", "clips": clips}],
+            "review": {
+                **data["review"],
+                "viewed_at": personal["progress"]["completed_at"],
+                "recipient_count": 1,
+                "viewed_count": int(personal["progress"]["completed_at"] is not None),
+            },
+            "summary": {
+                "playlist_count": 1,
+                "clip_count": len(clips),
+                "primary_thumbnail": None,
+                "primary_clip_title": clips[0]["title"] if clips else "",
+            },
+        }
+        response["roster_player_id"] = player_id
+        response["position_group"] = None
+        response["parent_id"] = None
     response["coaching_card_data"] = data
     return response
 
@@ -531,6 +562,8 @@ class CoachingCardConfigEndpoint(BaseAPIView):
 
 
 class CoachingCardMineEndpoint(BaseAPIView):
+    user_role_access = True
+
     def get(self, request, slug, project_id):
         player = _linked_player(request, project_id, slug)
         if player is None:
@@ -544,13 +577,27 @@ class CoachingCardMineEndpoint(BaseAPIView):
             project_id=project_id,
             category=COACHING_CARD_CATEGORY,
         ).order_by("-created_at", "-id")
+        restricted_user = request.user if has_user_role(request, self) else None
+        if restricted_user is not None:
+            from plane.utils.player_activity_access import player_activities
+
+            cards = (
+                player_activities(request.user)
+                .filter(project_id=project_id, category=COACHING_CARD_CATEGORY)
+                .order_by("-created_at", "-id")
+            )
         annotation_cache = {}
         return Response(
             {
                 "total_count": cards.count(),
                 "limit": limit,
                 "offset": offset,
-                "results": [_player_card_response(card, player.id, annotation_cache) for card in cards[offset : offset + limit]],
+                "results": [
+                    _player_card_response(
+                        card, player.id, restricted_user=restricted_user, annotation_cache=annotation_cache
+                    )
+                    for card in cards[offset : offset + limit]
+                ],
             }
         )
 
@@ -816,6 +863,8 @@ class CoachingCardTransitionEndpoint(BaseAPIView):
 
 
 class CoachingCardReviewCompleteEndpoint(BaseAPIView):
+    user_role_access = True
+
     @transaction.atomic
     def post(self, request, slug, project_id, card_id):
         card = (
@@ -829,6 +878,33 @@ class CoachingCardReviewCompleteEndpoint(BaseAPIView):
 
         player = _linked_player(request, project_id, slug)
         data = dict(card.coaching_card_data or {})
+        if has_user_role(request, self):
+            from plane.utils.player_activity_access import player_activities
+
+            if player is None or not player_activities(request.user).filter(pk=card.pk).exists():
+                return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
+            from plane.db.models import PlayerActivityProgress
+
+            progress, _ = PlayerActivityProgress.objects.get_or_create(
+                issue=card, project=card.project, user=request.user
+            )
+            progress.percent = 100
+            progress.completed_at = progress.completed_at or timezone.now()
+            progress.save()
+            review = data.get("review") or {}
+            return Response(
+                {
+                    "id": str(card.id),
+                    "stage_id": str(card.state_id),
+                    "review": {
+                        "assigned_at": review.get("assigned_at"),
+                        "deadline_at": review.get("deadline_at"),
+                        "viewed_at": progress.completed_at.isoformat(),
+                        "recipient_count": 1,
+                        "viewed_count": 1,
+                    },
+                }
+            )
         if player is None or str(player.id) not in (data.get("recipient_ids") or []):
             return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -839,7 +915,8 @@ class CoachingCardReviewCompleteEndpoint(BaseAPIView):
         data["review"] = review
         card.coaching_card_data = data
         card.save(update_fields=["coaching_card_data", "updated_at"])
-        advance_card_after_review(card, timezone.now())
+        if not has_user_role(request, self):
+            advance_card_after_review(card, timezone.now())
         return Response(
             {
                 "id": str(card.id),

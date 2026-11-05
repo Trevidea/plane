@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>Kanavio Player invitation</title>
+<style>body{font:16px Arial,sans-serif;background:#f3f6fa;color:#1e293b;margin:0;padding:24px}main{max-width:460px;margin:32px auto;background:white;padding:28px;border-radius:12px}a,button{display:block;box-sizing:border-box;width:100%;padding:10px;text-align:center;border:1px solid #0066cc;color:#0066cc;background:white;border-radius:4px;text-decoration:none;font-size:16px;cursor:pointer}label{display:block;margin:16px 0}input{box-sizing:border-box;width:100%;padding:10px;margin-top:6px;border:1px solid #cbd5e1;border-radius:4px}p{line-height:1.5}small{color:#64748b}</style></head>
+<body><main><h1>Kanavio Player</h1>
+{% if error %}<p role="alert">{{ error }}</p>
+{% elif completed %}<h2>Your account is ready</h2><p>Your roster and program memberships are linked. Open the player app and sign in with your invited email and password.</p><a href="kanavioplayerapp://login">Open player app</a>
+{% else %}
+<p>Hi {{ invitation.player_name }}, you are invited to {{ invitation.program_name }}.</p>
+<a href="{{ app_url }}">Open player app</a>
+<p><small>Requires the installed Kanavio Player app. You can also continue here in your browser.</small></p>
+<h2>{% if invitation.account_exists %}Sign in and accept{% else %}Create your account{% endif %}</h2>
+<form method="post" action="{% url 'player-invitation-accept' %}">{% csrf_token %}
+<input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="browser" value="1">
+<input type="hidden" name="name" value="{{ invitation.player_name|truncatechars:150 }}">
+<label>Email<input type="email" value="{{ invitation.email }}" readonly autocomplete="username"></label>
+<label>Password<input type="password" name="password" required maxlength="128" autocomplete="{% if invitation.account_exists %}current-password{% else %}new-password{% endif %}"></label>
+{% if not invitation.account_exists %}<label>Confirm password<input type="password" name="password_confirm" required maxlength="128" autocomplete="new-password"></label>{% endif %}
+<button type="submit">{% if invitation.account_exists %}Sign in and accept{% else %}Create account and accept{% endif %}</button>
+</form>{% endif %}</main></body></html>
