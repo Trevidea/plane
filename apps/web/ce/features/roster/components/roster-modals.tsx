@@ -10,7 +10,6 @@ import { Button } from "@plane/propel/button";
 import type { IRosterPlayerPayload, TRosterPlayerStatus } from "@plane/types";
 import {
   Button as UnstyledButton,
-  AlertModalCore,
   cn,
   CustomSelect,
   EModalPosition,
@@ -402,50 +401,5 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
         </Button>
       </div>
     </ModalCore>
-  );
-});
-
-export const DeletePlayerModal = observer(() => {
-  const { deletingPlayer, isSubmitting, closeDeletePlayerModal, deletePlayer } = useRoster();
-
-  return (
-    <AlertModalCore
-      isOpen={!!deletingPlayer}
-      handleClose={closeDeletePlayerModal}
-      handleSubmit={deletePlayer}
-      isSubmitting={isSubmitting}
-      title="Delete player"
-      content={`Are you sure you want to delete ${deletingPlayer?.player_name ?? "this player"} from the roster?`}
-      primaryButtonText={{ loading: "Deleting", default: "Delete player" }}
-    />
-  );
-});
-
-export const BulkDeletePlayersModal = observer(() => {
-  const { isBulkDeleteModalOpen, selectedPlayers, isSubmitting, closeBulkDeleteModal, deleteSelectedPlayers } =
-    useRoster();
-  const selectedPlayerNames = selectedPlayers
-    .slice(0, 3)
-    .map((player) => player.player_name || "Unnamed player")
-    .join(", ");
-  const remainingPlayersCount = Math.max(selectedPlayers.length - 3, 0);
-  const content =
-    selectedPlayers.length > 1
-      ? `Are you sure you want to delete ${selectedPlayers.length} selected players from the roster${
-          selectedPlayerNames ? `, including ${selectedPlayerNames}` : ""
-        }${remainingPlayersCount ? ` and ${remainingPlayersCount} more` : ""}?`
-      : `Are you sure you want to delete ${selectedPlayerNames || "this player"} from the roster?`;
-  const primaryButtonLabel = selectedPlayers.length === 1 ? "Delete selected player" : "Delete selected players";
-
-  return (
-    <AlertModalCore
-      isOpen={isBulkDeleteModalOpen}
-      handleClose={closeBulkDeleteModal}
-      handleSubmit={deleteSelectedPlayers}
-      isSubmitting={isSubmitting}
-      title="Delete selected players"
-      content={content}
-      primaryButtonText={{ loading: "Deleting", default: primaryButtonLabel }}
-    />
   );
 });

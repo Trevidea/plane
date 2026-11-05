@@ -34,3 +34,12 @@ Run backend migrations before using this feature (`db.0134_roster_player_email`)
 Invitation delivery requires configured SMTP, the Celery worker, and its broker.
 If sending fails, use the existing workspace invitation settings to resend.
 Pending players remain unlinked until workspace membership is active.
+
+## Removing linked players
+
+The roster UI has no individual or bulk delete buttons. Linked players are also
+protected from direct API deletion. Remove the member from workspace settings instead. This
+soft-deletes their linked roster records across all programs in that workspace,
+alongside deactivating workspace and project memberships. Unlinked players and
+records in other workspaces are preserved. Coaching work items are retained with
+their optional roster reference cleared.

@@ -8,7 +8,7 @@ from rest_framework.response import Response
 # Module imports
 from plane.app.permissions import ProjectEntityPermission, allow_permission, ROLE
 from plane.app.serializers import RosterPlayerImportSerializer, RosterPlayerSerializer
-from plane.db.models import Project, RosterPlayer
+from plane.db.models import Project, RosterPlayer, Workspace
 from .base import BaseViewSet
 
 
@@ -53,8 +53,19 @@ class RosterPlayerViewSet(BaseViewSet):
         return super().partial_update(request, slug, project_id, pk)
 
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER])
+    @transaction.atomic
     def destroy(self, request, slug, project_id, pk):
+        # Imports and invitation acceptance take this lock before linking players.
+        Workspace.objects.select_for_update().get(slug=slug)
         roster_player = self.get_object()
+        if roster_player.user_id is not None:
+            return Response(
+                {
+                    "error": "This player is linked to a workspace member. "
+                    "Remove the member to delete their associated roster records."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         roster_player.delete()
         return Response({"success": True, "message": "Player deleted successfully."}, status=status.HTTP_200_OK)
 

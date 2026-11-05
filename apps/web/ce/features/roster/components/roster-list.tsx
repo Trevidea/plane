@@ -19,7 +19,6 @@ import {
   Ruler,
   Scale,
   Shirt,
-  Trash2,
 } from "lucide-react";
 import type { IRosterPlayer, TRosterPlayerStatus } from "@plane/types";
 import { Checkbox, CustomMenu, cn } from "@plane/ui";
@@ -438,7 +437,7 @@ const RosterPlayerCell = ({ player, selectionControl }: { player: IRosterPlayer;
 );
 
 const RosterActionsMenu = observer(({ player }: { player: IRosterPlayer }) => {
-  const { canManage, openEditPlayerModal, openDeletePlayerModal } = useRoster();
+  const { canManage, openEditPlayerModal } = useRoster();
 
   return (
     <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
@@ -455,14 +454,6 @@ const RosterActionsMenu = observer(({ player }: { player: IRosterPlayer }) => {
         >
           <Pencil className="h-3.5 w-3.5" />
           Edit
-        </CustomMenu.MenuItem>
-        <CustomMenu.MenuItem
-          className={cn("flex items-center gap-2", canManage ? "text-red-400" : "text-custom-text-400")}
-          disabled={!canManage}
-          onClick={() => openDeletePlayerModal(player)}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Delete
         </CustomMenu.MenuItem>
       </CustomMenu>
     </div>

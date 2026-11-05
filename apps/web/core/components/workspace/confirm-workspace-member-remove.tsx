@@ -89,7 +89,8 @@ export const ConfirmWorkspaceMemberRemove: React.FC<Props> = observer((props) =>
                             {/* TODO: Add translation here */}
                             Are you sure you want to remove member-{" "}
                             <span className="font-bold">{userDetails?.display_name}</span>? They will no longer have
-                            access to this workspace. This action cannot be undone.
+                            access to this workspace. Their linked roster records in this workspace will also be
+                            deleted. This action cannot be undone.
                           </p>
                         )}
                       </div>
