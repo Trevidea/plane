@@ -88,3 +88,4 @@ from .sticky import Sticky
 
 from .description import Description, DescriptionVersion
 from .player_activity import PlayerActivityProgress
+from .private_card_message import CoachingCardPrivateMessage, CoachingCardPrivateAttachment

@@ -45,9 +45,18 @@ def _project_events(project_id, root, cache):
             remaining -= size
             manifest = read_manifest(manifest_file)
             for artifact in manifest.get("artifacts", [])[:2000]:
-                if not isinstance(artifact, dict) or artifact.get("format") != "json":
+                if not isinstance(artifact, dict):
                     continue
                 meta = resolve_artifact_metadata(artifact, manifest.get("metadata"))
+                # Event drawings may be saved directly on a video artifact's metadata.
+                # Keep matching by the source work item; never fetch its media URL.
+                if artifact.get("format") != "json" and not any(
+                    isinstance(meta.get(field), (dict, list))
+                    for field in ("customPlaylistAnnotations", "custom_playlist_annotations",
+                                  "custom_playlists", "mediaReferences", "media_references",
+                                  "devices", "event", "rawEvent", "raw_event")
+                ):
+                    continue
                 source_id = str(artifact.get("work_item_id") or meta.get("work_item_id"))
                 index.setdefault(source_id, []).append((artifact, meta))
         except (OSError, ValueError, TypeError, AttributeError, ValidationError):
@@ -69,6 +78,9 @@ def _event_data(card, cache):
         return None
     root = project_root(str(card.project_id)).resolve()
     for artifact, meta in _project_events(card.project_id, root, cache).get(source_id, []):
+        if artifact.get("format") != "json":
+            cache[key] = (meta, {})
+            return cache[key]
         try:
             # Persisted local artifact paths only. No URL fetch or generic library grant.
             raw_path = artifact.get("path")
