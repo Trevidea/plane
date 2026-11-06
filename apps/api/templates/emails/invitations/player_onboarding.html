@@ -17,7 +17,7 @@
 <label>Email<input type="email" value="{{ invitation.email }}" readonly autocomplete="username"></label>
 <label for="password">Password</label><span class="password-field"><input id="password" type="password" name="password" required maxlength="128" autocomplete="{% if invitation.account_exists %}current-password{% else %}new-password{% endif %}"><button type="button" class="password-toggle" aria-label="Show password" aria-controls="password" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span>
 {% if not invitation.account_exists %}<label for="password-confirm">Confirm password</label><span class="password-field"><input id="password-confirm" type="password" name="password_confirm" required maxlength="128" autocomplete="new-password"><button type="button" class="password-toggle" aria-label="Show confirm password" aria-controls="password-confirm" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></span>{% endif %}
-<button type="submit">{% if invitation.account_exists %}Sign in and accept{% else %}Create account and accept{% endif %}</button>
+<button type="submit" style="margin-top:24px">{% if invitation.account_exists %}Sign in and accept{% else %}Create account and accept{% endif %}</button>
 </form>{% endif %}</main>{% if script_nonce %}<script nonce="{{ script_nonce }}">
 var form = document.getElementById('invitation-form');
 if (form) {
