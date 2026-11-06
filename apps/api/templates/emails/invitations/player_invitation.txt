@@ -2,7 +2,7 @@
 
 Hi {{ player_name|default:"there" }},
 
-{{ first_name }} has invited you to join {{ workspace_name }} as a player.
+{{ inviter_name }} has invited you to join {% if program_names %}{{ program_names|join:", " }} in {% endif %}{{ workspace_name }} as a player.
 {% if program_names %}
 Your program{{ program_names|pluralize }}:
 {% for program in program_names %}- {{ program }}

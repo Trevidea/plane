@@ -48,8 +48,10 @@ export const DeletePlayerModal = observer(() => {
   );
 });
 
-const FieldLabel = ({ children }: { children: ReactNode }) => (
-  <label className="text-xs font-medium uppercase tracking-wide text-custom-text-400">{children}</label>
+const FieldLabel = ({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) => (
+  <label htmlFor={htmlFor} className="text-xs font-medium uppercase tracking-wide text-custom-text-400">
+    {children}
+  </label>
 );
 
 export const AddPlayerModal = observer(({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) => {
@@ -103,6 +105,23 @@ export const AddPlayerModal = observer(({ isOpen, onClose }: { isOpen?: boolean;
               placeholder="Enter player name"
               className="w-full border-custom-border-200 bg-custom-background-100"
               autoFocus
+            />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <FieldLabel htmlFor="roster-player-email">Email address</FieldLabel>
+            <Input
+              id="roster-player-email"
+              name="email"
+              type="email"
+              autoComplete="on"
+              maxLength={254}
+              value={formState.email}
+              onChange={(event) => updateField("email", event.target.value)}
+              readOnly={Boolean(editingPlayer?.user)}
+              disabled={isSubmitting}
+              placeholder="player@example.com"
+              className="w-full border-custom-border-200 bg-custom-background-100"
+              aria-describedby="roster-player-email-help"
             />
           </div>
           <div className="space-y-2">

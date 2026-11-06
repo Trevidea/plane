@@ -24,8 +24,8 @@ lowercased. Existing files without Email work as before.
   role, without sending duplicate invitations.
 - Invalid addresses, repeated emails within a program, and conflicting existing
   account links reject the import. All rows must be valid before any players or
-  invitations are committed. Do not reimport existing players to link them: the
-  current import creates new rows, and duplicate jerseys/emails are rejected.
+  invitations are committed. For an existing roster player, use **Actions → Edit → Email address** instead
+  of reimporting: imports create new rows and duplicate jerseys/emails are rejected.
 - The importer needs program roster-management permission and workspace Member
   or Admin permission when the file includes emails. Invited players do not
   receive program coaching permissions automatically.
@@ -59,3 +59,15 @@ The default **Account status** column is separate from player availability
 This indicates invitation/account linkage, not SMTP delivery. Refresh the roster
 after a player accepts an invitation to see the updated link. The column can be
 hidden through Display settings; player availability remains editable separately.
+
+## Adding an email to an existing player
+
+Use **Actions → Edit**, enter an optional email address, and save. The same field
+is available when adding a player. Saving normalizes the email and links an
+existing active workspace member; otherwise it creates a User-role invitation.
+Existing pending invitations are reused without another email. This requires
+workspace invitation permission in addition to roster-management permission.
+
+An already linked player's roster email is read-only, so editing roster details
+cannot silently move their account or private feedback to another person.
+Players without an email remain editable and do not receive an invitation.

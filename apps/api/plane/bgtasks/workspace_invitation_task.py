@@ -58,6 +58,11 @@ def workspace_invitation(email, workspace_id, token, current_site, inviter):
         }
 
         if workspace_member_invite.role == 1:
+            context["inviter_name"] = (
+                " ".join(part.strip() for part in (user.first_name, user.last_name) if part.strip())
+                or user.display_name
+                or user.email
+            )
             roster = list(
                 RosterPlayer.objects.filter(
                     workspace_id=workspace.id,

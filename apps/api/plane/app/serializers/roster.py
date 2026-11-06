@@ -17,6 +17,7 @@ from plane.utils.roster_membership import attach_imported_roster_member
 class RosterPlayerSerializer(BaseSerializer):
     program_id = serializers.UUIDField(source="project_id", read_only=True)
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True, max_length=254)
     account_status = serializers.SerializerMethodField()
 
     class Meta:
@@ -38,7 +39,7 @@ class RosterPlayerSerializer(BaseSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "program_id", "email", "created_at", "updated_at"]
+        read_only_fields = ["id", "program_id", "created_at", "updated_at"]
 
     def get_account_status(self, player):
         if player.user_id is not None:
@@ -71,8 +72,42 @@ class RosterPlayerSerializer(BaseSerializer):
         value = value.strip()
         return value or None
 
+    def validate_email(self, value):
+        return (value or "").strip().lower()
+
     def validate(self, attrs):
         project = self.context["project"]
+        previous_email = (self.instance.email or "").strip().lower() if self.instance else ""
+        email_changed = "email" in attrs and attrs["email"] != previous_email
+        if "email" in attrs:
+            email = attrs["email"]
+            if self.instance and self.instance.user_id and email_changed:
+                raise serializers.ValidationError({"email": "The email of a linked player cannot be changed."})
+            if email:
+                if email_changed:
+                    request = self.context.get("request")
+                    if (
+                        not request
+                        or not WorkspaceMember.objects.filter(
+                            workspace=project.workspace, member=request.user, is_active=True, role__in=[15, 20]
+                        ).exists()
+                    ):
+                        raise PermissionDenied("Workspace invitation permission is required to save player emails.")
+                duplicates = RosterPlayer.objects.filter(project=project, email__iexact=email)
+                if self.instance:
+                    duplicates = duplicates.exclude(pk=self.instance.pk)
+                if duplicates.exists():
+                    raise serializers.ValidationError({"email": "Email is already used by a player in this program."})
+
+        previous_user_id = self.instance.user_id if self.instance else None
+        selected_user_id = attrs["user"].pk if attrs.get("user") else None
+        user_changed = "user" in attrs and selected_user_id != previous_user_id
+        if email_changed or user_changed:
+            selected_user = attrs.get("user", self.instance.user if self.instance else None)
+            email = attrs.get("email", self.instance.email if self.instance else "")
+            if selected_user and email and selected_user.email.lower() != email.lower():
+                raise serializers.ValidationError({"email": "Email does not match the selected member account."})
+
         user = attrs.get("user")
         if user is not None:
             if not WorkspaceMember.objects.filter(workspace=project.workspace, member=user, is_active=True).exists():
@@ -93,9 +128,41 @@ class RosterPlayerSerializer(BaseSerializer):
                 )
         return attrs
 
+    def _attach_email(self, player):
+        try:
+            attach_imported_roster_member(player, self.context.get("request"))
+        except serializers.ValidationError as error:
+            # Imports retain their row errors; form saves report the email field.
+            if isinstance(error.detail, dict) and "players" in error.detail:
+                raise serializers.ValidationError({"email": error.detail["players"]}) from error
+            raise
+
+    @transaction.atomic
     def create(self, validated_data):
         project = self.context["project"]
-        return RosterPlayer.objects.create(project=project, **validated_data)
+        Workspace.objects.select_for_update().get(pk=project.workspace_id)
+        type(project).objects.select_for_update().get(pk=project.pk)
+        self.validate(validated_data)
+        player = RosterPlayer.objects.create(project=project, **validated_data)
+        if player.email:
+            self._attach_email(player)
+        return player
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        project = self.context["project"]
+        # Match imports and invitation acceptance: workspace, project, then row.
+        Workspace.objects.select_for_update().get(pk=project.workspace_id)
+        type(project).objects.select_for_update().get(pk=project.pk)
+        self.instance = RosterPlayer.objects.select_for_update().get(pk=instance.pk)
+        self.validate(validated_data)
+        previous_email = (self.instance.email or "").strip().lower()
+        email_changed = "email" in validated_data and validated_data["email"] != previous_email
+        # Reloading also discards the old _has_pending_invitation annotation.
+        player = super().update(self.instance, validated_data)
+        if email_changed and player.email:
+            self._attach_email(player)
+        return player
 
 
 class RosterPlayerImportSerializer(serializers.Serializer):
