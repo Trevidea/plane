@@ -50,6 +50,7 @@ from plane.license.utils.instance_value import get_email_configuration
 from plane.bgtasks.service_gateway_webhook_task import service_gateway_event_sync
 from plane.utils.exception_logger import log_exception
 from plane.settings.mongo import MongoConnection
+from plane.utils.diagnostic_logging import dependency_call
 
 
 SERIALIZER_MAPPER = {
@@ -325,7 +326,9 @@ def webhook_send_task(
 
     try:
         # Send the webhook event
-        response = requests.post(webhook.url, headers=headers, json=payload, timeout=30)
+        response = dependency_call(
+            requests.post, webhook.url, headers=headers, json=payload, timeout=30, dependency="webhook", action="post"
+        )
 
         # Log the webhook request
         save_webhook_log(

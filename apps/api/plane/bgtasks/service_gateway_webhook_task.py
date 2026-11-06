@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import requests
+from plane.utils.diagnostic_logging import dependency_call
 from celery import shared_task
 from django.conf import settings
 from django.db import transaction
@@ -81,7 +82,17 @@ def _send_request(
     timeout: int,
     params: Optional[Dict[str, str]] = None,
 ) -> tuple[requests.Response, Dict[str, Any]]:
-    response = session.request(method=method, url=url, json=payload, params=params, timeout=timeout)
+    response = dependency_call(
+        session.request,
+        dependency="gateway",
+        action=method,
+        internal_headers=True,
+        method=method,
+        url=url,
+        json=payload,
+        params=params,
+        timeout=timeout,
+    )
     response.raise_for_status()
 
     response_json = sg._safe_response_json(response)
@@ -321,10 +332,7 @@ def _sync_created_event(
 
         scheduled_event_id = sg._extract_created_id(scheduled_response_json)
         logger.info(
-            (
-                "Synced Plane work-item %s to service-gateway "
-                "/api/event id=%s and /api/scheduled-event id=%s"
-            ),
+            ("Synced Plane work-item %s to service-gateway /api/event id=%s and /api/scheduled-event id=%s"),
             sync_ctx.event_data.get("id"),
             service_gateway_event_id,
             scheduled_event_id,
@@ -509,10 +517,7 @@ def _sync_updated_event(
 
     if updated_scheduled_count > 0:
         logger.info(
-            (
-                "Updated service-gateway rows for Plane work-item %s "
-                "(event rows=%s, scheduled-event rows=%s)"
-            ),
+            ("Updated service-gateway rows for Plane work-item %s (event rows=%s, scheduled-event rows=%s)"),
             sync_ctx.event_data.get("id"),
             len(event_ids),
             updated_scheduled_count,
@@ -543,10 +548,7 @@ def _sync_updated_event(
 
     scheduled_event_id = sg._extract_created_id(scheduled_response_json)
     logger.info(
-        (
-            "Updated service-gateway /api/event rows for Plane work-item %s "
-            "and created /api/scheduled-event id=%s"
-        ),
+        ("Updated service-gateway /api/event rows for Plane work-item %s and created /api/scheduled-event id=%s"),
         sync_ctx.event_data.get("id"),
         scheduled_event_id,
     )
@@ -675,10 +677,7 @@ def _sync_deleted_event(
         )
 
     logger.info(
-        (
-            "Deleted service-gateway rows for Plane work-item %s "
-            "(event rows=%s, scheduled-event rows=%s)"
-        ),
+        ("Deleted service-gateway rows for Plane work-item %s (event rows=%s, scheduled-event rows=%s)"),
         event_data.get("id"),
         len(event_ids),
         deleted_scheduled_count,
@@ -731,9 +730,7 @@ def service_gateway_event_sync(event: str, verb: str, event_data: Optional[Dict[
     try:
         sync_ctx = _build_sync_context(event_data)
 
-        if verb in {"created", "updated"} and (
-            sync_ctx.event_date is None or sync_ctx.event_time is None
-        ):
+        if verb in {"created", "updated"} and (sync_ctx.event_date is None or sync_ctx.event_time is None):
             _set_issue_sg_event_id(sync_ctx.event_data, None)
             logger.info(
                 (

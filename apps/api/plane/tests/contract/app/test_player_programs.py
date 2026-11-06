@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from django.test import SimpleTestCase, TestCase
+from django.urls import resolve, reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -10,6 +11,41 @@ from plane.db.models import Project, ProjectMember, RosterPlayer, State, User, W
 
 
 class PlayerProgramRouteTests(SimpleTestCase):
+    def test_player_session_and_invitation_routes_coexist(self):
+        from plane.authentication.views.player import (
+            PlayerSessionEndpoint,
+            PlayerSignInEndpoint,
+            PlayerSignOutEndpoint,
+        )
+        from plane.authentication.views.player_invitation import (
+            PlayerInvitationAcceptEndpoint,
+            PlayerInvitationLandingEndpoint,
+            PlayerInvitationPreviewEndpoint,
+        )
+
+        for name, endpoint in (
+            ("player-session", PlayerSessionEndpoint),
+            ("player-sign-in", PlayerSignInEndpoint),
+            ("player-sign-out", PlayerSignOutEndpoint),
+            ("player-invitation-landing", PlayerInvitationLandingEndpoint),
+            ("player-invitation-accept", PlayerInvitationAcceptEndpoint),
+            ("player-invitation-preview", PlayerInvitationPreviewEndpoint),
+        ):
+            with self.subTest(route=name):
+                self.assertIs(resolve(reverse(name)).func.view_class, endpoint)
+
+    def test_stage_config_route_names_share_the_same_endpoint(self):
+        from plane.app.urls import urlpatterns
+        from plane.app.views.player import PlayerCoachingCardConfigEndpoint, PlayerProgramConfigEndpoint
+
+        kwargs = {"slug": "school", "project_id": uuid4()}
+        url = reverse("player-program-config", kwargs=kwargs)
+        self.assertEqual(reverse("player-coaching-card-config", kwargs=kwargs), url)
+        self.assertIs(PlayerCoachingCardConfigEndpoint, PlayerProgramConfigEndpoint)
+        self.assertIs(resolve(url).func.view_class, PlayerProgramConfigEndpoint)
+        for name in ("player-programs", "player-program-config", "player-coaching-card-config"):
+            self.assertEqual(sum(pattern.name == name for pattern in urlpatterns), 1)
+
     def test_routes_exist_and_require_authentication(self):
         client = APIClient()
         for url in (
@@ -72,6 +108,7 @@ class PlayerProgramContractTests(TestCase):
                         "workspace_slug": "fixture-school",
                         "workspace_name": "Fixture School",
                         "player_id": str(self.player.id),
+                        "stages": [{"id": str(self.stage.id), "name": "Identified"}],
                         "roster": {
                             "player_name": "Fixture Player",
                             "jersey_number": "00",
@@ -83,6 +120,16 @@ class PlayerProgramContractTests(TestCase):
             },
         )
         self.assertIn("no-store", response.headers["Cache-Control"])
+
+    def test_discovery_keeps_inline_stages_ordered_and_excludes_triage(self):
+        assigned = State.objects.create(project=self.project, name="Assigned", group="unstarted", sequence=2)
+        State.objects.create(project=self.project, name="Triage", group="backlog", sequence=0, is_triage=True)
+        response = self.programs()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["results"][0]["stages"],
+            [{"id": str(self.stage.id), "name": "Identified"}, {"id": str(assigned.id), "name": "Assigned"}],
+        )
 
     def test_workspace_admin_does_not_discover_unlinked_public_programs_or_another_player(self):
         WorkspaceMember.objects.filter(pk=self.membership.pk).update(role=20)
@@ -108,6 +155,13 @@ class PlayerProgramContractTests(TestCase):
         self.assertEqual(self.config(slug="other-school").status_code, 404)
         self.client.force_authenticate(self.other)
         self.assertEqual(self.config().status_code, 404)
+
+    def test_player_user_role_can_discover_and_read_its_linked_program_config(self):
+        WorkspaceMember.objects.filter(pk=self.membership.pk).update(role=1)
+        self.assertEqual(self.programs().status_code, 200)
+        response = self.config()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["initial_stage_id"], str(self.stage.id))
 
     def test_inactive_or_pending_players_are_excluded_and_injured_players_remain_eligible(self):
         for roster_status in ("inactive", "pending"):

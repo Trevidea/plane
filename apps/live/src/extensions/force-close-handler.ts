@@ -1,6 +1,7 @@
 import type { Connection, Extension, Hocuspocus, onConfigurePayload } from "@hocuspocus/server";
-import { logger } from "@plane/logger";
+
 import { Redis } from "@/extensions/redis";
+import { legacyLiveLog } from "@/lib/diagnostics";
 import {
   AdminCommand,
   CloseCode,
@@ -22,7 +23,7 @@ export class ForceCloseHandler implements Extension {
     const redisExt = instance.configuration.extensions.find((ext) => ext instanceof Redis) as Redis | undefined;
 
     if (!redisExt) {
-      logger.warn("[FORCE_CLOSE_HANDLER] Redis extension not found");
+      legacyLiveLog("warn", "LIVE_B09529C65791", "[FORCE_CLOSE_HANDLER] Redis extension not found");
       return;
     }
 
@@ -30,7 +31,7 @@ export class ForceCloseHandler implements Extension {
     redisExt.onAdminCommand<ForceCloseCommandData>(AdminCommand.FORCE_CLOSE, async (data) => {
       // Type guard for safety
       if (!isForceCloseCommand(data)) {
-        logger.error("[FORCE_CLOSE_HANDLER] Received invalid force close command");
+        legacyLiveLog("error", "LIVE_1F1D52F5D25F", "[FORCE_CLOSE_HANDLER] Received invalid force close command");
         return;
       }
 
@@ -43,7 +44,7 @@ export class ForceCloseHandler implements Extension {
       }
 
       const connectionCount = document.getConnectionsCount();
-      logger.info(`[FORCE_CLOSE_HANDLER] Sending force close message to ${connectionCount} clients...`);
+      legacyLiveLog("info", "LIVE_DB59AAF83539", `[FORCE_CLOSE_HANDLER] Sending force close message to ${connectionCount} clients...`);
 
       // Step 1: Send force close message to ALL clients first
       const forceCloseMessage: ClientForceCloseMessage = {
@@ -60,17 +61,17 @@ export class ForceCloseHandler implements Extension {
           connection.sendStateless(JSON.stringify(forceCloseMessage));
           messageSent++;
         } catch (error) {
-          logger.error("[FORCE_CLOSE_HANDLER] Failed to send message:", error);
+          legacyLiveLog("error", "LIVE_21D9941FABC0", "[FORCE_CLOSE_HANDLER] Failed to send message:", error);
         }
       });
 
-      logger.info(`[FORCE_CLOSE_HANDLER] Sent force close message to ${messageSent}/${connectionCount} clients`);
+      legacyLiveLog("info", "LIVE_239498B38724", `[FORCE_CLOSE_HANDLER] Sent force close message to ${messageSent}/${connectionCount} clients`);
 
       // Wait a moment for messages to be delivered
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       // Step 2: Close connections
-      logger.info(`[FORCE_CLOSE_HANDLER] Closing ${connectionCount} connections...`);
+      legacyLiveLog("info", "LIVE_22032727BC19", `[FORCE_CLOSE_HANDLER] Closing ${connectionCount} connections...`);
 
       let closed = 0;
       document.connections.forEach(({ connection }: { connection: Connection }) => {
@@ -78,14 +79,14 @@ export class ForceCloseHandler implements Extension {
           connection.close({ code, reason });
           closed++;
         } catch (error) {
-          logger.error("[FORCE_CLOSE_HANDLER] Failed to close connection:", error);
+          legacyLiveLog("error", "LIVE_74DF003B86BA", "[FORCE_CLOSE_HANDLER] Failed to close connection:", error);
         }
       });
 
-      logger.info(`[FORCE_CLOSE_HANDLER] Closed ${closed}/${connectionCount} connections for ${docId}`);
+      legacyLiveLog("info", "LIVE_0CE4DD310C10", `[FORCE_CLOSE_HANDLER] Closed ${closed}/${connectionCount} connections for ${docId}`);
     });
 
-    logger.info("[FORCE_CLOSE_HANDLER] Registered with Redis extension");
+    legacyLiveLog("info", "LIVE_0346531D6000", "[FORCE_CLOSE_HANDLER] Registered with Redis extension");
   }
 }
 
@@ -110,12 +111,12 @@ export const forceCloseDocumentAcrossServers = async (
   const document = instance.documents.get(pageId);
 
   if (!document) {
-    logger.info(`[FORCE_CLOSE] Document ${pageId} already unloaded - no action needed`);
+    legacyLiveLog("info", "LIVE_A860E31974D5", `[FORCE_CLOSE] Document ${pageId} already unloaded - no action needed`);
     return; // Document already cleaned up, nothing to do
   }
 
   const connectionsBefore = document.getConnectionsCount();
-  logger.info(`[FORCE_CLOSE] Sending force close message to ${connectionsBefore} local clients...`);
+  legacyLiveLog("info", "LIVE_9757D742E78A", `[FORCE_CLOSE] Sending force close message to ${connectionsBefore} local clients...`);
 
   const forceCloseMessage: ClientForceCloseMessage = {
     type: "force_close",
@@ -131,17 +132,17 @@ export const forceCloseDocumentAcrossServers = async (
       connection.sendStateless(JSON.stringify(forceCloseMessage));
       messageSentCount++;
     } catch (error) {
-      logger.error("[FORCE_CLOSE] Failed to send message to client:", error);
+      legacyLiveLog("error", "LIVE_014220387F66", "[FORCE_CLOSE] Failed to send message to client:", error);
     }
   });
 
-  logger.info(`[FORCE_CLOSE] Sent force close message to ${messageSentCount}/${connectionsBefore} clients`);
+  legacyLiveLog("info", "LIVE_2137C4C619D6", `[FORCE_CLOSE] Sent force close message to ${messageSentCount}/${connectionsBefore} clients`);
 
   // Wait a moment for messages to be delivered
   await new Promise((resolve) => setTimeout(resolve, 50));
 
   // STEP 3: CLOSE LOCAL CONNECTIONS
-  logger.info(`[FORCE_CLOSE] Closing ${connectionsBefore} local connections...`);
+  legacyLiveLog("info", "LIVE_6F35DF6DC134", `[FORCE_CLOSE] Closing ${connectionsBefore} local connections...`);
 
   let closedCount = 0;
   document.connections.forEach(({ connection }: { connection: Connection }) => {
@@ -149,11 +150,11 @@ export const forceCloseDocumentAcrossServers = async (
       connection.close({ code, reason });
       closedCount++;
     } catch (error) {
-      logger.error("[FORCE_CLOSE] Failed to close local connection:", error);
+      legacyLiveLog("error", "LIVE_B8FC9F368CB9", "[FORCE_CLOSE] Failed to close local connection:", error);
     }
   });
 
-  logger.info(`[FORCE_CLOSE] Closed ${closedCount}/${connectionsBefore} local connections`);
+  legacyLiveLog("info", "LIVE_D3355BC2C210", `[FORCE_CLOSE] Closed ${closedCount}/${connectionsBefore} local connections`);
 
   // STEP 4: BROADCAST TO OTHER SERVERS
   const redisExt = instance.configuration.extensions.find((ext) => ext instanceof Redis) as Redis | undefined;
@@ -169,35 +170,35 @@ export const forceCloseDocumentAcrossServers = async (
     };
 
     const receivers = await redisExt.publishAdminCommand(commandData);
-    logger.info(`[FORCE_CLOSE] Notified ${receivers} other server(s)`);
+    legacyLiveLog("info", "LIVE_DB0DFD974631", `[FORCE_CLOSE] Notified ${receivers} other server(s)`);
   } else {
-    logger.warn("[FORCE_CLOSE] Redis extension not found, cannot notify other servers");
+    legacyLiveLog("warn", "LIVE_166510974B02", "[FORCE_CLOSE] Redis extension not found, cannot notify other servers");
   }
 
   // STEP 5: WAIT FOR OTHER SERVERS
   const waitTime = 800;
-  logger.info(`[FORCE_CLOSE] Waiting ${waitTime}ms for other servers to close connections...`);
+  legacyLiveLog("info", "LIVE_5B30D098876E", `[FORCE_CLOSE] Waiting ${waitTime}ms for other servers to close connections...`);
   await new Promise((resolve) => setTimeout(resolve, waitTime));
 
   // STEP 6: UNLOAD DOCUMENT after closing all the connections
-  logger.info(`[FORCE_CLOSE] Unloading document from memory...`);
+  legacyLiveLog("info", "LIVE_217717B94AF6", `[FORCE_CLOSE] Unloading document from memory...`);
 
   try {
     await instance.unloadDocument(document);
-    logger.info(`[FORCE_CLOSE] Document unloaded successfully ✅`);
+    legacyLiveLog("info", "LIVE_B99CA93E6D87", `[FORCE_CLOSE] Document unloaded successfully ✅`);
   } catch (unloadError: unknown) {
-    logger.error("[FORCE_CLOSE] UNLOAD FAILED:", unloadError);
-    logger.error(`   Error: ${unloadError instanceof Error ? unloadError.message : "unknown"}`);
+    legacyLiveLog("error", "LIVE_9B12A4389B9A", "[FORCE_CLOSE] UNLOAD FAILED:", unloadError);
+    legacyLiveLog("error", "LIVE_7313AFBB614A", `   Error: ${unloadError instanceof Error ? unloadError.message : "unknown"}`);
   }
 
   // STEP 7: VERIFY UNLOAD
   const documentAfterUnload = instance.documents.get(pageId);
 
   if (documentAfterUnload) {
-    logger.error(
+    legacyLiveLog("error", "LIVE_5EC352324082",
       `❌ [FORCE_CLOSE] Document still in memory!, Document ID: ${pageId}, Connections: ${documentAfterUnload.getConnectionsCount()}`
     );
   } else {
-    logger.info(`✅ [FORCE_CLOSE] COMPLETE, Document: ${pageId}, Status: Successfully closed and unloaded`);
+    legacyLiveLog("info", "LIVE_D4D030926379", `✅ [FORCE_CLOSE] COMPLETE, Document: ${pageId}, Status: Successfully closed and unloaded`);
   }
 };

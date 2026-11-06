@@ -12,6 +12,7 @@ from django.utils import timezone
 # Module imports
 from plane.license.models import Instance, InstanceEdition
 from plane.license.bgtasks.tracer import instance_traces
+from plane.utils.diagnostic_logging import dependency_call
 
 
 class Command(BaseCommand):
@@ -35,10 +36,10 @@ class Command(BaseCommand):
 
     def check_for_latest_version(self, fallback_version):
         try:
-            response = requests.get(
+            response = dependency_call(requests.get,
                 "https://api.github.com/repos/makeplane/plane/releases/latest",
                 timeout=10,
-            )
+            dependency="instance-registration", action="get")
             response.raise_for_status()
             data = response.json()
             return data.get("tag_name", fallback_version)

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
-import { logger } from "@plane/logger";
 import { env } from "@/env";
+import { diagnostic } from "./diagnostics";
 
 /**
  * Express middleware to verify secret key authentication for protected endpoints
@@ -30,13 +30,7 @@ export const requireSecretKey = (req: Request, res: Response, next: NextFunction
   const secretKey = req.headers["live-server-secret-key"];
 
   if (!secretKey || secretKey !== env.LIVE_SERVER_SECRET_KEY) {
-    logger.warn(`
-  ⚠️  [AUTH] Unauthorized access attempt
-     Endpoint: ${req.path}
-     Method: ${req.method}
-     IP: ${req.ip}
-     User-Agent: ${req.headers["user-agent"]}
-      `);
+    diagnostic("auth.denied", { status_code: 401, error_code: "AUTHORIZATION_FAILED" }, "error");
 
     res.status(401).json({
       error: "Unauthorized",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HlsVideo } from "ce/features/media-library/components/hls-video";
 import dynamic from "next/dynamic";
 import {
   Maximize,
@@ -18,6 +17,8 @@ import {
 } from "lucide-react";
 import { Button, CustomSelect, Spinner, Tooltip } from "@plane/ui";
 import type { TCustomPlaylistAnnotation } from "@/components/annotation/types/annotation.types";
+import { observeVideoReadiness } from "@/helpers/workflow-diagnostics";
+import { HlsVideo } from "ce/features/media-library/components/hls-video";
 import type { CoachingCardDetailClip } from "./coaching-card-clips-model";
 import { getClipPlaybackRange, isCoachingClipHls } from "./coaching-card-clips-model";
 import { formatCardDuration } from "./sg-event-detail-page/create-card-model";
@@ -92,6 +93,7 @@ export const CoachingCardClipPlayer = ({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    const readiness = isCoachingClipHls(src) ? null : observeVideoReadiness(video, autoPlay);
     let shouldLoop = !video.paused;
     let completed = false;
     let disposed = false;
@@ -192,6 +194,7 @@ export const CoachingCardClipPlayer = ({
     if (video.readyState >= 1) initialize();
     return () => {
       disposed = true;
+      readiness?.dispose();
       shouldLoop = false;
       video.pause();
       video.removeEventListener("waiting", waiting);

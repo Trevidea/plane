@@ -10,6 +10,7 @@ const nextConfig = {
   },
   basePath: process.env.NEXT_PUBLIC_ADMIN_BASE_PATH || "",
   experimental: {
+    instrumentationHook: true,
     optimizePackageImports: [
       "@plane/constants",
       "@plane/editor",

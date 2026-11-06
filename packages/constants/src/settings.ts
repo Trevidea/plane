@@ -49,6 +49,7 @@ export const GROUPED_PROFILE_SETTINGS = {
     PROFILE_SETTINGS["notifications"],
     PROFILE_SETTINGS["security"],
     PROFILE_SETTINGS["activity"],
+    PROFILE_SETTINGS["diagnostics"],
   ],
   [PROFILE_SETTINGS_CATEGORY.DEVELOPER]: [PROFILE_SETTINGS["api-tokens"]],
 };

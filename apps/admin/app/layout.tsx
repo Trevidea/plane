@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 // plane imports
 import { ADMIN_BASE_PATH } from "@plane/constants";
+import { DiagnosticsRuntime } from "./diagnostics-runtime";
 // styles
 import "@/styles/globals.css";
 
@@ -33,7 +34,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="manifest" href={`${ASSET_PREFIX}/site.webmanifest.json`} />
         <link rel="shortcut icon" href={`${ASSET_PREFIX}/favicon/favicon.ico`} />
       </head>
-      <body className={`antialiased`}>{children}</body>
+      <body className={`antialiased`}>
+        <DiagnosticsRuntime />
+        {children}
+      </body>
     </html>
   );
 }

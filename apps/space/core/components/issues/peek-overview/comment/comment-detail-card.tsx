@@ -69,7 +69,9 @@ export const CommentCard: React.FC<Props> = observer((props) => {
             src={getFileURL(comment.actor_detail.avatar_url)!}
             unoptimized
             alt={
-              comment.actor_detail.is_bot ? comment.actor_detail.first_name + " Bot" : comment.actor_detail.display_name
+              comment.actor_detail.is_bot
+                ? comment.actor_detail.first_name + " Bot"
+                : (comment.actor_detail.display_name ?? "")
             }
             height={30}
             width={30}

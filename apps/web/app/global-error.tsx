@@ -1,8 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import NextError from "next/error";
+import { reportFrontendFailure } from "@plane/logger/diagnostics-browser";
 
-export default function GlobalError() {
+export default function GlobalError({ error }: { error: Error }) {
+  useEffect(() => {
+    reportFrontendFailure(error);
+  }, [error]);
   return (
     <html>
       <body>

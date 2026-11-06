@@ -1,6 +1,8 @@
 import type { AxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "@plane/constants";
 
+import { failWorkflow } from "@/helpers/workflow-diagnostics";
+import type { WorkflowOperation } from "@/helpers/workflow-diagnostics";
 import { APIService } from "@/services/api.service";
 
 export type TMediaArtifact = {
@@ -441,7 +443,8 @@ export class MediaLibraryService extends APIService {
     payload: TMediaArtifactPayload,
     file: File,
     onUploadProgress?: AxiosRequestConfig["onUploadProgress"],
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
+    diagnostic?: WorkflowOperation | null
   ): Promise<TMediaArtifact> {
     const formData = new FormData();
     formData.append("file", file);
@@ -470,6 +473,8 @@ export class MediaLibraryService extends APIService {
     )
       .then((response) => response?.data as TMediaArtifact)
       .catch((error) => {
+        if (error?.code === "ERR_CANCELED") diagnostic?.abandon();
+        else failWorkflow(diagnostic || null, error);
         if (error?.response?.status === 413) throw error.response;
         throw error?.response?.data ?? error?.response ?? error;
       });
@@ -499,12 +504,15 @@ export class MediaLibraryService extends APIService {
     projectId: string,
     packageId: string,
     artifactId: string,
-    jobId: string
+    jobId: string,
+    diagnosticHeaders?: Record<string, string>
   ): Promise<TMediaTranscodeJobResponse> {
     return this.get(
       `/api/workspaces/${workspaceSlug}/projects/${projectId}/media-library/packages/${packageId}/artifacts/${encodeURIComponent(
         artifactId
-      )}/transcode/jobs/${encodeURIComponent(jobId)}/`
+      )}/transcode/jobs/${encodeURIComponent(jobId)}/`,
+      {},
+      { headers: diagnosticHeaders }
     )
       .then((response) => response?.data as TMediaTranscodeJobResponse)
       .catch((error) => {

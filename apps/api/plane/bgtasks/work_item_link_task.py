@@ -13,6 +13,7 @@ from typing import Dict, Any
 from typing import Optional
 from plane.db.models import IssueLink
 from plane.utils.exception_logger import log_exception
+from plane.utils.diagnostic_logging import dependency_call
 
 logger = logging.getLogger("plane.worker")
 
@@ -51,7 +52,9 @@ def crawl_work_item_link_title_and_favicon(url: str) -> Dict[str, Any]:
         title = None
 
         try:
-            response = requests.get(url, headers=headers, timeout=1)
+            response = dependency_call(
+                requests.get, url, headers=headers, timeout=1, dependency="link-preview", action="get"
+            )
 
             soup = BeautifulSoup(response.content, "html.parser")
             title_tag = soup.find("title")
@@ -146,7 +149,9 @@ def fetch_and_encode_favicon(
                 "favicon_base64": f"data:image/svg+xml;base64,{DEFAULT_FAVICON}",
             }
 
-        response = requests.get(favicon_url, headers=headers, timeout=1)
+        response = dependency_call(
+            requests.get, favicon_url, headers=headers, timeout=1, dependency="link-preview", action="get"
+        )
 
         # Get content type
         content_type = response.headers.get("content-type", "image/x-icon")

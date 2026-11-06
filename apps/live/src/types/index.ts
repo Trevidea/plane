@@ -1,4 +1,5 @@
 import type { fetchPayload, onLoadDocumentPayload, storePayload } from "@hocuspocus/server";
+import type { DiagnosticContext } from "@/lib/diagnostics";
 
 export type TConvertDocumentRequestBody = {
   description_html: string;
@@ -21,6 +22,7 @@ export type TDocumentTypes = "project_page";
 
 // Additional Hocuspocus types that are not exported from the main package
 export type HocusPocusServerContext = {
+  diagnostics?: DiagnosticContext;
   projectId: string | null;
   cookie: string;
   documentType: TDocumentTypes;

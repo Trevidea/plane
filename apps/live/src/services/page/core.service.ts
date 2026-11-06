@@ -1,5 +1,6 @@
-import { logger } from "@plane/logger";
+
 import { TPage } from "@plane/types";
+import { legacyLiveLog } from "@/lib/diagnostics";
 // services
 import { AppError } from "@/lib/errors";
 import { APIService } from "../api.service";
@@ -26,7 +27,7 @@ export abstract class PageCoreService extends APIService {
         const appError = new AppError(error, {
           context: { operation: "fetchDetails", pageId },
         });
-        logger.error("Failed to fetch page details", appError);
+        legacyLiveLog("error", "LIVE_328D1B4E783C", "Failed to fetch page details", appError);
         throw appError;
       });
   }
@@ -44,7 +45,7 @@ export abstract class PageCoreService extends APIService {
         const appError = new AppError(error, {
           context: { operation: "fetchDescriptionBinary", pageId },
         });
-        logger.error("Failed to fetch page description binary", appError);
+        legacyLiveLog("error", "LIVE_97A77671FB07", "Failed to fetch page description binary", appError);
         throw appError;
       });
   }
@@ -90,7 +91,7 @@ export abstract class PageCoreService extends APIService {
               throw appError;
             }
 
-            logger.error("Failed to update page properties", appError);
+            legacyLiveLog("error", "LIVE_4BF1F4800132", "Failed to update page properties", appError);
             throw appError;
           }),
         abortPromise,
@@ -112,7 +113,7 @@ export abstract class PageCoreService extends APIService {
         const appError = new AppError(error, {
           context: { operation: "updateDescriptionBinary", pageId },
         });
-        logger.error("Failed to update page description binary", appError);
+        legacyLiveLog("error", "LIVE_F1E07EB1C8FB", "Failed to update page description binary", appError);
         throw appError;
       });
   }

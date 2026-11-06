@@ -587,7 +587,7 @@ class CoachingCardMineEndpoint(BaseAPIView):
                 .order_by("-created_at", "-id")
             )
         annotation_cache = {}
-        return Response(
+        response = Response(
             {
                 "total_count": cards.count(),
                 "limit": limit,
@@ -600,6 +600,8 @@ class CoachingCardMineEndpoint(BaseAPIView):
                 ],
             }
         )
+        response["Cache-Control"] = "no-store"
+        return response
 
 
 class CoachingCardDetailEndpoint(BaseAPIView):

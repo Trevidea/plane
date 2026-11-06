@@ -1,7 +1,7 @@
 from django.urls import path
 from plane.authentication.views.player_invitation import PlayerInvitationPreviewEndpoint
 
-from plane.app.views.player import PlayerCoachingCardConfigEndpoint, PlayerProgramsEndpoint
+from plane.app.views.player import PlayerProgramConfigEndpoint, PlayerProgramsEndpoint
 from plane.app.views.player_media import PlayerCardPlaybackEndpoint, PlayerSignedMediaEndpoint
 from plane.app.views.player_thread import PlayerThreadEndpoint, PlayerThreadMessageEndpoint
 
@@ -101,7 +101,13 @@ urlpatterns = [
     path("player/programs/", PlayerProgramsEndpoint.as_view(), name="player-programs"),
     path(
         "player/workspaces/<str:slug>/projects/<uuid:project_id>/coaching-card-config/",
-        PlayerCoachingCardConfigEndpoint.as_view(),
+        PlayerProgramConfigEndpoint.as_view(),
+        name="player-program-config",
+    ),
+    # Preserve the alternate reverse name introduced by spip-dev.
+    path(
+        "player/workspaces/<str:slug>/projects/<uuid:project_id>/coaching-card-config/",
+        PlayerProgramConfigEndpoint.as_view(),
         name="player-coaching-card-config",
     ),
 ]

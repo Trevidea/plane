@@ -20,6 +20,7 @@ const nextConfig = {
     unoptimized: true,
   },
   experimental: {
+    instrumentationHook: true,
     optimizePackageImports: [
       "lucide-react",
       "date-fns",
