@@ -22,7 +22,7 @@ from rest_framework.response import Response
 
 from plane.app.views.base import BaseAPIView
 from plane.app.views.player import _eligible_roster
-from plane.app.views.player_archive_media import stream_archive
+from plane.app.views.player_archive_media import archive_transport_allowed, stream_archive
 from plane.db.models import Issue, User
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY
 from plane.utils.coaching_card_clips import normalize_card_clips
@@ -53,7 +53,7 @@ def _archived_playlist_url(filename):
         base = f"{event_api.scheme}://{event_api.netloc}/hls"
     parsed = urlsplit(base)
     if (
-        parsed.scheme != "https"
+        not archive_transport_allowed(parsed)
         or not parsed.netloc
         or parsed.username
         or parsed.password
@@ -264,6 +264,7 @@ class PlayerCardPlaybackEndpoint(BaseAPIView):
 
 
 class PlayerSignedMediaEndpoint(BaseAPIView):
+    user_role_access = True
     authentication_classes = []
     permission_classes = [AllowAny]
     http_method_names = ["get", "head", "options"]

@@ -383,6 +383,47 @@ class PrivateCardAttachmentTests(test_private_card_thread.PrivateCardThreadTests
         self.assertEqual(self.client.delete(self.url + sent["id"] + "/").status_code, 204)
         self.assertEqual(self.client.get(grant["source_url"]).status_code, 404)
 
+    def test_user_attachment_routes_preserve_coach_ownership_and_revoked_assignment(self):
+        pdf = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF"
+        uploaded, grant, _ = self.send_file(pdf, "private-notes.pdf", "application/pdf")
+        player_playback = self.url + "attachments/" + uploaded["id"] + "/playback/"
+        coach_playback = self.coach_url + "attachments/" + uploaded["id"] + "/playback/"
+
+        for actor in [self.players[0], self.players[1], self.other_coach]:
+            self.client.force_authenticate(actor)
+            self.assertEqual(self.client.get(self.coach_url + "attachments/").status_code, 404)
+            self.assertEqual(self.client.get(coach_playback).status_code, 404)
+            self.assertEqual(
+                self.client.post(
+                    self.coach_url + "attachments/",
+                    pdf,
+                    content_type="application/pdf",
+                    HTTP_X_VIDEO_NAME="private-notes.pdf",
+                ).status_code,
+                404,
+            )
+
+        self.card.coaching_card_data = {"recipient_ids": [str(self.rosters[1].id)]}
+        self.card.save(update_fields=["coaching_card_data"], disable_auto_set_user=True)
+        for actor, url, playback in [
+            (self.players[0], self.url, player_playback),
+            (self.coach, self.coach_url, coach_playback),
+        ]:
+            self.client.force_authenticate(actor)
+            self.assertEqual(self.client.get(url + "attachments/").status_code, 404)
+            self.assertEqual(self.client.get(playback).status_code, 404)
+            self.assertEqual(
+                self.client.post(
+                    url + "attachments/",
+                    pdf,
+                    content_type="application/pdf",
+                    HTTP_X_VIDEO_NAME="private-notes.pdf",
+                ).status_code,
+                404,
+            )
+        self.client.force_authenticate(None)
+        self.assertEqual(self.client.get(grant["source_url"]).status_code, 404)
+
     def test_png_preview_reuses_private_participant_authorization(self):
         import base64
 

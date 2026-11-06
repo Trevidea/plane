@@ -256,6 +256,7 @@ def inspect_video(path):
 
 
 class PrivateClipUploadEndpoint(BaseAPIView):
+    user_role_access = True
     parser_classes = []
 
     def get(self, request, slug, project_id, card_id, recipient_user_id=None):
@@ -343,6 +344,8 @@ class PrivateClipUploadEndpoint(BaseAPIView):
 
 
 class PrivateClipPlaybackEndpoint(BaseAPIView):
+    user_role_access = True
+
     def get(self, request, slug, project_id, card_id, attachment_id, recipient_user_id=None):
         from .private_card_thread import participant_context, private_response
 

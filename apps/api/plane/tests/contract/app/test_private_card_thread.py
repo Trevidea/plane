@@ -28,10 +28,12 @@ class PrivateCardThreadTests(TestCase):
         cls.project = Project.objects.create(workspace=cls.workspace, name="Program", identifier="PRV")
         for user in [cls.coach, cls.other_coach, *cls.players]:
             WorkspaceMember.objects.create(
-                workspace=cls.workspace, member=user, role=20 if user in [cls.coach, cls.other_coach] else 5
+                workspace=cls.workspace, member=user, role=20 if user in [cls.coach, cls.other_coach] else 1
             )
         for user in [cls.coach, cls.other_coach]:
             ProjectMember.objects.create(project=cls.project, member=user, role=20)
+        for user in cls.players:
+            ProjectMember.objects.create(project=cls.project, member=user, role=1)
         cls.rosters = [
             RosterPlayer.objects.create(project=cls.project, user=user, player_name=f"Player {i}")
             for i, user in enumerate(cls.players)
@@ -127,17 +129,32 @@ class PrivateCardThreadTests(TestCase):
         self.assertEqual(self.client.post(self.url, {"comment_html": "<p>Reply</p>"}, format="json").status_code, 400)
 
     def test_assignment_revocation_blocks_both_participants(self):
-        self.assertEqual(self.send(self.players[0]).status_code, 201)
+        sent = self.send(self.players[0])
+        self.assertEqual(sent.status_code, 201)
+        message_id = sent.json()["id"]
         self.card.coaching_card_data = {"recipient_ids": [str(self.rosters[1].id)]}
         self.card.save(update_fields=["coaching_card_data"], disable_auto_set_user=True)
-        self.assertEqual(self.client.get(self.url).status_code, 404)
-        self.client.force_authenticate(self.coach)
-        self.assertEqual(self.client.get(self.coach_url).status_code, 404)
+        for actor, url, detail in [
+            (self.players[0], self.url, self.url + message_id + "/"),
+            (self.coach, self.coach_url, self.coach_url + "messages/" + message_id + "/"),
+        ]:
+            self.client.force_authenticate(actor)
+            self.assertEqual(self.client.get(url).status_code, 404)
+            self.assertEqual(self.send(actor, url=url).status_code, 404)
+            self.assertEqual(self.client.get(detail).status_code, 404)
+            self.assertEqual(
+                self.client.patch(
+                    detail, {"visibility": "private", "comment_html": "<p>Revoked edit</p>"}, format="json"
+                ).status_code,
+                404,
+            )
+            self.assertEqual(self.client.delete(detail).status_code, 404)
 
     def test_account_relink_does_not_transfer_old_private_messages(self):
         self.assertEqual(self.send(self.players[0]).status_code, 201)
         replacement = User.objects.create(email="private-replacement@fixture.invalid", username="private-replacement")
-        WorkspaceMember.objects.create(workspace=self.workspace, member=replacement, role=5)
+        WorkspaceMember.objects.create(workspace=self.workspace, member=replacement, role=1)
+        ProjectMember.objects.create(project=self.project, member=replacement, role=1)
         self.rosters[0].user = replacement
         self.rosters[0].save(update_fields=["user"])
         self.client.force_authenticate(replacement)
@@ -187,7 +204,7 @@ class PrivateCardThreadTests(TestCase):
         self.assertEqual({r["id"] for r in response.json()["recipients"]}, {str(user.id) for user in self.players})
         for user in [self.other_coach, self.players[0]]:
             self.client.force_authenticate(user)
-            self.assertEqual(self.client.get(url).status_code, 404)
+            self.assertEqual(self.client.get(url).status_code, 403 if user == self.players[0] else 404)
 
     def test_assigned_card_response_exposes_authoritative_coach_identity(self):
         self.client.force_authenticate(self.players[0])
