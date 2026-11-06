@@ -9,6 +9,7 @@ import { ChevronDown, FileSpreadsheet, Upload, X } from "lucide-react";
 import { Button } from "@plane/propel/button";
 import type { IRosterPlayerPayload, TRosterPlayerStatus } from "@plane/types";
 import {
+  AlertModalCore,
   Button as UnstyledButton,
   cn,
   CustomSelect,
@@ -21,7 +22,31 @@ import {
 import { STATUS_SELECT_OPTIONS } from "../constants/roster.constants";
 import type { TRosterFormState } from "../store/roster-context";
 import { getRosterFormState, useRoster } from "../store/roster-context";
-import { mapImportedRows, toDisplayStatus } from "../utils/roster.utils";
+import { canDeleteRosterPlayer, mapImportedRows, toDisplayStatus } from "../utils/roster.utils";
+
+export const DeletePlayerModal = observer(() => {
+  const { deletingPlayer, canManage, isSubmitting, closeDeletePlayerModal, deletePlayer } = useRoster();
+  if (!deletingPlayer || !canManage || !canDeleteRosterPlayer(deletingPlayer)) return null;
+
+  return (
+    <AlertModalCore
+      isOpen
+      title="Delete player"
+      isSubmitting={isSubmitting}
+      handleClose={() => {
+        if (!isSubmitting) closeDeletePlayerModal();
+      }}
+      handleSubmit={() => void deletePlayer()}
+      content={
+        <>
+          Delete <span className="font-medium text-custom-text-100">{deletingPlayer.player_name}</span> from this
+          program&apos;s roster? This player has no email address or linked account. Existing coaching cards will be
+          retained.
+        </>
+      }
+    />
+  );
+});
 
 const FieldLabel = ({ children }: { children: ReactNode }) => (
   <label className="text-xs font-medium uppercase tracking-wide text-custom-text-400">{children}</label>

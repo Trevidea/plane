@@ -6,6 +6,9 @@ export const toDisplayStatus = (status: string) => status.charAt(0).toUpperCase(
 export const getRosterAccountStatus = (player: Pick<IRosterPlayer, "user" | "email" | "account_status">) =>
   player.account_status ?? (player.user ? "linked" : player.email?.trim() ? "not_linked" : "email_missing");
 
+export const canDeleteRosterPlayer = (player: Pick<IRosterPlayer, "user" | "email" | "account_status">) =>
+  !player.user && !player.email?.trim() && getRosterAccountStatus(player) === "email_missing";
+
 export const formatTimestamp = (value: string | null | undefined) =>
   value && !Number.isNaN(new Date(value).getTime())
     ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value))

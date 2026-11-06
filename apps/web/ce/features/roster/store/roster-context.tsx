@@ -8,7 +8,7 @@ import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IRosterFilters, IRosterPlayer, IRosterPlayerPayload, TRosterPlayerStatus } from "@plane/types";
 import { useUserPermissions } from "@/hooks/store/user";
 import { RosterService } from "@/services/roster.service";
-import { getUniqueRosterValues } from "../utils/roster.utils";
+import { canDeleteRosterPlayer, getUniqueRosterValues } from "../utils/roster.utils";
 
 export type TRosterFormState = {
   player_name: string;
@@ -493,7 +493,9 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
       return currentSelectedPlayerIds.filter((playerId) => !visiblePlayerIds.includes(playerId));
     });
   const clearSelectedPlayers = () => setSelectedPlayerIds([]);
-  const openDeletePlayerModal = (player: IRosterPlayer) => setDeletingPlayer(player);
+  const openDeletePlayerModal = (player: IRosterPlayer) => {
+    if (canManage && canDeleteRosterPlayer(player)) setDeletingPlayer(player);
+  };
   const closeDeletePlayerModal = () => setDeletingPlayer(null);
   const openBulkDeleteModal = () => setIsBulkDeleteModalOpen(true);
   const closeBulkDeleteModal = () => setIsBulkDeleteModalOpen(false);
@@ -562,7 +564,7 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deletePlayer = async () => {
-    if (!deletingPlayer) return;
+    if (!canManage || !deletingPlayer || !canDeleteRosterPlayer(deletingPlayer) || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
