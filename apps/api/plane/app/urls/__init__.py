@@ -23,6 +23,7 @@ from .timezone import urlpatterns as timezone_urls
 from .exporter import urlpatterns as exporter_urls
 
 urlpatterns = [
+    *player_urls,
     *analytic_urls,
     *asset_urls,
     *cycle_urls,
@@ -33,7 +34,6 @@ urlpatterns = [
     *module_urls,
     *notification_urls,
     *page_urls,
-    *player_urls,
     *project_urls,
     *roster_urls,
     *media_library_urls,

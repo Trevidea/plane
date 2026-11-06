@@ -32,7 +32,8 @@ WORKDIR /app
 # First install dependencies (as they change less often)
 COPY .gitignore .gitignore
 COPY --from=builder /app/out/json/ .
-COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+# Pruning Live omits peer-only snapshots referenced by its shared UI packages.
+COPY pnpm-lock.yaml ./pnpm-lock.yaml
 RUN corepack enable pnpm
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm fetch --store-dir=/pnpm/store
 
@@ -61,4 +62,4 @@ ENV TURBO_TELEMETRY_DISABLED=1
 
 EXPOSE 3000
 
-CMD ["node", "apps/live/dist/start.js"]
+CMD ["node", "apps/live/dist/start.cjs"]

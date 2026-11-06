@@ -8,6 +8,15 @@ def test_media_upload_trace_headers_are_allowed_for_cors():
 
     assert "x-request-id" in allowed_headers
     assert "x-upload-id" in allowed_headers
+    assert {
+        "x-trace-id",
+        "x-kanavio-operation-id",
+        "x-kanavio-operation-kind",
+        "x-kanavio-scope",
+        "x-kanavio-environment",
+        "x-video-name",
+        "x-video-size",
+    } <= allowed_headers
 
 
 @pytest.mark.unit

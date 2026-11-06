@@ -1,8 +1,10 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
 
 import { useTheme } from "next-themes";
 // layouts
+import { reportFrontendFailure } from "@plane/logger/diagnostics-browser";
 import { Button } from "@plane/propel/button";
 import Image from "@/components/common/image-with-fallback";
 import { useAppRouter } from "@/hooks/use-app-router";
@@ -29,7 +31,10 @@ const linkMap = [
   },
 ];
 
-export default function CustomErrorComponent() {
+export default function CustomErrorComponent({ error }: { error: Error }) {
+  useEffect(() => {
+    reportFrontendFailure(error);
+  }, [error]);
   // hooks
   const { resolvedTheme } = useTheme();
   const router = useAppRouter();

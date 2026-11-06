@@ -1,6 +1,8 @@
 import Redis from "ioredis";
-import { logger } from "@plane/logger";
+
+import { legacyLiveLog } from "@/lib/diagnostics";
 import { env } from "./env";
+import { diagnostic, diagnosticCall } from "./lib/diagnostics";
 
 export class RedisManager {
   private static instance: RedisManager;
@@ -19,12 +21,12 @@ export class RedisManager {
 
   public async initialize(): Promise<void> {
     if (this.redisClient && this.isConnected) {
-      logger.info("REDIS_MANAGER: client already initialized and connected");
+      legacyLiveLog("info", "LIVE_12362C6364DC", "REDIS_MANAGER: client already initialized and connected");
       return;
     }
 
     if (this.connectionPromise) {
-      logger.info("REDIS_MANAGER: Redis connection already in progress, waiting...");
+      legacyLiveLog("info", "LIVE_2F94E47CC9B0", "REDIS_MANAGER: Redis connection already in progress, waiting...");
       await this.connectionPromise;
       return;
     }
@@ -54,7 +56,7 @@ export class RedisManager {
       const redisUrl = this.getRedisUrl();
 
       if (!redisUrl) {
-        logger.warn("REDIS_MANAGER: No Redis URL provided, Redis functionality will be disabled");
+        legacyLiveLog("warn", "LIVE_34633FC0BE9A", "REDIS_MANAGER: No Redis URL provided, Redis functionality will be disabled");
         this.isConnected = false;
         return;
       }
@@ -70,41 +72,44 @@ export class RedisManager {
         retryStrategy: (times: number) => {
           // Exponential backoff with max 2 seconds
           const delay = Math.min(times * 50, 2000);
-          logger.info(`REDIS_MANAGER: Reconnection attempt ${times}, delay: ${delay}ms`);
+          diagnostic("cache.connection.retry", { dependency: "redis", attempt: times });
+          legacyLiveLog("info", "LIVE_174E3E09DDB5", `REDIS_MANAGER: Reconnection attempt ${times}, delay: ${delay}ms`);
           return delay;
         },
       });
 
       // Set up event listeners
       this.redisClient.on("connect", () => {
-        logger.info("REDIS_MANAGER: Redis client connected");
+        legacyLiveLog("info", "LIVE_149E669EFD49", "REDIS_MANAGER: Redis client connected");
         this.isConnected = true;
       });
 
       this.redisClient.on("ready", () => {
-        logger.info("REDIS_MANAGER: Redis client ready");
+        diagnostic("cache.connection.ready", { dependency: "redis" });
+        legacyLiveLog("info", "LIVE_33CACB768C7C", "REDIS_MANAGER: Redis client ready");
         this.isConnected = true;
       });
 
-      this.redisClient.on("error", (error) => {
-        logger.error("REDIS_MANAGER: Redis client error:", error);
+      this.redisClient.on("error", () => {
+        diagnostic("cache.connection.failed", { dependency: "redis", error_code: "REDIS_CONNECTION_FAILED" }, "error");
         this.isConnected = false;
       });
 
       this.redisClient.on("close", () => {
-        logger.warn("REDIS_MANAGER: Redis client connection closed");
+        diagnostic("cache.connection.closed", { dependency: "redis" });
+        legacyLiveLog("warn", "LIVE_92D1606C7CF1", "REDIS_MANAGER: Redis client connection closed");
         this.isConnected = false;
       });
 
       this.redisClient.on("reconnecting", () => {
-        logger.info("REDIS_MANAGER: Redis client reconnecting...");
+        legacyLiveLog("info", "LIVE_820E051A9157", "REDIS_MANAGER: Redis client reconnecting...");
         this.isConnected = false;
       });
 
       await this.redisClient.ping();
-      logger.info("REDIS_MANAGER: Redis connection test successful");
+      legacyLiveLog("info", "LIVE_70FDF5EAA0D9", "REDIS_MANAGER: Redis connection test successful");
     } catch (error) {
-      logger.error("REDIS_MANAGER: Failed to initialize Redis client:", error);
+      diagnostic("cache.initialization.failed", { error_code: "REDIS_INITIALIZATION_FAILED" }, "error");
       this.isConnected = false;
       throw error;
     } finally {
@@ -114,7 +119,7 @@ export class RedisManager {
 
   public getClient(): Redis | null {
     if (!this.redisClient || !this.isConnected) {
-      logger.warn("REDIS_MANAGER: Redis client not available or not connected");
+      legacyLiveLog("warn", "LIVE_9655BB3E37E2", "REDIS_MANAGER: Redis client not available or not connected");
       return null;
     }
     return this.redisClient;
@@ -128,9 +133,9 @@ export class RedisManager {
     if (this.redisClient) {
       try {
         await this.redisClient.quit();
-        logger.info("REDIS_MANAGER: Redis client disconnected gracefully");
-      } catch (error) {
-        logger.error("REDIS_MANAGER: Error disconnecting Redis client:", error);
+        legacyLiveLog("info", "LIVE_4963798F9AE9", "REDIS_MANAGER: Redis client disconnected gracefully");
+      } catch {
+        diagnostic("cache.disconnect.failed", { error_code: "REDIS_DISCONNECT_FAILED" }, "error");
         // Force disconnect if quit fails
         this.redisClient.disconnect();
       } finally {
@@ -147,13 +152,12 @@ export class RedisManager {
 
     try {
       if (ttl) {
-        await client.setex(key, ttl, value);
+        await diagnosticCall(() => client.setex(key, ttl, value), "setex");
       } else {
-        await client.set(key, value);
+        await diagnosticCall(() => client.set(key, value), "set");
       }
       return true;
-    } catch (error) {
-      logger.error(`REDIS_MANAGER: Error setting Redis key ${key}:`, error);
+    } catch {
       return false;
     }
   }
@@ -163,9 +167,8 @@ export class RedisManager {
     if (!client) return null;
 
     try {
-      return await client.get(key);
-    } catch (error) {
-      logger.error(`REDIS_MANAGER: Error getting Redis key ${key}:`, error);
+      return await diagnosticCall(() => client.get(key), "get");
+    } catch {
       return null;
     }
   }
@@ -175,10 +178,9 @@ export class RedisManager {
     if (!client) return false;
 
     try {
-      await client.del(key);
+      await diagnosticCall(() => client.del(key), "delete");
       return true;
-    } catch (error) {
-      logger.error(`REDIS_MANAGER: Error deleting Redis key ${key}:`, error);
+    } catch {
       return false;
     }
   }
@@ -188,10 +190,9 @@ export class RedisManager {
     if (!client) return false;
 
     try {
-      const result = await client.exists(key);
+      const result = await diagnosticCall(() => client.exists(key), "exists");
       return result === 1;
-    } catch (error) {
-      logger.error(`REDIS_MANAGER: Error checking Redis key ${key}:`, error);
+    } catch {
       return false;
     }
   }
@@ -201,10 +202,9 @@ export class RedisManager {
     if (!client) return false;
 
     try {
-      const result = await client.expire(key, ttl);
+      const result = await diagnosticCall(() => client.expire(key, ttl), "expire");
       return result === 1;
-    } catch (error) {
-      logger.error(`REDIS_MANAGER: Error setting expiry for Redis key ${key}:`, error);
+    } catch {
       return false;
     }
   }

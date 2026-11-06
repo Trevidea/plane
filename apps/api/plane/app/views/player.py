@@ -1,13 +1,12 @@
 """Authenticated, read-only metadata for explicitly linked roster players."""
 
-from django.db.models import Exists, F, OuterRef
-from django.shortcuts import get_object_or_404
-from rest_framework import serializers
+from rest_framework import serializers, status
 from rest_framework.response import Response
 
 from plane.app.views.base import BaseAPIView
-from plane.db.models import RosterPlayer, WorkspaceMember
+from plane.db.models import State
 from plane.utils.coaching_card_lifecycle import get_project_card_stage_config
+from plane.utils.player_access import player_roster_queryset
 
 
 class PlayerProgramQuerySerializer(serializers.Serializer):
@@ -16,23 +15,10 @@ class PlayerProgramQuerySerializer(serializers.Serializer):
 
 
 def _eligible_roster(user):
-    memberships = WorkspaceMember.objects.filter(
-        workspace_id=OuterRef("project__workspace_id"), member=user, is_active=True
-    )
-    return (
-        RosterPlayer.objects.filter(
-            user=user,
-            user__is_active=True,
-            user__is_bot=False,
-            status__in=("active", "injured"),
-            workspace_id=F("project__workspace_id"),
-            project__deleted_at__isnull=True,
-            project__archived_at__isnull=True,
-            project__workspace__deleted_at__isnull=True,
-        )
-        .alias(has_workspace_membership=Exists(memberships))
-        .filter(has_workspace_membership=True)
-        .select_related("project", "project__workspace")
+    return player_roster_queryset(user).filter(
+        user__is_active=True,
+        user__is_bot=False,
+        status__in=("active", "injured"),
     )
 
 
@@ -42,40 +28,56 @@ class PlayerProgramsEndpoint(BaseAPIView):
     def get(self, request):
         query = PlayerProgramQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
-        limit = query.validated_data["limit"]
-        offset = query.validated_data["offset"]
+        limit, offset = query.validated_data["limit"], query.validated_data["offset"]
         players = _eligible_roster(request.user).order_by(
             "project__workspace__slug", "project__name", "project_id", "id"
         )
         total = players.count()
-        results = [
-            {
-                "id": str(player.project_id),
-                "name": player.project.name,
-                "identifier": player.project.identifier,
-                "sport": player.project.sport or "",
-                "logo_props": player.project.logo_props,
-                "workspace_slug": player.project.workspace.slug,
-                "workspace_name": player.project.workspace.name,
-                "player_id": str(player.id),
-                "roster": {
-                    "player_name": player.player_name,
-                    "jersey_number": player.jersey_number,
-                    "position": player.position,
-                    "class_year": player.class_year,
-                },
-            }
-            for player in players[offset : offset + limit]
-        ]
+        page = list(players[offset : offset + limit])
+        stages = {}
+        for state in State.objects.filter(project_id__in=[row.project_id for row in page], is_triage=False).order_by(
+            "sequence", "id"
+        ):
+            stages.setdefault(state.project_id, []).append({"id": str(state.id), "name": state.name})
         return Response(
-            {"total_count": total, "limit": limit, "offset": offset, "results": results},
+            {
+                "total_count": total,
+                "limit": limit,
+                "offset": offset,
+                "results": [
+                    {
+                        "id": str(player.project_id),
+                        "workspace_slug": player.project.workspace.slug,
+                        "workspace_name": player.project.workspace.name,
+                        "name": player.project.name,
+                        "identifier": player.project.identifier,
+                        "sport": player.project.sport or "",
+                        "logo_props": player.project.logo_props,
+                        "player_id": str(player.id),
+                        "stages": stages.get(player.project_id, []),
+                        "roster": {
+                            "player_name": player.player_name,
+                            "jersey_number": player.jersey_number,
+                            "position": player.position,
+                            "class_year": player.class_year,
+                        },
+                    }
+                    for player in page
+                ],
+            },
             headers={"Cache-Control": "private, no-store"},
         )
 
 
-class PlayerCoachingCardConfigEndpoint(BaseAPIView):
+class PlayerProgramConfigEndpoint(BaseAPIView):
     user_role_access = True
 
     def get(self, request, slug, project_id):
-        player = get_object_or_404(_eligible_roster(request.user), project_id=project_id, project__workspace__slug=slug)
+        player = _eligible_roster(request.user).filter(project_id=project_id, project__workspace__slug=slug).first()
+        if player is None:
+            return Response({"detail": "Program not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(get_project_card_stage_config(player.project), headers={"Cache-Control": "private, no-store"})
+
+
+# Keep imports from either branch compatible without duplicating the endpoint.
+PlayerCoachingCardConfigEndpoint = PlayerProgramConfigEndpoint

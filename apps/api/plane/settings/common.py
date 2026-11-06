@@ -54,6 +54,7 @@ INSTALLED_APPS = [
 # Middlewares
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "plane.middleware.logger.RequestLoggerMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "plane.authentication.middleware.session.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -64,7 +65,6 @@ MIDDLEWARE = [
     "django.middleware.gzip.GZipMiddleware",
     "plane.middleware.request_body_size.RequestBodySizeLimitMiddleware",
     "plane.middleware.logger.APITokenLogMiddleware",
-    "plane.middleware.logger.RequestLoggerMiddleware",
 ]
 
 # Rest Framework settings
@@ -120,6 +120,11 @@ CORS_ALLOW_HEADERS = [
     "X-API-Key",
     "x-request-id",
     "x-upload-id",
+    "x-trace-id",
+    "x-kanavio-operation-id",
+    "x-kanavio-operation-kind",
+    "x-kanavio-scope",
+    "x-kanavio-environment",
     "x-video-name",
     "x-video-size",
 ]
@@ -329,6 +334,8 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_ENGINE = "plane.db.models.session"
 SESSION_COOKIE_AGE = int(os.environ.get("SESSION_COOKIE_AGE", 604800))
 SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "session-id")
+PLAYER_SIGN_IN_IP_RATE = os.environ.get("PLAYER_SIGN_IN_IP_RATE", "60/min")
+PLAYER_SIGN_IN_ACCOUNT_RATE = os.environ.get("PLAYER_SIGN_IN_ACCOUNT_RATE", "10/min")
 SESSION_COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", None)
 SESSION_SAVE_EVERY_REQUEST = os.environ.get("SESSION_SAVE_EVERY_REQUEST", "0") == "1"
 COACH_SESSION_COOKIE_NAME = os.environ.get("COACH_SESSION_COOKIE_NAME", "coach-session-id")
@@ -487,6 +494,13 @@ if ENABLE_DRF_SPECTACULAR:
 # MongoDB Settings
 MONGO_DB_URL = os.environ.get("MONGO_DB_URL", False)
 MONGO_DB_DATABASE = os.environ.get("MONGO_DB_DATABASE", False)
+
+# The customer-local diagnostics service is opt-in; the browser never receives its credential.
+CUSTOMER_DIAGNOSTICS_ENABLED = os.environ.get("CUSTOMER_DIAGNOSTICS_ENABLED", "false").lower() == "true"
+CUSTOMER_DIAGNOSTICS_WORKSPACE = os.environ.get("CUSTOMER_DIAGNOSTICS_WORKSPACE", "")
+CUSTOMER_DIAGNOSTICS_URL = os.environ.get("CUSTOMER_DIAGNOSTICS_URL", "")
+CUSTOMER_DIAGNOSTICS_BRIDGE_KEY_FILE = os.environ.get("CUSTOMER_DIAGNOSTICS_BRIDGE_KEY_FILE", "")
+CUSTOMER_DIAGNOSTICS_IDENTITY_KEY_FILE = os.environ.get("CUSTOMER_DIAGNOSTICS_IDENTITY_KEY_FILE", "")
 
 # Service Gateway Webhook Sync
 SERVICE_GATEWAY_EVENT_API = os.environ.get("SERVICE_GATEWAY_EVENT_API", "")

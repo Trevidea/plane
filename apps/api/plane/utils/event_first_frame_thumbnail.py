@@ -5,6 +5,7 @@ import re
 from hashlib import sha256
 from urllib import error as urlerror, request as urlrequest
 from urllib.parse import urlsplit
+from plane.utils.diagnostic_logging import dependency_call
 
 _MAX_IMAGE_BYTES = 2 * 1024 * 1024
 _STREAM_NAME = re.compile(r"^[A-Za-z0-9_-]{1,180}$")
@@ -77,7 +78,9 @@ def get_event_first_frame_thumbnail(
 
     def read_image():
         request = urlrequest.Request(image_url, headers=headers, method="GET")
-        with urlrequest.urlopen(request, timeout=timeout) as response:
+        with dependency_call(
+            urlrequest.urlopen, request, timeout=timeout, dependency="thumbnail-upstream", action="urlopen"
+        ) as response:
             image = response.read(_MAX_IMAGE_BYTES + 1)
             content_type = response.headers.get("Content-Type", "").split(";", 1)[0]
             if content_type != "image/jpeg" or not image.startswith(b"\xff\xd8\xff") or len(image) > _MAX_IMAGE_BYTES:
@@ -102,7 +105,9 @@ def get_event_first_frame_thumbnail(
             headers={**headers, "Content-Type": "application/json"},
             method="POST",
         )
-        with urlrequest.urlopen(request, timeout=timeout) as response:
+        with dependency_call(
+            urlrequest.urlopen, request, timeout=timeout, dependency="thumbnail-upstream", action="urlopen"
+        ) as response:
             response.read(1024)
         return read_image()
     except (urlerror.URLError, OSError, ValueError):

@@ -1,6 +1,7 @@
 import { Redis as HocuspocusRedis } from "@hocuspocus/extension-redis";
 import { OutgoingMessage, type onConfigurePayload } from "@hocuspocus/server";
-import { logger } from "@plane/logger";
+
+import { legacyLiveLog } from "@/lib/diagnostics";
 import { AppError } from "@/lib/errors";
 import { redisManager } from "@/redis";
 import { AdminCommand } from "@/types/admin-commands";
@@ -29,10 +30,10 @@ export class Redis extends HocuspocusRedis {
     await new Promise<void>((resolve, reject) => {
       this.sub.subscribe(this.ADMIN_CHANNEL, (error: Error) => {
         if (error) {
-          logger.error(`[Redis] Failed to subscribe to admin channel:`, error);
+          legacyLiveLog("error", "LIVE_0E0BB2490C14", `[Redis] Failed to subscribe to admin channel:`, error);
           reject(error);
         } else {
-          logger.info(`[Redis] Subscribed to admin channel: ${this.ADMIN_CHANNEL}`);
+          legacyLiveLog("info", "LIVE_F0086D5775C1", `[Redis] Subscribed to admin channel: ${this.ADMIN_CHANNEL}`);
           resolve();
         }
       });
@@ -40,7 +41,7 @@ export class Redis extends HocuspocusRedis {
 
     // Listen for admin messages
     this.sub.on("message", this.handleAdminMessage);
-    logger.info(`[Redis] Attached admin message listener`);
+    legacyLiveLog("info", "LIVE_C6E106A069A9", `[Redis] Attached admin message listener`);
   }
 
   private handleAdminMessage = async (channel: string, message: string) => {
@@ -51,7 +52,7 @@ export class Redis extends HocuspocusRedis {
 
       // Validate command
       if (!data.command || !Object.values(AdminCommand).includes(data.command as AdminCommand)) {
-        logger.warn(`[Redis] Invalid admin command received: ${data.command}`);
+        legacyLiveLog("warn", "LIVE_242398CA1480", `[Redis] Invalid admin command received: ${data.command}`);
         return;
       }
 
@@ -60,10 +61,10 @@ export class Redis extends HocuspocusRedis {
       if (handler) {
         await handler(data);
       } else {
-        logger.warn(`[Redis] No handler registered for admin command: ${data.command}`);
+        legacyLiveLog("warn", "LIVE_5B5708D02725", `[Redis] No handler registered for admin command: ${data.command}`);
       }
     } catch (error) {
-      logger.error("[Redis] Error handling admin message:", error);
+      legacyLiveLog("error", "LIVE_714C9331D18E", "[Redis] Error handling admin message:", error);
     }
   };
 
@@ -75,7 +76,7 @@ export class Redis extends HocuspocusRedis {
     handler: AdminCommandHandler<T>
   ) {
     this.adminHandlers.set(command, handler as AdminCommandHandler);
-    logger.info(`[Redis] Registered admin command: ${command}`);
+    legacyLiveLog("info", "LIVE_44B0FD20E822", `[Redis] Registered admin command: ${command}`);
   }
 
   /**
@@ -90,7 +91,7 @@ export class Redis extends HocuspocusRedis {
     const message = JSON.stringify(data);
     const receivers = await this.pub.publish(this.ADMIN_CHANNEL, message);
 
-    logger.info(`[Redis] Published "${data.command}" command, received by ${receivers} server(s)`);
+    legacyLiveLog("info", "LIVE_E0306895366B", `[Redis] Published "${data.command}" command, received by ${receivers} server(s)`);
     return receivers;
   }
 
@@ -99,7 +100,7 @@ export class Redis extends HocuspocusRedis {
     await new Promise<void>((resolve) => {
       this.sub.unsubscribe(this.ADMIN_CHANNEL, (error: Error) => {
         if (error) {
-          logger.error(`[Redis] Error unsubscribing from admin channel:`, error);
+          legacyLiveLog("error", "LIVE_52302D0AC042", `[Redis] Error unsubscribing from admin channel:`, error);
         }
         resolve();
       });
@@ -107,7 +108,7 @@ export class Redis extends HocuspocusRedis {
 
     // Remove the message listener to prevent memory leaks
     this.sub.removeListener("message", this.handleAdminMessage);
-    logger.info(`[Redis] Removed admin message listener`);
+    legacyLiveLog("info", "LIVE_67D6678CA779", `[Redis] Removed admin message listener`);
 
     await super.onDestroy();
   }
@@ -127,7 +128,7 @@ export class Redis extends HocuspocusRedis {
 
     const result = await this.pub.publishBuffer(channel, encodedMessage);
 
-    logger.info(`REDIS_EXTENSION: Published to ${documentName}, ${result} subscribers`);
+    legacyLiveLog("info", "LIVE_68A3B796C121", `REDIS_EXTENSION: Published to ${documentName}, ${result} subscribers`);
 
     return result;
   }

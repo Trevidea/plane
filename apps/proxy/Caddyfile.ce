@@ -35,5 +35,21 @@
 }
 
 {$SITE_ADDRESS} {
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request delete
+				resp_headers delete
+				user_id delete
+			}
+		}
+	}
+	log_append source caddy-native-v1
+	@diagnostic_request header_regexp diagnostic_request X-Request-ID "^[A-Za-z0-9_.:-]{1,128}$"
+	@diagnostic_trace header_regexp diagnostic_trace X-Trace-ID "^[A-Za-z0-9_.:-]{1,128}$"
+	log_append @diagnostic_request request_id {http.request.header.X-Request-ID}
+	log_append @diagnostic_trace trace_id {http.request.header.X-Trace-ID}
 	import plane_proxy
 }

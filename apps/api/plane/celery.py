@@ -18,6 +18,9 @@ ri = redis_instance()
 
 app = Celery("plane")
 
+# Register bounded ID-only operational hooks; task payloads/results are never logged.
+import plane.utils.diagnostic_tasks  # noqa: E402,F401
+
 # Using a string here means the worker will not have to
 # pickle the object when using Windows.
 app.config_from_object("django.conf:settings", namespace="CELERY")

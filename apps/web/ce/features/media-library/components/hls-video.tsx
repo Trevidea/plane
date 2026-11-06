@@ -4,6 +4,7 @@ import type { RefObject } from "react";
 import { useEffect, useRef } from "react";
 import Hls from "hls.js";
 
+import { observeVideoReadiness } from "@/helpers/workflow-diagnostics";
 import { resolveHlsPlaybackSource } from "../utils/hls-playback";
 
 type THlsVideoProps = {
@@ -31,6 +32,7 @@ export const HlsVideo = ({
   useEffect(() => {
     const video = targetRef.current;
     if (!video || !src) return;
+    const diagnostic = observeVideoReadiness(video, autoPlay);
     const playbackSrc = resolveHlsPlaybackSource(src, window.location.origin);
 
     // Prefer MediaSource playback: Chrome can advertise native HLS support
@@ -38,11 +40,15 @@ export const HlsVideo = ({
     if (Hls.isSupported()) {
       const hls = new Hls();
       hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) onError?.();
+        if (data.fatal) {
+          diagnostic.fail();
+          onError?.();
+        }
       });
       hls.loadSource(playbackSrc);
       hls.attachMedia(video);
       return () => {
+        diagnostic.dispose();
         hls.destroy();
       };
     }
@@ -50,11 +56,12 @@ export const HlsVideo = ({
     video.src = playbackSrc;
     video.load();
     return () => {
+      diagnostic.dispose();
       video.pause();
       video.removeAttribute("src");
       video.load();
     };
-  }, [src, targetRef, onError]);
+  }, [src, targetRef, onError, autoPlay]);
 
   return (
     <video

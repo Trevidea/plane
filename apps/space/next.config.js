@@ -24,6 +24,7 @@ const nextConfig = {
     unoptimized: true,
   },
   experimental: {
+    instrumentationHook: true,
     optimizePackageImports: [
       "@plane/constants",
       "@plane/editor",

@@ -5,10 +5,10 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 from django.test import override_settings
-from plane.tests.contract.app.test_private_card_thread import PrivateCardThreadTests
+from plane.tests.contract.app import test_private_card_thread
 
 
-class PrivateCardAttachmentTests(PrivateCardThreadTests):
+class PrivateCardAttachmentTests(test_private_card_thread.PrivateCardThreadTests):
     def setUp(self):
         super().setUp()
         self.directory = tempfile.TemporaryDirectory()

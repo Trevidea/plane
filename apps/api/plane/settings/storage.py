@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 # Module imports
 from plane.utils.exception_logger import log_exception
+from plane.utils.diagnostic_logging import dependency_call, emit
 from storages.backends.s3boto3 import S3Boto3Storage
 
 
@@ -92,7 +93,10 @@ class S3Storage(S3Boto3Storage):
         # Generate the presigned POST URL
         try:
             # Generate a presigned URL for the S3 object
-            response = self.s3_client.generate_presigned_post(
+            response = dependency_call(
+                self.s3_client.generate_presigned_post,
+                dependency="object-storage",
+                action="presign-post",
                 Bucket=self.aws_storage_bucket_name,
                 Key=object_name,
                 Fields=fields,
@@ -100,8 +104,16 @@ class S3Storage(S3Boto3Storage):
                 ExpiresIn=expiration,
             )
         # Handle errors
-        except ClientError as e:
-            print(f"Error generating presigned POST URL: {e}")
+        except ClientError:
+            emit(
+                "media.storage.failed",
+                outcome="error",
+                fields={
+                    "dependency": "object-storage",
+                    "action": "presign-post",
+                    "error_code": "STORAGE_REQUEST_FAILED",
+                },
+            )
             return None
 
         return response
@@ -128,8 +140,11 @@ class S3Storage(S3Boto3Storage):
         content_disposition = self._get_content_disposition(disposition, filename)
         """Generate a presigned URL to share an S3 object"""
         try:
-            response = self.s3_client.generate_presigned_url(
+            response = dependency_call(
+                self.s3_client.generate_presigned_url,
                 "get_object",
+                dependency="object-storage",
+                action="presign-get",
                 Params={
                     "Bucket": self.aws_storage_bucket_name,
                     "Key": str(object_name),
@@ -148,7 +163,13 @@ class S3Storage(S3Boto3Storage):
     def get_object_metadata(self, object_name):
         """Get the metadata for an S3 object"""
         try:
-            response = self.s3_client.head_object(Bucket=self.aws_storage_bucket_name, Key=object_name)
+            response = dependency_call(
+                self.s3_client.head_object,
+                dependency="object-storage",
+                action="head",
+                Bucket=self.aws_storage_bucket_name,
+                Key=object_name,
+            )
         except ClientError as e:
             log_exception(e)
             return None
@@ -164,7 +185,10 @@ class S3Storage(S3Boto3Storage):
     def copy_object(self, object_name, new_object_name):
         """Copy an S3 object to a new location"""
         try:
-            response = self.s3_client.copy_object(
+            response = dependency_call(
+                self.s3_client.copy_object,
+                dependency="object-storage",
+                action="copy",
                 Bucket=self.aws_storage_bucket_name,
                 CopySource={"Bucket": self.aws_storage_bucket_name, "Key": object_name},
                 Key=new_object_name,

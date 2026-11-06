@@ -27,6 +27,7 @@ if not os.path.exists(LOG_DIR):
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
+    "filters": {"diagnostic_redaction": {"()": "plane.utils.diagnostic_redaction.DiagnosticRedactionFilter"}},
     "formatters": {
         "verbose": {"format": "%(asctime)s [%(process)d] %(levelname)s %(name)s: %(message)s"},
         "json": {
@@ -36,11 +37,13 @@ LOGGING = {
     },
     "handlers": {
         "console": {
+            "filters": ["diagnostic_redaction"],
             "class": "logging.StreamHandler",
             "formatter": "json",
             "level": "INFO",
         },
         "file": {
+            "filters": ["diagnostic_redaction"],
             "class": "plane.utils.logging.SizedTimedRotatingFileHandler",
             "filename": (
                 os.path.join(BASE_DIR, "logs", "plane-debug.log")  # noqa

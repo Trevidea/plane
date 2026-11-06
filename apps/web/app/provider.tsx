@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC, ReactNode } from "react";
+import { useEffect } from "react";
 import { AppProgressProvider as ProgressProvider } from "@bprogress/next";
 import dynamic from "next/dynamic";
 import { useTheme, ThemeProvider } from "next-themes";
@@ -8,12 +9,14 @@ import { SWRConfig } from "swr";
 // Plane Imports
 import { WEB_SWR_CONFIG } from "@plane/constants";
 import { TranslationProvider } from "@plane/i18n";
+import { installFrontendDiagnostics } from "@plane/logger/diagnostics-browser";
 import { Toast } from "@plane/propel/toast";
 //helpers
 import { resolveGeneralTheme } from "@plane/utils";
 // polyfills
 import "@/lib/polyfills";
 // mobx store provider
+import { WorkflowReporting } from "@/components/profile/diagnostics/workflow-reporting";
 import { StoreProvider } from "@/lib/store-context";
 // wrappers
 import { InstanceWrapper } from "@/lib/wrappers/instance-wrapper";
@@ -32,6 +35,7 @@ const ToastWithTheme = () => {
 };
 
 export const AppProvider: FC<IAppProvider> = (props) => {
+  useEffect(() => installFrontendDiagnostics(), []);
   const { children } = props;
   // themes
   return (
@@ -50,7 +54,10 @@ export const AppProvider: FC<IAppProvider> = (props) => {
                 <InstanceWrapper>
                   <IntercomProvider>
                     <PostHogProvider>
-                      <SWRConfig value={WEB_SWR_CONFIG}>{children}</SWRConfig>
+                      <SWRConfig value={WEB_SWR_CONFIG}>
+                        {children}
+                        <WorkflowReporting />
+                      </SWRConfig>
                     </PostHogProvider>
                   </IntercomProvider>
                 </InstanceWrapper>

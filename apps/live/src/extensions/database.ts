@@ -3,9 +3,10 @@ import { Database as HocuspocusDatabase } from "@hocuspocus/extension-database";
 import {
   getAllDocumentFormatsFromDocumentEditorBinaryData,
   getBinaryDataFromDocumentEditorHTMLString,
-} from "@plane/editor";
+} from "@plane/editor/lib";
 // logger
-import { logger } from "@plane/logger";
+
+import { legacyLiveLog, observeLiveOperation } from "@/lib/diagnostics";
 import { AppError } from "@/lib/errors";
 // services
 import { getPageService } from "@/services/page/handler";
@@ -20,7 +21,9 @@ const fetchDocument = async ({ context, documentName: pageId, instance }: FetchP
   try {
     const service = getPageService(context.documentType, context);
     // fetch details
-    const response = await service.fetchDescriptionBinary(pageId);
+    const response = await observeLiveOperation("document.load.completed", context.diagnostics, () =>
+      service.fetchDescriptionBinary(pageId)
+    );
     const binaryData = new Uint8Array(response);
     // if binary data is empty, convert HTML to binary data
     if (binaryData.byteLength === 0) {
@@ -34,7 +37,7 @@ const fetchDocument = async ({ context, documentName: pageId, instance }: FetchP
     return binaryData;
   } catch (error) {
     const appError = new AppError(error, { context: { pageId } });
-    logger.error("Error in fetching document", appError);
+    legacyLiveLog("error", "LIVE_47C30E87DD48", "Error in fetching document", appError);
 
     // Broadcast error to frontend for user document types
     await broadcastError(instance, pageId, "Unable to load the page. Please try refreshing.", "fetch", context);
@@ -60,10 +63,12 @@ const storeDocument = async ({
       description_html: contentHTML,
       description: contentJSON,
     };
-    await service.updateDescriptionBinary(pageId, payload);
+    await observeLiveOperation("document.store.completed", context.diagnostics, () =>
+      service.updateDescriptionBinary(pageId, payload)
+    );
   } catch (error) {
     const appError = new AppError(error, { context: { pageId } });
-    logger.error("Error in updating document:", appError);
+    legacyLiveLog("error", "LIVE_1EEE719D0FEB", "Error in updating document:", appError);
 
     // Check error types
     const isContentTooLarge = appError.statusCode === 413;

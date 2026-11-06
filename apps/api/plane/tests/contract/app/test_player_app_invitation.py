@@ -222,10 +222,31 @@ class PlayerAppInvitationTests(TestCase):
         self.assertEqual(self.accept().status_code, 400)
 
     def test_request_logger_does_not_log_the_invitation_ticket(self):
-        with patch("plane.middleware.logger.api_logger.info") as logger:
+        with (
+            patch("plane.middleware.logger.emit") as logger,
+            patch("plane.middleware.logger.api_logger.info") as legacy_logger,
+        ):
             self.client.get("/auth/player-invitation/", {"token": self.ticket})
-        self.assertTrue(logger.called)
+        self.assertIn("api.request.completed", [call.args[0] for call in logger.call_args_list])
         self.assertNotIn(self.ticket, str(logger.call_args_list))
+        legacy_logger.assert_not_called()
+
+    def test_api_key_audit_skips_invitation_tickets_and_passwords(self):
+        from django.http import HttpResponse
+        from django.test import RequestFactory
+
+        from plane.middleware.logger import APITokenLogMiddleware
+
+        response = HttpResponse(status=204)
+        middleware = APITokenLogMiddleware(lambda request: response)
+        for path in ("/auth/player-invitation/", self.accept_url, self.preview_url):
+            with self.subTest(path=path):
+                request = RequestFactory().post(
+                    path, {"token": self.ticket, "password": self.password}, HTTP_X_API_KEY="fixture-key"
+                )
+                with patch.object(middleware, "process_request") as audit:
+                    self.assertIs(middleware(request), response)
+                audit.assert_not_called()
 
     def test_existing_staff_roles_are_preserved(self):
         user = self.existing_user()

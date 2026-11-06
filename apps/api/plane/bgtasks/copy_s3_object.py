@@ -13,6 +13,7 @@ from plane.utils.exception_logger import log_exception
 from plane.settings.storage import S3Storage
 from celery import shared_task
 from plane.utils.url import normalize_url_path
+from plane.utils.diagnostic_logging import dependency_call
 
 
 def get_entity_id_field(entity_type, entity_id):
@@ -73,7 +74,9 @@ def sync_with_external_service(entity_name, description_html):
 
         url = normalize_url_path(f"{live_url}/convert-document/")
 
-        response = requests.post(url, json=data, headers=None)
+        response = dependency_call(
+            requests.post, url, json=data, headers=None, dependency="plane-live", action="post", internal_headers=True
+        )
         if response.status_code == 200:
             return response.json()
     except requests.RequestException as e:

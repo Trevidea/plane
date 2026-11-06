@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import { env } from "@/env";
+import { diagnostic, diagnosticHeaders } from "@/lib/diagnostics";
 import { AppError } from "@/lib/errors";
 
 export abstract class APIService {
@@ -18,9 +19,39 @@ export abstract class APIService {
   }
 
   private setupInterceptors() {
+    const started = new WeakMap<object, number>();
+    this.axiosInstance.interceptors.request.use((config) => {
+      try {
+        started.set(config, performance.now());
+        if (new URL(config.url || "", config.baseURL).origin === new URL(env.API_BASE_URL).origin) {
+          for (const [key, value] of Object.entries(diagnosticHeaders()))
+            if (!config.headers.has(key)) config.headers.set(key, value);
+        }
+      } catch {
+        /* Preserve all existing authentication and request semantics. */
+      }
+      return config;
+    });
+    const observe = (config: object | undefined, status: number | undefined, failed = false) => {
+      const start = config ? started.get(config) : undefined;
+      if (start !== undefined) {
+        const elapsed = performance.now() - start;
+        diagnostic(
+          "api.upstream.completed",
+          { dependency: "plane-api", status_code: status, ...(failed ? { error_code: "API_UPSTREAM_FAILED" } : {}) },
+          failed ? "error" : "ok",
+          elapsed,
+          elapsed < 500
+        );
+      }
+    };
     this.axiosInstance.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        observe(response.config, response.status);
+        return response;
+      },
       (error) => {
+        if (axios.isAxiosError(error)) observe(error.config, error.response?.status, true);
         return Promise.reject(new AppError(error));
       }
     );

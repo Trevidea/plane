@@ -14,6 +14,7 @@ from plane.authentication.adapter.error import (
     AUTHENTICATION_ERROR_CODES,
 )
 from plane.utils.exception_logger import log_exception
+from plane.utils.diagnostic_logging import dependency_call
 
 
 class OauthAdapter(Adapter):
@@ -68,7 +69,9 @@ class OauthAdapter(Adapter):
     def get_user_token(self, data, headers=None):
         try:
             headers = headers or {}
-            response = requests.post(self.get_token_url(), data=data, headers=headers)
+            response = dependency_call(
+                requests.post, self.get_token_url(), data=data, headers=headers, dependency="oauth", action="post"
+            )
             response.raise_for_status()
             return response.json()
         except requests.RequestException:
@@ -78,7 +81,9 @@ class OauthAdapter(Adapter):
     def get_user_response(self):
         try:
             headers = {"Authorization": f"Bearer {self.token_data.get('access_token')}"}
-            response = requests.get(self.get_user_info_url(), headers=headers)
+            response = dependency_call(
+                requests.get, self.get_user_info_url(), headers=headers, dependency="oauth", action="get"
+            )
             response.raise_for_status()
             return response.json()
         except requests.RequestException:

@@ -7,13 +7,15 @@ import expressWs from "express-ws";
 import helmet from "helmet";
 // plane imports
 import { registerController } from "@plane/decorators";
-import { logger, loggerMiddleware } from "@plane/logger";
+
 // controllers
 import { CONTROLLERS } from "@/controllers";
 // env
 import { env } from "@/env";
 // hocuspocus server
 import { HocusPocusServerManager } from "@/hocuspocus";
+// diagnostics
+import { legacyLiveLog, diagnostic, diagnosticRequest } from "@/lib/diagnostics";
 // redis
 import { redisManager } from "@/redis";
 
@@ -33,16 +35,17 @@ export class Server {
   }
 
   public async initialize(): Promise<void> {
+    diagnostic("service.starting");
     try {
       await redisManager.initialize();
-      logger.info("SERVER: Redis setup completed");
+      legacyLiveLog("info", "LIVE_193831DC4F2D", "SERVER: Redis setup completed");
       const manager = HocusPocusServerManager.getInstance();
       this.hocuspocusServer = await manager.initialize();
-      logger.info("SERVER: HocusPocus setup completed");
+      legacyLiveLog("info", "LIVE_1E7FC7426628", "SERVER: HocusPocus setup completed");
       this.setupRoutes(this.hocuspocusServer);
       this.setupNotFoundHandler();
     } catch (error) {
-      logger.error("SERVER: Failed to initialize live server dependencies:", error);
+      diagnostic("service.startup.failed", { error_code: "INITIALIZATION_FAILED" }, "error");
       throw error;
     }
   }
@@ -53,7 +56,7 @@ export class Server {
     // Middleware for response compression
     this.app.use(compression({ level: env.COMPRESSION_LEVEL, threshold: env.COMPRESSION_THRESHOLD }));
     // Logging middleware
-    this.app.use(loggerMiddleware);
+    this.app.use(diagnosticRequest);
     // Body parsing middleware
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
@@ -88,22 +91,24 @@ export class Server {
   public listen() {
     this.httpServer = this.app
       .listen(this.app.get("port"), () => {
-        logger.info(`SERVER: Express server has started at port ${this.app.get("port")}`);
+        diagnostic("service.ready");
+        legacyLiveLog("info", "LIVE_3C1A65091443", `SERVER: Express server has started at port ${this.app.get("port")}`);
       })
       .on("error", (err) => {
-        logger.error("SERVER: Failed to start server:", err);
+        diagnostic("service.listener.failed", { error_code: "LISTENER_FAILED" }, "error");
         throw err;
       });
   }
 
   public async destroy() {
+    diagnostic("service.stopping");
     if (this.hocuspocusServer) {
       this.hocuspocusServer.closeConnections();
-      logger.info("SERVER: HocusPocus connections closed gracefully.");
+      legacyLiveLog("info", "LIVE_0605821A2CB4", "SERVER: HocusPocus connections closed gracefully.");
     }
 
     await redisManager.disconnect();
-    logger.info("SERVER: Redis connection closed gracefully.");
+    legacyLiveLog("info", "LIVE_8914C678D262", "SERVER: Redis connection closed gracefully.");
 
     if (this.httpServer) {
       await new Promise<void>((resolve, reject) => {
@@ -111,7 +116,7 @@ export class Server {
           if (err) {
             reject(err);
           } else {
-            logger.info("SERVER: Express server closed gracefully.");
+            legacyLiveLog("info", "LIVE_1CDE76285C80", "SERVER: Express server closed gracefully.");
             resolve();
           }
         });

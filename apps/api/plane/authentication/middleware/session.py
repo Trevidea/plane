@@ -22,6 +22,9 @@ class SessionMiddleware(MiddlewareMixin):
         return request.path.startswith("/auth/coach/")
 
     def _get_cookie_name(self, request):
+        # Player auth/discovery must never fall back to a Coach or admin session.
+        if request.path.startswith(("/auth/player/", "/api/player/")):
+            return settings.SESSION_COOKIE_NAME
         if self._is_admin_path(request):
             return settings.ADMIN_SESSION_COOKIE_NAME
 
