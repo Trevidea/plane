@@ -1,6 +1,7 @@
 """Player onboarding keeps Django's existing CSRF-protected cookie session."""
 
 import json
+import secrets
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
@@ -18,12 +19,15 @@ from plane.utils.player_invitations import (
 )
 
 
-def private(response):
+def private(response, script_nonce=None):
     response["Cache-Control"] = "private, no-store"
     response["Referrer-Policy"] = "no-referrer"
     if response.get("Content-Type", "").startswith("text/html"):
+        response["Referrer-Policy"] = "same-origin"
+        script_policy = f"script-src 'nonce-{script_nonce}'; connect-src 'self'; " if script_nonce else ""
         response["Content-Security-Policy"] = (
-            "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
+            script_policy + "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; "
+            "base-uri 'none'; frame-ancestors 'none'"
         )
     return response
 
@@ -44,16 +48,34 @@ class PlayerInvitationLandingEndpoint(View):
         token = request.GET.get("token", "")
         try:
             details = preview_player_ticket(token)
+            if request.user.is_authenticated and request.user.email.lower() != details["email"].lower():
+                return private(
+                    render(
+                        request,
+                        "emails/invitations/player_onboarding.html",
+                        {
+                            "error": (
+                                "You are signed in with a different account. Open this invitation in a private "
+                                "browser window, or sign out of Plane first, then reopen the invitation "
+                                "to continue with your invited email."
+                            )
+                        },
+                        status=400,
+                    )
+                )
+            script_nonce = secrets.token_urlsafe(24)
             return private(
                 render(
                     request,
                     "emails/invitations/player_onboarding.html",
                     {
+                        "script_nonce": script_nonce,
                         "invitation": details,
                         "token": token,
                         "app_url": player_app_url(token),
                     },
-                )
+                ),
+                script_nonce=script_nonce,
             )
         except InvalidPlayerInvitation:
             return private(

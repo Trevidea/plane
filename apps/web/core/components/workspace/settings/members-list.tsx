@@ -45,7 +45,8 @@ export const WorkspaceMembersList: FC<{ searchQuery: string; isAdmin: boolean }>
           await fetchWorkspaceMemberInvitations(workspaceSlug.toString());
           await fetchWorkspaceMembers(workspaceSlug.toString());
         }
-      : null
+      : null,
+    { refreshInterval: workspaceMemberInvitationIds?.length ? 15000 : 0 }
   );
 
   if (!workspaceMemberIds && !workspaceMemberInvitationIds) return <MembersSettingsLoader />;
