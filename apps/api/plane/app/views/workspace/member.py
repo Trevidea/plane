@@ -1,4 +1,5 @@
 # Django imports
+from django.db import transaction
 from django.db.models import Count, Q, OuterRef, Subquery, IntegerField
 from django.utils import timezone
 from django.db.models.functions import Coalesce
@@ -17,7 +18,7 @@ from plane.app.serializers import (
     WorkSpaceMemberSerializer,
 )
 from plane.app.views.base import BaseAPIView
-from plane.db.models import Project, ProjectMember, WorkspaceMember, DraftIssue
+from plane.db.models import Project, ProjectMember, WorkspaceMember, DraftIssue, RosterPlayer, Workspace, Issue
 from plane.utils.cache import invalidate_cache
 
 from .. import BaseViewSet
@@ -62,8 +63,10 @@ class WorkSpaceMemberViewSet(BaseViewSet):
             )
 
         # If a user is moved to a guest role he can't have any other role in projects
-        if "role" in request.data and int(request.data.get("role")) == 5:
-            ProjectMember.objects.filter(workspace__slug=slug, member_id=workspace_member.member_id).update(role=5)
+        if "role" in request.data and int(request.data.get("role")) in [1, 5]:
+            ProjectMember.objects.filter(workspace__slug=slug, member_id=workspace_member.member_id).update(
+                role=int(request.data["role"])
+            )
 
         serializer = WorkSpaceMemberSerializer(workspace_member, data=request.data, partial=True)
 
@@ -73,7 +76,10 @@ class WorkSpaceMemberViewSet(BaseViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @allow_permission(allowed_roles=[ROLE.ADMIN], level="WORKSPACE")
+    @transaction.atomic
     def destroy(self, request, slug, pk):
+        # Serialize removal with roster imports and invitation acceptance.
+        Workspace.objects.select_for_update().get(slug=slug)
         # Check the user role who is deleting the user
         workspace_member = WorkspaceMember.objects.get(
             workspace__slug=slug, pk=pk, member__is_bot=False, is_active=True
@@ -116,6 +122,14 @@ class WorkSpaceMemberViewSet(BaseViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Keep work items, but clear their optional roster reference before
+        # soft-deleting the member's linked players in this workspace only.
+        players = RosterPlayer.objects.filter(
+            workspace_id=workspace_member.workspace_id, user_id=workspace_member.member_id
+        )
+        Issue.objects.filter(roster_player_id__in=players.values("id")).update(roster_player=None)
+        players.delete()
 
         # Deactivate the users from the projects where the user is part of
         _ = ProjectMember.objects.filter(

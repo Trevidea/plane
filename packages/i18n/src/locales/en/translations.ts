@@ -307,7 +307,7 @@ export default {
   year_field: "Season",
   add_year: "Add Season",
   category_field: "Category",
-  add_category:"Add Category",
+  add_category: "Add Category",
   estimate: "Estimate",
   change_parent_issue: "Change parent work item",
   remove_parent_issue: "Remove parent work item",
@@ -2314,6 +2314,10 @@ export default {
     },
   },
   role_details: {
+    user: {
+      title: "User",
+      description: "Assigned activities and personal feedback, with personal progress, comments, and reactions.",
+    },
     guest: {
       title: "Guest",
       description: "External members of organizations can be invited as guests.",

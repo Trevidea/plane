@@ -1,3 +1,4 @@
+from plane.utils.user_role_access import UserRoleAccessMixin
 # Python imports
 import zoneinfo
 
@@ -37,7 +38,7 @@ class TimezoneMixin:
             timezone.deactivate()
 
 
-class BaseAPIView(TimezoneMixin, GenericAPIView, ReadReplicaControlMixin, BasePaginator):
+class BaseAPIView(UserRoleAccessMixin, TimezoneMixin, GenericAPIView, ReadReplicaControlMixin, BasePaginator):
     authentication_classes = [APIKeyAuthentication]
 
     permission_classes = [IsAuthenticated]

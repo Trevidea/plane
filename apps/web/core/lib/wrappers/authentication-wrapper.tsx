@@ -69,7 +69,10 @@ export const AuthenticationWrapper: FC<TAuthenticationWrapper> = observer((props
       (workspace) => workspace.slug === currentWorkspaceSlug
     );
 
-    if (isCurrentWorkspaceValid >= 0) redirectionRoute = `/${currentWorkspaceSlug}`;
+    if (isCurrentWorkspaceValid >= 0) {
+      const workspace = Object.values(workspaces || {}).find((value) => value.slug === currentWorkspaceSlug);
+      redirectionRoute = workspace?.role === 1 ? "/player" : `/${currentWorkspaceSlug}`;
+    }
 
     return redirectionRoute;
   };

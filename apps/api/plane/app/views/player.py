@@ -23,6 +23,8 @@ def _eligible_roster(user):
 
 
 class PlayerProgramsEndpoint(BaseAPIView):
+    user_role_access = True
+
     def get(self, request):
         query = PlayerProgramQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
@@ -68,6 +70,8 @@ class PlayerProgramsEndpoint(BaseAPIView):
 
 
 class PlayerProgramConfigEndpoint(BaseAPIView):
+    user_role_access = True
+
     def get(self, request, slug, project_id):
         player = _eligible_roster(request.user).filter(project_id=project_id, project__workspace__slug=slug).first()
         if player is None:

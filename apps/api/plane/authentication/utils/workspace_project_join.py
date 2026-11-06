@@ -5,6 +5,7 @@ from plane.db.models import (
     WorkspaceMemberInvite,
 )
 from plane.utils.cache import invalidate_cache_directly
+from plane.utils.roster_membership import link_roster_memberships
 
 
 def process_workspace_project_invitations(user):
@@ -43,7 +44,7 @@ def process_workspace_project_invitations(user):
         [
             WorkspaceMember(
                 workspace_id=project_member_invite.workspace_id,
-                role=(project_member_invite.role if project_member_invite.role in [5, 15] else 15),
+                role=(project_member_invite.role if project_member_invite.role in [1, 5, 15] else 15),
                 member=user,
                 created_by_id=project_member_invite.created_by_id,
             )
@@ -57,7 +58,14 @@ def process_workspace_project_invitations(user):
         [
             ProjectMember(
                 workspace_id=project_member_invite.workspace_id,
-                role=(project_member_invite.role if project_member_invite.role in [5, 15] else 15),
+                project_id=project_member_invite.project_id,
+                role=(
+                    1
+                    if WorkspaceMember.objects.filter(
+                        workspace_id=project_member_invite.workspace_id, member=user, role=1
+                    ).exists()
+                    else (project_member_invite.role if project_member_invite.role in [1, 5, 15] else 15)
+                ),
                 member=user,
                 created_by_id=project_member_invite.created_by_id,
             )
@@ -65,6 +73,8 @@ def process_workspace_project_invitations(user):
         ],
         ignore_conflicts=True,
     )
+
+    link_roster_memberships(user, list(workspace_member_invites.values_list("workspace_id", flat=True)))
 
     # Delete all the invites
     workspace_member_invites.delete()

@@ -27,6 +27,7 @@ from plane.db.models import User, Workspace, WorkspaceMember, WorkspaceMemberInv
 from plane.utils.cache import invalidate_cache, invalidate_cache_directly
 from plane.utils.host import base_host
 from plane.utils.ip_address import get_client_ip
+from plane.utils.roster_membership import link_roster_memberships
 from .. import BaseViewSet
 
 
@@ -173,7 +174,8 @@ class WorkspaceJoinEndpoint(BaseAPIView):
                     ).first()
                     if workspace_member is not None:
                         workspace_member.is_active = True
-                        workspace_member.role = workspace_invite.role
+                        if workspace_member.role != 1:
+                            workspace_member.role = workspace_invite.role
                         workspace_member.save()
                     else:
                         # Create a Workspace
@@ -184,6 +186,7 @@ class WorkspaceJoinEndpoint(BaseAPIView):
                         )
 
                     # Set the user last_workspace_id to the accepted workspace
+                    link_roster_memberships(user, [workspace_invite.workspace_id])
                     user.last_workspace_id = workspace_invite.workspace.id
                     user.save()
 
@@ -248,9 +251,9 @@ class UserWorkspaceInvitationsViewSet(BaseViewSet):
                 multiple=True,
             )
             # Update the WorkspaceMember for this specific invitation
-            WorkspaceMember.objects.filter(workspace_id=invitation.workspace_id, member=request.user).update(
-                is_active=True, role=invitation.role
-            )
+            memberships = WorkspaceMember.objects.filter(workspace_id=invitation.workspace_id, member=request.user)
+            memberships.exclude(role=1).update(role=invitation.role)
+            memberships.update(is_active=True)
 
         # Bulk create the user for all the workspaces
         WorkspaceMember.objects.bulk_create(
@@ -265,6 +268,8 @@ class UserWorkspaceInvitationsViewSet(BaseViewSet):
             ],
             ignore_conflicts=True,
         )
+
+        link_roster_memberships(request.user, list(workspace_invitations.values_list("workspace_id", flat=True)))
 
         # Delete joined workspace invites
         workspace_invitations.delete()

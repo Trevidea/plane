@@ -1,6 +1,8 @@
 from django.urls import path
 from plane.authentication.views.player import PlayerSessionEndpoint, PlayerSignInEndpoint, PlayerSignOutEndpoint
 
+from .views.player_invitation import PlayerInvitationAcceptEndpoint, PlayerInvitationLandingEndpoint
+
 from .views import (
     CSRFTokenEndpoint,
     CoachSessionEndpoint,
@@ -46,6 +48,8 @@ urlpatterns = [
     path("player/session/", PlayerSessionEndpoint.as_view(), name="player-session"),
     path("player/sign-in/", PlayerSignInEndpoint.as_view(), name="player-sign-in"),
     path("player/sign-out/", PlayerSignOutEndpoint.as_view(), name="player-sign-out"),
+    path("player-invitation/", PlayerInvitationLandingEndpoint.as_view(), name="player-invitation-landing"),
+    path("player-invitation/accept/", PlayerInvitationAcceptEndpoint.as_view(), name="player-invitation-accept"),
     # coach auth
     path("coach/sign-in/", CoachSignInEndpoint.as_view(), name="coach-sign-in"),
     path("coach/sign-out/", CoachSignOutEndpoint.as_view(), name="coach-sign-out"),

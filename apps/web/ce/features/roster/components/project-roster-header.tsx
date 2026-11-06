@@ -2,14 +2,14 @@
 
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
-import { ListFilter, Search, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { ListFilter, Search, SlidersHorizontal, Upload } from "lucide-react";
 import type { EProjectFeatureKey } from "@plane/constants";
 import { Breadcrumbs, Button, Header, Input } from "@plane/ui";
 import { CountChip } from "@/components/common/count-chip";
 import { useProject } from "@/hooks/store/use-project";
 import { CommonProjectBreadcrumbs } from "@/plane-web/components/breadcrumbs/common";
-import { RosterDisplayDropdown, RosterFilterDropdown } from "./roster-dropdowns";
 import { useRoster } from "../store/roster-context";
+import { RosterDisplayDropdown, RosterFilterDropdown } from "./roster-dropdowns";
 
 export const ProjectRosterHeader = observer(() => {
   const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
@@ -22,7 +22,6 @@ export const ProjectRosterHeader = observer(() => {
     openImportRosterModal,
     selectedPlayerIds,
     clearSelectedPlayers,
-    openBulkDeleteModal,
   } = useRoster();
 
   return (
@@ -63,9 +62,6 @@ export const ProjectRosterHeader = observer(() => {
             <>
               <Button variant="neutral-primary" size="sm" onClick={clearSelectedPlayers}>
                 Clear selection
-              </Button>
-              <Button variant="danger" size="sm" prependIcon={<Trash2 />} onClick={openBulkDeleteModal}>
-                Delete selected ({selectedPlayerIds.length})
               </Button>
             </>
           ) : null}
