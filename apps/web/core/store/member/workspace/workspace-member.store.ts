@@ -118,7 +118,9 @@ export class WorkspaceMemberStore implements IWorkspaceMemberStore {
   get workspaceMemberInvitationIds() {
     const workspaceSlug = this.routerStore.workspaceSlug;
     if (!workspaceSlug) return null;
-    return this.workspaceMemberInvitations?.[workspaceSlug]?.map((inv) => inv.id);
+    return this.workspaceMemberInvitations?.[workspaceSlug]
+      ?.filter((inv) => !inv.accepted && !inv.responded_at)
+      .map((inv) => inv.id);
   }
 
   getWorkspaceMemberIds = computedFn((workspaceSlug: string) => {

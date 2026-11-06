@@ -40,12 +40,10 @@ class WorkspaceInvitationsViewset(BaseViewSet):
     permission_classes = [WorkSpaceAdminPermission]
 
     def get_queryset(self):
-        return self.filter_queryset(
-            super()
-            .get_queryset()
-            .filter(workspace__slug=self.kwargs.get("slug"))
-            .select_related("workspace", "workspace__owner", "created_by")
-        )
+        queryset = super().get_queryset().filter(workspace__slug=self.kwargs.get("slug"))
+        if self.action == "list":
+            queryset = queryset.filter(accepted=False, responded_at__isnull=True)
+        return self.filter_queryset(queryset.select_related("workspace", "workspace__owner", "created_by"))
 
     def create(self, request, slug):
         emails = request.data.get("emails", [])

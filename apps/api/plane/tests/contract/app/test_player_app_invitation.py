@@ -179,7 +179,8 @@ class PlayerAppInvitationTests(TestCase):
         self.assertContains(response, "kanavioplayerapp://signup?")
         self.assertContains(response, "csrfmiddlewaretoken")
         self.assertContains(response, self.player.email)
-        self.assertIn("no-referrer", response.headers["Referrer-Policy"])
+        self.assertEqual("same-origin", response.headers["Referrer-Policy"])
+        self.assertContains(response, 'name="referrer" content="same-origin"')
 
     def test_acceptance_requires_csrf(self):
         self.client = APIClient(enforce_csrf_checks=True)
@@ -233,3 +234,49 @@ class PlayerAppInvitationTests(TestCase):
         self.assertEqual(self.accept().status_code, 200)
         self.assertEqual(WorkspaceMember.objects.get(workspace=self.workspace, member=user).role, 20)
         self.assertEqual(ProjectMember.objects.get(project=self.project, member=user).role, 20)
+
+    def test_landing_explains_different_signed_in_account(self):
+        self.client.force_login(self.coach)
+        response = self.client.get("/auth/player-invitation/", {"token": self.ticket})
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "private browser window", status_code=400)
+        self.assertNotContains(response, 'name="password"', status_code=400)
+
+    def test_browser_can_refresh_stale_csrf_before_acceptance(self):
+        self.client = APIClient(enforce_csrf_checks=True)
+        page = self.client.get("/auth/player-invitation/", {"token": self.ticket})
+        self.assertContains(page, "fetch('/auth/get-csrf-token/'")
+        self.assertIn("connect-src 'self'", page.headers["Content-Security-Policy"])
+        old_token = self.client.cookies["csrftoken"].value
+        from django.middleware.csrf import _get_new_csrf_string
+
+        self.client.cookies["csrftoken"] = _get_new_csrf_string()
+        payload = {
+            "token": self.ticket,
+            "password": self.password,
+            "password_confirm": self.password,
+            "browser": "1",
+            "csrfmiddlewaretoken": old_token,
+        }
+        self.assertEqual(self.client.post(self.accept_url, payload).status_code, 403)
+        fresh = self.client.get("/auth/get-csrf-token/").json()["csrf_token"]
+        payload["csrfmiddlewaretoken"] = fresh
+        response = self.client.post(self.accept_url, payload)
+        self.assertEqual(response.status_code, 200, response.content)
+
+    def test_workspace_pending_list_excludes_accepted_and_declined_invitations(self):
+        WorkspaceMember.objects.create(workspace=self.workspace, member=self.coach, role=20)
+        self.client.force_authenticate(self.coach)
+        url = f"/api/workspaces/{self.workspace.slug}/invitations/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.player.email)
+        self.invite.accepted = True
+        self.invite.responded_at = timezone.now()
+        self.invite.save()
+        response = self.client.get(url)
+        self.assertNotContains(response, self.player.email)
+        self.invite.accepted = False
+        self.invite.save()
+        response = self.client.get(url)
+        self.assertNotContains(response, self.player.email)
