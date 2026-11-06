@@ -137,6 +137,8 @@ def messages(card, recipient):
 
 
 class PrivateCardThreadEndpoint(BaseAPIView):
+    user_role_access = True
+
     def get(self, request, slug, project_id, card_id, recipient_user_id=None):
         card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
         query = PlayerProgramQuerySerializer(data=request.query_params)
@@ -190,6 +192,8 @@ class PrivateCardThreadEndpoint(BaseAPIView):
 
 
 class PrivateCardMessageEndpoint(BaseAPIView):
+    user_role_access = True
+
     def message(self, request, slug, project_id, card_id, comment_id, recipient_user_id=None, writing=False):
         card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
         message = get_object_or_404(messages(card, recipient), pk=comment_id)

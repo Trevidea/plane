@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import ipaddress
 import re
 import threading
 from pathlib import PurePosixPath
@@ -9,6 +10,7 @@ from urllib.parse import urljoin, urlsplit
 
 import requests
 from asgiref.sync import sync_to_async
+from django.conf import settings
 from django.core import signing
 from django.core.handlers.asgi import ASGIRequest
 from django.http import HttpResponse, StreamingHttpResponse
@@ -25,13 +27,34 @@ class ArchiveUnavailable(APIException):
     default_detail = "Video streaming was interrupted or unavailable. Retry the video."
 
 
+def archive_transport_allowed(parsed):
+    if parsed.scheme == "https":
+        return True
+    if not (
+        parsed.scheme == "http"
+        and settings.DEBUG
+        and getattr(settings, "PLAYER_ARCHIVED_HLS_ALLOW_HTTP", False)
+    ):
+        return False
+    if parsed.hostname in {"localhost", "service-gateway", "llhls-server"}:
+        return True
+    try:
+        address = ipaddress.ip_address(parsed.hostname)
+    except ValueError:
+        return False
+    return address.is_loopback or any(
+        address in ipaddress.ip_network(network) for network in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+    )
+
+
 def _reference_url(reference, current, root):
     url = urljoin(current, reference)
     parsed, archive = urlsplit(url), urlsplit(root)
     prefix = archive.path.rsplit("/", 1)[0] + "/"
     if (
         len(url) > 1024
-        or parsed.scheme != "https"
+        or not archive_transport_allowed(archive)
+        or parsed.scheme != archive.scheme
         or parsed.netloc != archive.netloc
         or parsed.username
         or parsed.password
@@ -139,7 +162,7 @@ class _AsyncChunks:
 
 
 def stream_archive(request, root, token, resource):
-    url = root
+    url = _reference_url(root, root, root)
     if resource != "playlist.m3u8":
         parts = resource.split("/")
         try:

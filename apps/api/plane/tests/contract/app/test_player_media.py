@@ -337,6 +337,68 @@ class PlayerMediaContractTests(TestCase):
         response._content_consumed = True
         return response
 
+    @override_settings(
+        DEBUG=True,
+        PLAYER_ARCHIVED_HLS_ALLOW_HTTP=True,
+        PLAYER_ARCHIVED_HLS_BASE_URL="http://llhls-server:59919",
+        SERVICE_GATEWAY_EVENT_API="http://service-gateway:1437/api/event",
+    )
+    def test_local_archive_uses_signed_routes_for_playlist_and_segments(self):
+        url = self.archive_grant()
+        responses = [
+            self.upstream("#EXTM3U\n#EXTINF:8,\nrecording/segment.ts\n"),
+            self.upstream(b"local-video", "video/mp2t"),
+        ]
+        with patch("requests.sessions.Session.get", side_effect=responses) as fetch:
+            response, body = self.read(url)
+            self.assertEqual(response.status_code, 200)
+            segment = next(line for line in body.decode().splitlines() if line and not line.startswith("#"))
+            self.assertTrue(segment.startswith("/api/player/media/"))
+            response, body = self.read(segment)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(body, b"local-video")
+            self.assertEqual(fetch.call_args_list[0].args[0], "http://llhls-server:59919/saved-playlist.m3u8")
+            self.assertEqual(fetch.call_args_list[1].args[0], "http://llhls-server:59919/recording/segment.ts")
+            for call in fetch.call_args_list:
+                self.assertFalse(call.kwargs["allow_redirects"])
+                self.assertNotIn("Cookie", call.kwargs["headers"])
+
+    @override_settings(PLAYER_ARCHIVED_HLS_BASE_URL="https://archive.fixture.test/hls")
+    def test_archive_http_requires_explicit_development_opt_in_and_a_local_host(self):
+        self.archive_grant()
+        for debug, opt_in, base in [
+            (False, True, "http://service-gateway:1437/hls"),
+            (True, False, "http://service-gateway:1437/hls"),
+            (True, True, "http://public.example/hls"),
+            (True, True, "http://169.254.169.254/hls"),
+        ]:
+            with self.subTest(debug=debug, opt_in=opt_in, base=base), override_settings(
+                DEBUG=debug, PLAYER_ARCHIVED_HLS_ALLOW_HTTP=opt_in, PLAYER_ARCHIVED_HLS_BASE_URL=base
+            ):
+                self.assertEqual(self.client.get(self.grant_path).status_code, 422)
+
+    @override_settings(
+        DEBUG=True,
+        PLAYER_ARCHIVED_HLS_ALLOW_HTTP=True,
+        PLAYER_ARCHIVED_HLS_BASE_URL="http://service-gateway:1437/hls",
+    )
+    def test_local_archive_rejects_playlist_references_outside_configured_origin_and_directory(self):
+        url = self.archive_grant()
+        for reference in [
+            "http://public.example/hls/segment.ts",
+            "http://127.0.0.1/hls/segment.ts",
+            "https://service-gateway:1437/hls/segment.ts",
+            "/private/segment.ts",
+            "../segment.ts",
+        ]:
+            with self.subTest(reference=reference), patch(
+                "requests.sessions.Session.get",
+                return_value=self.upstream("#EXTM3U\n#EXTINF:8,\n" + reference + "\n"),
+            ) as fetch:
+                response, _ = self.read(url)
+                self.assertEqual(response.status_code, 502)
+                self.assertEqual(fetch.call_count, 1)
+
     @override_settings(PLAYER_ARCHIVED_HLS_BASE_URL="https://archive.fixture.test/hls")
     def test_archived_init_and_fragment_stream_through_signed_routes_without_cors_or_cookies(self):
         url = self.archive_grant()
