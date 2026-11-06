@@ -221,6 +221,8 @@ def _file_response(request, path):
 
 
 class PlayerCardPlaybackEndpoint(BaseAPIView):
+    user_role_access = True
+
     def get(self, request, slug, project_id, card_id, clip_index):
         card = _assigned(request.user, slug, project_id, card_id)
         origin = request.build_absolute_uri("/").rstrip("/")
