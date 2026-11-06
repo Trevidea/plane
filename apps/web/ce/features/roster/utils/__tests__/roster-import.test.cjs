@@ -15,7 +15,22 @@ const load = (filename) => {
   vm.runInThisContext(`(function(require, module, exports) { ${source}\n})`)(localRequire, module, module.exports);
   return module.exports;
 };
-const { mapImportedRows, getRosterAccountStatus } = load(path.resolve(__dirname, "../roster.utils.ts"));
+const { mapImportedRows, getRosterAccountStatus, canDeleteRosterPlayer } = load(
+  path.resolve(__dirname, "../roster.utils.ts")
+);
+
+test("only players with missing email and no linked account can be deleted from the roster", () => {
+  assert.equal(canDeleteRosterPlayer({ email: null, user: null, account_status: "email_missing" }), true);
+  assert.equal(canDeleteRosterPlayer({ email: "   ", user: null }), true);
+  assert.equal(canDeleteRosterPlayer({ email: "player@example.com", user: null }), false);
+  assert.equal(canDeleteRosterPlayer({ email: null, user: "linked-user" }), false);
+  assert.equal(canDeleteRosterPlayer({ email: null, user: null, account_status: "invitation_pending" }), false);
+  assert.equal(canDeleteRosterPlayer({ email: null, user: "linked-user", account_status: "email_missing" }), false);
+  assert.equal(
+    canDeleteRosterPlayer({ email: "player@example.com", user: null, account_status: "email_missing" }),
+    false
+  );
+});
 
 test("CSV/XLSX email headers are preserved and normalized", () => {
   for (const header of ["Email", "Email Address", "Player Email", "E-mail"]) {

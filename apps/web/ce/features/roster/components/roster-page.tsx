@@ -5,7 +5,7 @@ import { PageHead } from "@/components/core/page-title";
 import { useRoster } from "../store/roster-context";
 import { RosterEmptyState } from "./roster-empty-state";
 import { RosterTable } from "./roster-list";
-import { AddPlayerModal, ImportRosterModal } from "./roster-modals";
+import { AddPlayerModal, DeletePlayerModal, ImportRosterModal } from "./roster-modals";
 
 const ProgramRosterPage = observer(() => {
   const { allPlayers, players, groupedRoster, isLoading } = useRoster();
@@ -21,6 +21,7 @@ const ProgramRosterPage = observer(() => {
           <RosterTable players={players} groupedRoster={groupedRoster} isLoading={isLoading} />
         )}
         <AddPlayerModal />
+        <DeletePlayerModal />
         <ImportRosterModal />
       </div>
     </>

@@ -19,12 +19,13 @@ import {
   Ruler,
   Scale,
   Shirt,
+  Trash2,
 } from "lucide-react";
 import type { IRosterPlayer, TRosterPlayerStatus } from "@plane/types";
 import { Checkbox, CustomMenu, cn } from "@plane/ui";
 import type { IRosterGroup, IRosterGroupedResponse } from "../store/roster-context";
 import { useRoster } from "../store/roster-context";
-import { formatTimestamp, getRosterAccountStatus, toDisplayStatus } from "../utils/roster.utils";
+import { canDeleteRosterPlayer, formatTimestamp, getRosterAccountStatus, toDisplayStatus } from "../utils/roster.utils";
 
 type TRosterColumnKey =
   | "jersey_number"
@@ -471,7 +472,7 @@ const RosterPlayerCell = ({ player, selectionControl }: { player: IRosterPlayer;
 );
 
 const RosterActionsMenu = observer(({ player }: { player: IRosterPlayer }) => {
-  const { canManage, openEditPlayerModal } = useRoster();
+  const { canManage, openEditPlayerModal, openDeletePlayerModal } = useRoster();
 
   return (
     <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
@@ -489,6 +490,15 @@ const RosterActionsMenu = observer(({ player }: { player: IRosterPlayer }) => {
           <Pencil className="h-3.5 w-3.5" />
           Edit
         </CustomMenu.MenuItem>
+        {canManage && canDeleteRosterPlayer(player) && (
+          <CustomMenu.MenuItem
+            className="flex items-center gap-2 text-red-500"
+            onClick={() => openDeletePlayerModal(player)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </CustomMenu.MenuItem>
+        )}
       </CustomMenu>
     </div>
   );

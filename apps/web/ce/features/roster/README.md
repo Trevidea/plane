@@ -37,7 +37,9 @@ Pending players remain unlinked until workspace membership is active.
 
 ## Removing linked players
 
-The roster UI has no individual or bulk delete buttons. Linked players are also
+Roster managers can use **Actions → Delete** for players marked **Email missing**
+who have neither an email address nor a linked account. A confirmation dialog
+names the player before deletion. There is no bulk delete action. Linked players are
 protected from direct API deletion. Remove the member from workspace settings instead. This
 soft-deletes their linked roster records across all programs in that workspace,
 alongside deactivating workspace and project memberships. Unlinked players and
