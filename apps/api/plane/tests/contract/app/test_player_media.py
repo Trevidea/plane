@@ -26,7 +26,7 @@ class PlayerMediaContractTests(TestCase):
         cls.user = User.objects.create(email="media-player@fixture.test", username="media-player")
         cls.other = User.objects.create(email="media-other@fixture.test", username="media-other")
         cls.workspace = Workspace.objects.create(name="Media School", slug="media-school", owner=cls.other)
-        cls.membership = WorkspaceMember.objects.create(workspace=cls.workspace, member=cls.user, role=5)
+        cls.membership = WorkspaceMember.objects.create(workspace=cls.workspace, member=cls.user, role=1)
         cls.project = Project.objects.create(workspace=cls.workspace, name="Football", identifier="MED")
         cls.player = RosterPlayer.objects.create(project=cls.project, user=cls.user, player_name="Media Player")
         cls.state = State.objects.create(project=cls.project, name="Assigned", group="started")
@@ -91,6 +91,25 @@ class PlayerMediaContractTests(TestCase):
         self.assertEqual(response["Content-Type"], "video/mp4")
         self.assertIn("no-store", response["Cache-Control"])
         self.assertFalse(response.has_header("Set-Cookie"))
+
+    def test_project_user_role_can_play_an_assigned_clip(self):
+        WorkspaceMember.objects.filter(pk=self.membership.pk).update(role=15)
+        ProjectMember.objects.create(project=self.project, member=self.user, role=1)
+        response, content = self.read(self.grant())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content, b"test-video-bytes")
+
+    def test_user_role_cannot_request_an_unassigned_cards_video(self):
+        Issue.objects.filter(pk=self.card.pk).update(roster_player=None)
+        self.assertEqual(self.client.get(self.grant_path).status_code, 404)
+
+    def test_playback_does_not_grant_user_access_to_the_generic_media_library(self):
+        self.grant()
+        generic = (
+            f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}/"
+            "media-library/packages/film/artifacts/movie/file/"
+        )
+        self.assertEqual(self.client.get(generic).status_code, 403)
 
     def test_progressive_ranges_and_head_do_not_load_the_whole_video(self):
         url = self.grant()
