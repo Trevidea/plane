@@ -43,15 +43,36 @@ class PlayerInvitationEmailTests(TestCase):
             )
         )
 
-    def send(self, workspace_id=None):
+    def send(self, workspace_id=None, inviter=None):
         workspace_invitation.run(
             self.email,
             workspace_id or self.workspace.id,
             self.invitation.token,
             "https://sports.example/",
-            self.coach.email,
+            (inviter or self.coach).email,
         )
         return mail.outbox[-1] if mail.outbox else None
+
+    def test_player_invitation_names_actual_inviter_workspace_and_program(self):
+        inviter = User.objects.create(
+            email="inviting-coach@invite.test", username="inviting-coach", first_name="Taylor", last_name="Coach"
+        )
+        message = self.send(inviter=inviter)
+        expected = "Taylor Coach has invited you to join Football in School as a player."
+        self.assertIn(expected, message.body)
+        html_text = unescape(re.sub(r"<[^>]+>", "", message.alternatives[0][0]))
+        self.assertIn(expected, re.sub(r"\s+", " ", html_text))
+        self.assertIn("Hi Jordan Player", message.body)
+        # The actual inviter differs from both the workspace owner and SMTP sender.
+        self.assertEqual(message.from_email, "Coach <coach@invite.test>")
+
+    def test_inviter_without_personal_name_uses_display_name(self):
+        self.coach.first_name = ""
+        self.coach.last_name = ""
+        self.coach.display_name = "Coaching Staff"
+        self.coach.save()
+        message = self.send()
+        self.assertIn("Coaching Staff has invited you to join Football in School", message.body)
 
     def test_player_invitation_has_personalized_html_and_plain_text(self):
         message = self.send()

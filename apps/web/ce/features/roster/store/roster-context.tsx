@@ -12,6 +12,7 @@ import { canDeleteRosterPlayer, getUniqueRosterValues } from "../utils/roster.ut
 
 export type TRosterFormState = {
   player_name: string;
+  email: string;
   jersey_number: string;
   position: string;
   height: string;
@@ -124,6 +125,7 @@ const rosterService = new RosterService();
 
 const DEFAULT_FORM_STATE: TRosterFormState = {
   player_name: "",
+  email: "",
   jersey_number: "",
   position: "",
   height: "",
@@ -334,6 +336,7 @@ const buildGroupedRoster = (
 
 const normalizePayload = (payload: TRosterFormState): IRosterPlayerPayload => ({
   player_name: payload.player_name.trim(),
+  email: payload.email.trim().toLowerCase(),
   jersey_number: payload.jersey_number.trim() || null,
   position: payload.position.trim() || null,
   height: payload.height.trim() || null,
@@ -734,6 +737,7 @@ export const getRosterFormState = (player?: IRosterPlayer | null): TRosterFormSt
   player
     ? {
         player_name: player.player_name ?? "",
+        email: player.email ?? "",
         jersey_number: player.jersey_number ?? "",
         position: player.position ?? "",
         height: player.height ?? "",
