@@ -5,11 +5,13 @@ from rest_framework.test import APIClient
 
 from plane.db.models import (
     APIToken,
+    CardStageHistory,
     Issue,
     IssueAssignee,
     IssueComment,
     Project,
     ProjectMember,
+    PlayerActivityProgress,
     RosterPlayer,
     State,
     User,
@@ -28,10 +30,19 @@ class UserPlayerRoleTests(TestCase):
         self.membership = WorkspaceMember.objects.create(workspace=self.workspace, member=self.user, role=1)
         WorkspaceMember.objects.create(workspace=self.workspace, member=self.coach, role=20)
         WorkspaceMember.objects.create(workspace=self.workspace, member=self.peer, role=1)
-        self.project = Project.objects.create(workspace=self.workspace, name="Football", identifier="FB")
+        self.project = Project.objects.create(
+            workspace=self.workspace, name="Football", identifier="FB", sport="Football"
+        )
         self.project_member = ProjectMember.objects.create(project=self.project, member=self.user, role=1)
         ProjectMember.objects.create(project=self.project, member=self.coach, role=20)
-        self.state = State.objects.create(project=self.project, name="Assigned", group="started")
+        from plane.utils.coaching_card_lifecycle import default_project_state_definitions
+
+        states = [
+            State.objects.create(project=self.project, **item)
+            for item in default_project_state_definitions(self.project)
+        ]
+        self.state = states[1]
+        self.reviewed_state = states[2]
         self.own = Issue.objects.create(project=self.project, state=self.state, name="Own activity")
         IssueAssignee.objects.create(project=self.project, issue=self.own, assignee=self.user)
         self.other = Issue.objects.create(project=self.project, state=self.state, name="Private peer activity")
@@ -239,13 +250,19 @@ class UserPlayerRoleTests(TestCase):
         response = self.client.get(f"{self.base}{peer_card.id}/")
         self.assertEqual(response.status_code, 404, response.json())
 
-    def test_mobile_review_acknowledgement_does_not_advance_shared_state_for_user(self):
-        with patch("plane.app.views.issue.coaching_card.advance_card_after_review") as advance:
-            response = self.client.post(
-                f"{self.generic}coaching-cards/{self.card.id}/review-complete/", {}, format="json"
-            )
+    def test_mobile_user_review_advances_single_recipient_card(self):
+        response = self.client.post(f"{self.generic}coaching-cards/{self.card.id}/review-complete/", {}, format="json")
         self.assertEqual(response.status_code, 200, response.json())
-        advance.assert_not_called()
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.state_id, self.reviewed_state.id)
+        self.assertEqual(response.json()["stage_id"], str(self.reviewed_state.id))
+        review = self.card.coaching_card_data["review"]
+        self.assertEqual(set(review["viewed_by"]), {str(self.player.id)})
+        self.assertEqual(review["completion_reason"], "all_viewed")
+        self.assertEqual(PlayerActivityProgress.objects.get(issue=self.card, user=self.user).percent, 100)
+        self.assertEqual(
+            CardStageHistory.objects.filter(issue=self.card, to_stage_id=self.reviewed_state.id).count(), 1
+        )
 
     def test_inactive_roster_revokes_mobile_mine_and_review_access(self):
         self.player.status = "inactive"
@@ -329,13 +346,74 @@ class UserPlayerRoleTests(TestCase):
                 response = self.client.get(self.generic + "issues/")
                 self.assertEqual(response.status_code, 200, response.json())
 
-    def test_user_mobile_acknowledgement_does_not_write_shared_review(self):
-        before = dict(self.card.coaching_card_data)
+    def test_user_review_waits_for_other_recipients_without_exposing_their_progress(self):
+        peer_player = RosterPlayer.objects.create(project=self.project, user=self.peer, player_name="Peer")
+        self.card.coaching_card_data["recipient_ids"].append(str(peer_player.id))
+        self.card.save()
         response = self.client.post(f"{self.generic}coaching-cards/{self.card.id}/review-complete/", {}, format="json")
         self.assertEqual(response.status_code, 200, response.json())
         self.card.refresh_from_db()
-        self.assertEqual(self.card.coaching_card_data, before)
+        self.assertIn("review", self.card.coaching_card_data)
+        self.assertEqual(set(self.card.coaching_card_data["review"]["viewed_by"]), {str(self.player.id)})
+        self.assertEqual(self.card.state_id, self.state.id)
+        self.assertEqual(response.json()["review"]["recipient_count"], 1)
+        self.assertEqual(response.json()["review"]["viewed_count"], 1)
         self.assertIsNotNone(response.json()["review"]["viewed_at"])
+        self.assertNotIn(str(peer_player.id), str(response.json()))
+
+        self.client.force_authenticate(self.peer)
+        response = self.client.post(f"{self.generic}coaching-cards/{self.card.id}/review-complete/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.json())
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.state_id, self.reviewed_state.id)
+        self.assertEqual(
+            set(self.card.coaching_card_data["review"]["viewed_by"]), {str(self.player.id), str(peer_player.id)}
+        )
+
+    def test_user_review_retry_preserves_completion_and_creates_one_transition(self):
+        url = f"{self.generic}coaching-cards/{self.card.id}/review-complete/"
+        first = self.client.post(url, {}, format="json")
+        self.assertEqual(first.status_code, 200, first.json())
+        self.card.refresh_from_db()
+        recorded_review = self.card.coaching_card_data.get("review")
+        second = self.client.post(url, {}, format="json")
+        self.assertEqual(second.status_code, 200, second.json())
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.coaching_card_data["review"], recorded_review)
+        self.assertEqual(second.json()["review"]["viewed_at"], first.json()["review"]["viewed_at"])
+        self.assertEqual(CardStageHistory.objects.filter(issue=self.card).count(), 1)
+
+    def test_user_cannot_review_peer_card_through_stale_roster_link(self):
+        peer_player = RosterPlayer.objects.create(project=self.project, user=self.peer, player_name="Peer")
+        self.card.coaching_card_data["recipient_ids"] = [str(peer_player.id)]
+        self.card.save()
+        before = dict(self.card.coaching_card_data)
+        response = self.client.post(f"{self.generic}coaching-cards/{self.card.id}/review-complete/", {}, format="json")
+        self.assertEqual(response.status_code, 404)
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.coaching_card_data, before)
+        self.assertFalse(PlayerActivityProgress.objects.filter(issue=self.card).exists())
+        self.assertFalse(CardStageHistory.objects.filter(issue=self.card).exists())
+
+    def test_user_review_advances_legacy_single_recipient_card(self):
+        self.card.coaching_card_data.pop("recipient_ids")
+        self.card.save()
+        response = self.client.post(f"{self.generic}coaching-cards/{self.card.id}/review-complete/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.json())
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.state_id, self.reviewed_state.id)
+        self.assertIn(str(self.player.id), self.card.coaching_card_data["review"]["viewed_by"])
+
+    def test_legacy_program_without_sport_records_review_without_stage_transition(self):
+        self.project.sport = ""
+        self.project.save()
+        response = self.client.post(f"{self.generic}coaching-cards/{self.card.id}/review-complete/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.json())
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.state_id, self.state.id)
+        self.assertIn(str(self.player.id), self.card.coaching_card_data["review"]["viewed_by"])
+        self.assertIsNotNone(PlayerActivityProgress.objects.get(issue=self.card, user=self.user).completed_at)
+        self.assertFalse(CardStageHistory.objects.filter(issue=self.card).exists())
 
     def test_stale_workspace_invitation_cannot_promote_user_through_either_acceptance_path(self):
         from plane.db.models import WorkspaceMemberInvite

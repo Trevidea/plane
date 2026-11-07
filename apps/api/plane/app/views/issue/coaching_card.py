@@ -880,10 +880,15 @@ class CoachingCardReviewCompleteEndpoint(BaseAPIView):
 
         player = _linked_player(request, project_id, slug)
         data = dict(card.coaching_card_data or {})
-        if has_user_role(request, self):
+        restricted_user = has_user_role(request, self)
+        recipient_ids = data.get("recipient_ids") or ([str(card.roster_player_id)] if card.roster_player_id else [])
+        if player is None or str(player.id) not in recipient_ids:
+            return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if restricted_user:
             from plane.utils.player_activity_access import player_activities
 
-            if player is None or not player_activities(request.user).filter(pk=card.pk).exists():
+            if not player_activities(request.user).filter(pk=card.pk).exists():
                 return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
             from plane.db.models import PlayerActivityProgress
 
@@ -893,37 +898,34 @@ class CoachingCardReviewCompleteEndpoint(BaseAPIView):
             progress.percent = 100
             progress.completed_at = progress.completed_at or timezone.now()
             progress.save()
-            review = data.get("review") or {}
-            return Response(
-                {
-                    "id": str(card.id),
-                    "stage_id": str(card.state_id),
-                    "review": {
-                        "assigned_at": review.get("assigned_at"),
-                        "deadline_at": review.get("deadline_at"),
-                        "viewed_at": progress.completed_at.isoformat(),
-                        "recipient_count": 1,
-                        "viewed_count": 1,
-                    },
-                }
-            )
-        if player is None or str(player.id) not in (data.get("recipient_ids") or []):
-            return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Personal completion and the board's shared review must be recorded in
+        # the same transaction, including for User-role players.
         review = dict(data.get("review") or {})
         viewed_by = dict(review.get("viewed_by") or {})
         viewed_by.setdefault(str(player.id), timezone.now().isoformat())
         review["viewed_by"] = viewed_by
         data["review"] = review
+        data["recipient_ids"] = recipient_ids
         card.coaching_card_data = data
         card.save(update_fields=["coaching_card_data", "updated_at"])
-        if not has_user_role(request, self):
+        # Legacy programs without a sport have no coaching lifecycle to advance.
+        if (card.project.sport or "").strip():
             advance_card_after_review(card, timezone.now())
+        response_review = _player_review_response(card.coaching_card_data, player.id, recipient_ids)
+        if restricted_user:
+            response_review = {
+                "assigned_at": response_review.get("assigned_at"),
+                "deadline_at": response_review.get("deadline_at"),
+                "viewed_at": progress.completed_at.isoformat(),
+                "recipient_count": 1,
+                "viewed_count": 1,
+            }
         return Response(
             {
                 "id": str(card.id),
                 "stage_id": str(card.state_id),
-                "review": _player_review_response(card.coaching_card_data, player.id, data["recipient_ids"]),
+                "review": response_review,
             }
         )
 
