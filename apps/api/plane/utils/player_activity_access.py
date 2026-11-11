@@ -1,5 +1,8 @@
 """Explicit assignments and privacy-safe player activity responses."""
 
+import hashlib
+import json
+
 from django.db.models import Q
 from django.utils.html import strip_tags
 
@@ -13,6 +16,7 @@ from plane.db.models import (
     RosterPlayer,
     WorkspaceMember,
 )
+from plane.utils.coaching_card_clips import normalize_card_clips
 
 
 def player_programs(user):
@@ -87,17 +91,24 @@ def activity_data(issue, user):
         primary = data["primary_clip"]
         playlists = [
             {
+                "id": primary.get("playlist_id") or "original",
                 "clips": [
                     {
                         **primary,
                         "id": primary.get("clip_id"),
                         "title": (data.get("summary") or {}).get("primary_clip_title") or "Clip",
                     }
-                ]
+                ],
             }
         ]
-    for playlist in playlists:
+    original_playlists = playlists
+    playlists = normalize_card_clips({**data, "playlists": playlists})["playlists"]
+    for playlist_index, playlist in enumerate(playlists):
         for index, clip in enumerate(playlist.get("clips", [])):
+            original_clips = (
+                original_playlists[playlist_index].get("clips", []) if playlist_index < len(original_playlists) else []
+            )
+            wire = original_clips[index] if index < len(original_clips) else data.get("primary_clip") or {}
             media = clip.get("source_media") or (
                 data.get("source_media")
                 if (data.get("source_media") or {}).get("artifact_id") == clip.get("id")
@@ -115,6 +126,12 @@ def activity_data(issue, user):
                     + quote(str(media["artifact_id"]), safe="")
                     + "/"
                 )
+                # Keep hidden source changes visible to the player's stale-media check.
+                identity = [clip.get("source_url") or None, media.get("package_id"), media.get("artifact_id")]
+                revision = hashlib.sha256(
+                    json.dumps(identity, separators=(",", ":"), ensure_ascii=False).encode()
+                ).hexdigest()
+                source += "?source_revision=" + revision
                 from plane.utils.player_media import is_hls_reference
 
                 if is_hls_reference(issue.project_id, str(media["package_id"]), str(media["artifact_id"])):
@@ -123,7 +140,7 @@ def activity_data(issue, user):
                     source += "#video.m3u8"
             clips.append(
                 {
-                    "key": str(clip.get("association_id") or clip.get("id") or index),
+                    "key": str(wire.get("association_id") or clip.get("id") or index),
                     "title": clip.get("title") or "Clip",
                     "sourceUrl": source,
                     "startSeconds": clip.get("start_seconds") or 0,

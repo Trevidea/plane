@@ -9,6 +9,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from uuid import uuid4
+from urllib.parse import urlsplit
 
 from django.test import AsyncClient, TestCase, override_settings
 from asgiref.sync import async_to_sync, sync_to_async
@@ -225,6 +226,144 @@ class PlayerMediaContractTests(TestCase):
         Issue.objects.filter(pk=self.card.pk).update(coaching_card_data=data)
         self.assertEqual(self.client.get(path).status_code, 409)
 
+    def player_visible_revision(self):
+        path = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}/coaching-cards/mine/"
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200, response.content)
+        card = next(row for row in response.json()["results"] if row["id"] == str(self.card.id))
+        data = card["coaching_card_data"]
+        clip = data["playlists"][0]["clips"][0]
+        source = data.get("source_media") or {}
+        media = clip.get("source_media") or {}
+
+        def clock(value):
+            return None if value is None else int(value * 1_000_000 + 0.5)
+
+        identity = [
+            clip["id"],
+            clip.get("association_id") or None,
+            clip.get("source_url") or None,
+            media.get("package_id"),
+            media.get("artifact_id"),
+            clock(clip.get("start_seconds")),
+            clock(clip.get("end_seconds")),
+            clock(clip.get("source_start_seconds")),
+            clock(clip.get("duration_seconds")),
+            clip.get("playback_mode") or None,
+            source.get("package_id"),
+            source.get("artifact_id"),
+        ]
+        return hashlib.sha256(json.dumps(identity, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+
+    def test_user_role_player_visible_revision_plays_the_assigned_upload(self):
+        revision = self.player_visible_revision()
+        response = self.client.get(self.grant_path, {"revision": revision})
+        self.assertEqual(response.status_code, 200, response.content)
+        media, content = self.read(response.json()["source_url"])
+        self.assertEqual(media.status_code, 200)
+        self.assertEqual(content, b"test-video-bytes")
+
+    def test_player_activity_media_url_remains_playable_without_conversion_options(self):
+        from plane.utils.player_activity_access import activity_data
+
+        url = activity_data(self.card, self.user)["clips"][0]["sourceUrl"]
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, getattr(response, "data", None))
+        try:
+            self.assertEqual(b"".join(response.streaming_content), b"test-video-bytes")
+        finally:
+            if not response.closed:
+                response.close()
+        path = urlsplit(url).path
+        for query in (
+            "?source_revision=invalid",
+            "?source_revision=" + "0" * 64 + "&download=1",
+            "?source_revision=" + "0" * 64 + "&source_revision=" + "1" * 64,
+            "?convert=mp4",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(self.client.get(path + query).status_code, 400)
+
+    def test_player_visible_revision_rejects_changed_clocks(self):
+        revision = self.player_visible_revision()
+        data = self.card.coaching_card_data.copy()
+        data["playlists"][0]["clips"][0]["duration_seconds"] = 15
+        Issue.objects.filter(pk=self.card.pk).update(coaching_card_data=data)
+        self.assertEqual(self.client.get(self.grant_path, {"revision": revision}).status_code, 409)
+
+    def test_player_visible_revision_rejects_changed_source(self):
+        revision = self.player_visible_revision()
+        data = self.card.coaching_card_data.copy()
+        data["source_media"] = {"package_id": "different-film", "artifact_id": "movie"}
+        Issue.objects.filter(pk=self.card.pk).update(coaching_card_data=data)
+        self.assertEqual(self.client.get(self.grant_path, {"revision": revision}).status_code, 409)
+
+    @override_settings(PLAYER_ARCHIVED_HLS_BASE_URL="https://archive.fixture.test/hls")
+    def test_player_visible_revision_rejects_primary_only_source_changes(self):
+        data = self.card.coaching_card_data.copy()
+        data["primary_clip"] = {"playlist_id": "p", "clip_id": "movie", "source_url": "old.m3u8"}
+        Issue.objects.filter(pk=self.card.pk).update(coaching_card_data=data)
+        revision = self.player_visible_revision()
+        self.assertEqual(self.client.get(self.grant_path, {"revision": revision}).status_code, 200)
+        data["primary_clip"]["source_url"] = "new.m3u8"
+        Issue.objects.filter(pk=self.card.pk).update(coaching_card_data=data)
+        self.assertEqual(self.client.get(self.grant_path, {"revision": revision}).status_code, 409)
+
+    def test_player_visible_revision_rejects_primary_only_clock_changes(self):
+        data = self.card.coaching_card_data.copy()
+        data["primary_clip"] = {"playlist_id": "p", "clip_id": "movie", "start_seconds": 0, "end_seconds": 10}
+        Issue.objects.filter(pk=self.card.pk).update(coaching_card_data=data)
+        revision = self.player_visible_revision()
+        self.assertEqual(self.client.get(self.grant_path, {"revision": revision}).status_code, 200)
+        data["primary_clip"]["start_seconds"] = 2
+        Issue.objects.filter(pk=self.card.pk).update(coaching_card_data=data)
+        self.assertEqual(self.client.get(self.grant_path, {"revision": revision}).status_code, 409)
+
+    def test_manifest_transcode_url_resolves_only_its_mounted_asset(self):
+        root = self.root / "transcoded"
+        asset = root / "media-fixture"
+        asset.mkdir(parents=True)
+        (asset / "master.m3u8").write_text("#EXTM3U\n#EXTINF:1,\nsegment.ts\n#EXT-X-ENDLIST\n")
+        (asset / "segment.ts").write_bytes(b"assigned-segment")
+        self.write_manifest("/sports/api/blobs/media/media-fixture/master.m3u8")
+        with override_settings(
+            MEDIA_TRANSCODE_OUTPUT_BASE_URL="/sports/api/blobs/media", MEDIA_TRANSCODE_OUTPUT_ROOT=str(root)
+        ):
+            self.assertEqual(self.client.get(self.grant_path).status_code, 200)
+            response = self.client.get(self.grant_path, {"revision": self.player_visible_revision()})
+            self.assertEqual(response.status_code, 200, response.content)
+            url = response.json()["source_url"]
+            playlist, content = self.read(url)
+            self.assertEqual(playlist.status_code, 200)
+            self.assertTrue(content.startswith(b"#EXTM3U"))
+            segment, content = self.read(url.rsplit("/", 1)[0] + "/segment.ts", HTTP_RANGE="bytes=0-7")
+            self.assertEqual(segment.status_code, 206)
+            self.assertEqual(content, b"assigned")
+
+    def test_transcode_manifest_cannot_escape_its_asset_or_follow_external_symlink(self):
+        root = self.root / "transcoded"
+        root.mkdir()
+        outside = self.root / "outside"
+        outside.mkdir()
+        (outside / "video.mp4").write_bytes(b"unassigned")
+        (root / "linked").symlink_to(outside, target_is_directory=True)
+        (root / "linked-root").symlink_to(root, target_is_directory=True)
+        (root / "unassigned.mp4").write_bytes(b"not-in-an-asset")
+        with override_settings(
+            MEDIA_TRANSCODE_OUTPUT_BASE_URL="/sports/api/blobs/media", MEDIA_TRANSCODE_OUTPUT_ROOT=str(root)
+        ):
+            for path in (
+                "/sports/api/blobs/media/asset/../../outside/video.mp4",
+                "/sports/api/blobs/media/asset/%2e%2e/video.mp4",
+                "/sports/api/blobs/media/linked/video.mp4",
+                "/sports/api/blobs/media/linked-root/unassigned.mp4",
+                "/sports/api/blobs/media-other/asset/video.mp4",
+                "/sports/api/blobs/media/asset/video.mp4?other=1",
+            ):
+                with self.subTest(path=path):
+                    self.write_manifest(path)
+                    self.assertEqual(self.client.get(self.grant_path).status_code, 422)
+
     def test_assigned_external_transcode_artifact_returns_its_existing_https_delivery_url(self):
         url = "https://media.example/media/fixture/master.m3u8?signature=fixture"
         self.write_manifest(url)
@@ -372,8 +511,11 @@ class PlayerMediaContractTests(TestCase):
             (True, True, "http://public.example/hls"),
             (True, True, "http://169.254.169.254/hls"),
         ]:
-            with self.subTest(debug=debug, opt_in=opt_in, base=base), override_settings(
-                DEBUG=debug, PLAYER_ARCHIVED_HLS_ALLOW_HTTP=opt_in, PLAYER_ARCHIVED_HLS_BASE_URL=base
+            with (
+                self.subTest(debug=debug, opt_in=opt_in, base=base),
+                override_settings(
+                    DEBUG=debug, PLAYER_ARCHIVED_HLS_ALLOW_HTTP=opt_in, PLAYER_ARCHIVED_HLS_BASE_URL=base
+                ),
             ):
                 self.assertEqual(self.client.get(self.grant_path).status_code, 422)
 
@@ -391,10 +533,13 @@ class PlayerMediaContractTests(TestCase):
             "/private/segment.ts",
             "../segment.ts",
         ]:
-            with self.subTest(reference=reference), patch(
-                "requests.sessions.Session.get",
-                return_value=self.upstream("#EXTM3U\n#EXTINF:8,\n" + reference + "\n"),
-            ) as fetch:
+            with (
+                self.subTest(reference=reference),
+                patch(
+                    "requests.sessions.Session.get",
+                    return_value=self.upstream("#EXTM3U\n#EXTINF:8,\n" + reference + "\n"),
+                ) as fetch,
+            ):
                 response, _ = self.read(url)
                 self.assertEqual(response.status_code, 502)
                 self.assertEqual(fetch.call_count, 1)
