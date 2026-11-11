@@ -22,7 +22,7 @@ import {
 import { STATUS_SELECT_OPTIONS } from "../constants/roster.constants";
 import type { TRosterFormState } from "../store/roster-context";
 import { getRosterFormState, useRoster } from "../store/roster-context";
-import { canDeleteRosterPlayer, mapImportedRows, toDisplayStatus } from "../utils/roster.utils";
+import { canDeleteRosterPlayer, getRosterDisplayEmail, mapImportedRows, toDisplayStatus } from "../utils/roster.utils";
 
 export const DeletePlayerModal = observer(() => {
   const { deletingPlayer, canManage, isSubmitting, closeDeletePlayerModal, deletePlayer } = useRoster();
@@ -68,7 +68,7 @@ export const AddPlayerModal = observer(({ isOpen, onClose }: { isOpen?: boolean;
     setFormState((currentState) => ({ ...currentState, [key]: value }));
 
   return (
-    <ModalCore isOpen={modalOpen} handleClose={handleClose} position={EModalPosition.TOP} width={EModalWidth.XXXL}>
+    <ModalCore isOpen={modalOpen} position={EModalPosition.TOP} width={EModalWidth.XXXL}>
       <div className="border-b border-custom-border-200 px-5 py-4">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -115,7 +115,7 @@ export const AddPlayerModal = observer(({ isOpen, onClose }: { isOpen?: boolean;
               type="email"
               autoComplete="on"
               maxLength={254}
-              value={formState.email}
+              value={editingPlayer?.user ? getRosterDisplayEmail(editingPlayer) : formState.email}
               onChange={(event) => updateField("email", event.target.value)}
               readOnly={Boolean(editingPlayer?.user)}
               disabled={isSubmitting}

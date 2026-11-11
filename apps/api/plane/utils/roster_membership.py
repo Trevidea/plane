@@ -18,7 +18,7 @@ def roster_with_account_status(queryset):
         accepted=False,
         responded_at__isnull=True,
     )
-    return queryset.annotate(_has_pending_invitation=Exists(pending))
+    return queryset.select_related("user").annotate(_has_pending_invitation=Exists(pending))
 
 
 def link_roster_memberships(user, workspace_ids):

@@ -8,7 +8,7 @@ from rest_framework.response import Response
 # Module imports
 from plane.app.permissions import ProjectEntityPermission, allow_permission, ROLE
 from plane.app.serializers import RosterPlayerImportSerializer, RosterPlayerSerializer
-from plane.db.models import Project, RosterPlayer, Workspace
+from plane.db.models import Project, RosterPlayer, Workspace, WorkspaceMember
 from plane.utils.roster_membership import roster_with_account_status
 from .base import BaseViewSet
 
@@ -37,6 +37,14 @@ class RosterPlayerViewSet(BaseViewSet):
         context["project"] = Project.objects.get(
             workspace__slug=self.kwargs.get("slug"), pk=self.kwargs.get("project_id")
         )
+        # Match workspace member email visibility, even when a workspace Guest
+        # has an elevated project role. Compute once for the whole response.
+        context["can_view_account_email"] = WorkspaceMember.objects.filter(
+            workspace_id=context["project"].workspace_id,
+            member=self.request.user,
+            is_active=True,
+            role__in=[ROLE.ADMIN.value, ROLE.MEMBER.value],
+        ).exists()
         return context
 
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])

@@ -8,7 +8,7 @@ from unittest.mock import patch
 from django.core import mail
 from django.core.mail.backends.locmem import EmailBackend
 from django.test import TestCase, override_settings
-from plane.utils.player_invitations import ticket_data
+from plane.utils.player_invitations import player_app_url, ticket_data
 
 from plane.bgtasks.workspace_invitation_task import workspace_invitation
 from plane.db.models import Project, RosterPlayer, User, Workspace, WorkspaceMemberInvite
@@ -110,6 +110,22 @@ class PlayerInvitationEmailTests(TestCase):
         self.assertEqual(ticket_data(ticket)["id"], str(self.invitation.id))
         self.assertEqual(ticket_data(ticket)["nonce"], self.invitation.token)
         self.assertIn(href, message.body)
+
+    @override_settings(PLAYER_APP_API_URL="http://192.168.1.207:8000")
+    def test_local_invitation_and_mobile_link_use_local_api_despite_other_current_site(self):
+        message = self.send()
+        html = message.alternatives[0][0]
+        href = unescape(re.search(r'href="([^"]+)"', html).group(1))
+        url = urlsplit(href)
+        self.assertEqual((url.scheme, url.netloc, url.path), ("http", "192.168.1.207:8000", "/auth/player-invitation/"))
+        self.assertIn(href, message.body)
+        self.assertNotIn("https://sports.example", message.body)
+        self.assertNotIn("https://sports.example", html)
+        token = parse_qs(url.query)["token"][0]
+        app = urlsplit(player_app_url(token))
+        self.assertEqual(app.scheme, "kanavioplayerapp")
+        self.assertEqual(parse_qs(app.query)["server"], ["http://192.168.1.207:8000"])
+        self.assertEqual(parse_qs(app.query)["token"], [token])
 
     def test_programs_are_limited_to_invited_workspace_and_email(self):
         basketball = Project.objects.create(workspace=self.workspace, name="Basketball", identifier="BB")

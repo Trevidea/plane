@@ -4,6 +4,7 @@ export interface IRosterPlayer {
   id: string;
   program_id: string;
   email?: string;
+  account_email?: string | null;
   user?: string | null;
   account_status?: "email_missing" | "not_linked" | "invitation_pending" | "linked";
   player_name: string;
