@@ -1,5 +1,7 @@
 """Narrow player endpoints; generic issue/project mutation APIs remain unavailable."""
 
+import re
+
 from django.db import transaction
 from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
@@ -197,7 +199,11 @@ class PlayerActivityMediaEndpoint(PlayerActivityBase):
             from rest_framework.exceptions import NotFound
 
             raise NotFound("Media not assigned to this activity.")
-        if request.query_params:
+        if request.query_params and (
+            set(request.query_params) != {"source_revision"}
+            or len(request.query_params.getlist("source_revision")) != 1
+            or not re.fullmatch(r"[a-f0-9]{64}", request.query_params.get("source_revision", ""))
+        ):
             raise serializers.ValidationError("Media conversion/download actions are unavailable to players.")
         from plane.utils.player_media import assigned_media_response
 

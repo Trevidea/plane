@@ -27,6 +27,7 @@ from plane.db.models import Issue, User
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY
 from plane.utils.coaching_card_clips import normalize_card_clips
 from plane.utils.media_library import manifest_path, media_library_root, package_root, read_manifest, validate_segment
+from plane.utils.user_role_access import has_user_role
 
 GRANT_SECONDS = 300
 GRANT_SALT = "plane.player.card-media.v1"
@@ -79,24 +80,15 @@ def _assigned(user, slug, project_id, card_id):
     )
 
 
-def _source(card, clip_index, slug, origin, expected=None):
-    original = card.coaching_card_data or {}
-    data = normalize_card_clips(card.coaching_card_data)
-    clips = [clip for playlist in data.get("playlists", []) for clip in playlist.get("clips", [])]
-    if clip_index < 0 or clip_index >= len(clips):
-        raise NotFound("Video not found.")
-    clip = clips[clip_index]
-    original_clips = [item for playlist in original.get("playlists", []) for item in playlist.get("clips", [])]
-    wire = original_clips[clip_index] if original_clips else original.get("primary_clip") or {}
-    source = data.get("source_media") or {}
+def _playback_revision(clip, source, clip_id, association_id):
     clip_source = clip.get("source_media") or {}
 
     def clock(value):
         return None if value is None else math.floor(value * 1_000_000 + 0.5)
 
     identity = [
-        clip.get("id") if original_clips else wire.get("clip_id") or "primary",
-        wire.get("association_id") or None,
+        clip_id,
+        association_id or None,
         clip.get("source_url") or None,
         clip_source.get("package_id") or None,
         clip_source.get("artifact_id") or None,
@@ -108,10 +100,64 @@ def _source(card, clip_index, slug, origin, expected=None):
         source.get("package_id") or None,
         source.get("artifact_id") or None,
     ]
-    client_revision = hashlib.sha256(
-        json.dumps(identity, separators=(",", ":"), ensure_ascii=False).encode()
-    ).hexdigest()
-    if expected is not None and expected != client_revision:
+    return hashlib.sha256(json.dumps(identity, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+
+
+def _player_revision(card, user, clip_index):
+    from plane.utils.player_activity_access import activity_data
+
+    clips = activity_data(card, user)["clips"]
+    if clip_index < 0 or clip_index >= len(clips):
+        raise NotFound("Video not found.")
+    visible = clips[clip_index]
+    clip = {
+        "source_url": visible["sourceUrl"],
+        "start_seconds": visible["startSeconds"],
+        "end_seconds": visible["endSeconds"],
+        "source_start_seconds": visible.get("sourceStartSeconds"),
+        "duration_seconds": visible["durationSeconds"],
+        "playback_mode": visible.get("playbackMode"),
+    }
+    return _playback_revision(clip, {}, visible["key"], None)
+
+
+def _transcoded_file(raw_path):
+    prefix = urlsplit(getattr(settings, "MEDIA_TRANSCODE_OUTPUT_BASE_URL", "")).path.rstrip("/")
+    root = getattr(settings, "MEDIA_TRANSCODE_OUTPUT_ROOT", "")
+    if not prefix or not root or not raw_path.startswith(prefix + "/"):
+        return None
+    relative = raw_path[len(prefix) + 1 :]
+    if any(char in relative for char in ("%", "\\", "?", "#")):
+        raise MediaSourceUnavailable()
+    parts = relative.split("/")
+    if len(parts) < 2 or any(part in {"", ".", ".."} for part in parts):
+        raise MediaSourceUnavailable()
+    root = Path(root).resolve()
+    asset = (root / parts[0]).resolve()
+    main = (root / relative).resolve()
+    if asset == root or not asset.is_relative_to(root) or not main.is_relative_to(asset) or not main.is_file():
+        raise MediaSourceUnavailable()
+    return main
+
+
+def _source(card, clip_index, slug, origin, expected=None, player_revision=None):
+    original = card.coaching_card_data or {}
+    data = normalize_card_clips(original)
+    clips = [clip for playlist in data.get("playlists", []) for clip in playlist.get("clips", [])]
+    if clip_index < 0 or clip_index >= len(clips):
+        raise NotFound("Video not found.")
+    clip = clips[clip_index]
+    original_clips = [item for playlist in original.get("playlists", []) for item in playlist.get("clips", [])]
+    wire = original_clips[clip_index] if original_clips else original.get("primary_clip") or {}
+    source = data.get("source_media") or {}
+    client_revision = _playback_revision(
+        clip,
+        source,
+        clip.get("id") if original_clips else wire.get("clip_id") or "primary",
+        wire.get("association_id"),
+    )
+    # Both representations are server-derived; never relax stale-source checks.
+    if expected is not None and expected not in {client_revision, player_revision}:
         raise PlaybackChanged()
     saved = clip.get("source_media") or {}
     if not saved and clip.get("id") == source.get("artifact_id"):
@@ -155,13 +201,16 @@ def _source(card, clip_index, slug, origin, expected=None):
             raise MediaSourceUnavailable()
         is_hls = delivery.path.lower().endswith(".m3u8")
         return artifact["path"], is_hls, client_revision, "external"
+    transcoded = _transcoded_file(artifact["path"])
     raw = Path(artifact["path"])
-    main = (raw if raw.is_absolute() else media_library_root() / raw).resolve()
+    main = transcoded or (raw if raw.is_absolute() else media_library_root() / raw).resolve()
     artifacts = (package_root(str(card.project_id), package_id) / "artifacts").resolve()
-    if not artifacts.is_relative_to(media_library_root()) or not main.is_relative_to(artifacts) or not main.is_file():
+    if not transcoded and (
+        not artifacts.is_relative_to(media_library_root()) or not main.is_relative_to(artifacts) or not main.is_file()
+    ):
         raise MediaSourceUnavailable()
     is_hls = main.suffix.lower() == ".m3u8"
-    if is_hls and main.parent != (artifacts / artifact_id).resolve():
+    if is_hls and not transcoded and main.parent != (artifacts / artifact_id).resolve():
         raise MediaSourceUnavailable()
     if not is_hls and main.suffix.lower() not in {".mp4", ".m4v", ".mov", ".webm"}:
         raise MediaSourceUnavailable()
@@ -226,7 +275,13 @@ class PlayerCardPlaybackEndpoint(BaseAPIView):
     def get(self, request, slug, project_id, card_id, clip_index):
         card = _assigned(request.user, slug, project_id, card_id)
         origin = request.build_absolute_uri("/").rstrip("/")
-        main, is_hls, revision, delivery = _source(card, clip_index, slug, origin, request.query_params.get("revision"))
+        expected = request.query_params.get("revision")
+        player_revision = (
+            _player_revision(card, request.user, clip_index)
+            if expected is not None and has_user_role(request, self)
+            else None
+        )
+        main, is_hls, revision, delivery = _source(card, clip_index, slug, origin, expected, player_revision)
         if isinstance(main, str) and delivery != "archive":
             return Response(
                 {
@@ -274,8 +329,9 @@ class PlayerSignedMediaEndpoint(BaseAPIView):
             grant = signing.loads(token, salt=GRANT_SALT, max_age=GRANT_SECONDS)
         except signing.BadSignature:
             raise PermissionDenied("Playback link expired or invalid. Retry the video.")
-        if 'attachment' in grant:
+        if "attachment" in grant:
             from .private_card_attachments import signed_attachment_media
+
             return signed_attachment_media(request, grant, token, resource)
         user = get_object_or_404(User, pk=grant["user"])
         card = _assigned(user, grant["slug"], grant["project"], grant["card"])
