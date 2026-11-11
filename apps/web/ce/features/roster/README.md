@@ -70,4 +70,9 @@ workspace invitation permission in addition to roster-management permission.
 
 An already linked player's roster email is read-only, so editing roster details
 cannot silently move their account or private feedback to another person.
+The edit form displays the linked account's current email using the read-only
+`account_email` API field, including manually linked players whose separate
+roster email is blank. Account email visibility requires active workspace Member
+or Admin access, matching workspace account-email permissions. This display does not copy the account email into the
+roster record or send another invitation when other details are saved.
 Players without an email remain editable and do not receive an invitation.

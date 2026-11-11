@@ -15,9 +15,25 @@ const load = (filename) => {
   vm.runInThisContext(`(function(require, module, exports) { ${source}\n})`)(localRequire, module, module.exports);
   return module.exports;
 };
-const { mapImportedRows, getRosterAccountStatus, canDeleteRosterPlayer } = load(
+const { mapImportedRows, getRosterAccountStatus, canDeleteRosterPlayer, getRosterDisplayEmail } = load(
   path.resolve(__dirname, "../roster.utils.ts")
 );
+
+test("linked players display their account email even when their roster email is blank or outdated", () => {
+  assert.equal(
+    getRosterDisplayEmail({ user: "linked-user", email: "", account_email: "member@example.com" }),
+    "member@example.com"
+  );
+  assert.equal(
+    getRosterDisplayEmail({ user: "linked-user", email: "old@example.com", account_email: "current@example.com" }),
+    "current@example.com"
+  );
+  assert.equal(getRosterDisplayEmail({ user: "linked-user", email: "legacy@example.com" }), "legacy@example.com");
+  assert.equal(
+    getRosterDisplayEmail({ user: null, email: "invite@example.com", account_email: "stale@example.com" }),
+    "invite@example.com"
+  );
+});
 
 test("only players with missing email and no linked account can be deleted from the roster", () => {
   assert.equal(canDeleteRosterPlayer({ email: null, user: null, account_status: "email_missing" }), true);

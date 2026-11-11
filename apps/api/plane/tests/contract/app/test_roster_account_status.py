@@ -77,6 +77,39 @@ class RosterAccountStatusTests(TestCase):
         self.player.save()
         self.assertEqual(self.detail()["account_status"], "linked")
 
+    def test_linked_player_exposes_account_email_without_changing_blank_roster_email(self):
+        self.player.user = self.coach
+        self.player.save()
+        data = self.detail()
+        self.assertEqual(data.get("account_email"), "status-coach@fixture.test")
+        self.assertEqual(data["email"], "")
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.email, "")
+
+    def test_linked_account_email_is_loaded_with_the_roster_query(self):
+        from plane.app.serializers import RosterPlayerSerializer
+        from plane.utils.roster_membership import roster_with_account_status
+
+        self.player.user = self.coach
+        self.player.save()
+        with self.assertNumQueries(1):
+            data = RosterPlayerSerializer(
+                roster_with_account_status(RosterPlayer.objects.filter(project=self.project)),
+                many=True,
+                context={"can_view_account_email": True},
+            ).data
+            self.assertEqual(data[0].get("account_email"), "status-coach@fixture.test")
+
+    def test_workspace_guest_cannot_read_linked_account_email_even_as_project_admin(self):
+        self.player.user = self.coach
+        self.player.save()
+        WorkspaceMember.objects.filter(workspace=self.workspace, member=self.coach).update(role=5)
+        detail = self.detail()
+        self.assertIsNone(detail.get("account_email"))
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIsNone(response.data[0].get("account_email"))
+
     def test_list_uses_one_pending_invitation_query_for_many_players(self):
         for number in range(8):
             RosterPlayer.objects.create(

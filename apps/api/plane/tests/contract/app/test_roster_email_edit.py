@@ -48,9 +48,7 @@ class RosterEmailEditTests(TestCase):
 
     def test_patch_normalizes_email_and_invites_only_after_commit(self):
         with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.patch(
-                f"{self.url}{self.player.id}/", {"email": " NEW@fixture.test "}, format="json"
-            )
+            response = self.client.patch(f"{self.url}{self.player.id}/", {"email": " NEW@fixture.test "}, format="json")
             self.assertEqual(response.status_code, 200, response.data)
             self.assertEqual(response.data["email"], "new@fixture.test")
             self.assertEqual(response.data["account_status"], "invitation_pending")
@@ -136,6 +134,21 @@ class RosterEmailEditTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.player.refresh_from_db()
         self.assertEqual(self.player.email, "previous@fixture.test")
+        self.assertEqual(self.player.user_id, member.id)
+        self.assertEqual(self.player.notes, "Recovery")
+        self.mail.assert_not_called()
+
+    def test_displayed_account_email_is_read_only_and_does_not_fill_roster_email(self):
+        member = self.member()
+        self.player.user = member
+        self.player.save()
+        response = self.edit(email="", account_email="replacement@fixture.test", notes="Recovery")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data.get("account_email"), "member@fixture.test")
+        self.player.refresh_from_db()
+        member.refresh_from_db()
+        self.assertEqual(member.email, "member@fixture.test")
+        self.assertEqual(self.player.email, "")
         self.assertEqual(self.player.user_id, member.id)
         self.assertEqual(self.player.notes, "Recovery")
         self.mail.assert_not_called()

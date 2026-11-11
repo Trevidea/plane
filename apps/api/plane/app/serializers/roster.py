@@ -18,6 +18,7 @@ class RosterPlayerSerializer(BaseSerializer):
     program_id = serializers.UUIDField(source="project_id", read_only=True)
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
     email = serializers.EmailField(required=False, allow_blank=True, allow_null=True, max_length=254)
+    account_email = serializers.SerializerMethodField()
     account_status = serializers.SerializerMethodField()
 
     class Meta:
@@ -27,6 +28,7 @@ class RosterPlayerSerializer(BaseSerializer):
             "program_id",
             "user",
             "email",
+            "account_email",
             "account_status",
             "player_name",
             "jersey_number",
@@ -40,6 +42,11 @@ class RosterPlayerSerializer(BaseSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "program_id", "created_at", "updated_at"]
+
+    def get_account_email(self, player):
+        if not self.context.get("can_view_account_email", False) or player.user_id is None:
+            return None
+        return player.user.email
 
     def get_account_status(self, player):
         if player.user_id is not None:
