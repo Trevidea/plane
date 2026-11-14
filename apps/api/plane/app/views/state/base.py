@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Python imports
 from itertools import groupby
 from collections import defaultdict
@@ -19,6 +21,7 @@ from plane.utils.cache import invalidate_cache
 
 
 class StateViewSet(BaseViewSet):
+    user_role_readonly = True
     serializer_class = StateSerializer
     model = State
 
@@ -29,8 +32,14 @@ class StateViewSet(BaseViewSet):
             .filter(workspace__slug=self.kwargs.get("slug"))
             .filter(project_id=self.kwargs.get("project_id"))
             .filter(
-                project__project_projectmember__member=self.request.user,
-                project__project_projectmember__is_active=True,
+                **(
+                    {"project_id__in": user_readonly_projects(self.request.user, self.kwargs.get("slug")).values("id")}
+                    if has_user_role(self.request, self)
+                    else {
+                        "project__project_projectmember__member": self.request.user,
+                        "project__project_projectmember__is_active": True,
+                    }
+                ),
                 project__archived_at__isnull=True,
             )
             .filter(is_triage=False)

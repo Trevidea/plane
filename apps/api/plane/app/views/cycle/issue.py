@@ -34,6 +34,8 @@ from plane.utils.filters import IssueFilterSet
 
 
 class CycleIssueViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve"}
     serializer_class = CycleIssueSerializer
     model = CycleIssue
     filter_backends = (ComplexFilterBackend,)

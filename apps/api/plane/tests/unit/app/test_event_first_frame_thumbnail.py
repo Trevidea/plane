@@ -25,7 +25,8 @@ def fetch(meta=None, **overrides):
 def test_saved_volume_cache_does_not_generate(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        thumbnails.urlrequest, "urlopen",
+        thumbnails.urlrequest,
+        "urlopen",
         lambda request, **kwargs: calls.append(request) or WorkerImage(b"\xff\xd8\xffcached"),
     )
     assert fetch() == b"\xff\xd8\xffcached"
@@ -36,11 +37,13 @@ def test_saved_volume_cache_does_not_generate(monkeypatch):
 
 def test_missing_frame_generates_first_stream_at_zero(monkeypatch):
     calls = []
+
     def open_request(request, **kwargs):
         calls.append(request)
         if len(calls) == 1:
             raise HTTPError(request.full_url, 404, "missing", {}, None)
         return WorkerImage(b"\xff\xd8\xffframe")
+
     monkeypatch.setattr(thumbnails.urlrequest, "urlopen", open_request)
     assert fetch() == b"\xff\xd8\xffframe"
     assert [request.method for request in calls] == ["GET", "POST", "GET"]
@@ -65,7 +68,8 @@ def test_bad_stream_never_fetches(monkeypatch, stream):
 def test_first_device_and_media_reference_resolve_same_stream(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        thumbnails.urlrequest, "urlopen",
+        thumbnails.urlrequest,
+        "urlopen",
         lambda request, **kwargs: calls.append(request.full_url) or WorkerImage(b"\xff\xd8\xffframe"),
     )
     fetch(meta={"event": {"devices": [{"streamName": "stream-first"}, {"streamName": "stream-second"}]}})
@@ -85,27 +89,32 @@ def test_bad_hls_configuration_never_fetches(monkeypatch, hls_base):
 def test_unavailable_or_invalid_frame_is_graceful(monkeypatch):
     monkeypatch.setattr(thumbnails.urlrequest, "urlopen", lambda request, **kwargs: WorkerImage(b"not a frame"))
     assert fetch() is None
+
     def unavailable(request, **kwargs):
         raise HTTPError(request.full_url, 503, "unavailable", {}, None)
+
     monkeypatch.setattr(thumbnails.urlrequest, "urlopen", unavailable)
     assert fetch() is None
 
 
-def _event_request(settings, tmp_path, *, query=None, meta=None):
+def _event_request(settings, tmp_path, *, query=None, meta=None, user=None):
     from types import SimpleNamespace
     from plane.utils.media_library import manifest_path, write_manifest_atomic
     from plane.app.views.media_library import MediaArtifactFileAPIView
+
     settings.MEDIA_LIBRARY_ROOT = str(tmp_path)
     settings.MEDIA_EVENT_HLS_BASE_URL = "http://llhls-server:59919"
     manifest_file = manifest_path("project-1", "package-1")
     manifest_file.parent.mkdir(parents=True, exist_ok=True)
     artifact = {
-        "name": "event-1", "format": "json", "path": "event.json",
+        "name": "event-1",
+        "format": "json",
+        "path": "event.json",
         "meta": meta or {"artifact_type": "completed-event-json", "event": {"primaryStreamName": "stream-first"}},
     }
     write_manifest_atomic(manifest_file, {"artifacts": [artifact]})
     (tmp_path / "event.json").write_text('{"primaryStreamName":"stream-first"}')
-    request = SimpleNamespace(query_params=query or {"thumbnail": "first-stream"}, headers={}, META={})
+    request = SimpleNamespace(user=user, query_params=query or {"thumbnail": "first-stream"}, headers={}, META={})
     return MediaArtifactFileAPIView.get.__wrapped__(
         MediaArtifactFileAPIView(), request, "football", "project-1", "package-1", "event-1"
     )
@@ -113,10 +122,13 @@ def _event_request(settings, tmp_path, *, query=None, meta=None):
 
 def test_authenticated_artifact_query_returns_first_stream_image(settings, tmp_path, monkeypatch):
     from plane.app.views import media_library
+
     calls = []
     monkeypatch.setattr(
-        media_library, "get_event_first_frame_thumbnail",
-        lambda **kwargs: calls.append(kwargs) or b"\xff\xd8\xffframe", raising=False,
+        media_library,
+        "get_event_first_frame_thumbnail",
+        lambda **kwargs: calls.append(kwargs) or b"\xff\xd8\xffframe",
+        raising=False,
     )
     response = _event_request(settings, tmp_path)
     assert response["Content-Type"] == "image/jpeg"
@@ -127,13 +139,19 @@ def test_authenticated_artifact_query_returns_first_stream_image(settings, tmp_p
 def test_event_image_query_requires_authentication(settings, tmp_path, monkeypatch):
     from plane.app.views import media_library
     from rest_framework.test import APIRequestFactory
+
     monkeypatch.setattr(
-        media_library, "get_event_first_frame_thumbnail",
-        lambda **kwargs: pytest.fail("unauthorized generation"), raising=False,
+        media_library,
+        "get_event_first_frame_thumbnail",
+        lambda **kwargs: pytest.fail("unauthorized generation"),
+        raising=False,
     )
     response = media_library.MediaArtifactFileAPIView.as_view()(
         APIRequestFactory().get("/?thumbnail=first-stream"),
-        slug="football", project_id="project-1", package_id="package-1", artifact_id="event-1",
+        slug="football",
+        project_id="project-1",
+        package_id="package-1",
+        artifact_id="event-1",
     )
     assert response.status_code in {401, 403}
 
@@ -141,6 +159,7 @@ def test_event_image_query_requires_authentication(settings, tmp_path, monkeypat
 def test_unavailable_frame_returns_not_found(settings, tmp_path, monkeypatch):
     from plane.app.views import media_library
     from rest_framework.exceptions import NotFound
+
     monkeypatch.setattr(media_library, "get_event_first_frame_thumbnail", lambda **kwargs: None, raising=False)
     with pytest.raises(NotFound):
         _event_request(settings, tmp_path)
@@ -149,9 +168,12 @@ def test_unavailable_frame_returns_not_found(settings, tmp_path, monkeypatch):
 def test_non_event_artifact_cannot_request_stream_frame(settings, tmp_path, monkeypatch):
     from plane.app.views import media_library
     from rest_framework.exceptions import NotFound
+
     monkeypatch.setattr(
-        media_library, "get_event_first_frame_thumbnail",
-        lambda **kwargs: pytest.fail("non-event generation"), raising=False,
+        media_library,
+        "get_event_first_frame_thumbnail",
+        lambda **kwargs: pytest.fail("non-event generation"),
+        raising=False,
     )
     with pytest.raises(NotFound):
         _event_request(settings, tmp_path, meta={"source": "upload"})
@@ -163,23 +185,66 @@ def test_tag_thumbnail_and_request_urls_are_not_stream_sources(monkeypatch):
     assert fetch(meta=meta) is None
 
 
-@pytest.mark.parametrize("meta", [
-    {"rawEvent": {"stream_name": "stream-first"}},
-    {"event": {"rawEvent": {"streamName": "stream-first"}}},
-])
+@pytest.mark.parametrize(
+    "meta",
+    [
+        {"rawEvent": {"stream_name": "stream-first"}},
+        {"event": {"rawEvent": {"streamName": "stream-first"}}},
+    ],
+)
 def test_nested_raw_event_first_stream_is_supported(monkeypatch, meta):
-    monkeypatch.setattr(
-        thumbnails.urlrequest, "urlopen", lambda request, **kwargs: WorkerImage(b"\xff\xd8\xffframe")
-    )
+    monkeypatch.setattr(thumbnails.urlrequest, "urlopen", lambda request, **kwargs: WorkerImage(b"\xff\xd8\xffframe"))
     assert fetch(meta=meta) == b"\xff\xd8\xffframe"
 
 
 def test_incomplete_event_metadata_uses_saved_event_json(settings, tmp_path, monkeypatch):
     from plane.app.views import media_library
+
     calls = []
     monkeypatch.setattr(
-        media_library, "get_event_first_frame_thumbnail",
+        media_library,
+        "get_event_first_frame_thumbnail",
         lambda **kwargs: calls.append(kwargs) or b"\xff\xd8\xffframe",
     )
     _event_request(settings, tmp_path, meta={"artifact_type": "completed-event-json", "event": {}})
     assert calls[0]["event_payload"] == {"primaryStreamName": "stream-first"}
+
+
+def test_readonly_cache_miss_never_generates(monkeypatch):
+    calls = []
+
+    def missing(request, **kwargs):
+        calls.append(request.method)
+        raise HTTPError(request.full_url, 404, "missing", {}, None)
+
+    monkeypatch.setattr(thumbnails.urlrequest, "urlopen", missing)
+    assert fetch(allow_create=False) is None
+    assert calls == ["GET"]
+
+
+def test_generated_event_thumbnail_is_saved_in_manifest(settings, tmp_path, monkeypatch):
+    from plane.app.views import media_library
+    from plane.utils.media_library import read_manifest, manifest_path
+
+    monkeypatch.setattr(media_library, "get_event_first_frame_thumbnail", lambda **kwargs: b"\xff\xd8\xffframe")
+    _event_request(settings, tmp_path)
+    manifest = read_manifest(manifest_path("project-1", "package-1"))
+    saved = next(a for a in manifest["artifacts"] if a.get("format") == "thumbnail")
+    assert saved["link"] == "event-1"
+    assert (tmp_path / saved["path"]).read_bytes() == b"\xff\xd8\xffframe"
+
+
+def test_readonly_event_can_read_worker_cache_without_saving(settings, tmp_path, monkeypatch):
+    from plane.app.views import media_library
+    from plane.utils.media_library import read_manifest, manifest_path
+
+    calls = []
+    monkeypatch.setattr(media_library, "has_user_role", lambda *args: True)
+    monkeypatch.setattr(
+        media_library,
+        "get_event_first_frame_thumbnail",
+        lambda **kwargs: calls.append(kwargs) or b"\xff\xd8\xffcached",
+    )
+    _event_request(settings, tmp_path, user=object())
+    assert calls[0]["allow_create"] is False
+    assert len(read_manifest(manifest_path("project-1", "package-1"))["artifacts"]) == 1

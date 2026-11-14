@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role
+
 # Python imports
 import copy
 import json
@@ -78,6 +80,7 @@ from .. import BaseAPIView, BaseViewSet
 
 
 class IssueListEndpoint(BaseAPIView):
+    user_role_readonly = True
     filter_backends = (ComplexFilterBackend,)
     filterset_class = IssueFilterSet
 
@@ -204,6 +207,8 @@ class IssueListEndpoint(BaseAPIView):
 
 
 class IssueViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve"}
     model = Issue
     webhook_event = "issue"
     search_fields = ["name"]
@@ -358,6 +363,7 @@ class IssueViewSet(BaseViewSet):
                 role=5,
                 is_active=True,
             ).exists()
+            and not has_user_role(request, self)
             and not project.guest_view_all_features
         ):
             issue_queryset = issue_queryset.filter(created_by=request.user)
@@ -684,6 +690,7 @@ class IssueViewSet(BaseViewSet):
                 role=5,
                 is_active=True,
             ).exists()
+            and not has_user_role(request, self)
             and not project.guest_view_all_features
             and not issue.created_by == request.user
         ):
@@ -876,6 +883,10 @@ class IssueViewSet(BaseViewSet):
 
 
 class IssueUserDisplayPropertyEndpoint(BaseAPIView):
+    user_role_readonly = True
+    # PATCH updates only the authenticated user's filter row, never a shared item.
+    user_role_personal_preferences = True
+
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def patch(self, request, slug, project_id):
         issue_property = IssueUserProperty.objects.get(user=request.user, project_id=project_id)
@@ -958,6 +969,9 @@ class DeletedIssuesListViewSet(BaseAPIView):
 
 
 class IssuePaginatedViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve"}
+
     def get_queryset(self):
         workspace_slug = self.kwargs.get("slug")
         project_id = self.kwargs.get("project_id")
@@ -1060,7 +1074,7 @@ class IssuePaginatedViewSet(BaseViewSet):
             role=5,
             is_active=True,
         )
-        if project_member.exists() and not project.guest_view_all_features:
+        if project_member.exists() and not has_user_role(request, self) and not project.guest_view_all_features:
             base_queryset = base_queryset.filter(created_by=request.user)
             queryset = queryset.filter(created_by=request.user)
 
@@ -1118,6 +1132,7 @@ class IssuePaginatedViewSet(BaseViewSet):
 
 
 class IssueDetailEndpoint(BaseAPIView):
+    user_role_readonly = True
     filter_backends = (ComplexFilterBackend,)
     filterset_class = IssueFilterSet
 
@@ -1204,6 +1219,9 @@ class IssueDetailEndpoint(BaseAPIView):
         issue = Issue.issue_objects.filter(workspace__slug=slug, project_id=project_id).filter(
             Exists(permission_subquery)
         )
+
+        if has_user_role(request, self):
+            issue = Issue.issue_objects.filter(workspace__slug=slug, project_id=project_id)
 
         # Add additional prefetch based on expand parameter
         if self.expand:
@@ -1330,6 +1348,8 @@ class IssueBulkUpdateDateEndpoint(BaseAPIView):
 
 
 class IssueMetaEndpoint(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
     def get(self, request, slug, project_id, issue_id):
         issue = Issue.issue_objects.only("sequence_id", "project__identifier").get(
@@ -1493,6 +1513,7 @@ class IssueDetailIdentifierEndpoint(BaseAPIView):
                 role=5,
                 is_active=True,
             ).exists()
+            and not has_user_role(request, self)
             and not project.guest_view_all_features
             and not issue.created_by == request.user
         ):

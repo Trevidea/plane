@@ -15,6 +15,7 @@ from plane.db.models import RosterPlayer, User, Workspace, WorkspaceMemberInvite
 from plane.license.utils.instance_value import get_email_configuration
 from plane.utils.exception_logger import log_exception
 from plane.utils.player_invitations import invitation_roster, player_invitation_url
+from plane.utils.player_invitation_email import attach_player_invitation_images
 
 
 @shared_task
@@ -105,6 +106,8 @@ def workspace_invitation(email, workspace_id, token, current_site, inviter):
             connection=connection,
         )
         msg.attach_alternative(html_content, "text/html")
+        if workspace_member_invite.role == 1:
+            attach_player_invitation_images(msg, html_content)
         msg.send()
         logging.getLogger("plane.worker").info("Email sent successfully")
         return

@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState } from "react";
 import { observer } from "mobx-react";
 import { useParams } from "next/navigation";
@@ -13,6 +14,7 @@ import { cn } from "@plane/utils";
 import { captureClick } from "@/helpers/event-tracker.helper";
 import { useIssues } from "@/hooks/store/use-issues";
 import { useUserPermissions } from "@/hooks/store/user";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // local imports
 import { DeleteIssueModal } from "../../delete-issue-modal";
 import type { IQuickActionProps } from "../list/list-view-types";
@@ -36,6 +38,7 @@ export const ArchivedIssueQuickActions: React.FC<IQuickActionProps> = observer((
   const { workspaceSlug } = useParams();
   // store hooks
   const { allowPermissions } = useUserPermissions();
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug?.toString(), issue.project_id ?? undefined);
 
   const { issuesFilter } = useIssues(EIssuesStoreType.ARCHIVED);
   // derived values
@@ -74,6 +77,8 @@ export const ArchivedIssueQuickActions: React.FC<IQuickActionProps> = observer((
       item.action();
     },
   }));
+  if (isReadOnlyUser) return null;
+
   return (
     <>
       {/* Modals */}

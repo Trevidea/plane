@@ -163,19 +163,20 @@ class UserPlayerRoleTests(TestCase):
         )
         self.assertEqual(response.status_code, 404, response.json())
 
-    def test_generic_project_endpoints_fail_closed(self):
+    def test_approved_generic_project_reads_are_available_without_management_access(self):
         for suffix in (
             "issues/",
             f"issues/{self.other.id}/",
             "roster/",
             "members/",
             "states/",
-            "media-library/packages/",
             "cycles/",
             "modules/",
         ):
             response = self.client.get(self.generic + suffix)
-            self.assertIn(response.status_code, (403, 404), (suffix, response.status_code))
+            self.assertEqual(response.status_code, 200, (suffix, response.status_code, response.data))
+        response = self.client.post(self.generic + "media-library/packages/", {}, format="json")
+        self.assertEqual(response.status_code, 403)
 
     def test_cannot_create_edit_delete_or_bypass_with_creator_exception(self):
         self.other.created_by = self.user
@@ -191,23 +192,25 @@ class UserPlayerRoleTests(TestCase):
     def test_workspace_user_role_is_a_ceiling_over_elevated_project_role(self):
         self.project_member.role = 20
         self.project_member.save()
-        response = self.client.get(self.generic + "issues/")
+        response = self.client.patch(f"{self.generic}issues/{self.own.id}/", {"name": "Forbidden"}, format="json")
         self.assertEqual(response.status_code, 403, response.json())
 
     def test_project_user_role_restricts_workspace_member(self):
         self.membership.role = 15
         self.membership.save()
-        response = self.client.get(self.generic + "issues/")
+        response = self.client.patch(f"{self.generic}issues/{self.own.id}/", {"name": "Forbidden"}, format="json")
         self.assertEqual(response.status_code, 403, response.json())
 
-    def test_unscoped_workspace_search_and_member_listing_are_blocked(self):
+    def test_unscoped_search_is_blocked_and_member_names_do_not_expose_account_email(self):
         for path in (
-            f"/api/workspaces/{self.workspace.slug}/members/",
             f"/api/workspaces/{self.workspace.slug}/search/",
             "/api/users/me/activities/",
         ):
             response = self.client.get(path)
             self.assertIn(response.status_code, (403, 404), response.json() if hasattr(response, "data") else path)
+        response = self.client.get(f"/api/workspaces/{self.workspace.slug}/members/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(self.coach.email, response.content.decode())
 
     def test_api_key_cannot_bypass_user_access(self):
         token = APIToken.objects.create(user=self.user, label="Player test", token="player-role-token")
@@ -217,9 +220,10 @@ class UserPlayerRoleTests(TestCase):
         )
         self.assertEqual(response.status_code, 403, getattr(response, "data", None))
 
-    def test_generic_card_detail_is_blocked_but_personal_detail_is_available(self):
+    def test_shared_card_and_personal_detail_are_available_without_recipient_emails(self):
         response = self.client.get(f"{self.generic}coaching-cards/{self.card.id}/")
-        self.assertEqual(response.status_code, 403, response.json())
+        self.assertEqual(response.status_code, 200, response.json())
+        self.assertNotIn("private@role.test", response.content.decode())
         response = self.client.get(f"{self.base}{self.card.id}/")
         self.assertEqual(response.status_code, 200, response.json())
         self.assertEqual(response.json()["feedback"], "Keep practicing")

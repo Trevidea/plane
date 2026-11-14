@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState } from "react";
 import { observer } from "mobx-react";
 
@@ -24,6 +25,7 @@ import { captureClick, captureError, captureSuccess } from "@/helpers/event-trac
 import { useCycle } from "@/hooks/store/use-cycle";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useAppRouter } from "@/hooks/use-app-router";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import { useEndCycle, EndCycleModal } from "@/plane-web/components/cycles";
 // local imports
 import { ArchiveCycleModal } from "./archived-cycles/modal";
@@ -48,6 +50,7 @@ export const CycleQuickActions: React.FC<Props> = observer((props) => {
   const [deleteModal, setDeleteModal] = useState(false);
   // store hooks
   const { allowPermissions } = useUserPermissions();
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
   const { getCycleById, restoreCycle } = useCycle();
   const { t } = useTranslation();
   // derived values
@@ -179,6 +182,8 @@ export const CycleQuickActions: React.FC<Props> = observer((props) => {
       item.action();
     },
   }));
+
+  if (isReadOnlyUser) return null;
 
   return (
     <>

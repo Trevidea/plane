@@ -292,7 +292,7 @@ def _player_card_response(card, player_id, restricted_user=None, annotation_cach
     if restricted_user is not None:
         from plane.utils.player_activity_access import activity_data
 
-        personal = activity_data(card, restricted_user)
+        personal = activity_data(card, restricted_user, card_data=data)
         clips = [
             {
                 "id": clip["key"],
@@ -304,6 +304,9 @@ def _player_card_response(card, player_id, restricted_user=None, annotation_cach
                 "duration_seconds": clip["durationSeconds"],
                 "playback_mode": clip.get("playbackMode"),
                 "source_start_seconds": clip.get("sourceStartSeconds"),
+                "playlist_start_seconds": clip.get("playlistStartSeconds"),
+                "playlist_duration_seconds": clip.get("playlistDurationSeconds"),
+                "annotations": clip["annotations"],
             }
             for clip in personal["clips"]
         ]
@@ -555,6 +558,8 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
 
 
 class CoachingCardConfigEndpoint(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def get(self, request, slug, project_id):
         project = Project.objects.get(pk=project_id, workspace__slug=slug)
@@ -605,6 +610,8 @@ class CoachingCardMineEndpoint(BaseAPIView):
 
 
 class CoachingCardDetailEndpoint(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def get(self, request, slug, project_id, card_id):
         card = Issue.issue_objects.filter(
@@ -931,6 +938,8 @@ class CoachingCardReviewCompleteEndpoint(BaseAPIView):
 
 
 class CoachingCardStageHistoryEndpoint(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def get(self, request, slug, project_id, card_id):
         if not Issue.issue_objects.filter(

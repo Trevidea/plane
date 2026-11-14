@@ -1,5 +1,6 @@
 "use client";
 import type { FC } from "react";
+import { observer } from "mobx-react";
 import { Controller, useFormContext } from "react-hook-form";
 // plane imports
 import { NETWORK_CHOICES, ETabIndices } from "@plane/constants";
@@ -11,6 +12,8 @@ import { getTabIndex } from "@plane/utils";
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 import SportDropdown from "@/components/dropdowns/sport-property";
 import { ProjectNetworkIcon } from "@/components/project/project-network-icon";
+import { isProgramLeadCandidate } from "@/helpers/project-lead";
+import { useMember } from "@/hooks/store/use-member";
 
 type Props = {
   isMobile?: boolean;
@@ -20,6 +23,12 @@ const ProjectAttributes: FC<Props> = (props) => {
   const { isMobile = false } = props;
   const { t } = useTranslation();
   const { control } = useFormContext<IProject>();
+  const {
+    workspace: { workspaceMemberIds, getWorkspaceMemberDetails },
+  } = useMember();
+  const leadMemberIds = (workspaceMemberIds ?? []).filter((id) =>
+    isProgramLeadCandidate(getWorkspaceMemberDetails(id))
+  );
   const { getIndex } = getTabIndex(ETabIndices.PROJECT_CREATE, isMobile);
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -76,6 +85,7 @@ const ProjectAttributes: FC<Props> = (props) => {
             return (
               <div className="flex-shrink-0 h-7" tabIndex={getIndex("lead")}>
                 <MemberDropdown
+                  memberIds={leadMemberIds}
                   value={value ?? null}
                   onChange={(lead) => onChange(lead === value ? null : lead)}
                   placeholder={t("lead")}
@@ -107,4 +117,4 @@ const ProjectAttributes: FC<Props> = (props) => {
   );
 };
 
-export default ProjectAttributes;
+export default observer(ProjectAttributes);

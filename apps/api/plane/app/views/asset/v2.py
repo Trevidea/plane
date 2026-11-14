@@ -1,3 +1,6 @@
+from plane.utils.user_role_access import has_user_role
+from plane.utils.user_plane_read_data import user_shared_assets
+
 # Python imports
 import uuid
 
@@ -482,6 +485,7 @@ class AssetRestoreEndpoint(BaseAPIView):
 
 
 class ProjectAssetEndpoint(BaseAPIView):
+    user_role_readonly = True
     """This endpoint is used to upload cover images/logos etc for workspace, projects and users."""
 
     def get_entity_id_field(self, entity_type, entity_id):
@@ -624,7 +628,7 @@ class ProjectAssetEndpoint(BaseAPIView):
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def get(self, request, slug, project_id, pk):
         asset = FileAsset.objects.filter(workspace__slug=slug, project_id=project_id, pk=pk).first()
-        if not asset and request.query_params.get("response") == "json":
+        if not asset and request.query_params.get("response") == "json" and not has_user_role(request, self):
             # Allow media-library resolution for soft-deleted assets still present in MinIO.
             asset = FileAsset.all_objects.filter(
                 workspace__slug=slug,
@@ -632,6 +636,12 @@ class ProjectAssetEndpoint(BaseAPIView):
                 pk=pk,
                 is_deleted=True,
             ).first()
+        if (
+            asset
+            and has_user_role(request, self)
+            and not user_shared_assets(request.user, project_id).filter(pk=asset.pk).exists()
+        ):
+            asset = None
         if not asset:
             return Response(
                 {"error": "The requested asset could not be found."},
@@ -757,6 +767,7 @@ class WorkspaceAssetDownloadEndpoint(BaseAPIView):
 
 
 class ProjectAssetDownloadEndpoint(BaseAPIView):
+    user_role_readonly = True
     """Endpoint to generate a download link for an asset with content-disposition=attachment."""
 
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
@@ -773,6 +784,12 @@ class ProjectAssetDownloadEndpoint(BaseAPIView):
                 {"error": "The requested asset could not be found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        if (
+            has_user_role(request, self)
+            and not user_shared_assets(request.user, project_id).filter(pk=asset.pk).exists()
+        ):
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
         storage = S3Storage(request=request)
         signed_url = storage.generate_presigned_url(

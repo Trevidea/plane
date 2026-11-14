@@ -4,6 +4,7 @@ import { set } from "lodash-es";
 import { EIssueGroupBYServerToProperty } from "@plane/constants";
 import type { TIssue, TIssueParams } from "@plane/types";
 // lib
+import { isUserReadOnly } from "@/helpers/user-readonly";
 import { rootStore } from "@/lib/store-context";
 // services
 import { IssueService } from "@/services/issue/issue.service";
@@ -195,7 +196,7 @@ export class Storage {
   };
 
   syncIssues = async (projectId: string) => {
-    if (!rootStore.user.localDBEnabled || !this.db) {
+    if (this.isReadOnlyProject(this.workspaceSlug, projectId) || !rootStore.user.localDBEnabled || !this.db) {
       return false;
     }
     try {
@@ -257,7 +258,10 @@ export class Storage {
       }
     }
 
-    if (syncedAt) {
+    if (syncedAt && !isUserReadOnly(
+      rootStore.user.permission.getWorkspaceRoleByWorkspaceSlug(this.workspaceSlug),
+      rootStore.user.permission.getProjectRoleByWorkspaceSlugAndProjectId(this.workspaceSlug, projectId)
+    )) {
       await syncDeletesToLocal(this.workspaceSlug, projectId, { updated_at__gt: syncedAt });
     }
     log("### Time taken to add work items", performance.now() - start);
@@ -294,12 +298,20 @@ export class Storage {
     return issue.updated_at;
   };
 
+  private isReadOnlyProject = (workspaceSlug: string, projectId: string) => isUserReadOnly(
+    rootStore.user.permission.getWorkspaceRoleByWorkspaceSlug(workspaceSlug),
+    rootStore.user.permission.getProjectRoleByWorkspaceSlugAndProjectId(workspaceSlug, projectId)
+  );
+
   getIssues = async (
     workspaceSlug: string,
     projectId: string,
     queries: Partial<Record<TIssueParams, string | boolean>> | undefined,
     config: any
   ) => {
+    if (projectId && this.isReadOnlyProject(workspaceSlug, projectId)) {
+      return new IssueService().getIssuesFromServer(workspaceSlug, projectId, queries, config);
+    }
     log("#### Queries", queries);
 
     const currentProjectStatus = this.getStatus(projectId);
@@ -400,6 +412,7 @@ export class Storage {
 
       const issues = await runQuery(`select * from issues where id='${issueId}'`);
       if (Array.isArray(issues) && issues.length) {
+        if (this.isReadOnlyProject(this.workspaceSlug, issues[0].project_id)) return;
         return formatLocalIssue(issues[0]);
       }
     } catch (err) {
@@ -411,6 +424,9 @@ export class Storage {
   };
 
   getSubIssues = async (workspaceSlug: string, projectId: string, issueId: string) => {
+    if (this.isReadOnlyProject(workspaceSlug, projectId)) {
+      return new IssueService().subIssues(workspaceSlug, projectId, issueId);
+    }
     const workspace_synced_at = await this.getOption("workspace_synced_at");
     if (!workspace_synced_at) {
       const issueService = new IssueService();

@@ -1,7 +1,7 @@
-import type { MediaLibraryService } from "@/services/media-library.service";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
 import { getEventMediaDetails } from "ce/features/media-library/utils/media-event";
 import { mapArtifactsToMediaItems } from "ce/features/media-library/utils/media-items";
+import type { MediaLibraryService } from "@/services/media-library.service";
 import type { SgEventDevice, SgEventPayloadLoadResult, SgMediaPayload } from "./types";
 import {
   asArray,
@@ -156,9 +156,10 @@ export const loadSgMediaPayload = async (
   projectId: string,
   issueId: string,
   mediaItem: TMediaItem | null,
-  mediaLibraryService: MediaLibraryService
+  mediaLibraryService: MediaLibraryService,
+  readOnly = false
 ): Promise<SgMediaPayload> => {
-  const manifest = await mediaLibraryService.ensureProjectLibrary(workspaceSlug, projectId);
+  const manifest = await mediaLibraryService.ensureProjectLibrary(workspaceSlug, projectId, undefined, readOnly);
   const packageId = typeof manifest?.id === "string" ? manifest.id : "";
   const manifestArtifacts = Array.isArray(manifest?.artifacts) ? manifest.artifacts : [];
   const metadata =

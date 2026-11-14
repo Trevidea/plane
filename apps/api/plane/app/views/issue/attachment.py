@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role
+
 # Python imports
 import json
 import uuid
@@ -25,6 +27,7 @@ from plane.utils.host import base_host
 
 
 class IssueAttachmentEndpoint(BaseAPIView):
+    user_role_readonly = True
     serializer_class = IssueAttachmentSerializer
     model = FileAsset
     parser_classes = (MultiPartParser, FormParser)
@@ -81,6 +84,7 @@ class IssueAttachmentEndpoint(BaseAPIView):
 
 
 class IssueAttachmentV2Endpoint(BaseAPIView):
+    user_role_readonly = True
     serializer_class = IssueAttachmentSerializer
     model = FileAsset
 
@@ -175,7 +179,7 @@ class IssueAttachmentV2Endpoint(BaseAPIView):
                 "entity_type": FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
             }
             asset = FileAsset.objects.filter(**asset_filters).first()
-            if not asset and request.query_params.get("response") == "json":
+            if not asset and request.query_params.get("response") == "json" and not has_user_role(request, self):
                 # Media library can still resolve soft-deleted attachments to MinIO signed URLs.
                 asset = FileAsset.all_objects.filter(**asset_filters, is_deleted=True).first()
             if not asset:

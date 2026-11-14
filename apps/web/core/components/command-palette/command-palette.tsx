@@ -1,5 +1,6 @@
 "use client";
 
+
 import type { FC } from "react";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { observer } from "mobx-react";
@@ -19,6 +20,7 @@ import { useCommandPalette } from "@/hooks/store/use-command-palette";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useUser, useUserPermissions } from "@/hooks/store/user";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane web components
 import {
   IssueLevelModals,
@@ -44,6 +46,7 @@ export const CommandPalette: FC = observer(() => {
   const { data: currentUser, canPerformAnyCreateAction } = useUser();
   const { toggleCommandPaletteModal, isShortcutModalOpen, toggleShortcutModal, isAnyModalOpen } = useCommandPalette();
   const { allowPermissions } = useUserPermissions();
+  const isReadOnlyUser = useUserReadOnly();
 
   // derived values
   const projectIdentifier = workItem?.toString().split("-")[0];
@@ -250,11 +253,12 @@ export const CommandPalette: FC = observer(() => {
   );
 
   useEffect(() => {
+    if (isReadOnlyUser) return;
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+  }, [handleKeyDown, isReadOnlyUser]);
 
-  if (!currentUser) return null;
+  if (!currentUser || isReadOnlyUser) return null;
 
   return (
     <>

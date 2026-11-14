@@ -8,6 +8,7 @@ import {
   validWorkflowPolicy,
   WorkflowObserver,
 } from "@/helpers/workflow-diagnostics";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import { DiagnosticsService } from "@/services/diagnostics.service";
 
 const service = new DiagnosticsService();
@@ -209,12 +210,13 @@ function Notice({ observer, sharing }: { observer: WorkflowObserver; sharing: bo
 
 export function WorkflowReporting() {
   const params = useParams();
+  const readOnly = useUserReadOnly();
   const workspace = typeof params.workspaceSlug === "string" ? params.workspaceSlug : "";
   const project = typeof params.projectId === "string" ? params.projectId : "";
   const [channel, setChannel] = useState<{ observer: WorkflowObserver; sharing: boolean } | null>(null);
   useEffect(() => {
     setChannel(null);
-    if (!workspace || !project) return;
+    if (readOnly || !workspace || !project) return;
     const controller = new AbortController();
     let dispose: (() => void) | undefined;
     const endpoint = (view: string) => operationEndpoint(workspace, project, view);
@@ -254,8 +256,8 @@ export function WorkflowReporting() {
       controller.abort();
       dispose?.();
     };
-  }, [workspace, project]);
-  return channel?.observer.workspace === workspace && channel.observer.project === project ? (
+  }, [workspace, project, readOnly]);
+  return !readOnly && channel?.observer.workspace === workspace && channel.observer.project === project ? (
     <Notice key={`${workspace}/${project}`} observer={channel.observer} sharing={channel.sharing} />
   ) : null;
 }

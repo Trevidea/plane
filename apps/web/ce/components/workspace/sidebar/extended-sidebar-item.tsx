@@ -20,6 +20,7 @@ import { SidebarNavItem } from "@/components/sidebar/sidebar-navigation";
 import { useAppTheme } from "@/hooks/store/use-app-theme";
 import { useWorkspace } from "@/hooks/store/use-workspace";
 import { useUser, useUserPermissions } from "@/hooks/store/user";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane web imports
 // local imports
 import { UpgradeBadge } from "../upgrade-badge";
@@ -55,6 +56,7 @@ export const ExtendedSidebarItem: FC<TExtendedSidebarItemProps> = observer((prop
   const { toggleExtendedSidebar } = useAppTheme();
   const { data } = useUser();
   const { allowPermissions } = useUserPermissions();
+  const readOnly = useUserReadOnly(workspaceSlug.toString(), "");
 
   // derived values
   const sidebarPreference = getNavigationPreferences(workspaceSlug.toString());
@@ -62,7 +64,11 @@ export const ExtendedSidebarItem: FC<TExtendedSidebarItemProps> = observer((prop
 
   const handleLinkClick = () => toggleExtendedSidebar(true);
 
-  if (!allowPermissions(item.access as any, EUserPermissionsLevel.WORKSPACE, workspaceSlug.toString())) {
+  if (
+    readOnly
+      ? !["home", "projects"].includes(item.key)
+      : !allowPermissions(item.access as any, EUserPermissionsLevel.WORKSPACE, workspaceSlug.toString())
+  ) {
     return null;
   }
 

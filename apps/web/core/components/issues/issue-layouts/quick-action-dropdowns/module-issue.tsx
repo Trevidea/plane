@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState } from "react";
 import { omit } from "lodash-es";
 import { observer } from "mobx-react";
@@ -22,6 +23,7 @@ import { useIssues } from "@/hooks/store/use-issues";
 import { useProject } from "@/hooks/store/use-project";
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { useUserPermissions } from "@/hooks/store/user";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane-web components
 import { DuplicateWorkItemModal } from "@/plane-web/components/issues/issue-layouts/quick-action-dropdowns/duplicate-modal";
 // helper
@@ -56,6 +58,7 @@ export const ModuleIssueQuickActions: React.FC<IQuickActionProps> = observer((pr
   // store hooks
   const { issuesFilter } = useIssues(EIssuesStoreType.MODULE);
   const { allowPermissions } = useUserPermissions();
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug?.toString(), issue.project_id ?? undefined);
   const { getStateById } = useProjectState();
   const { getProjectIdentifierById } = useProject();
   // derived values
@@ -116,6 +119,8 @@ export const ModuleIssueQuickActions: React.FC<IQuickActionProps> = observer((pr
       item.action();
     },
   }));
+  if (isReadOnlyUser) return null;
+
   return (
     <>
       {/* Modals */}

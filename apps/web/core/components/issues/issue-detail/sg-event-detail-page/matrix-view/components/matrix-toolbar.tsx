@@ -6,6 +6,7 @@ import { Columns3, ListPlus, Plus, X } from "lucide-react";
 import { Button } from "@plane/ui";
 
 import { cn } from "@plane/utils";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import type { MatrixColumn, MatrixFilterOptions, MatrixFilterState } from "../types/matrix.types";
 import { AxisViewToggle } from "./axis-view-toggle";
 import { MatrixColumnsPanel } from "./matrix-columns-panel";
@@ -61,6 +62,7 @@ export const MatrixToolbar = ({
   viewToggle,
 }: MatrixToolbarProps) => {
   const [isColumnsPanelOpen, setIsColumnsPanelOpen] = useState(false);
+  const isReadOnlyUser = useUserReadOnly();
   const visibleColumnIdSet = new Set(visibleColumnIds);
   const visibleColumnCount = columns.filter((column) => visibleColumnIdSet.has(column.id)).length;
 
@@ -122,38 +124,42 @@ export const MatrixToolbar = ({
               {visibleColumnCount}/{columns.length}
             </span>
           </Button>
-          <Button
-            unstyled
-            type="button"
-            disabled={disabled || !canCreateCard}
-            title={cardDisabledReason}
-            aria-describedby={cardDisabledReason ? "matrix-card-reason" : undefined}
-            onClick={onCreateCard}
-            className="inline-flex h-7 items-center gap-1.5 rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-selected-nav)] px-2.5 text-[11px] font-normal text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] disabled:cursor-not-allowed disabled:text-[var(--sg-matrix-text-disabled)] disabled:opacity-45"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Create Card
-          </Button>
-          <Button
-            unstyled
-            type="button"
-            disabled={disabled || !canCreatePlaylist || selectedPlayableRowCount === 0}
-            onClick={onCreatePlaylist}
-            title={playlistDisabledReason}
-            aria-describedby={playlistDisabledReason ? "matrix-playlist-reason" : undefined}
-            className="inline-flex h-7 items-center gap-1.5 rounded-[5px] border border-custom-primary-100 bg-custom-primary-100 px-2.5 text-[11px] font-normal text-white transition-colors hover:border-custom-primary-200 hover:bg-custom-primary-200 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <ListPlus className="h-3.5 w-3.5" />
-            {isCreatingPlaylist ? "Creating" : "Create Playlist"}
-          </Button>
+          {!isReadOnlyUser && (
+            <>
+              <Button
+                unstyled
+                type="button"
+                disabled={disabled || !canCreateCard}
+                title={cardDisabledReason}
+                aria-describedby={cardDisabledReason ? "matrix-card-reason" : undefined}
+                onClick={onCreateCard}
+                className="inline-flex h-7 items-center gap-1.5 rounded-[5px] border border-[var(--sg-matrix-border)] bg-[var(--sg-matrix-selected-nav)] px-2.5 text-[11px] font-normal text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] disabled:cursor-not-allowed disabled:text-[var(--sg-matrix-text-disabled)] disabled:opacity-45"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create Card
+              </Button>
+              <Button
+                unstyled
+                type="button"
+                disabled={disabled || !canCreatePlaylist || selectedPlayableRowCount === 0}
+                onClick={onCreatePlaylist}
+                title={playlistDisabledReason}
+                aria-describedby={playlistDisabledReason ? "matrix-playlist-reason" : undefined}
+                className="inline-flex h-7 items-center gap-1.5 rounded-[5px] border border-custom-primary-100 bg-custom-primary-100 px-2.5 text-[11px] font-normal text-white transition-colors hover:border-custom-primary-200 hover:bg-custom-primary-200 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <ListPlus className="h-3.5 w-3.5" />
+                {isCreatingPlaylist ? "Creating" : "Create Playlist"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
-      {cardDisabledReason && (
+      {!isReadOnlyUser && cardDisabledReason && (
         <p id="matrix-card-reason" role="status" className="text-[10px] text-[var(--sg-matrix-text-secondary)]">
           {cardDisabledReason}
         </p>
       )}
-      {playlistDisabledReason && (
+      {!isReadOnlyUser && playlistDisabledReason && (
         <p id="matrix-playlist-reason" role="status" className="text-[10px] text-[var(--sg-matrix-text-secondary)]">
           {playlistDisabledReason}
         </p>

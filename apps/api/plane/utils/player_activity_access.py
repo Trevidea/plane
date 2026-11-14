@@ -17,6 +17,7 @@ from plane.db.models import (
     WorkspaceMember,
 )
 from plane.utils.coaching_card_clips import normalize_card_clips
+from plane.utils.player_card_annotations import player_clip_drawings
 
 
 def player_programs(user):
@@ -82,10 +83,11 @@ def media_references(issue):
     }
 
 
-def activity_data(issue, user):
-    data = issue.coaching_card_data or {}
+def activity_data(issue, user, *, card_data=None):
+    data = card_data if card_data is not None else issue.coaching_card_data or {}
     base = f"/api/player/workspaces/{issue.project.workspace.slug}/projects/{issue.project_id}/activities/{issue.id}/"
     clips = []
+    drawing_budget = {}
     playlists = data.get("playlists") or []
     if not playlists and data.get("primary_clip"):
         primary = data["primary_clip"]
@@ -148,6 +150,9 @@ def activity_data(issue, user):
                     "durationSeconds": clip.get("duration_seconds"),
                     "playbackMode": clip.get("playback_mode"),
                     "sourceStartSeconds": clip.get("source_start_seconds"),
+                    "playlistStartSeconds": clip.get("playlist_start_seconds"),
+                    "playlistDurationSeconds": clip.get("playlist_duration_seconds"),
+                    "annotations": player_clip_drawings(clip, media, drawing_budget),
                 }
             )
     progress = PlayerActivityProgress.objects.filter(issue=issue, user=user).first()

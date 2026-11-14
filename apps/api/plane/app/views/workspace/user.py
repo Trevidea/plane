@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Python imports
 import copy
 from datetime import date
@@ -62,6 +64,9 @@ from plane.utils.filters import IssueFilterSet
 
 
 class UserLastProjectWithWorkspaceEndpoint(BaseAPIView):
+    user_role_readonly_global = True
+    user_role_readonly = True
+
     def get(self, request):
         user = User.objects.get(pk=request.user.id)
 
@@ -73,6 +78,22 @@ class UserLastProjectWithWorkspaceEndpoint(BaseAPIView):
                 status=status.HTTP_200_OK,
             )
 
+        if has_user_role(request, self):
+            workspace = Workspace.objects.filter(
+                pk=last_workspace_id, workspace_member__member=request.user, workspace_member__is_active=True
+            ).first()
+            if workspace is None:
+                return Response({"project_details": [], "workspace_details": {}})
+            projects = user_readonly_projects(request.user, workspace.slug)
+            memberships = [
+                ProjectMember(project=project, workspace=workspace, member=request.user, role=1) for project in projects
+            ]
+            return Response(
+                {
+                    "workspace_details": WorkSpaceSerializer(workspace).data,
+                    "project_details": ProjectMemberSerializer(memberships, many=True).data,
+                }
+            )
         workspace = Workspace.objects.get(pk=last_workspace_id)
         workspace_serializer = WorkSpaceSerializer(workspace)
 
@@ -246,6 +267,7 @@ class WorkspaceUserProfileIssuesEndpoint(BaseAPIView):
 
 
 class WorkspaceUserPropertiesEndpoint(BaseAPIView):
+    user_role_readonly = True
     permission_classes = [WorkspaceViewerPermission]
 
     def patch(self, request, slug):

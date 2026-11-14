@@ -50,6 +50,7 @@ from plane.bgtasks.page_version_task import page_version
 from plane.bgtasks.recent_visited_task import recent_visited_task
 from plane.bgtasks.copy_s3_object import copy_s3_objects_of_description_and_assets
 from plane.app.permissions import ProjectPagePermission
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
 
 
 def unarchive_archive_page_and_descendants(page_id, archived_at):
@@ -69,12 +70,26 @@ def unarchive_archive_page_and_descendants(page_id, archived_at):
 
 
 class PageViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve", "summary"}
     serializer_class = PageSerializer
     model = Page
     permission_classes = [ProjectPagePermission]
     search_fields = ["name"]
 
     def get_queryset(self):
+        readonly = has_user_role(self.request, self)
+        membership_filter = Q(
+            projects__project_projectmember__member=self.request.user,
+            projects__project_projectmember__is_active=True,
+            projects__archived_at__isnull=True,
+        )
+        association_filter = ~Q(projects__id=True)
+        if readonly:
+            membership_filter = Q(projects__id=self.kwargs.get("project_id"), archived_at__isnull=True)
+            association_filter = Q(
+                projects__id__in=user_readonly_projects(self.request.user, self.kwargs.get("slug")).values("id")
+            )
         subquery = UserFavorite.objects.filter(
             user=self.request.user,
             entity_type="page",
@@ -85,11 +100,7 @@ class PageViewSet(BaseViewSet):
             super()
             .get_queryset()
             .filter(workspace__slug=self.kwargs.get("slug"))
-            .filter(
-                projects__project_projectmember__member=self.request.user,
-                projects__project_projectmember__is_active=True,
-                projects__archived_at__isnull=True,
-            )
+            .filter(membership_filter)
             .filter(parent__isnull=True)
             .filter(Q(owned_by=self.request.user) | Q(access=0))
             .prefetch_related("projects")
@@ -114,7 +125,7 @@ class PageViewSet(BaseViewSet):
                     Value([], output_field=ArrayField(UUIDField())),
                 ),
                 project_ids=Coalesce(
-                    ArrayAgg("projects__id", distinct=True, filter=~Q(projects__id=True)),
+                    ArrayAgg("projects__id", distinct=True, filter=association_filter),
                     Value([], output_field=ArrayField(UUIDField())),
                 ),
             )
@@ -203,6 +214,7 @@ class PageViewSet(BaseViewSet):
                 role=5,
                 is_active=True,
             ).exists()
+            and not has_user_role(request, self)
             and not project.guest_view_all_features
             and not page.owned_by == request.user
         ):
@@ -219,7 +231,7 @@ class PageViewSet(BaseViewSet):
             )
             data = PageDetailSerializer(page).data
             data["issue_ids"] = issue_ids
-            if track_visit:
+            if track_visit and not has_user_role(request, self):
                 recent_visited_task.delay(
                     slug=slug,
                     entity_name="page",
@@ -270,6 +282,7 @@ class PageViewSet(BaseViewSet):
                 role=5,
                 is_active=True,
             ).exists()
+            and not has_user_role(request, self)
             and not project.guest_view_all_features
         ):
             queryset = queryset.filter(owned_by=request.user)
@@ -370,6 +383,15 @@ class PageViewSet(BaseViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def summary(self, request, slug, project_id):
+        if has_user_role(request, self):
+            queryset = self.get_queryset()
+            return Response(
+                {
+                    "public_pages": queryset.filter(access=Page.PUBLIC_ACCESS).count(),
+                    "private_pages": queryset.filter(access=Page.PRIVATE_ACCESS).count(),
+                    "archived_pages": 0,
+                }
+            )
         queryset = (
             Page.objects.filter(workspace__slug=slug)
             .filter(
@@ -447,6 +469,8 @@ class PageFavoriteViewSet(BaseViewSet):
 
 
 class PagesDescriptionViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"retrieve"}
     permission_classes = [ProjectPagePermission]
 
     def retrieve(self, request, slug, project_id, page_id):

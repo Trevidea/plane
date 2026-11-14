@@ -1,5 +1,7 @@
 "use client";
 
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
+
 import type { FC } from "react";
 import React, { useCallback, useMemo, useState } from "react";
 
@@ -84,6 +86,7 @@ export const IssueDetailWidgetActionButtons: FC<Props> = observer((props) => {
   const [isAddingToMediaLibrary, setIsAddingToMediaLibrary] = useState(false);
   // services
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
 
   const issue = issueStore.getIssueById(issueId);
   const createdByDetails = issue?.created_by ? getUserDetails(issue.created_by) : undefined;
@@ -256,6 +259,8 @@ export const IssueDetailWidgetActionButtons: FC<Props> = observer((props) => {
       },
     });
   }, [disabled, handleAddAssetsToMediaLibrary, isAddingToMediaLibrary]);
+
+  if (isReadOnlyUser) return null;
 
   return (
     <div className="flex items-center flex-wrap gap-2">

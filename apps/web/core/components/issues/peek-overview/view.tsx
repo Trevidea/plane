@@ -340,6 +340,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
 
                     {issue && (
                       <CoachingCardClips
+                        disabled={disabled || is_archived}
                         key={issue.id}
                         issue={issue}
                         workspaceSlug={workspaceSlug}
@@ -359,7 +360,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                       workspaceSlug={workspaceSlug}
                       projectId={projectId}
                       issueId={issueId}
-                      disabled={is_archived}
+                      disabled={disabled || is_archived}
                     />
                   </div>
                 ) : (
@@ -400,6 +401,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
 
                         {issue && (
                           <CoachingCardClips
+                            disabled={disabled || is_archived}
                             key={issue.id}
                             issue={issue}
                             workspaceSlug={workspaceSlug}
@@ -411,7 +413,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                           workspaceSlug={workspaceSlug}
                           projectId={projectId}
                           issueId={issueId}
-                          disabled={is_archived}
+                          disabled={disabled || is_archived}
                         />
                       </div>
                     </div>

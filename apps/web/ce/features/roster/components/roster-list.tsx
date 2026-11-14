@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { IRosterPlayer, TRosterPlayerStatus } from "@plane/types";
 import { Checkbox, CustomMenu, cn } from "@plane/ui";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import type { IRosterGroup, IRosterGroupedResponse } from "../store/roster-context";
 import { useRoster } from "../store/roster-context";
 import { canDeleteRosterPlayer, formatTimestamp, getRosterAccountStatus, toDisplayStatus } from "../utils/roster.utils";
@@ -473,6 +474,7 @@ const RosterPlayerCell = ({ player, selectionControl }: { player: IRosterPlayer;
 
 const RosterActionsMenu = observer(({ player }: { player: IRosterPlayer }) => {
   const { canManage, openEditPlayerModal, openDeletePlayerModal } = useRoster();
+  if (!canManage) return null;
 
   return (
     <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
@@ -504,7 +506,7 @@ const RosterActionsMenu = observer(({ player }: { player: IRosterPlayer }) => {
   );
 });
 
-const RosterLoadingRows = ({ columns }: { columns: TRosterColumn[] }) => (
+const RosterLoadingRows = ({ columns, showActions }: { columns: TRosterColumn[]; showActions: boolean }) => (
   <>
     {Array.from({ length: 6 }).map((_, rowIndex) => (
       <tr key={rowIndex} className="group bg-custom-background-100">
@@ -519,9 +521,11 @@ const RosterLoadingRows = ({ columns }: { columns: TRosterColumn[] }) => (
             <span className="h-3 w-20 animate-pulse rounded bg-custom-background-80" />
           </RosterTableCell>
         ))}
-        <RosterTableCell isActionsColumn>
-          <span className="h-5 w-5 animate-pulse rounded bg-custom-background-80" />
-        </RosterTableCell>
+        {showActions && (
+          <RosterTableCell isActionsColumn>
+            <span className="h-5 w-5 animate-pulse rounded bg-custom-background-80" />
+          </RosterTableCell>
+        )}
       </tr>
     ))}
   </>
@@ -591,9 +595,15 @@ export const RosterTable = observer(
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [sortConfig, setSortConfig] = useState<TRosterSortConfig | null>(null);
 
+    const isReadOnlyUser = useUserReadOnly();
     const visibleColumns = useMemo(
-      () => ROSTER_COLUMNS.filter((column) => displayProperties[column.key]),
-      [displayProperties]
+      () =>
+        ROSTER_COLUMNS.filter(
+          (column) =>
+            displayProperties[column.key] &&
+            (!isReadOnlyUser || ["jersey_number", "position", "height", "weight", "class_year"].includes(column.key))
+        ),
+      [displayProperties, isReadOnlyUser]
     );
     const sortedPlayers = useMemo(() => sortRosterPlayers(players, sortConfig), [players, sortConfig]);
     const allVisiblePlayerIds = useMemo(() => sortedPlayers.map((player) => player.id), [sortedPlayers]);
@@ -629,7 +639,7 @@ export const RosterTable = observer(
       return () => currentContainer.removeEventListener("scroll", handleScroll);
     }, [handleScroll]);
 
-    const columnCount = visibleColumns.length + 2;
+    const columnCount = visibleColumns.length + (isReadOnlyUser ? 1 : 2);
     const hasActiveFilters =
       searchValue.trim().length > 0 ||
       Boolean(selectedPosition) ||
@@ -666,9 +676,11 @@ export const RosterTable = observer(
             {column.render(player)}
           </RosterTableCell>
         ))}
-        <RosterTableCell isActionsColumn>
-          <RosterActionsMenu player={player} />
-        </RosterTableCell>
+        {!isReadOnlyUser && (
+          <RosterTableCell isActionsColumn>
+            <RosterActionsMenu player={player} />
+          </RosterTableCell>
+        )}
       </tr>
     );
 
@@ -744,12 +756,12 @@ export const RosterTable = observer(
                     onClearSort={handleClearSort}
                   />
                 ))}
-                <RosterTableHeaderCell label="Actions" />
+                {!isReadOnlyUser && <RosterTableHeaderCell label="Actions" />}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <RosterLoadingRows columns={visibleColumns} />
+                <RosterLoadingRows columns={visibleColumns} showActions={!isReadOnlyUser} />
               ) : groupedRoster?.results.length ? (
                 renderGroupedRows(groupedRoster.results)
               ) : sortedPlayers.length > 0 ? (

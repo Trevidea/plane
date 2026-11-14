@@ -2315,7 +2315,7 @@ export default {
   },
   role_details: {
     user: {
-      title: "User",
+      title: "Athlete",
       description: "Assigned activities and personal feedback, with personal progress, comments, and reactions.",
     },
     guest: {

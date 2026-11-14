@@ -1,3 +1,4 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
 import copy
 
 # Django imports
@@ -46,6 +47,7 @@ from plane.utils.filters import IssueFilterSet
 
 
 class WorkspaceViewViewSet(BaseViewSet):
+    user_role_readonly = True
     serializer_class = IssueViewSerializer
     model = IssueView
 
@@ -59,6 +61,7 @@ class WorkspaceViewViewSet(BaseViewSet):
             .get_queryset()
             .filter(workspace__slug=self.kwargs.get("slug"))
             .filter(project__isnull=True)
+            .filter(**({"owned_by": self.request.user} if has_user_role(self.request, self) else {}))
             .filter(Q(owned_by=self.request.user) | Q(access=1))
             .order_by(self.request.GET.get("order_by", "-created_at"))
             .distinct()
@@ -67,6 +70,8 @@ class WorkspaceViewViewSet(BaseViewSet):
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="WORKSPACE")
     def list(self, request, slug):
         queryset = self.get_queryset()
+        if has_user_role(request, self):
+            queryset = queryset.filter(owned_by=request.user)
         fields = [field for field in request.GET.get("fields", "").split(",") if field]
         if WorkspaceMember.objects.filter(workspace__slug=slug, member=request.user, role=5, is_active=True).exists():
             queryset = queryset.filter(owned_by=request.user)
@@ -250,6 +255,7 @@ class WorkspaceViewIssuesViewSet(BaseViewSet):
 
 
 class IssueViewViewSet(BaseViewSet):
+    user_role_readonly = True
     serializer_class = IssueViewSerializer
     model = IssueView
 
@@ -270,8 +276,14 @@ class IssueViewViewSet(BaseViewSet):
             .filter(workspace__slug=self.kwargs.get("slug"))
             .filter(project_id=self.kwargs.get("project_id"))
             .filter(
-                project__project_projectmember__member=self.request.user,
-                project__project_projectmember__is_active=True,
+                **(
+                    {"project_id__in": user_readonly_projects(self.request.user, self.kwargs.get("slug")).values("id")}
+                    if has_user_role(self.request, self)
+                    else {
+                        "project__project_projectmember__member": self.request.user,
+                        "project__project_projectmember__is_active": True,
+                    }
+                ),
                 project__archived_at__isnull=True,
             )
             .filter(Q(owned_by=self.request.user) | Q(access=1))
@@ -294,6 +306,7 @@ class IssueViewViewSet(BaseViewSet):
                 role=5,
                 is_active=True,
             ).exists()
+            and not has_user_role(request, self)
             and not project.guest_view_all_features
         ):
             queryset = queryset.filter(owned_by=request.user)
@@ -304,6 +317,8 @@ class IssueViewViewSet(BaseViewSet):
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def retrieve(self, request, slug, project_id, pk):
         issue_view = self.get_queryset().filter(pk=pk, project_id=project_id).first()
+        if issue_view is None:
+            return Response({"detail": "View not found."}, status=status.HTTP_404_NOT_FOUND)
         project = Project.objects.get(id=project_id)
         """
         if the role is guest and guest_view_all_features is false and owned by is not 
@@ -318,6 +333,7 @@ class IssueViewViewSet(BaseViewSet):
                 role=5,
                 is_active=True,
             ).exists()
+            and not has_user_role(request, self)
             and not project.guest_view_all_features
             and not issue_view.owned_by == request.user
         ):

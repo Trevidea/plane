@@ -14,6 +14,8 @@ from .base import BaseViewSet
 
 
 class RosterPlayerViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve"}
     permission_classes = [ProjectEntityPermission]
     model = RosterPlayer
     serializer_class = RosterPlayerSerializer

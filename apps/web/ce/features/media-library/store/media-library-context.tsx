@@ -1,5 +1,6 @@
 "use client";
 
+
 import type { ReactNode } from "react";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -9,6 +10,7 @@ import type { TFilterConfig, TFilterValue } from "@plane/types";
 
 import { beginWorkflow, failWorkflow } from "@/helpers/workflow-diagnostics";
 import type { WorkflowOperation } from "@/helpers/workflow-diagnostics";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import type { TMediaArtifactPayload, TMediaTranscodeJobStatus } from "@/services/media-library.service";
 import { MediaLibraryService } from "@/services/media-library.service";
 import { getDocumentThumbnailPath } from "../utils/media-items";
@@ -102,6 +104,7 @@ const getTrackedTranscodeJobKey = (job: TMediaTranscodeJobTrackerInput) =>
 
 export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
+  const isReadOnlyUser = useUserReadOnly();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
   const [libraryVersion, setLibraryVersion] = useState(0);
@@ -130,7 +133,9 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
     );
   }, []);
 
-  const openUpload = useCallback(() => setIsUploadOpen(true), []);
+  const openUpload = useCallback(() => {
+    if (!isReadOnlyUser) setIsUploadOpen(true);
+  }, [isReadOnlyUser]);
   const closeUpload = useCallback(() => {
     setPendingUploadFiles([]);
     setIsUploadOpen(false);
@@ -461,7 +466,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
 
   const enqueueUploadBatch = useCallback(
     (input: TMediaLibraryUploadBatchInput) => {
-      if (!input.files.length || !input.workspaceSlug || !input.projectId) return [];
+      if (isReadOnlyUser || !input.files.length || !input.workspaceSlug || !input.projectId) return [];
       const jobs = buildMediaLibraryUploadJobs(input);
       jobs.forEach((job) => {
         logMediaUploadLifecycle({
@@ -478,7 +483,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
       void processUploadBatch(jobs);
       return jobs;
     },
-    [processUploadBatch]
+    [isReadOnlyUser, processUploadBatch]
   );
 
   const cancelUploadJob = useCallback(
@@ -510,6 +515,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
 
   const retryUploadJob = useCallback(
     (jobId: string) => {
+      if (isReadOnlyUser) return;
       const job = uploadJobsRef.current.find((entry) => entry.id === jobId);
       if (!job || isActiveUploadStatus(job.status)) return;
       const retryJob: TMediaLibraryUploadJob = {
@@ -536,7 +542,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
       setUploadJobs((prev) => prev.map((entry) => (entry.id === jobId ? retryJob : entry)));
       void processUploadBatch([retryJob]);
     },
-    [processUploadBatch]
+    [isReadOnlyUser, processUploadBatch]
   );
 
   const dismissUploadJob = useCallback((jobId: string) => {
@@ -595,7 +601,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
   }, [pathname]);
 
   useEffect(() => {
-    if (!trackedTranscodeJobSignature) return;
+    if (isReadOnlyUser || !trackedTranscodeJobSignature) return;
 
     let isDisposed = false;
     let isPolling = false;
@@ -687,7 +693,7 @@ export const MediaLibraryProvider = ({ children }: { children: ReactNode }) => {
       isDisposed = true;
       window.clearInterval(intervalId);
     };
-  }, [mediaLibraryService, refreshLibrary, trackedTranscodeJobSignature, updateUploadJob]);
+  }, [isReadOnlyUser, mediaLibraryService, refreshLibrary, trackedTranscodeJobSignature, updateUploadJob]);
 
   useEffect(() => {
     const configs = filterConfigsRef.current.get(activeScopeKey) ?? [];

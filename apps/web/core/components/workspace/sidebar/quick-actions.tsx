@@ -15,6 +15,7 @@ import { useCommandPalette } from "@/hooks/store/use-command-palette";
 import { useProject } from "@/hooks/store/use-project";
 import { useUserPermissions } from "@/hooks/store/user";
 import useLocalStorage from "@/hooks/use-local-storage";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane web components
 import { AppSearch } from "@/plane-web/components/workspace/sidebar/app-search";
 
@@ -33,6 +34,7 @@ export const SidebarQuickActions = observer(() => {
   const { toggleCreateIssueModal } = useCommandPalette();
   const { joinedProjectIds } = useProject();
   const { allowPermissions } = useUserPermissions();
+  const readOnly = useUserReadOnly();
   // local storage
   const { storedValue, setValue } = useLocalStorage<Record<string, Partial<TIssue>>>("draftedIssue", {});
   // derived values
@@ -75,20 +77,22 @@ export const SidebarQuickActions = observer(() => {
         isDraft
       />
       <div className="flex items-center justify-between gap-2 cursor-pointer">
-        <SidebarAddButton
-          label={
-            <>
-              <AddIcon className="size-4" />
-              <span className="text-sm font-medium truncate max-w-[145px]">{t("sidebar.new_work_item")}</span>
-            </>
-          }
-          onClick={() => toggleCreateIssueModal(true)}
-          disabled={disabled}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          data-ph-element={SIDEBAR_TRACKER_ELEMENTS.CREATE_WORK_ITEM_BUTTON}
-        />
-        <AppSearch />
+        {!readOnly && (
+          <SidebarAddButton
+            label={
+              <>
+                <AddIcon className="size-4" />
+                <span className="text-sm font-medium truncate max-w-[145px]">{t("sidebar.new_work_item")}</span>
+              </>
+            }
+            onClick={() => toggleCreateIssueModal(true)}
+            disabled={disabled}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            data-ph-element={SIDEBAR_TRACKER_ELEMENTS.CREATE_WORK_ITEM_BUTTON}
+          />
+        )}
+        {!readOnly && <AppSearch />}
       </div>
     </>
   );

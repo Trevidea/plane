@@ -4,10 +4,13 @@ from rest_framework.permissions import SAFE_METHODS, BasePermission
 # Module import
 from plane.db.models import ProjectMember, WorkspaceMember
 from plane.db.models.project import ROLE
+from plane.utils.user_role_access import readonly_user_access_allowed
 
 
 class ProjectBasePermission(BasePermission):
     def has_permission(self, request, view):
+        if readonly_user_access_allowed(request, view):
+            return True
         if request.user.is_anonymous:
             return False
 
@@ -51,6 +54,8 @@ class ProjectBasePermission(BasePermission):
 
 class ProjectMemberPermission(BasePermission):
     def has_permission(self, request, view):
+        if readonly_user_access_allowed(request, view):
+            return True
         if request.user.is_anonymous:
             return False
 
@@ -80,6 +85,8 @@ class ProjectMemberPermission(BasePermission):
 
 class ProjectEntityPermission(BasePermission):
     def has_permission(self, request, view):
+        if readonly_user_access_allowed(request, view):
+            return True
         if request.user.is_anonymous:
             return False
 
@@ -114,6 +121,8 @@ class ProjectEntityPermission(BasePermission):
 
 class ProjectLitePermission(BasePermission):
     def has_permission(self, request, view):
+        if readonly_user_access_allowed(request, view):
+            return True
         if request.user.is_anonymous:
             return False
 

@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Python imports
 import csv
 import io
@@ -46,6 +48,9 @@ from plane.utils.url import contains_url
 
 
 class WorkSpaceViewSet(BaseViewSet):
+    user_role_readonly_global = True
+    user_role_readonly_actions = {"list", "retrieve"}
+    user_role_readonly = True
     model = Workspace
     serializer_class = WorkSpaceSerializer
     permission_classes = [WorkSpaceBasePermission]
@@ -226,9 +231,17 @@ class WeekInMonth(Func):
 
 
 class UserWorkspaceDashboardEndpoint(BaseAPIView):
+    user_role_readonly = True
+
     def get(self, request, slug):
+        scoped = (
+            {"project_id__in": user_readonly_projects(request.user, slug).values("id")}
+            if has_user_role(request, self)
+            else {}
+        )
         issue_activities = (
-            IssueActivity.objects.filter(
+            IssueActivity.objects.filter(**scoped)
+            .filter(
                 actor=request.user,
                 workspace__slug=slug,
                 created_at__date__gte=date.today() + relativedelta(months=-3),
@@ -242,7 +255,8 @@ class UserWorkspaceDashboardEndpoint(BaseAPIView):
         month = request.GET.get("month", 1)
 
         completed_issues = (
-            Issue.issue_objects.filter(
+            Issue.issue_objects.filter(**scoped)
+            .filter(
                 assignees__in=[request.user],
                 workspace__slug=slug,
                 completed_at__month=month,
@@ -255,48 +269,66 @@ class UserWorkspaceDashboardEndpoint(BaseAPIView):
             .order_by("week_in_month")
         )
 
-        assigned_issues = Issue.issue_objects.filter(workspace__slug=slug, assignees__in=[request.user]).count()
+        assigned_issues = (
+            Issue.issue_objects.filter(**scoped).filter(workspace__slug=slug, assignees__in=[request.user]).count()
+        )
 
-        pending_issues_count = Issue.issue_objects.filter(
-            ~Q(state__group__in=["completed", "cancelled"]),
-            workspace__slug=slug,
-            assignees__in=[request.user],
-        ).count()
+        pending_issues_count = (
+            Issue.issue_objects.filter(**scoped)
+            .filter(
+                ~Q(state__group__in=["completed", "cancelled"]),
+                workspace__slug=slug,
+                assignees__in=[request.user],
+            )
+            .count()
+        )
 
-        completed_issues_count = Issue.issue_objects.filter(
-            workspace__slug=slug, assignees__in=[request.user], state__group="completed"
-        ).count()
+        completed_issues_count = (
+            Issue.issue_objects.filter(**scoped)
+            .filter(workspace__slug=slug, assignees__in=[request.user], state__group="completed")
+            .count()
+        )
 
         issues_due_week = (
-            Issue.issue_objects.filter(workspace__slug=slug, assignees__in=[request.user])
+            Issue.issue_objects.filter(**scoped)
+            .filter(workspace__slug=slug, assignees__in=[request.user])
             .annotate(target_week=ExtractWeek("target_date"))
             .filter(target_week=timezone.now().date().isocalendar()[1])
             .count()
         )
 
         state_distribution = (
-            Issue.issue_objects.filter(workspace__slug=slug, assignees__in=[request.user])
+            Issue.issue_objects.filter(**scoped)
+            .filter(workspace__slug=slug, assignees__in=[request.user])
             .annotate(state_group=F("state__group"))
             .values("state_group")
             .annotate(state_count=Count("state_group"))
             .order_by("state_group")
         )
 
-        overdue_issues = Issue.issue_objects.filter(
-            ~Q(state__group__in=["completed", "cancelled"]),
-            workspace__slug=slug,
-            assignees__in=[request.user],
-            target_date__lt=timezone.now(),
-            completed_at__isnull=True,
-        ).values("id", "name", "workspace__slug", "project_id", "target_date")
+        overdue_issues = (
+            Issue.issue_objects.filter(**scoped)
+            .filter(
+                ~Q(state__group__in=["completed", "cancelled"]),
+                workspace__slug=slug,
+                assignees__in=[request.user],
+                target_date__lt=timezone.now(),
+                completed_at__isnull=True,
+            )
+            .values("id", "name", "workspace__slug", "project_id", "target_date")
+        )
 
-        upcoming_issues = Issue.issue_objects.filter(
-            ~Q(state__group__in=["completed", "cancelled"]),
-            start_date__gte=timezone.now(),
-            workspace__slug=slug,
-            assignees__in=[request.user],
-            completed_at__isnull=True,
-        ).values("id", "name", "workspace__slug", "project_id", "start_date")
+        upcoming_issues = (
+            Issue.issue_objects.filter(**scoped)
+            .filter(
+                ~Q(state__group__in=["completed", "cancelled"]),
+                start_date__gte=timezone.now(),
+                workspace__slug=slug,
+                assignees__in=[request.user],
+                completed_at__isnull=True,
+            )
+            .values("id", "name", "workspace__slug", "project_id", "start_date")
+        )
 
         return Response(
             {

@@ -8,6 +8,7 @@ import { Button, cn } from "@plane/ui";
 import { FiltersDropdown } from "@/components/issues/issue-layouts/filters/header/helpers/dropdown";
 import { FilterHeader } from "@/components/issues/issue-layouts/filters/header/helpers/filter-header";
 import { FilterOption } from "@/components/issues/issue-layouts/filters/header/helpers/filter-option";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import {
   ALL_CLASS_YEAR_OPTION,
   ALL_POSITION_OPTION,
@@ -28,6 +29,7 @@ type TRosterDropdownProps = {
 
 export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
   const { title = "Display", icon, miniIcon, menuButton } = props;
+  const isReadOnlyUser = useUserReadOnly();
   const {
     displayProperties,
     toggleDisplayProperty,
@@ -60,7 +62,9 @@ export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
           />
           {showProperties ? (
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              {ROSTER_DISPLAY_PROPERTIES.map((property) => (
+              {ROSTER_DISPLAY_PROPERTIES.filter(
+                (property) => !isReadOnlyUser || ["jersey_number", "position", "class_year"].includes(property.key)
+              ).map((property) => (
                 <Button
                   unstyled
                   key={property.key}
@@ -87,7 +91,7 @@ export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
           />
           {showGroupBy ? (
             <div>
-              {GROUP_BY_OPTIONS.map((option) => (
+              {GROUP_BY_OPTIONS.filter((option) => !isReadOnlyUser || option.key !== "status").map((option) => (
                 <FilterOption
                   key={option.key}
                   isChecked={groupBy === option.key}
@@ -107,7 +111,7 @@ export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
           />
           {showSubGroupBy ? (
             <div>
-              {GROUP_BY_OPTIONS.map((option) => (
+              {GROUP_BY_OPTIONS.filter((option) => !isReadOnlyUser || option.key !== "status").map((option) => (
                 <FilterOption
                   key={option.key}
                   isChecked={subGroupBy === option.key}
@@ -127,7 +131,10 @@ export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
           />
           {showOrderBy ? (
             <div>
-              {ORDER_BY_OPTIONS.map((option) => (
+              {ORDER_BY_OPTIONS.filter(
+                (option) =>
+                  !isReadOnlyUser || ["manual", "player_name", "jersey_number", "position"].includes(option.key)
+              ).map((option) => (
                 <FilterOption
                   key={option.key}
                   isChecked={orderBy === option.key}
@@ -145,6 +152,7 @@ export const RosterDisplayDropdown = observer((props: TRosterDropdownProps) => {
 });
 
 export const RosterFilterDropdown = observer((props: TRosterDropdownProps) => {
+  const isReadOnlyUser = useUserReadOnly();
   const { title = "Filter", icon, miniIcon, menuButton } = props;
   const {
     statusOptions,
@@ -171,32 +179,34 @@ export const RosterFilterDropdown = observer((props: TRosterDropdownProps) => {
       isFiltersApplied={!!selectedPosition || !!selectedStatus || !!selectedClassYear}
     >
       <div className="vertical-scrollbar scrollbar-sm relative h-full w-full divide-y divide-custom-border-200 overflow-hidden overflow-y-auto px-2.5">
-        <div className="py-2">
-          <FilterHeader
-            title="Status"
-            isPreviewEnabled={showStatus}
-            handleIsPreviewEnabled={() => setShowStatus((state) => !state)}
-          />
-          {showStatus ? (
-            <div>
-              <FilterOption
-                isChecked={selectedStatus === ""}
-                onClick={() => setSelectedStatus("")}
-                title={ALL_STATUS_OPTION}
-                multiple={false}
-              />
-              {statusOptions.map((option) => (
+        {!isReadOnlyUser && (
+          <div className="py-2">
+            <FilterHeader
+              title="Status"
+              isPreviewEnabled={showStatus}
+              handleIsPreviewEnabled={() => setShowStatus((state) => !state)}
+            />
+            {showStatus ? (
+              <div>
                 <FilterOption
-                  key={option}
-                  isChecked={selectedStatus === option}
-                  onClick={() => setSelectedStatus(option)}
-                  title={toDisplayStatus(option)}
+                  isChecked={selectedStatus === ""}
+                  onClick={() => setSelectedStatus("")}
+                  title={ALL_STATUS_OPTION}
                   multiple={false}
                 />
-              ))}
-            </div>
-          ) : null}
-        </div>
+                {statusOptions.map((option) => (
+                  <FilterOption
+                    key={option}
+                    isChecked={selectedStatus === option}
+                    onClick={() => setSelectedStatus(option)}
+                    title={toDisplayStatus(option)}
+                    multiple={false}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        )}
         <div className="py-2">
           <FilterHeader
             title="Position"

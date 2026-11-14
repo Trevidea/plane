@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useWorkspace } from "@/hooks/store/use-workspace";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
+
 
 import type { TMediaArtifactsPaginatedResponse, TMediaTranscodeJobResponse } from "@/services/media-library.service";
 import { MediaLibraryService } from "@/services/media-library.service";
-import { useWorkspace } from "@/hooks/store/use-workspace";
 import type { TMediaTranscodeJobTrackerInput } from "../store/media-library-context";
 import type { TMediaItem } from "../types/media-library.types";
 import { mapArtifactsToMediaItems } from "../utils/media-items";
@@ -133,6 +135,7 @@ export const useMediaLibraryItems = (
   const [pagination, setPagination] = useState<TMediaLibraryPagination | null>(null);
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
   const { currentWorkspace } = useWorkspace();
+  const readOnly = useUserReadOnly(workspaceSlug, projectId);
   const filtersParam = useMemo(() => {
     if (!options?.filters?.length) return "";
     try {
@@ -174,7 +177,12 @@ export const useMediaLibraryItems = (
     const load = async () => {
       try {
         const requestConfig = { signal: abortController.signal };
-        const manifest = await mediaLibraryService.ensureProjectLibrary(workspaceSlug, projectId, requestConfig);
+        const manifest = await mediaLibraryService.ensureProjectLibrary(
+          workspaceSlug,
+          projectId,
+          requestConfig,
+          readOnly
+        );
         const packageId = typeof manifest?.id === "string" ? manifest.id : null;
         const metadataMap =
           manifest && typeof manifest === "object" && manifest.metadata && typeof manifest.metadata === "object"
@@ -220,7 +228,7 @@ export const useMediaLibraryItems = (
             groupBatches: options?.groupBatches,
           });
           const activeTranscodeItems = mappedItems.filter(
-            (item) => item.packageId && item.transcodeJobId && item.isTranscodeActive
+            (item) => !readOnly && item.packageId && item.transcodeJobId && item.isTranscodeActive
           );
           const jobResults = await Promise.all(
             activeTranscodeItems.map(async (item) => {
@@ -248,7 +256,7 @@ export const useMediaLibraryItems = (
             return job ? mergeTranscodeJob(item, job) : item;
           });
           hydratedItems.forEach((item) => {
-            if (!item.packageId || !item.transcodeJobId || !item.isTranscodeActive) return;
+            if (readOnly || !item.packageId || !item.transcodeJobId || !item.isTranscodeActive) return;
             onActiveTranscodeJob?.({
               workspaceSlug,
               projectId,
@@ -306,6 +314,7 @@ export const useMediaLibraryItems = (
     perPageParam,
     projectId,
     queryParam,
+    readOnly,
     refreshKey,
     sectionParam,
     shouldPaginate,

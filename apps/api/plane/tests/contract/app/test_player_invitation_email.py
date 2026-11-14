@@ -98,6 +98,21 @@ class PlayerInvitationEmailTests(TestCase):
         self.invitation.refresh_from_db()
         self.assertEqual(self.invitation.message, message.body)
 
+    def test_player_email_embeds_its_images_without_remote_asset_urls(self):
+        message = self.send()
+        html = message.alternatives[0][0]
+        sources = re.findall(r'<img[^>]+src="([^"]+)"', html)
+        self.assertTrue(sources, "The invitation artwork must be part of the email")
+        self.assertTrue(all(source.startswith("cid:") for source in sources))
+        referenced = {source.removeprefix("cid:") for source in sources}
+        attached = {item["Content-ID"].strip("<>") for item in message.attachments}
+        self.assertEqual(referenced, attached)
+        self.assertEqual(message.mixed_subtype, "related")
+        for item in message.attachments:
+            self.assertEqual(item.get_content_disposition(), "inline")
+            self.assertEqual(item.get_content_type(), "image/png")
+            self.assertTrue(item.get_payload(decode=True).startswith(b"\x89PNG\r\n\x1a\n"))
+
     def test_invitation_url_preserves_plus_email_and_has_one_path_separator(self):
         message = self.send()
         html = message.alternatives[0][0]
@@ -154,6 +169,7 @@ class PlayerInvitationEmailTests(TestCase):
         message = self.send()
         self.assertEqual(message.subject, "Coach has invited you to join them in School on Plane")
         self.assertNotIn("Your player invitation", message.alternatives[0][0])
+        self.assertFalse(message.attachments)
 
     def test_player_template_escapes_names_and_sends_single_line_subject(self):
         self.workspace.name = "School\n<script>private</script>"

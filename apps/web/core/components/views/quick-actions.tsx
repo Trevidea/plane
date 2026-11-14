@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState } from "react";
 import { observer } from "mobx-react";
 // types
@@ -14,6 +15,7 @@ import { copyUrlToClipboard, cn } from "@plane/utils";
 import { captureClick } from "@/helpers/event-tracker.helper";
 // hooks
 import { useUser, useUserPermissions } from "@/hooks/store/user";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import { useViewMenuItems } from "@/plane-web/components/views/helper";
 import { PublishViewModal, useViewPublish } from "@/plane-web/components/views/publish";
 // local imports
@@ -36,6 +38,7 @@ export const ViewQuickActions: React.FC<Props> = observer((props) => {
   // store hooks
   const { data } = useUser();
   const { allowPermissions } = useUserPermissions();
+  const isReadOnlyUser = useUserReadOnly();
   // auth
   const isOwner = view?.owned_by === data?.id;
   const isAdmin = allowPermissions([EUserPermissions.ADMIN], EUserPermissionsLevel.PROJECT, workspaceSlug, projectId);
@@ -78,6 +81,8 @@ export const ViewQuickActions: React.FC<Props> = observer((props) => {
       item.action();
     },
   }));
+
+  if (isReadOnlyUser) return null;
 
   return (
     <>

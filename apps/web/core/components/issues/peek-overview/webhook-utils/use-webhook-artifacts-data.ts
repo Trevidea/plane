@@ -1,9 +1,16 @@
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import { useEffect, useMemo, useState } from "react";
 
 import { MediaLibraryService } from "@/services/media-library.service";
 import type { TMediaArtifact } from "@/services/media-library.service";
 import type { TWebhookArtifact } from "./webhook-artifacts-types";
-import { inferFormatFromPath, resolveManifestMeta, resolveOpenUrl, resolveWebhookArtifactType, toTimestamp } from "./webhook-artifacts-utils";
+import {
+  inferFormatFromPath,
+  resolveManifestMeta,
+  resolveOpenUrl,
+  resolveWebhookArtifactType,
+  toTimestamp,
+} from "./webhook-artifacts-utils";
 
 type TUseWebhookArtifactsDataProps = {
   workspaceSlug: string;
@@ -12,6 +19,7 @@ type TUseWebhookArtifactsDataProps = {
 };
 
 export const useWebhookArtifactsData = ({ workspaceSlug, projectId, issueId }: TUseWebhookArtifactsDataProps) => {
+  const readOnly = useUserReadOnly(workspaceSlug, projectId);
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
   const [artifacts, setArtifacts] = useState<TWebhookArtifact[]>([]);
 
@@ -29,7 +37,7 @@ export const useWebhookArtifactsData = ({ workspaceSlug, projectId, issueId }: T
       }
 
       try {
-        const manifest = await mediaLibraryService.ensureProjectLibrary(workspaceSlug, projectId);
+        const manifest = await mediaLibraryService.ensureProjectLibrary(workspaceSlug, projectId, undefined, readOnly);
         const packageId = typeof manifest?.id === "string" ? manifest.id : "";
         if (!packageId) {
           if (!isCancelled) setArtifacts([]);
@@ -101,7 +109,7 @@ export const useWebhookArtifactsData = ({ workspaceSlug, projectId, issueId }: T
     return () => {
       isCancelled = true;
     };
-  }, [issueId, mediaLibraryService, projectId, workspaceSlug]);
+  }, [readOnly, issueId, mediaLibraryService, projectId, workspaceSlug]);
 
   return {
     artifacts,

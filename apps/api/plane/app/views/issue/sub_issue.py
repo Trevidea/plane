@@ -27,12 +27,13 @@ from plane.utils.order_queryset import order_issue_queryset
 
 
 class SubIssuesEndpoint(BaseAPIView):
+    user_role_readonly = True
     permission_classes = [ProjectEntityPermission]
 
     @method_decorator(gzip_page)
     def get(self, request, slug, project_id, issue_id):
         sub_issues = (
-            Issue.issue_objects.filter(parent_id=issue_id, workspace__slug=slug)
+            Issue.issue_objects.filter(parent_id=issue_id, workspace__slug=slug, project_id=project_id)
             .select_related("workspace", "project", "state", "parent")
             .prefetch_related("assignees", "labels", "issue_module__module")
             .annotate(

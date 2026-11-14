@@ -1,3 +1,4 @@
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import { memo } from "react";
 import { Button } from "@plane/ui";
 
@@ -41,6 +42,7 @@ export const MatrixCell = memo(function MatrixCell({
   rowLabel,
 }: MatrixCellProps) {
   const count = cell?.count ?? 0;
+  const isReadOnlyUser = useUserReadOnly();
   const isInteractive = Boolean(cell && count > 0 && cell.sourceRowIds.length > 0);
   const intensityLevel = maxVisibleCount > 0 ? Math.max(1, Math.ceil((count / maxVisibleCount) * 4)) : 0;
   const cellBackground =
@@ -78,7 +80,7 @@ export const MatrixCell = memo(function MatrixCell({
               "text-[var(--sg-matrix-selected-cell-text)] ring-2 ring-inset ring-[var(--sg-matrix-selected-cell)] after:absolute after:inset-[2px] after:border after:border-[var(--sg-matrix-selected-cell-inner)] after:content-['']"
           )}
           data-matrix-cell-id={cell.id}
-          draggable
+          draggable={!isReadOnlyUser}
           onDragStart={(event) => {
             event.stopPropagation();
             writePlaylistTagDragData(event.dataTransfer, cell.sourceRowIds);

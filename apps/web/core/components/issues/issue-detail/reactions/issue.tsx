@@ -1,5 +1,6 @@
 "use client";
 
+
 import type { FC } from "react";
 import { useMemo } from "react";
 
@@ -15,6 +16,7 @@ import { cn, formatTextList } from "@plane/utils";
 import { renderEmoji } from "@/helpers/emoji.helper";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useMember } from "@/hooks/store/use-member";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // types
 import { ReactionSelector } from "./reaction-selector";
 
@@ -29,6 +31,7 @@ export type TIssueReaction = {
 
 export const IssueReaction: FC<TIssueReaction> = observer((props) => {
   const { workspaceSlug, projectId, issueId, currentUser, disabled = false, className = "" } = props;
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
   // hooks
   const {
     reaction: { getReactionsByIssueId, reactionsByUser, getReactionById },
@@ -43,6 +46,7 @@ export const IssueReaction: FC<TIssueReaction> = observer((props) => {
   const issueReactionOperations = useMemo(
     () => ({
       create: async (reaction: string) => {
+        if (isReadOnlyUser || disabled) return;
         try {
           if (!workspaceSlug || !projectId || !issueId) throw new Error("Missing fields");
           await createReaction(workspaceSlug, projectId, issueId, reaction);
@@ -60,6 +64,7 @@ export const IssueReaction: FC<TIssueReaction> = observer((props) => {
         }
       },
       remove: async (reaction: string) => {
+        if (isReadOnlyUser || disabled) return;
         try {
           if (!workspaceSlug || !projectId || !issueId || !currentUser?.id) throw new Error("Missing fields");
           await removeReaction(workspaceSlug, projectId, issueId, reaction, currentUser.id);
@@ -81,7 +86,17 @@ export const IssueReaction: FC<TIssueReaction> = observer((props) => {
         else await issueReactionOperations.create(reaction);
       },
     }),
-    [workspaceSlug, projectId, issueId, currentUser, createReaction, removeReaction, userReactions]
+    [
+      isReadOnlyUser,
+      disabled,
+      workspaceSlug,
+      projectId,
+      issueId,
+      currentUser,
+      createReaction,
+      removeReaction,
+      userReactions,
+    ]
   );
 
   const getReactionUsers = (reaction: string): string => {
@@ -100,7 +115,7 @@ export const IssueReaction: FC<TIssueReaction> = observer((props) => {
 
   return (
     <div className={cn("relative mt-4 flex items-center gap-1.5", className)}>
-      {!disabled && (
+      {!disabled && !isReadOnlyUser && (
         <ReactionSelector size="md" position="top" value={userReactions} onSelect={issueReactionOperations.react} />
       )}
       {reactionIds &&
@@ -112,13 +127,13 @@ export const IssueReaction: FC<TIssueReaction> = observer((props) => {
                   <Button
                     unstyled
                     type="button"
-                    onClick={() => !disabled && issueReactionOperations.react(reaction)}
+                    onClick={() => !disabled && !isReadOnlyUser && issueReactionOperations.react(reaction)}
                     key={reaction}
                     className={cn(
                       "flex h-full items-center gap-1 rounded-md px-2 py-1 text-sm text-custom-text-100",
                       userReactions.includes(reaction) ? "bg-custom-primary-100/10" : "bg-custom-background-80",
                       {
-                        "cursor-not-allowed": disabled,
+                        "cursor-not-allowed": disabled || isReadOnlyUser,
                       }
                     )}
                   >

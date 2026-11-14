@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { observer } from "mobx-react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -20,6 +21,7 @@ import { FiltersToggle } from "@/components/rich-filters/filters-toggle";
 // Hooks
 import { useProject } from "@/hooks/store/use-project";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import { CommonProjectBreadcrumbs } from "@/plane-web/components/breadcrumbs/common";
 import { useMediaLibrary } from "../store/media-library-context";
 import { MediaLibraryUploadStatus } from "./media-library-upload-status";
@@ -102,6 +104,7 @@ const useDebouncedValue = (value: string, delayMs: number) => {
 export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEFAULT_LAYOUTS }) => {
   const { isMobile } = usePlatformOS();
   const { openUpload, mediaFilters } = useMediaLibrary();
+  const readOnly = useUserReadOnly();
   const { loader } = useProject();
 
   const { workspaceSlug, projectId } = useParams() as {
@@ -514,10 +517,10 @@ export const MediaLibraryListHeader: React.FC<Props> = observer(({ layouts = DEF
           ) : null}
           <MediaLibraryUploadStatus />
           {/* Upload */}
-          <Button variant="primary" size="sm" className="gap-1.5 px-2 @4xl:px-3" onClick={openUpload}>
+          {!readOnly && <Button variant="primary" size="sm" className="gap-1.5 px-2 @4xl:px-3" onClick={openUpload}>
             <Upload size={16} className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="hidden @4xl:inline">Upload</span>
-          </Button>
+          </Button>}
         </div>
       </Header.RightItem>
     </Header>

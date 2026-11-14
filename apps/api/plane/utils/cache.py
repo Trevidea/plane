@@ -24,6 +24,10 @@ def cache_response(timeout=60 * 60, path=None, user=True):
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(instance, request, *args, **kwargs):
+            from plane.utils.user_role_access import readonly_user_access_allowed
+
+            if readonly_user_access_allowed(request, instance):
+                return view_func(instance, request, *args, **kwargs)
             # Function to generate cache key
             auth_header = None if request.user.is_anonymous else str(request.user.id) if user else None
             custom_path = path if path is not None else request.get_full_path()

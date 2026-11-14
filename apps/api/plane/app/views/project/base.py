@@ -1,3 +1,6 @@
+from django.db.models import Value, IntegerField, FloatField
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Python imports
 import boto3
 from django.conf import settings
@@ -19,6 +22,7 @@ from plane.app.serializers import (
     ProjectSerializer,
     ProjectListSerializer,
     DeployBoardSerializer,
+    UserFavoriteSerializer,
 )
 
 from plane.app.permissions import ProjectMemberPermission, allow_permission, ROLE
@@ -44,6 +48,7 @@ from plane.utils.coaching_card_lifecycle import default_project_state_definition
 
 
 class ProjectViewSet(BaseViewSet):
+    user_role_readonly = True
     serializer_class = ProjectListSerializer
     model = Project
     webhook_event = "project"
@@ -100,6 +105,13 @@ class ProjectViewSet(BaseViewSet):
 
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="WORKSPACE")
     def list_detail(self, request, slug):
+        if has_user_role(request, self):
+            projects = (
+                user_readonly_projects(request.user, slug)
+                .annotate(member_role=Value(1, output_field=IntegerField()))
+                .order_by("name")
+            )
+            return Response(ProjectListSerializer(projects, many=True).data)
         fields = [field for field in request.GET.get("fields", "").split(",") if field]
         projects = self.get_queryset().order_by("sort_order", "name")
         if WorkspaceMember.objects.filter(
@@ -140,6 +152,35 @@ class ProjectViewSet(BaseViewSet):
 
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="WORKSPACE")
     def list(self, request, slug):
+        if has_user_role(request, self):
+            projects = (
+                user_readonly_projects(request.user, slug)
+                .annotate(
+                    member_role=Value(1, output_field=IntegerField()),
+                    sort_order=Value(None, output_field=FloatField()),
+                    inbox_view=F("intake_view"),
+                )
+                .values(
+                    "id",
+                    "name",
+                    "identifier",
+                    "logo_props",
+                    "member_role",
+                    "sort_order",
+                    "archived_at",
+                    "workspace",
+                    "cycle_view",
+                    "issue_views_view",
+                    "module_view",
+                    "page_view",
+                    "inbox_view",
+                    "guest_view_all_features",
+                    "project_lead",
+                    "network",
+                    "sport",
+                )
+            )
+            return Response(projects)
         sort_order = ProjectMember.objects.filter(
             member=self.request.user,
             project_id=OuterRef("pk"),
@@ -212,6 +253,16 @@ class ProjectViewSet(BaseViewSet):
 
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="WORKSPACE")
     def retrieve(self, request, slug, pk):
+        if has_user_role(request, self):
+            project = (
+                user_readonly_projects(request.user, slug)
+                .filter(pk=pk)
+                .annotate(member_role=Value(1, output_field=IntegerField()))
+                .first()
+            )
+            if project is None:
+                return Response({"detail": "Program not found."}, status=404)
+            return Response(ProjectListSerializer(project).data)
         project = (
             self.get_queryset()
             .filter(
@@ -493,7 +544,20 @@ class ProjectUserViewsEndpoint(BaseAPIView):
 
 
 class ProjectFavoritesViewSet(BaseViewSet):
+    serializer_class = UserFavoriteSerializer
+    user_role_readonly = True
     model = UserFavorite
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if has_user_role(self.request, self):
+            context.update(
+                readonly_project_ids=user_readonly_projects(self.request.user, self.kwargs.get("slug")).values_list(
+                    "id", flat=True
+                ),
+                readonly_user=self.request.user,
+            )
+        return context
 
     def get_queryset(self):
         return self.filter_queryset(
@@ -501,6 +565,21 @@ class ProjectFavoritesViewSet(BaseViewSet):
             .get_queryset()
             .filter(workspace__slug=self.kwargs.get("slug"))
             .filter(user=self.request.user)
+            .filter(
+                **(
+                    {
+                        "project_id__in": user_readonly_projects(self.request.user, self.kwargs.get("slug")).values(
+                            "id"
+                        ),
+                        "entity_type": "project",
+                        "entity_identifier__in": user_readonly_projects(
+                            self.request.user, self.kwargs.get("slug")
+                        ).values("id"),
+                    }
+                    if has_user_role(self.request, self)
+                    else {}
+                )
+            )
             .select_related("project", "project__project_lead", "project__default_assignee")
             .select_related("workspace", "workspace__owner")
         )

@@ -4,6 +4,7 @@ import { Check, Pencil, Star, Trash2 } from "lucide-react";
 import { Tooltip } from "@plane/propel/tooltip";
 import { Button, ImageWithFallback } from "@plane/ui";
 import { cn } from "@plane/utils";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import { SURFACE_CLASS } from "../../constants";
 import { getDraggedPlaylistTagIds, writePlaylistTagDragData } from "../../playlist-draft";
 import type { RowFilterMode, SgTagRow, SgTagRowEditPayload, SportTableConfig } from "../../types";
@@ -97,6 +98,7 @@ export const SgEventTagsPanel = ({
   const groupSelectLabel = effectiveGroupValue === "All tags" ? "Select group" : effectiveGroupValue;
   const detailColumnLabel = isCompactFootballTable ? "Down & Dist" : sportTableConfig.primaryDetailLabel;
   const [isColumnsPanelOpen, setIsColumnsPanelOpen] = useState(false);
+  const isReadOnlyUser = useUserReadOnly();
   const [visibleColumnKeys, setVisibleColumnKeys] = useState<string[]>(DEFAULT_VISIBLE_COLUMN_KEYS);
   const [columnSearchQuery, setColumnSearchQuery] = useState("");
   const [collapsedColumnGroups, setCollapsedColumnGroups] = useState<Record<string, boolean>>({});
@@ -389,7 +391,7 @@ export const SgEventTagsPanel = ({
               return (
                 <div
                   key={row.id}
-                  draggable
+                  draggable={!isReadOnlyUser}
                   onDragStart={(event) => {
                     event.stopPropagation();
                     const draggedTagIds = getDraggedPlaylistTagIds(row.id, rows, selectedTagIds);
@@ -477,7 +479,7 @@ export const SgEventTagsPanel = ({
                     );
                   })}
                   <div className="flex items-center gap-1.5">
-                    <Tooltip tooltipContent="Edit row" isMobile={false}>
+                    {!isReadOnlyUser && <><Tooltip tooltipContent="Edit row" isMobile={false}>
                       <Button
                         unstyled
                         type="button"
@@ -519,7 +521,7 @@ export const SgEventTagsPanel = ({
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </Tooltip>
+                    </Tooltip></>}
                   </div>
                 </div>
               );

@@ -131,6 +131,55 @@ class PlayerAnnotationContractTests(TestCase):
         self.card.refresh_from_db()
         self.assertEqual(self.card.coaching_card_data, before)
 
+    def test_user_role_receives_saved_drawings_and_combined_playlist_clock(self):
+        WorkspaceMember.objects.filter(workspace=self.workspace, member=self.user).update(role=1)
+        self.meta["custom_playlists"][0]["url"] = "quarter.m3u8"
+        self.write_event()
+        before = deepcopy(self.card.coaching_card_data)
+        clips = self.clips()
+        self.assertEqual(clips[0].get("annotations"), [])
+        self.assertEqual(clips[1].get("annotations"), [{**self.drawing, "startTime": 166, "endTime": 168}])
+        self.assertEqual(clips[0].get("playlist_start_seconds"), 0)
+        self.assertEqual(clips[1].get("playlist_start_seconds"), 8)
+        self.assertEqual(clips[1].get("playlist_duration_seconds"), 16)
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.coaching_card_data, before)
+
+    def test_user_role_receives_drawing_updates_and_deletions(self):
+        WorkspaceMember.objects.filter(workspace=self.workspace, member=self.user).update(role=1)
+        self.assertEqual(len(self.clips()[1].get("annotations", [])), 1)
+        self.payload["customPlaylistAnnotations"]["quarter"]["annotations"][0]["style"]["stroke"] = "#00ff00"
+        self.write_event()
+        self.assertEqual(self.clips()[1]["annotations"][0]["style"]["stroke"], "#00ff00")
+        self.payload["customPlaylistAnnotations"]["quarter"]["annotations"] = []
+        self.write_event()
+        self.assertEqual(self.clips()[1].get("annotations"), [])
+
+    def test_user_role_drawing_response_does_not_leak_private_annotation_fields_or_media(self):
+        WorkspaceMember.objects.filter(workspace=self.workspace, member=self.user).update(role=1)
+        self.card.coaching_card_data["playlists"][0]["clips"][0]["annotations"] = [
+            {
+                **self.drawing,
+                "startTime": 182,
+                "endTime": 184,
+                "private_owner_email": "private@fixture.test",
+                "imageUrl": "https://private.invalid/image",
+            },
+            {
+                **self.drawing,
+                "id": "private-audio",
+                "type": "audio",
+                "startTime": 182,
+                "endTime": 184,
+                "url": "https://private.invalid/audio",
+            },
+        ]
+        self.card.save()
+        clips = self.clips()
+        self.assertEqual(clips[0].get("annotations"), [{**self.drawing, "startTime": 182, "endTime": 184}])
+        self.assertNotIn("private@fixture.test", json.dumps(clips))
+        self.assertNotIn("private.invalid", json.dumps(clips))
+
     def test_saved_updates_and_deletions_are_visible_without_recreating_the_card(self):
         self.clips()
         self.payload["customPlaylistAnnotations"]["quarter"]["annotations"] = []
@@ -298,7 +347,6 @@ class PlayerAnnotationContractTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertLess(len(response.content), 2 * 1024 * 1024)
-
 
     def test_saved_video_metadata_drawings_are_visible_without_a_json_artifact(self):
         self.manifest["artifacts"][0].update(format="m3u8", path="https://fixture.invalid/event.m3u8")

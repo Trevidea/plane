@@ -8,21 +8,21 @@ import type { TNameDescriptionLoader } from "@plane/types";
 import { EIssueServiceType } from "@plane/types";
 import { cn, getEditorAssetSrc, getFileURL } from "@plane/utils";
 // hooks
+import type { TIssueOperations } from "@/components/issues/issue-detail";
+import { IssueActivity } from "@/components/issues/issue-detail/issue-activity";
+import { IssueDetailWidgets } from "@/components/issues/issue-detail-widgets";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import useKeypress from "@/hooks/use-keypress";
 import usePeekOverviewOutsideClickDetector from "@/hooks/use-peek-overview-outside-click";
 // local imports
 
+import type { TMediaItem } from "../../types/media-library.types";
 import { IssuePeekOverviewError } from "./error";
 import type { TPeekModes } from "./header";
 import { IssuePeekOverviewHeader } from "./header";
 import { PeekOverviewIssueDetails } from "./issue-detail";
 import { IssuePeekOverviewLoader } from "./loader";
 import { PeekOverviewProperties } from "./properties";
-import type { TIssueOperations } from "@/components/issues/issue-detail";
-import { IssueActivity } from "@/components/issues/issue-detail/issue-activity";
-import { IssueDetailWidgets } from "@/components/issues/issue-detail-widgets";
-import type { TMediaItem } from "../../types/media-library.types";
 
 const resolveDescriptionImageSrc = (value: string, workspaceSlug: string, projectId: string) => {
   const trimmed = value.trim();
@@ -42,7 +42,11 @@ const resolveDescriptionImageSrc = (value: string, workspaceSlug: string, projec
   return getFileURL(trimmed) ?? trimmed;
 };
 
-const extractDescriptionImageUrls = (descriptionHtml: string | null | undefined, workspaceSlug: string, projectId: string) => {
+const extractDescriptionImageUrls = (
+  descriptionHtml: string | null | undefined,
+  workspaceSlug: string,
+  projectId: string
+) => {
   if (!descriptionHtml) return [];
   const sources = new Set<string>();
 
@@ -294,7 +298,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                         workspaceSlug={workspaceSlug}
                         projectId={projectId}
                         issueId={issueId}
-                        disabled={is_archived}
+                        disabled={disabled || is_archived}
                       />
                     )}
                   </div>
@@ -336,7 +340,7 @@ export const IssueView: FC<IIssueView> = observer((props) => {
                             workspaceSlug={workspaceSlug}
                             projectId={projectId}
                             issueId={issueId}
-                            disabled={is_archived}
+                            disabled={disabled || is_archived}
                           />
                         )}
                       </div>

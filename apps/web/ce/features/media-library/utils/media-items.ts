@@ -672,8 +672,12 @@ export const mapArtifactsToMediaItems = (artifacts: TMediaArtifact[], context?: 
       : mediaType === "image"
         ? resolvedPath
         : planeCoachThumbnail || (mediaType === "document" ? getDocumentThumbnailPath(format) : "");
+    const savedEventThumbnail =
+      eventDetails && format === "thumbnail" && !isEventPlaceholder(rawPath) ? resolvedPath : "";
     const thumbnail = resolveArtifactPath(
-      (mediaType === "video" || eventDetails ? resolveThumbnailHint(metaThumbnail) : "") ||
+      savedEventThumbnail ||
+        (eventDetails ? artifactThumbnail : "") ||
+        (mediaType === "video" || eventDetails ? resolveThumbnailHint(metaThumbnail) : "") ||
         artifactThumbnail ||
         resolveThumbnailHint(metaThumbnail) ||
         planeCoachThumbnail ||

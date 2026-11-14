@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Third party modules
 from rest_framework import status
 from rest_framework.response import Response
@@ -11,14 +13,21 @@ from collections import defaultdict
 
 
 class WorkspaceStatesEndpoint(BaseAPIView):
+    user_role_readonly = True
     permission_classes = [WorkspaceEntityPermission]
     use_read_replica = True
 
     def get(self, request, slug):
         states = State.objects.filter(
             workspace__slug=slug,
-            project__project_projectmember__member=request.user,
-            project__project_projectmember__is_active=True,
+            **(
+                {"project_id__in": user_readonly_projects(request.user, slug).values("id")}
+                if has_user_role(request, self)
+                else {
+                    "project__project_projectmember__member": request.user,
+                    "project__project_projectmember__is_active": True,
+                }
+            ),
             project__archived_at__isnull=True,
             is_triage=False,
         )

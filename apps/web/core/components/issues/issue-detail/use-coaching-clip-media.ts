@@ -1,3 +1,4 @@
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import useSWR from "swr";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
 import { mapArtifactsToMediaItems } from "ce/features/media-library/utils/media-items";
@@ -11,14 +12,15 @@ export const useCoachingClipMedia = (
   workspaceSlug: string,
   projectId: string,
   source?: CoachingCardDetailClip["sourceMedia"]
-) =>
-  useSWR<TMediaItem | null>(
-    source ? ["coaching-clip-media", workspaceSlug, projectId, source.package_id, source.artifact_id] : null,
+) => {
+  const readOnly = useUserReadOnly(workspaceSlug, projectId);
+  return useSWR<TMediaItem | null>(
+    source ? ["coaching-clip-media", workspaceSlug, projectId, source.package_id, source.artifact_id, readOnly] : null,
     async () => {
       if (!source) return null;
       const load = async () => {
         const [manifest, artifacts] = await Promise.all([
-          mediaService.ensureProjectLibrary(workspaceSlug, projectId),
+          mediaService.ensureProjectLibrary(workspaceSlug, projectId, undefined, readOnly),
           mediaService.getArtifactDetail(workspaceSlug, projectId, source.package_id, source.artifact_id),
         ]);
         const entries = Array.isArray(artifacts) ? artifacts : [];
@@ -35,7 +37,8 @@ export const useCoachingClipMedia = (
       const { item, artifact } = await load();
       if (!item) return null;
       const jobId = item.transcodeJobId || artifact?.transcode_job?.job_id;
-      if (item.isTranscodeComplete || !jobId || (!item.isTranscodeActive && !artifact?.transcode_job)) return item;
+      if (readOnly || item.isTranscodeComplete || !jobId || (!item.isTranscodeActive && !artifact?.transcode_job))
+        return item;
       let job;
       try {
         job = await mediaService.getArtifactTranscodeJob(
@@ -73,9 +76,10 @@ export const useCoachingClipMedia = (
       };
     },
     {
-      refreshInterval: (item) => (item?.isTranscodeActive ? 3000 : 0),
+      refreshInterval: (item) => (!readOnly && item?.isTranscodeActive ? 3000 : 0),
       errorRetryInterval: 5000,
       dedupingInterval: 1000,
       revalidateOnFocus: true,
     }
   );
+};

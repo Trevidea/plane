@@ -1,3 +1,6 @@
+from plane.app.serializers.project import ProjectMemberReadOnlySerializer
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Third Party imports
 from rest_framework.response import Response
 from rest_framework import status
@@ -19,10 +22,16 @@ from plane.app.permissions.base import allow_permission, ROLE
 
 
 class ProjectMemberViewSet(BaseViewSet):
+    user_role_readonly = True
     serializer_class = ProjectMemberAdminSerializer
     model = ProjectMember
 
     search_fields = ["member__display_name", "member__first_name"]
+
+    def get_serializer_class(self):
+        if has_user_role(self.request, self):
+            return ProjectMemberReadOnlySerializer
+        return super().get_serializer_class()
 
     def get_queryset(self):
         return self.filter_queryset(
@@ -31,6 +40,7 @@ class ProjectMemberViewSet(BaseViewSet):
             .filter(workspace__slug=self.kwargs.get("slug"))
             .filter(project_id=self.kwargs.get("project_id"))
             .filter(member__is_bot=False)
+            .filter(**({"is_active": True, "member__is_active": True} if has_user_role(self.request, self) else {}))
             .filter()
             .select_related("project")
             .select_related("member")
@@ -273,7 +283,20 @@ class ProjectMemberViewSet(BaseViewSet):
 
 
 class ProjectMemberUserEndpoint(BaseAPIView):
+    user_role_readonly = True
+
     def get(self, request, slug, project_id):
+        if has_user_role(request, self):
+            project = user_readonly_projects(request.user, slug).get(pk=project_id)
+            membership = (
+                ProjectMember.objects.using("default")
+                .filter(project=project, member=request.user, is_active=True)
+                .first()
+            )
+            if membership is None:
+                membership = ProjectMember(project=project, workspace=project.workspace, member=request.user, role=1)
+            membership.role = 1
+            return Response(ProjectMemberSerializer(membership).data)
         project_member = ProjectMember.objects.get(
             project_id=project_id,
             workspace__slug=slug,
@@ -286,10 +309,15 @@ class ProjectMemberUserEndpoint(BaseAPIView):
 
 
 class UserProjectRolesEndpoint(BaseAPIView):
+    user_role_readonly = True
     permission_classes = [WorkspaceUserPermission]
     use_read_replica = True
 
     def get(self, request, slug):
+        if has_user_role(request, self):
+            return Response(
+                {str(pk): 1 for pk in user_readonly_projects(request.user, slug).values_list("pk", flat=True)}
+            )
         project_members = ProjectMember.objects.filter(
             workspace__slug=slug,
             member_id=request.user.id,

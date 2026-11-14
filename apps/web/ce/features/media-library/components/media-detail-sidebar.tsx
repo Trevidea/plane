@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Calendar, CalendarClock, Clock, Handshake, MapPin, Signal, Tag, User, Volleyball, X } from "lucide-react";
@@ -18,6 +19,7 @@ import { YearRangeDropdown } from "@/components/dropdowns/year-property";
 import type { TIssueOperations } from "@/components/issues/issue-detail";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useMember } from "@/hooks/store/use-member";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import OppositionTeamProperty from "@/plane-web/components/issues/issue-details/opposition-team-property";
 import { MediaLibraryService } from "@/services/media-library.service";
 import type { TMediaItem } from "../types/media-library.types";
@@ -237,6 +239,7 @@ export const MediaDetailSidebar = ({
   onMediaItemUpdated,
 }: TMediaDetailSidebarProps) => {
   const { setPeekIssue } = useIssueDetail();
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
   const { getUserDetails } = useMember();
   const workItemId = item?.workItemId ?? "";
   const hasWorkItemId = Boolean(workItemId);
@@ -282,6 +285,7 @@ export const MediaDetailSidebar = ({
   }, [artifactMeta]);
   const updateEditableMeta = useCallback(
     async (key: TEditableMetaKey, value: string | string[] | TOppositionTeam | null) => {
+      if (isReadOnlyUser) return;
       const nextMeta = { ...artifactMeta, [key]: value ?? null };
       setIsSavingMeta(true);
       try {
@@ -298,7 +302,7 @@ export const MediaDetailSidebar = ({
         setIsSavingMeta(false);
       }
     },
-    [artifactMeta, item?.id, item?.packageId, mediaLibraryService, onMediaItemUpdated, projectId, workspaceSlug]
+    [isReadOnlyUser, artifactMeta, item?.id, item?.packageId, mediaLibraryService, onMediaItemUpdated, projectId, workspaceSlug]
   );
   const baseMetaKeys = useMemo(
     () =>
@@ -513,7 +517,7 @@ export const MediaDetailSidebar = ({
                 projectId={projectId}
                 issueId={item.id}
                 issueOperations={artifactFormIssueOperations}
-                disabled={false}
+                disabled={isReadOnlyUser}
                 isArchived={false}
                 isSubmitting={isSubmitting}
                 setIsSubmitting={setIsSubmitting}
@@ -575,7 +579,7 @@ export const MediaDetailSidebar = ({
                         buttonContainerClassName="w-full text-left"
                         buttonClassName={`text-sm ${getMetaString("start_date") ? "" : "text-custom-text-400"}`}
                         hideIcon
-                        disabled={isSavingMeta}
+                        disabled={isReadOnlyUser || isSavingMeta}
                         clearIconClassName="h-3 w-3 hidden group-hover:inline"
                       />
                     </div>
@@ -594,7 +598,7 @@ export const MediaDetailSidebar = ({
                         buttonContainerClassName="w-full text-left"
                         buttonClassName={`text-sm ${getMetaString("start_time") ? "" : "text-custom-text-400"}`}
                         hideIcon
-                        disabled={isSavingMeta}
+                        disabled={isReadOnlyUser || isSavingMeta}
                         clearIconClassName="h-3 w-3 hidden group-hover:inline"
                       />
                     </div>
@@ -615,7 +619,7 @@ export const MediaDetailSidebar = ({
                     buttonContainerClassName="w-full text-left"
                     buttonClassName={`text-sm ${getMetaString("level") ? "" : "text-custom-text-400"}`}
                     hideIcon
-                    disabled={isSavingMeta}
+                    disabled={isReadOnlyUser || isSavingMeta}
                     clearIconClassName="h-3 w-3 hidden group-hover:inline"
                   />
                 </div>
@@ -634,7 +638,7 @@ export const MediaDetailSidebar = ({
                     buttonContainerClassName="w-full text-left"
                     buttonClassName={`text-sm ${getMetaString("program") ? "" : "text-custom-text-400"}`}
                     hideIcon
-                    disabled={isSavingMeta}
+                    disabled={isReadOnlyUser || isSavingMeta}
                     clearIconClassName="h-3 w-3 hidden group-hover:inline"
                   />
                 </div>
@@ -653,7 +657,7 @@ export const MediaDetailSidebar = ({
                     buttonContainerClassName="w-full text-left"
                     buttonClassName={`text-sm ${getMetaString("sport") ? "" : "text-custom-text-400"}`}
                     hideIcon
-                    disabled={isSavingMeta}
+                    disabled={isReadOnlyUser || isSavingMeta}
                     clearIconClassName="h-3 w-3 hidden group-hover:inline"
                   />
                 </div>
@@ -668,7 +672,7 @@ export const MediaDetailSidebar = ({
                       storageKey={`opp-team-media-${item.id}`}
                       value={oppositionTeamValue}
                       onChange={(team) => void updateEditableMeta("opposition", team)}
-                      disabled={isSavingMeta}
+                      disabled={isReadOnlyUser || isSavingMeta}
                     />
                   </div>
                 </div>
@@ -687,7 +691,7 @@ export const MediaDetailSidebar = ({
                     buttonContainerClassName="w-full text-left"
                     buttonClassName={`text-sm ${getMetaString("category") ? "" : "text-custom-text-400"}`}
                     hideIcon
-                    disabled={isSavingMeta}
+                    disabled={isReadOnlyUser || isSavingMeta}
                     clearIconClassName="h-3 w-3 hidden group-hover:inline"
                   />
                 </div>
@@ -706,7 +710,7 @@ export const MediaDetailSidebar = ({
                     buttonContainerClassName="w-full text-left"
                     buttonClassName={`text-sm ${getMetaString("location") ? "" : "text-custom-text-400"}`}
                     hideIcon
-                    disabled={isSavingMeta}
+                    disabled={isReadOnlyUser || isSavingMeta}
                     clearIconClassName="h-3 w-3 hidden group-hover:inline"
                     dropdownClassName="z-[70]"
                   />
@@ -726,7 +730,7 @@ export const MediaDetailSidebar = ({
                     buttonContainerClassName="w-full text-left"
                     buttonClassName={`text-sm ${getMetaString("season") ? "" : "text-custom-text-400"}`}
                     hideIcon
-                    disabled={isSavingMeta}
+                    disabled={isReadOnlyUser || isSavingMeta}
                     clearIconClassName="h-3 w-3 hidden group-hover:inline"
                   />
                 </div>
@@ -747,7 +751,7 @@ export const MediaDetailSidebar = ({
                       type="button"
                       onClick={() => removeUserTag(tag)}
                       className="text-custom-primary-100/80 hover:text-custom-primary-100"
-                      disabled={isSavingMeta}
+                      disabled={isReadOnlyUser || isSavingMeta}
                       aria-label={`Remove ${tag}`}
                     >
                       <X className="h-3 w-3" />
@@ -767,7 +771,7 @@ export const MediaDetailSidebar = ({
                   onBlur={() => addUserTags(tagDraft)}
                   placeholder={userTags.length === 0 ? "Add tags" : ""}
                   className="min-w-[140px] flex-1 bg-transparent px-1 py-0.5 text-[11px] text-custom-text-100 placeholder:text-custom-text-400 focus:outline-none"
-                  disabled={isSavingMeta}
+                  disabled={isReadOnlyUser || isSavingMeta}
                 />
               </div>
               <div className="text-[10px] text-custom-text-300">Press comma or Enter to add.</div>
