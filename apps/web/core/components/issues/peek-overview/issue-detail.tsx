@@ -147,7 +147,7 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
             projectId={issue.project_id}
             issueId={issueId}
             currentUser={currentUser}
-            disabled={isArchived}
+            disabled={disabled || isArchived}
           />
         )}
         {!disabled && (

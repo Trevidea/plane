@@ -5,36 +5,36 @@ value is 1; Admin (20), Member (15), and Guest (5) remain distinct. New roster
 email invitations use User. Existing Guest memberships and pending invitations
 are not converted automatically; an administrator can change their role.
 
-Users enter `/player`, with only assigned programs and personal content. A
-program is assigned through an active project membership or an active/injured
-roster record linked to their account, plus active workspace membership. Public
-program visibility does not count as assignment. Ordinary activities require
-an IssueAssignee link. Coaching cards require the linked roster player to be
-an explicit recipient; ordinary issue assignment cannot grant access to a
-peer's coaching card.
+User accounts sign in to the normal Plane workspace and program interface.
+There is no automatic redirect to `/player`. A User can read all shared items in
+an eligible program, including items assigned to other players. Eligibility
+requires active workspace membership and active program membership or an
+active/injured linked roster record. Public visibility alone does not grant
+program access.
 
-Users can save personal progress/notes, complete their own activities, comment,
-react, and edit/delete their own comments. Personal completion and mobile review
-acknowledgements are stored in PlayerActivityProgress and do not change shared
-work-item state or coaching-card lifecycle review markers. Coach-shared comments
-must have EXTERNAL access; INTERNAL coach notes and other players' comments,
-identities, and progress remain hidden. Uploaded media is scoped to artifacts
-referenced by the assigned activity; HLS requests can read only manifest-listed
-resources, not arbitrary neighboring files.
+Users may save their own work-item layout, grouping, filter and display-property
+preferences. These preferences do not change cards or other users’ views.
 
-General issue editing/creation, coaching-plan editing, workspace/project settings,
-rosters, member directories, searches, exports, and API-key routes are unavailable
-to User accounts in the restricted scope. The API guard checks authoritative
-workspace/project roles before cached responses or creator exceptions. Workspace
-User is an access ceiling over stale higher project roles. A project User role
-also restricts that program. Stale invitations cannot promote an existing User;
-an admin must change membership explicitly. Guest and Member permissions are
-not redefined as read-only.
+Shared content is read-only: Users cannot create, edit, delete, move cards,
+manage members or rosters, change settings, upload files, or edit annotations.
+Private pages, internal comments, account emails, private player conversations,
+and individual review records are not exposed by shared-content reads. Member
+and Guest permissions remain distinct. Workspace User is a ceiling over stale
+higher program roles; a program User role restricts only that program.
 
-The web player area is separate from the broad workspace interface. Workspaces
-containing a User workspace or project assignment route that account to the player
-area. Normal-role access in other workspaces remains available through their own
-URLs. User-sensitive frontend caches are keyed by account ID.
+The explicit `/player` route and the mobile app still provide personal player
+activities. Ordinary activities require an IssueAssignee link. Coaching cards
+require the linked roster player to be an explicit recipient. These personal
+endpoints allow participants to record their own progress, reviews and comments;
+they do not grant general shared-content editing. Coaching-card review completion
+records the player's acknowledgement and advances the shared lifecycle when its
+configured recipient-review requirements are met.
+
+The API checks authoritative role and program eligibility before response caches
+or creator exceptions. Approved read-only responses bypass shared caches and use
+private, no-store headers. API-key routes do not inherit these read permissions.
+User-sensitive frontend caches are keyed by account ID, and restricted program
+reads bypass the local issue database.
 
 ## APIs
 

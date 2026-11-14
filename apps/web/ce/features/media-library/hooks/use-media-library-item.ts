@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useWorkspace } from "@/hooks/store/use-workspace";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
+
 
 import { MediaLibraryService } from "@/services/media-library.service";
-import { useWorkspace } from "@/hooks/store/use-workspace";
 import type { TMediaItem } from "../types/media-library.types";
 import { mapArtifactsToMediaItems } from "../utils/media-items";
 
@@ -17,6 +19,7 @@ export const useMediaLibraryItem = (
   const [isLoading, setIsLoading] = useState(false);
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
   const { currentWorkspace } = useWorkspace();
+  const readOnly = useUserReadOnly(workspaceSlug, projectId);
   const normalizedId = useMemo(() => {
     if (!mediaId) return "";
     try {
@@ -34,7 +37,7 @@ export const useMediaLibraryItem = (
 
     const load = async () => {
       try {
-        const manifest = await mediaLibraryService.ensureProjectLibrary(workspaceSlug, projectId);
+        const manifest = await mediaLibraryService.ensureProjectLibrary(workspaceSlug, projectId, undefined, readOnly);
         const packageId = typeof manifest?.id === "string" ? manifest.id : null;
         const metadataMap =
           manifest && typeof manifest === "object" && manifest.metadata && typeof manifest.metadata === "object"
@@ -72,7 +75,15 @@ export const useMediaLibraryItem = (
     return () => {
       isMounted = false;
     };
-  }, [currentWorkspace?.date_format, mediaLibraryService, normalizedId, projectId, refreshKey, workspaceSlug]);
+  }, [
+    readOnly,
+    currentWorkspace?.date_format,
+    mediaLibraryService,
+    normalizedId,
+    projectId,
+    refreshKey,
+    workspaceSlug,
+  ]);
 
   return { item, isLoading };
 };

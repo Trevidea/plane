@@ -374,9 +374,12 @@ export class MediaLibraryService extends APIService {
   async ensureProjectLibrary(
     workspaceSlug: string,
     projectId: string,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
+    readOnly = false
   ): Promise<TMediaLibraryManifest | null> {
-    return this.post(`/api/workspaces/${workspaceSlug}/projects/${projectId}/media-library/`, {}, config)
+    const url = `/api/workspaces/${workspaceSlug}/projects/${projectId}/media-library/`;
+    const request = readOnly ? this.get(url, {}, config) : this.post(url, {}, config);
+    return request
       .then((response) => response?.data ?? null)
       .catch((error) => {
         throw error?.response?.data ?? error?.response ?? error;

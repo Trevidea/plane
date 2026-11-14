@@ -30,6 +30,7 @@ import { DeletePageModal } from "@/components/pages/modals/delete-page-modal";
 // hooks
 import { captureClick } from "@/helpers/event-tracker.helper";
 import { usePageOperations } from "@/hooks/use-page-operations";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane web components
 import { MovePageModal } from "@/plane-web/components/pages";
 // plane web hooks
@@ -63,6 +64,7 @@ type Props = {
 
 export const PageActions: React.FC<Props> = observer((props) => {
   const { extraOptions, optionsOrder, page, parentRef, storeType } = props;
+  const isReadOnlyUser = useUserReadOnly();
   // states
   const [deletePageModal, setDeletePageModal] = useState(false);
   const [movePageModal, setMovePageModal] = useState(false);
@@ -199,6 +201,8 @@ export const PageActions: React.FC<Props> = observer((props) => {
         .filter((item) => !!item) as (TContextMenuItem & { key: TPageActions })[],
     [optionsOrder, MENU_ITEMS]
   );
+
+  if (isReadOnlyUser) return null;
 
   return (
     <>

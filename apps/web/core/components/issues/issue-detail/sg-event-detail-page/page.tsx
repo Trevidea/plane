@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
+import { getEventMediaDetails } from "ce/features/media-library/utils/media-event";
 import { usePathname, useSearchParams } from "next/navigation";
+
 import useSWR from "swr";
 import { v4 as uuidv4 } from "uuid";
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
@@ -17,6 +20,7 @@ import { useProject } from "@/hooks/store/use-project";
 import { useProjectState } from "@/hooks/store/use-project-state";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useAppRouter } from "@/hooks/use-app-router";
+import { UserReadOnlyContext, useUserReadOnly } from "@/hooks/use-user-readonly";
 import { IssueService } from "@/services/issue/issue.service";
 import type {
   TCustomPlaylist,
@@ -25,8 +29,6 @@ import type {
 } from "@/services/media-library.service";
 import { MediaLibraryService, MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY } from "@/services/media-library.service";
 import { RosterService } from "@/services/roster.service";
-import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
-import { getEventMediaDetails } from "ce/features/media-library/utils/media-event";
 import { CreateCardModal } from "./create-card-modal";
 import { buildCardPlaylists, buildCoachingCardPlaylists } from "./create-card-model";
 import type { CardFormValues } from "./create-card-model";
@@ -304,6 +306,9 @@ export const SgEventDetailPage = ({
   onBack,
 }: SgEventDetailPageProps) => {
   const sgIssue = issue as SgIssue | undefined;
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
+  const readOnlyRef = useRef(isReadOnlyUser);
+  readOnlyRef.current = isReadOnlyUser;
   const router = useAppRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -343,7 +348,7 @@ export const SgEventDetailPage = ({
     workspaceSlug && projectId && (resolvedWorkItemId || mediaItem?.id)
       ? `SG_EVENT_MEDIA_${workspaceSlug}_${projectId}_${resolvedWorkItemId || mediaItem?.id}`
       : null,
-    () => loadSgMediaPayload(workspaceSlug, projectId, resolvedWorkItemId, mediaItem, mediaLibraryService),
+    () => loadSgMediaPayload(workspaceSlug, projectId, resolvedWorkItemId, mediaItem, mediaLibraryService, isReadOnlyUser),
     { revalidateOnFocus: false }
   );
   const {
@@ -631,6 +636,7 @@ export const SgEventDetailPage = ({
 
   const handleCreateCustomPlaylist = useCallback(
     async (rows: SgTagRow[], name?: string) => {
+      if (readOnlyRef.current) throw new Error("This program is read-only.");
       if (isCreatingCustomPlaylistRef.current) return false;
       if (rows.length === 0) {
         setToast({
@@ -780,6 +786,7 @@ export const SgEventDetailPage = ({
 
   const handleDeleteCustomPlaylist = useCallback(
     async (playlist: TCustomPlaylist) => {
+      if (readOnlyRef.current) throw new Error("This program is read-only.");
       const eventArtifact = sgMediaPayload?.eventItem;
       if (!eventArtifact?.packageId || !eventArtifact.id) {
         throw new Error("The event artifact is unavailable for deleting the playlist.");
@@ -821,6 +828,7 @@ export const SgEventDetailPage = ({
 
   const handleUpdateCustomPlaylist = useCallback(
     async (playlist: TCustomPlaylist, payload: TCustomPlaylistUpdatePayload) => {
+      if (readOnlyRef.current) throw new Error("This program is read-only.");
       const eventArtifact = sgMediaPayload?.eventItem;
       if (!eventArtifact?.packageId || !eventArtifact.id) {
         throw new Error("The event artifact is unavailable for updating the playlist.");
@@ -860,6 +868,7 @@ export const SgEventDetailPage = ({
   );
   const handleUpdateVideoAnnotations = useCallback(
     async (videoItem: TMediaItem, annotations: TCustomPlaylistAnnotation[]) => {
+      if (readOnlyRef.current) throw new Error("This program is read-only.");
       if (!videoItem?.packageId || !videoItem.id) {
         throw new Error("Video annotations can only be saved on media library artifacts.");
       }
@@ -992,7 +1001,7 @@ export const SgEventDetailPage = ({
       selectedViewDevice?.streamName,
     ]
   );
-  const canSavePlaybackAnnotations = Boolean(playbackAnnotationPageItem?.packageId);
+  const canSavePlaybackAnnotations = !isReadOnlyUser && Boolean(playbackAnnotationPageItem?.packageId);
   const currentHref = useMemo(() => {
     const queryString = searchParams.toString();
     return queryString ? `${pathname}?${queryString}` : pathname;
@@ -1121,6 +1130,7 @@ export const SgEventDetailPage = ({
   );
 
   return (
+    <UserReadOnlyContext.Provider value={isReadOnlyUser}>
     <div className="sg-matrix-workspace h-full bg-[var(--sg-matrix-page)] text-[var(--sg-matrix-text)]">
       <div className={TIMELINE_PAGE_SCROLL_CLASS}>
         <div className={TIMELINE_PAGE_CONTENT_CLASS}>
@@ -1144,8 +1154,8 @@ export const SgEventDetailPage = ({
                     item={playbackItem}
                     annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                     compactEmpty={!hasPlayableVideo}
-                    onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
-                    showAnnotationButton={!isPlaybackOverrideActive}
+                    onOpenAnnotationPage={!isReadOnlyUser && playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
+                    showAnnotationButton={!isReadOnlyUser && !isPlaybackOverrideActive}
                     showAnnotations={!isPlaybackOverrideActive}
                     onPlaybackTimeChange={handlePlaybackTimeChange}
                     onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
@@ -1179,7 +1189,7 @@ export const SgEventDetailPage = ({
                 <MatrixView
                   activeRowId={activeMatrixRowId}
                   className="min-h-0"
-                  canCreatePlaylist={Boolean(matrixStreamName) || hasMatrixRowStreamName}
+                  canCreatePlaylist={!isReadOnlyUser && (Boolean(matrixStreamName) || hasMatrixRowStreamName)}
                   clipThumbnailUrl={activeVideo?.thumbnail || mediaItem?.thumbnail || playbackItem?.thumbnail || ""}
                   error={matrixError}
                   hasEvent={Boolean(mediaItem || issue || eventDetails || eventPayload)}
@@ -1187,7 +1197,7 @@ export const SgEventDetailPage = ({
                   isLoading={isTagRowsLoading}
                   layout="workspace"
                   onCreateCard={canManageCards ? handleCreateMatrixCard : undefined}
-                  onCreatePlaylist={handleCreateMatrixPlaylist}
+                  onCreatePlaylist={isReadOnlyUser ? undefined : handleCreateMatrixPlaylist}
                   onFocusedRowsChange={setFocusedMatrixRows}
                   onPlayTagRows={handlePlayTagRows}
                   onPlayTagRow={handlePlayTagRow}
@@ -1209,8 +1219,8 @@ export const SgEventDetailPage = ({
                         item={playbackItem}
                         annotationItem={playbackAnnotationPageItem ?? playbackAnnotationItem}
                         compactEmpty={!hasPlayableVideo}
-                        onOpenAnnotationPage={playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
-                        showAnnotationButton={!isPlaybackOverrideActive}
+                        onOpenAnnotationPage={!isReadOnlyUser && playbackAnnotationHref ? handleOpenPlaybackAnnotationPage : undefined}
+                        showAnnotationButton={!isReadOnlyUser && !isPlaybackOverrideActive}
                         showAnnotations={!isPlaybackOverrideActive}
                         onPlaybackTimeChange={handlePlaybackTimeChange}
                         onUpdateAnnotations={canSavePlaybackAnnotations ? handleUpdateVideoAnnotations : undefined}
@@ -1250,7 +1260,7 @@ export const SgEventDetailPage = ({
                     isPlaylistSelectionMode={isTimelinePlaylistSelectionMode}
                     isMediaLoading={isTagRowsLoading}
                     onClearTagSelection={clearSelectedTagIds}
-                    onCreatePlaylist={() => void handleCreateTimelinePlaylist()}
+                    onCreatePlaylist={isReadOnlyUser ? undefined : () => void handleCreateTimelinePlaylist()}
                     isPlayerPlaying={isPlayerPlaying}
                     onPlayTagRow={handlePlayTagRow}
                     onPlaylistSelectionModeChange={setIsTimelinePlaylistSelectionMode}
@@ -1285,7 +1295,7 @@ export const SgEventDetailPage = ({
                     isCreatingPlaylist={isCreatingCustomPlaylist}
                     isMediaLoading={isTagRowsLoading}
                     isSearchOpen={isSearchOpen}
-                    onCreatePlaylist={() => void handleCreateCustomPlaylist(activePlaylistRows)}
+                    onCreatePlaylist={isReadOnlyUser ? undefined : () => void handleCreateCustomPlaylist(activePlaylistRows)}
                     onCreateCard={canManageCards ? () => handleCreateMatrixCard(activePlaylistRows) : undefined}
                     onPlayTagRow={handlePlayTagRow}
                     onRemoveTag={handleRemoveTag}
@@ -1301,7 +1311,7 @@ export const SgEventDetailPage = ({
                     rows={filteredRows}
                     searchQuery={searchQuery}
                     selectedTagIds={selectedTagIds}
-                    showCreateActions={showTagListActions}
+                    showCreateActions={!isReadOnlyUser && showTagListActions}
                     sportTableConfig={sportTableConfig}
                     viewToggle={viewToggle}
                   />
@@ -1330,5 +1340,6 @@ export const SgEventDetailPage = ({
         />
       )}
     </div>
+    </UserReadOnlyContext.Provider>
   );
 };

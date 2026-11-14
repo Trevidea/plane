@@ -1,5 +1,6 @@
 "use client";
 
+
 import React, { useRef, useState } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
@@ -23,6 +24,7 @@ import { useProject } from "@/hooks/store/use-project";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useAppRouter } from "@/hooks/use-app-router";
 import { usePlatformOS } from "@/hooks/use-platform-os";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // local imports
 import { DeleteProjectModal } from "./delete-project-modal";
 import { JoinProjectModal } from "./join-project-modal";
@@ -47,18 +49,18 @@ export const ProjectCard: React.FC<Props> = observer((props) => {
   const { getUserDetails } = useMember();
   const { addProjectToFavorites, removeProjectFromFavorites } = useProject();
   const { allowPermissions } = useUserPermissions();
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug?.toString(), project.id);
   // hooks
   const { isMobile } = usePlatformOS();
   // derived values
   const projectMembersIds = project.members;
-  const shouldRenderFavorite = allowPermissions(
-    [EUserPermissions.ADMIN, EUserPermissions.MEMBER],
-    EUserPermissionsLevel.WORKSPACE
-  );
+  const shouldRenderFavorite =
+    !isReadOnlyUser &&
+    allowPermissions([EUserPermissions.ADMIN, EUserPermissions.MEMBER], EUserPermissionsLevel.WORKSPACE);
   // auth
   const isMemberOfProject = !!project.member_role;
-  const hasAdminRole = project.member_role === EUserPermissions.ADMIN;
-  const hasMemberRole = project.member_role === EUserPermissions.MEMBER;
+  const hasAdminRole = !isReadOnlyUser && project.member_role === EUserPermissions.ADMIN;
+  const hasMemberRole = !isReadOnlyUser && project.member_role === EUserPermissions.MEMBER;
   // archive
   const isArchived = !!project.archived_at;
   // local storage
@@ -201,7 +203,7 @@ export const ProjectCard: React.FC<Props> = observer((props) => {
         data-prevent-progress={!isMemberOfProject || isArchived}
         className="flex flex-col rounded border border-custom-border-200 bg-custom-background-100"
       >
-        <ContextMenu parentRef={projectCardRef} items={MENU_ITEMS} />
+        {!isReadOnlyUser && <ContextMenu parentRef={projectCardRef} items={MENU_ITEMS} />}
         <div className="relative h-[118px] w-full rounded-t ">
           <div className="absolute inset-0 z-[1] bg-gradient-to-t from-black/60 to-transparent" />
 

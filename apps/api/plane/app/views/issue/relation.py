@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Python imports
 import json
 
@@ -31,6 +33,8 @@ from plane.utils.host import base_host
 
 
 class IssueRelationViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve"}
     serializer_class = IssueRelationSerializer
     model = IssueRelation
     permission_classes = [ProjectEntityPermission]
@@ -45,6 +49,14 @@ class IssueRelationViewSet(BaseViewSet):
             .order_by("-created_at")
             .distinct()
         )
+        if has_user_role(request, self):
+            projects = user_readonly_projects(request.user, slug)
+            issue_relations = issue_relations.filter(
+                issue__project__in=projects,
+                related_issue__project__in=projects,
+                issue__archived_at__isnull=True,
+                related_issue__archived_at__isnull=True,
+            )
         # get all blocking issues
         blocking_issues = issue_relations.filter(relation_type="blocked_by", related_issue_id=issue_id).values_list(
             "issue_id", flat=True

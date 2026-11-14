@@ -4,6 +4,8 @@ import { EUserProjectRoles, EUserWorkspaceRoles } from "@plane/types";
 
 export const getUserRole = (role: EUserPermissions | EUserWorkspaceRoles | EUserProjectRoles) => {
   switch (role) {
+    case EUserPermissions.USER:
+      return "ATHLETE";
     case EUserPermissions.GUEST:
       return "GUEST";
     case EUserPermissions.MEMBER:

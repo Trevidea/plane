@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role
+
 # Python imports
 import json
 
@@ -19,10 +21,20 @@ from plane.utils.host import base_host
 
 
 class IssueReactionViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve"}
     serializer_class = IssueReactionSerializer
     model = IssueReaction
 
     def get_queryset(self):
+        if has_user_role(self.request, self):
+            queryset = IssueReaction.objects.filter(
+                workspace__slug=self.kwargs.get("slug"),
+                project_id=self.kwargs.get("project_id"),
+                issue_id=self.kwargs.get("issue_id"),
+                issue__archived_at__isnull=True,
+            )
+            return queryset
         return (
             super()
             .get_queryset()

@@ -15,6 +15,7 @@ import { getPublishViewLink } from "@plane/utils";
 import { useMember } from "@/hooks/store/use-member";
 import { useProjectView } from "@/hooks/store/use-project-view";
 import { useUserPermissions } from "@/hooks/store/user";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane web imports
 import { PublishViewModal } from "@/plane-web/components/views/publish";
 // local imports
@@ -38,6 +39,7 @@ export const ViewListItemAction: FC<Props> = observer((props) => {
   const { workspaceSlug, projectId } = useParams();
   // store
   const { allowPermissions } = useUserPermissions();
+  const isReadOnlyUser = useUserReadOnly();
 
   const { addViewToFavorites, removeViewFromFavorites } = useProjectView();
   const { getUserDetails } = useMember();
@@ -73,6 +75,8 @@ export const ViewListItemAction: FC<Props> = observer((props) => {
   };
 
   const ownedByDetails = view.owned_by ? getUserDetails(view.owned_by) : undefined;
+
+  if (isReadOnlyUser) return null;
 
   return (
     <>

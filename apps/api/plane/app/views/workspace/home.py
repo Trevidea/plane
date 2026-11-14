@@ -11,6 +11,7 @@ from rest_framework import status
 
 
 class WorkspaceHomePreferenceViewSet(BaseAPIView):
+    user_role_readonly = True
     model = WorkspaceHomePreference
 
     def get_serializer_class(self):

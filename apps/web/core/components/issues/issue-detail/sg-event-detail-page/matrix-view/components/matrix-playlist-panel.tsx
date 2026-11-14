@@ -4,6 +4,7 @@ import { HlsVideo } from "ce/features/media-library/components/hls-video";
 import { ChevronDown, ChevronRight, ClipboardList, Pencil, Plus, Trash2, Video, X } from "lucide-react";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import { AlertModalCore, Button, Checkbox } from "@plane/ui";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import type {
   TCustomPlaylist,
   TCustomPlaylistClip,
@@ -548,6 +549,7 @@ export const SgMatrixPlaylistPanel = ({
   rows,
 }: SgMatrixPlaylistPanelProps) => {
   const [activePlaylist, setActivePlaylist] = useState<TCustomPlaylist | null>(null);
+  const isReadOnlyUser = useUserReadOnly();
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null);
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<Set<string>>(() => new Set());
   const [editingPlaylistText, setEditingPlaylistText] = useState<PlaylistTextEditState | null>(null);
@@ -806,7 +808,7 @@ export const SgMatrixPlaylistPanel = ({
               {customPlaylists.length} {customPlaylists.length === 1 ? "playlist" : "playlists"}
             </span>
           </div>
-          <Button
+          {!isReadOnlyUser && <Button
             unstyled
             type="button"
             aria-label="Add playlist"
@@ -816,11 +818,11 @@ export const SgMatrixPlaylistPanel = ({
             className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border border-[var(--sg-matrix-grid-border)] text-[var(--sg-matrix-text-secondary)] transition-colors hover:bg-[var(--sg-matrix-hover)] hover:text-[var(--sg-matrix-text)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--sg-matrix-active-border)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus className="h-4 w-4" />
-          </Button>
+          </Button>}
         </div>
 
         <div className="vertical-scrollbar scrollbar-md min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
-          {draft && (
+          {!isReadOnlyUser && draft && (
             <PlaylistDraftEditor
               availableRows={availableRows}
               draft={draft}
@@ -948,7 +950,7 @@ export const SgMatrixPlaylistPanel = ({
                         </Button>
                       )}
 
-                      {!isEditing && onPlayPlaylist ? (
+                      {!isReadOnlyUser && !isEditing && onPlayPlaylist ? (
                         <Button
                           unstyled
                           type="button"
@@ -967,7 +969,7 @@ export const SgMatrixPlaylistPanel = ({
                         </Button>
                       ) : null}
 
-                      {!isEditing ? (
+                      {!isReadOnlyUser && !isEditing ? (
                         <Button
                           unstyled
                           type="button"
@@ -979,7 +981,7 @@ export const SgMatrixPlaylistPanel = ({
                         </Button>
                       ) : null}
 
-                      <Button
+                      {!isReadOnlyUser && <Button
                         unstyled
                         type="button"
                         onClick={() => handleOpenDeleteModal(playlist)}
@@ -987,7 +989,7 @@ export const SgMatrixPlaylistPanel = ({
                         aria-label={`Delete ${cardTitle}`}
                       >
                         <Trash2 className="h-3 w-3" />
-                      </Button>
+                      </Button>}
                     </div>
 
                     {isExpanded ? (

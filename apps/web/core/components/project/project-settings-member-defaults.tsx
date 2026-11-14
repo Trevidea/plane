@@ -138,6 +138,7 @@ export const ProjectSettingsMemberDefaults: React.FC<TProjectSettingsMemberDefau
             name="project_lead"
             render={({ field: { value } }) => (
               <MemberSelect
+                excludeUserRole
                 value={value}
                 onChange={(val: string) => {
                   submitChanges({ project_lead: val });

@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import Link from "next/link";
@@ -21,6 +22,7 @@ import { LogoSpinner } from "@/components/common/logo-spinner";
 import { SgEventDetailPage } from "@/components/issues/issue-detail/sg-event-detail-page";
 import { useMember } from "@/hooks/store/use-member";
 import { useAppRouter } from "@/hooks/use-app-router";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import type { TCustomPlaylistAnnotation } from "@/services/media-library.service";
 import { MediaLibraryService, MEDIA_EVENT_CUSTOM_PLAYLISTS_KEY } from "@/services/media-library.service";
 import { PLAYER_STYLE } from "../constants/player-styles";
@@ -187,6 +189,7 @@ const MediaDetailPage = () => {
     projectId: string;
   };
   const cardMediaKey = `${workspaceSlug}:${projectId}:${mediaId}`;
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
   const currentCardMediaKeyRef = useRef(cardMediaKey);
   currentCardMediaKeyRef.current = cardMediaKey;
   const [creatingCardFor, setCreatingCardFor] = useState<string | null>(null);
@@ -196,7 +199,7 @@ const MediaDetailPage = () => {
   const searchParams = useSearchParams();
   const fromParam = searchParams.get("from") ?? "";
   const annotationParam = (searchParams.get("annotation") ?? searchParams.get("annotate") ?? "").toLowerCase();
-  const shouldOpenVideoAnnotationWorkspaceFromQuery = ["1", "true", "open", "video"].includes(annotationParam);
+  const shouldOpenVideoAnnotationWorkspaceFromQuery = !isReadOnlyUser && ["1", "true", "open", "video"].includes(annotationParam);
   const annotationSessionParam = searchParams.get("annotationSession") ?? "";
   const annotationStreamParam = searchParams.get("stream") ?? "";
   const annotationStreamIdParam = searchParams.get("streamId") ?? "";
@@ -1368,13 +1371,14 @@ const MediaDetailPage = () => {
     return player?.play?.();
   }, []);
   const handleOpenVideoAnnotationWorkspace = useCallback(() => {
+    if (isReadOnlyUser) return;
     const player = playerRef.current;
 
     if (!isCustomPlaylistAnnotation) player?.pause?.();
     setHasUnsavedVideoAnnotationChanges(false);
     setIsVideoAnnotationWorkspaceOpen(true);
     setVideoAnnotationWorkspaceActivationKey((currentValue) => currentValue + 1);
-  }, [isCustomPlaylistAnnotation]);
+  }, [isCustomPlaylistAnnotation, isReadOnlyUser]);
   const handleRegisterVideoAnnotationSaveHandler = useCallback((saveAnnotations: (() => Promise<boolean>) | null) => {
     videoAnnotationSaveBeforeCloseRef.current = saveAnnotations;
   }, []);
@@ -1427,6 +1431,7 @@ const MediaDetailPage = () => {
   }, []);
   const persistVideoAnnotations = useCallback(
     async (annotations: TCustomPlaylistAnnotation[]) => {
+      if (isReadOnlyUser) throw new Error("This program is read-only.");
       const updateSavedMedia = (updates: Partial<TMediaItem>) => {
         if (currentCardMediaKeyRef.current === cardMediaKey) handleMediaItemUpdated(updates);
       };
@@ -1549,6 +1554,7 @@ const MediaDetailPage = () => {
       mediaLibraryService,
       projectId,
       shouldOpenVideoAnnotationWorkspaceFromQuery,
+      isReadOnlyUser,
       workspaceSlug,
     ]
   );
@@ -1563,8 +1569,8 @@ const MediaDetailPage = () => {
     },
     [cardMediaKey, persistVideoAnnotations]
   );
-  const canAnnotateCurrentVideo = isVideo && Boolean(item?.packageId && item.id);
-  const isFocusedVideoAnnotationWorkspace = isVideo && isVideoAnnotationWorkspaceOpen;
+  const canAnnotateCurrentVideo = !isReadOnlyUser && isVideo && Boolean(item?.packageId && item.id);
+  const isFocusedVideoAnnotationWorkspace = !isReadOnlyUser && isVideo && isVideoAnnotationWorkspaceOpen;
 
   useEffect(() => {
     if (!shouldOpenVideoAnnotationWorkspaceFromQuery || !canAnnotateCurrentVideo) return;
@@ -1769,7 +1775,7 @@ const MediaDetailPage = () => {
                     autoEnableAnnotationModeKey={
                       isFocusedVideoAnnotationWorkspace ? videoAnnotationWorkspaceActivationKey : undefined
                     }
-                    canEdit={isFocusedVideoAnnotationWorkspace && Boolean(item.packageId && item.id)}
+                    canEdit={!isReadOnlyUser && isFocusedVideoAnnotationWorkspace && Boolean(item.packageId && item.id)}
                     currentTime={currentVideoSeconds}
                     getCurrentTime={getNarrationCurrentTime}
                     videoElement={playerElement?.querySelector("video") ?? videoRef.current}

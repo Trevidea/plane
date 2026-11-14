@@ -1,5 +1,7 @@
 "use client";
 
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, ReactNode, UIEvent, WheelEvent } from "react";
 
@@ -144,6 +146,7 @@ export const SgEventTimelinePanel = ({
   viewToggle,
 }: SgEventTimelinePanelProps) => {
   const [isTagTypesPanelOpen, setIsTagTypesPanelOpen] = useState(false);
+  const isReadOnlyUser = useUserReadOnly();
   const [visibleTagTypeKeys, setVisibleTagTypeKeys] = useState<string[] | null>(null);
   const [tagTypeSearchQuery, setTagTypeSearchQuery] = useState("");
   const [collapsedTagTypeGroups, setCollapsedTagTypeGroups] = useState<Record<string, boolean>>({});
@@ -828,7 +831,7 @@ export const SgEventTimelinePanel = ({
               </Button>
             </>
           )}
-          <Button
+          {onCreatePlaylist && <Button
             unstyled
             type="button"
             disabled={!canCreatePlaylist}
@@ -842,7 +845,7 @@ export const SgEventTimelinePanel = ({
           >
             <ListPlus className="h-3.5 w-3.5" />
             <span>{isCreatingPlaylist ? "Creating" : "Create Playlist"}</span>
-          </Button>
+          </Button>}
           {playlistDisabledReason && (
             <p id="timeline-playlist-reason" role="status" className="text-xs text-custom-text-300">
               {playlistDisabledReason}
@@ -968,7 +971,7 @@ export const SgEventTimelinePanel = ({
                           <Button
                             unstyled
                             type="button"
-                            draggable
+                            draggable={!isReadOnlyUser}
                             onDragStart={(event) => {
                               event.stopPropagation();
                               const draggedTagIds = getDraggedPlaylistTagIds(row.id, rows, selectedTagIds);

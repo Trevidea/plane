@@ -8,6 +8,7 @@ import useSWR from "swr";
 import { LogoSpinner } from "@/components/common/logo-spinner";
 // helpers
 import { EPageTypes } from "@/helpers/authentication.helper";
+import { getWorkspaceEntryPath } from "@/helpers/user-readonly";
 // hooks
 import { useWorkspace } from "@/hooks/store/use-workspace";
 import { useUser, useUserProfile, useUserSettings } from "@/hooks/store/user";
@@ -70,8 +71,7 @@ export const AuthenticationWrapper: FC<TAuthenticationWrapper> = observer((props
     );
 
     if (isCurrentWorkspaceValid >= 0) {
-      const workspace = Object.values(workspaces || {}).find((value) => value.slug === currentWorkspaceSlug);
-      redirectionRoute = workspace?.role === 1 ? "/player" : `/${currentWorkspaceSlug}`;
+      redirectionRoute = getWorkspaceEntryPath(currentWorkspaceSlug!);
     }
 
     return redirectionRoute;

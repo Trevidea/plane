@@ -1,5 +1,5 @@
-// SidebarItemBase.tsx
 "use client";
+
 import type { FC, ReactNode } from "react";
 import { observer } from "mobx-react";
 import Link from "next/link";
@@ -16,6 +16,7 @@ import { NotificationAppSidebarOption } from "@/components/workspace-notificatio
 import { useAppTheme } from "@/hooks/store/use-app-theme";
 import { useWorkspace } from "@/hooks/store/use-workspace";
 import { useUser, useUserPermissions } from "@/hooks/store/user";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane web imports
 import { getSidebarNavigationItemIcon } from "@/plane-web/components/workspace/sidebar/helper";
 
@@ -30,6 +31,7 @@ export const SidebarItemBase: FC<Props> = observer(({ item, additionalRender, ad
   const pathname = usePathname();
   const { workspaceSlug } = useParams();
   const { allowPermissions } = useUserPermissions();
+  const readOnly = useUserReadOnly(workspaceSlug.toString(), "");
   const { getNavigationPreferences } = useWorkspace();
   const { data } = useUser();
 
@@ -40,10 +42,23 @@ export const SidebarItemBase: FC<Props> = observer(({ item, additionalRender, ad
     if (isExtendedSidebarOpened) toggleExtendedSidebar(false);
   };
 
-  const staticItems = ["home", "inbox", "pi_chat", "projects", "your_work", "opposition", ...(additionalStaticItems || [])];
+  const staticItems = [
+    "home",
+    "inbox",
+    "pi_chat",
+    "projects",
+    "your_work",
+    "opposition",
+    ...(additionalStaticItems || []),
+  ];
   const slug = workspaceSlug?.toString() || "";
 
-  if (!allowPermissions(item.access, EUserPermissionsLevel.WORKSPACE, slug)) return null;
+  if (
+    readOnly
+      ? !["home", "projects"].includes(item.key)
+      : !allowPermissions(item.access, EUserPermissionsLevel.WORKSPACE, slug)
+  )
+    return null;
 
   const sidebarPreference = getNavigationPreferences(slug);
   const isPinned = sidebarPreference?.[item.key]?.is_pinned;

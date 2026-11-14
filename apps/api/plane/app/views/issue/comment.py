@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role
+
 # Python imports
 import json
 
@@ -22,6 +24,8 @@ from plane.bgtasks.webhook_task import model_activity
 
 
 class IssueCommentViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve"}
     serializer_class = IssueCommentSerializer
     model = IssueComment
     webhook_event = "issue_comment"
@@ -29,6 +33,15 @@ class IssueCommentViewSet(BaseViewSet):
     filterset_fields = ["issue__id", "workspace__id"]
 
     def get_queryset(self):
+        if has_user_role(self.request, self):
+            queryset = IssueComment.objects.filter(
+                workspace__slug=self.kwargs.get("slug"),
+                project_id=self.kwargs.get("project_id"),
+                issue_id=self.kwargs.get("issue_id"),
+                issue__archived_at__isnull=True,
+            )
+            queryset = queryset.filter(access="EXTERNAL")
+            return queryset
         return self.filter_queryset(
             super()
             .get_queryset()

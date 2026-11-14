@@ -3,6 +3,8 @@ from plane.app.permissions import ROLE
 
 
 from rest_framework.permissions import BasePermission, SAFE_METHODS
+from django.db.models import Q
+from plane.utils.user_role_access import readonly_user_access_allowed
 
 
 # Permission Mappings for workspace members
@@ -21,6 +23,21 @@ class ProjectPagePermission(BasePermission):
         """
         Check basic project-level permissions before checking object-level permissions.
         """
+        if readonly_user_access_allowed(request, view):
+            page_id = view.kwargs.get("page_id")
+            if page_id:
+                return (
+                    Page.objects.using("default")
+                    .filter(
+                        pk=page_id,
+                        workspace__slug=view.kwargs.get("slug"),
+                        projects__id=view.kwargs.get("project_id"),
+                        archived_at__isnull=True,
+                    )
+                    .filter(Q(owned_by=request.user) | Q(access=Page.PUBLIC_ACCESS))
+                    .exists()
+                )
+            return True
         if request.user.is_anonymous:
             return False
 

@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Third party modules
 from rest_framework import status
 from rest_framework.response import Response
@@ -14,6 +16,7 @@ from plane.app.permissions import allow_permission, ROLE
 
 
 class WorkspaceFavoriteEndpoint(BaseAPIView):
+    user_role_readonly = True
     use_read_replica = True
 
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER], level="WORKSPACE")
@@ -27,7 +30,25 @@ class WorkspaceFavoriteEndpoint(BaseAPIView):
                 & Q(project__project_projectmember__is_active=True)
             )
         )
-        serializer = UserFavoriteSerializer(favorites, many=True)
+        if has_user_role(request, self):
+            favorites = UserFavorite.objects.filter(
+                user=request.user,
+                workspace__slug=slug,
+                project_id__in=user_readonly_projects(request.user, slug).values("id"),
+                parent_id=None,
+            ).exclude(entity_type="page")
+        serializer = UserFavoriteSerializer(
+            favorites,
+            many=True,
+            context=(
+                {
+                    "readonly_project_ids": user_readonly_projects(request.user, slug).values_list("id", flat=True),
+                    "readonly_user": request.user,
+                }
+                if has_user_role(request, self)
+                else {}
+            ),
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER], level="WORKSPACE")
@@ -79,6 +100,8 @@ class WorkspaceFavoriteEndpoint(BaseAPIView):
 
 
 class WorkspaceFavoriteGroupEndpoint(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER], level="WORKSPACE")
     def get(self, request, slug, favorite_id):
         favorites = UserFavorite.objects.filter(user=request.user, workspace__slug=slug, parent_id=favorite_id).filter(
@@ -89,5 +112,23 @@ class WorkspaceFavoriteGroupEndpoint(BaseAPIView):
                 & Q(project__project_projectmember__is_active=True)
             )
         )
-        serializer = UserFavoriteSerializer(favorites, many=True)
+        if has_user_role(request, self):
+            favorites = UserFavorite.objects.filter(
+                user=request.user,
+                workspace__slug=slug,
+                project_id__in=user_readonly_projects(request.user, slug).values("id"),
+                parent_id=favorite_id,
+            ).exclude(entity_type="page")
+        serializer = UserFavoriteSerializer(
+            favorites,
+            many=True,
+            context=(
+                {
+                    "readonly_project_ids": user_readonly_projects(request.user, slug).values_list("id", flat=True),
+                    "readonly_user": request.user,
+                }
+                if has_user_role(request, self)
+                else {}
+            ),
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)

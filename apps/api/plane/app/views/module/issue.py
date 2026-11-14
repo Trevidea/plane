@@ -39,6 +39,8 @@ from plane.utils.host import base_host
 
 
 class ModuleIssueViewSet(BaseViewSet):
+    user_role_readonly = True
+    user_role_readonly_actions = {"list", "retrieve"}
     serializer_class = ModuleIssueSerializer
     model = ModuleIssue
     webhook_event = "module_issue"

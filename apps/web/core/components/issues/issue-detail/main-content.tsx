@@ -150,7 +150,7 @@ export const IssueMainContent: React.FC<Props> = observer((props) => {
               projectId={projectId}
               issueId={issueId}
               currentUser={currentUser}
-              disabled={isArchived}
+              disabled={!isEditable || isArchived}
             />
           )}
           {isEditable && (
@@ -185,7 +185,13 @@ export const IssueMainContent: React.FC<Props> = observer((props) => {
         issueServiceType={EIssueServiceType.ISSUES}
       />
 
-      <CoachingCardClips key={issue.id} issue={issue} workspaceSlug={workspaceSlug} projectId={projectId} />
+      <CoachingCardClips
+        disabled={!isEditable || isArchived}
+        key={issue.id}
+        issue={issue}
+        workspaceSlug={workspaceSlug}
+        projectId={projectId}
+      />
 
       {windowSize[0] < 768 && (
         <PeekOverviewProperties
@@ -197,7 +203,12 @@ export const IssueMainContent: React.FC<Props> = observer((props) => {
         />
       )}
 
-      <IssueActivity workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} disabled={isArchived} />
+      <IssueActivity
+        workspaceSlug={workspaceSlug}
+        projectId={projectId}
+        issueId={issueId}
+        disabled={!isEditable || isArchived}
+      />
     </>
   );
 });

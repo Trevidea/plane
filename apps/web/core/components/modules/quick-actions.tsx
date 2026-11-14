@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useState } from "react";
 import { observer } from "mobx-react";
 
@@ -27,6 +28,7 @@ import { captureClick, captureSuccess, captureError } from "@/helpers/event-trac
 import { useModule } from "@/hooks/store/use-module";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useAppRouter } from "@/hooks/use-app-router";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 
 type Props = {
   parentRef: React.RefObject<HTMLDivElement>;
@@ -46,6 +48,7 @@ export const ModuleQuickActions: React.FC<Props> = observer((props) => {
   const [deleteModal, setDeleteModal] = useState(false);
   // store hooks
   const { allowPermissions } = useUserPermissions();
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
 
   const { getModuleById, restoreModule } = useModule();
 
@@ -170,6 +173,8 @@ export const ModuleQuickActions: React.FC<Props> = observer((props) => {
       item.action();
     },
   }));
+
+  if (isReadOnlyUser) return null;
 
   return (
     <>

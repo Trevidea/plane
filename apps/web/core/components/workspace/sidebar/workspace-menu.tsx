@@ -26,7 +26,12 @@ export const SidebarWorkspaceMenu = observer(() => {
       key: "projects",
       labelTranslationKey: "sidebar.projects",
       href: `/${workspaceSlug}/projects/`,
-      access: [EUserWorkspaceRoles.ADMIN, EUserWorkspaceRoles.MEMBER, EUserWorkspaceRoles.GUEST],
+      access: [
+        EUserWorkspaceRoles.ADMIN,
+        EUserWorkspaceRoles.MEMBER,
+        EUserWorkspaceRoles.GUEST,
+        EUserWorkspaceRoles.USER,
+      ],
       Icon: ProjectIcon,
     },
     {

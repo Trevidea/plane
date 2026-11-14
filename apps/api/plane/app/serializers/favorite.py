@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import serializers
 
 from plane.db.models import UserFavorite, Cycle, Module, Issue, IssueView, Page, Project
@@ -78,7 +79,20 @@ class UserFavoriteSerializer(serializers.ModelSerializer):
         entity_model, entity_serializer = get_entity_model_and_serializer(entity_type)
         if entity_model and entity_serializer:
             try:
-                entity = entity_model.objects.get(pk=entity_identifier)
+                entities = entity_model.objects.filter(pk=entity_identifier)
+                if "readonly_project_ids" in self.context:
+                    project_ids = self.context["readonly_project_ids"]
+                    if entity_type == "project":
+                        entities = entities.filter(pk__in=project_ids)
+                    elif entity_type == "page":
+                        entities = entities.filter(projects__id__in=project_ids).filter(
+                            Q(access=0) | Q(owned_by=self.context["readonly_user"])
+                        )
+                    else:
+                        entities = entities.filter(project_id__in=project_ids)
+                        if entity_type == "view":
+                            entities = entities.filter(Q(access=1) | Q(owned_by=self.context["readonly_user"]))
+                entity = entities.get()
                 return entity_serializer(entity).data
             except entity_model.DoesNotExist:
                 return None

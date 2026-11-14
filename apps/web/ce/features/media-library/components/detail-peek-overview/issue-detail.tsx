@@ -1,4 +1,5 @@
-"use-client";
+"use client";
+
 import type { FC } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { observer } from "mobx-react";
@@ -21,6 +22,7 @@ import { useMember } from "@/hooks/store/use-member";
 import { useProject } from "@/hooks/store/use-project";
 import { useUser } from "@/hooks/store/user";
 import useReloadConfirmations from "@/hooks/use-reload-confirmation";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane web components
 import { DeDupeIssuePopoverRoot } from "@/plane-web/components/de-dupe/duplicate-popover";
 import { IssueTypeSwitcher } from "@/plane-web/components/issues/issue-details/issue-type-switcher";
@@ -98,6 +100,7 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
   const { getProjectById } = useProject();
   const { getUserDetails } = useMember();
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
   // reload confirmation
   const { setShowAlert } = useReloadConfirmations(isSubmitting === "submitting");
 
@@ -174,7 +177,7 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
 
   const updateMediaArtifact = useCallback(
     async (data: Partial<TIssue>) => {
-      if (!mediaItem?.id || !mediaItem?.packageId) return;
+      if (isReadOnlyUser || disabled || !mediaItem?.id || !mediaItem?.packageId) return;
       const payload: { title?: string | null; description?: string | null } = {};
       const updatedFields: Partial<TMediaItem> = {};
       if (data.name !== undefined) {
@@ -197,7 +200,7 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
         onMediaItemUpdated?.(updatedFields);
       }
     },
-    [mediaItem, mediaLibraryService, onMediaItemUpdated, projectId, workspaceSlug]
+    [isReadOnlyUser, disabled, mediaItem, mediaLibraryService, onMediaItemUpdated, projectId, workspaceSlug]
   );
 
   const titleOps = useMemo<TIssueOperations>(() => {
@@ -214,7 +217,7 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
       : "<p></p>";
   const linkedProjectId = issue?.project_id ?? projectId;
   const resolvedProjectId = hasLinkedIssue ? linkedProjectId : projectId;
-  const resolvedIssueId = hasLinkedIssue ? issue!.id : mediaItem?.id ?? issueId;
+  const resolvedIssueId = hasLinkedIssue ? issue!.id : (mediaItem?.id ?? issueId);
   const mediaMeta = ((mediaItem?.meta ?? {}) as Record<string, unknown>) || {};
   const mediaLastEditedAt =
     typeof mediaMeta.updated_at === "string" && /^\d{4}-\d{2}-\d{2}/.test(mediaMeta.updated_at)
@@ -224,11 +227,17 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
         : null;
   const showIssueFooterMeta = hasLinkedIssue || Boolean(mediaItem);
   const issueLastEditedAt = issue?.updated_at ?? issue?.created_at ?? null;
-  const lastEditedAt = mediaItem ? mediaLastEditedAt ?? issueLastEditedAt : issueLastEditedAt;
+  const lastEditedAt = mediaItem ? (mediaLastEditedAt ?? issueLastEditedAt) : issueLastEditedAt;
   const lastEditedByDisplayName = hasLinkedIssue
-    ? getUserDetails(issue?.updated_by ?? issue?.created_by ?? "")?.display_name ?? mediaItem?.author ?? "Deactivated user"
-    : mediaItem?.author ?? "Media Library";
-  const lastEditedTimeLabel = lastEditedAt ? calculateTimeAgo(lastEditedAt) : mediaItem?.createdAt ? `on ${mediaItem.createdAt}` : "";
+    ? (getUserDetails(issue?.updated_by ?? issue?.created_by ?? "")?.display_name ??
+      mediaItem?.author ??
+      "Deactivated user")
+    : (mediaItem?.author ?? "Media Library");
+  const lastEditedTimeLabel = lastEditedAt
+    ? calculateTimeAgo(lastEditedAt)
+    : mediaItem?.createdAt
+      ? `on ${mediaItem.createdAt}`
+      : "";
 
   return (
     <div className="space-y-2">
@@ -289,7 +298,7 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
               projectId={linkedProjectId}
               issueId={issueId}
               currentUser={currentUser}
-              disabled={isArchived}
+              disabled={disabled || isReadOnlyUser || isArchived}
             />
           )}
           <>
@@ -299,8 +308,7 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
                   <History className="size-3.5" />
                 </span>
                 <p className="text-xs">
-                  Last edited by <span className="font-medium">{lastEditedByDisplayName}</span>{" "}
-                  {lastEditedTimeLabel}
+                  Last edited by <span className="font-medium">{lastEditedByDisplayName}</span> {lastEditedTimeLabel}
                 </p>
               </div>
             ) : (
@@ -315,11 +323,7 @@ export const PeekOverviewIssueDetails: FC<Props> = observer((props) => {
                   }}
                   fetchHandlers={{
                     listDescriptionVersions: (issueId) =>
-                      workItemVersionService.listDescriptionVersions(
-                        workspaceSlug,
-                        linkedProjectId,
-                        issueId
-                      ),
+                      workItemVersionService.listDescriptionVersions(workspaceSlug, linkedProjectId, issueId),
                     retrieveDescriptionVersion: (issueId, versionId) =>
                       workItemVersionService.retrieveDescriptionVersion(
                         workspaceSlug,

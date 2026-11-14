@@ -17,6 +17,10 @@ def allow_permission(allowed_roles, level="PROJECT", creator=False, model=None):
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(instance, request, *args, **kwargs):
+            from plane.utils.user_role_access import personal_view_preferences_allowed, readonly_user_access_allowed
+
+            if readonly_user_access_allowed(request, instance) or personal_view_preferences_allowed(request, instance):
+                return view_func(instance, request, *args, **kwargs)
             # Check for creator if required
             if creator and model:
                 obj = model.objects.filter(id=kwargs["pk"], created_by=request.user).exists()

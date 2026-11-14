@@ -285,3 +285,24 @@ test("completed events find the first stream in saved nested event data", () => 
     `${fileUrl(event.name)}?thumbnail=first-stream`
   );
 });
+
+
+test("completed events prefer their saved frame artifact for read-only users", () => {
+  const event = {
+    name: "saved-event", title: "Match", format: "json", action: "view", path: "event.json",
+    meta: { source: "plane-coach", artifact_type: "completed-event-json", event: {primaryStreamName: "first"} },
+  };
+  const thumbnail = {name: "saved-event-thumb", format: "thumbnail", action: "preview", path: "projects/project-1/frame.jpg", link: event.name};
+  const item = mapArtifactsToMediaItems([event, thumbnail], context).find(item => item.id === event.name);
+  assert.equal(item.thumbnail, fileUrl(thumbnail.name));
+});
+
+test("User media-library thumbnail cards use the saved image without private event metadata", () => {
+  const event = {name: "user-event", title: "Match", format: "json", action: "view", path: fileUrl("user-event"), metadata_ref: "user-event"};
+  const thumbnail = {name: "user-event-thumb", title: "Match", format: "thumbnail", action: "preview", path: fileUrl("user-event-thumb"), link: event.name, metadata_ref: "user-event"};
+  const items = mapArtifactsToMediaItems([event, thumbnail], {
+    ...context,
+    metadata: {"user-event": {source: "plane-coach", artifact_type: "completed-event-json"}},
+  });
+  assert.equal(items.find(item => item.id === thumbnail.name).thumbnail, fileUrl(thumbnail.name));
+});

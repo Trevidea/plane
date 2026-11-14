@@ -282,7 +282,15 @@ class WorkspaceRecentVisitSerializer(BaseSerializer):
 
         if entity_model and entity_serializer:
             try:
-                entity = entity_model.objects.get(pk=entity_identifier)
+                entities = entity_model.objects.filter(pk=entity_identifier)
+                if "readonly_project_ids" in self.context:
+                    if entity_name == "project":
+                        entities = entities.filter(pk__in=self.context["readonly_project_ids"])
+                    elif entity_name == "page":
+                        return None
+                    else:
+                        entities = entities.filter(project_id__in=self.context["readonly_project_ids"])
+                entity = entities.get()
 
                 return entity_serializer(entity).data
             except entity_model.DoesNotExist:
@@ -327,3 +335,11 @@ class WorkspaceUserPreferenceSerializer(BaseSerializer):
         model = WorkspaceUserPreference
         fields = ["key", "is_pinned", "sort_order"]
         read_only_fields = ["workspace", "created_by", "updated_by"]
+
+
+class WorkspaceMemberReadOnlySerializer(BaseSerializer):
+    member = UserLiteSerializer(read_only=True)
+
+    class Meta:
+        model = WorkspaceMember
+        fields = ["id", "member", "workspace", "role", "is_active"]

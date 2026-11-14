@@ -52,9 +52,17 @@ def _project_events(project_id, root, cache):
                 # Keep matching by the source work item; never fetch its media URL.
                 if artifact.get("format") != "json" and not any(
                     isinstance(meta.get(field), (dict, list))
-                    for field in ("customPlaylistAnnotations", "custom_playlist_annotations",
-                                  "custom_playlists", "mediaReferences", "media_references",
-                                  "devices", "event", "rawEvent", "raw_event")
+                    for field in (
+                        "customPlaylistAnnotations",
+                        "custom_playlist_annotations",
+                        "custom_playlists",
+                        "mediaReferences",
+                        "media_references",
+                        "devices",
+                        "event",
+                        "rawEvent",
+                        "raw_event",
+                    )
                 ):
                     continue
                 source_id = str(artifact.get("work_item_id") or meta.get("work_item_id"))
@@ -283,6 +291,22 @@ def _drawings(annotations, start, end, offset, cache):
         if len(result) >= 256:
             break
     return result
+
+
+def player_clip_drawings(clip, source_media=None, cache=None):
+    """Expose only bounded drawing fields for this clip's recording-time window."""
+    annotations = clip.get("annotations")
+    if annotations is None and isinstance(source_media, dict):
+        annotations = source_media.get("annotations")
+    if not isinstance(annotations, list):
+        return []
+    start = clip.get("start_seconds") or 0
+    end = clip.get("end_seconds")
+    if not _number(start) or start < 0 or (end is not None and (not _number(end) or end <= start)):
+        return []
+    return _drawings(
+        annotations, start, end if end is not None else float("inf"), 0, cache if cache is not None else {}
+    )
 
 
 def player_card_annotations(card, cache=None):

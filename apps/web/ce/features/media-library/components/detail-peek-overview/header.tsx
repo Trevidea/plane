@@ -1,5 +1,7 @@
 "use client";
 
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
+
 import type { FC } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { observer } from "mobx-react";
@@ -477,6 +479,7 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
     }>
   >([]);
   const mediaLibraryService = useMemo(() => new MediaLibraryService(), []);
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
   // derived values
   const issueDetails = getIssueById(issueId);
   const currentMode = PEEK_OPTIONS.find((m) => m.key === peekMode);
@@ -514,6 +517,7 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
   );
 
   useEffect(() => {
+    if (disabled) return;
     if (previousIssueIdRef.current !== issueId) {
       previousIssueIdRef.current = issueId;
       previousDescriptionImagesRef.current = normalizedDescriptionImages;
@@ -579,7 +583,7 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
     return () => {
       isMounted = false;
     };
-  }, [issueId, normalizedDescriptionImages, mediaLibraryService, projectId, workspaceSlug, setInlineCleanupModalOpen]);
+  }, [disabled, issueId, normalizedDescriptionImages, mediaLibraryService, projectId, workspaceSlug, setInlineCleanupModalOpen]);
 
   const handleInlineCleanupClose = useCallback(() => {
     setInlineCleanupModalOpen(false);
@@ -1033,10 +1037,10 @@ export const IssuePeekOverviewHeader: FC<PeekOverviewHeaderProps> = observer((pr
         <div className="flex items-center gap-x-4">
           <NameDescriptionUpdateStatus isSubmitting={isSubmitting} />
           <div className="flex items-center gap-4">
-            {currentUser && !isArchived && (
+            {!isReadOnlyUser && currentUser && !isArchived && (
               <IssueSubscription workspaceSlug={workspaceSlug} projectId={projectId} issueId={issueId} />
             )}
-            {hasMediaAssets && (
+            {!isReadOnlyUser && hasMediaAssets && (
               <Tooltip tooltipContent="Add assets in media library" isMobile={isMobile}>
                 <Button
                   unstyled

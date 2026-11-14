@@ -9,6 +9,7 @@ import { EUserProjectRoles } from "@plane/types";
 import { Avatar, CustomSearchSelect } from "@plane/ui";
 // helpers
 import { getFileURL } from "@plane/utils";
+import { isProgramLeadCandidate } from "@/helpers/project-lead";
 // hooks
 import { useMember } from "@/hooks/store/use-member";
 
@@ -16,15 +17,17 @@ type Props = {
   value: any;
   onChange: (val: string) => void;
   isDisabled?: boolean;
+  excludeUserRole?: boolean;
 };
 
 export const MemberSelect: React.FC<Props> = observer((props) => {
-  const { value, onChange, isDisabled = false } = props;
+  const { value, onChange, isDisabled = false, excludeUserRole = false } = props;
   // router
   const { projectId } = useParams();
   // store hooks
   const {
     project: { projectMemberIds, getProjectMemberDetails },
+    workspace: { getWorkspaceMemberDetails },
   } = useMember();
 
   const options = projectMemberIds
@@ -32,6 +35,7 @@ export const MemberSelect: React.FC<Props> = observer((props) => {
       const memberDetails = projectId ? getProjectMemberDetails(userId, projectId.toString()) : null;
 
       if (!memberDetails?.member) return;
+      if (excludeUserRole && !isProgramLeadCandidate(getWorkspaceMemberDetails(userId), memberDetails)) return;
       const isGuest = memberDetails.role === EUserProjectRoles.GUEST;
       if (isGuest) return;
 

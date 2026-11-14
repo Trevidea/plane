@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role
+
 # Python imports
 from itertools import chain
 
@@ -18,12 +20,47 @@ from plane.db.models import IssueActivity, IssueComment, CommentReaction, Intake
 
 
 class IssueActivityEndpoint(BaseAPIView):
+    user_role_readonly = True
     permission_classes = [ProjectEntityPermission]
     use_read_replica = True
 
     @method_decorator(gzip_page)
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def get(self, request, slug, project_id, issue_id):
+        if has_user_role(request, self):
+            activities = (
+                IssueActivity.objects.filter(
+                    issue_id=issue_id,
+                    project_id=project_id,
+                    workspace__slug=slug,
+                    issue__archived_at__isnull=True,
+                )
+                .exclude(field__in=["comment", "vote", "reaction", "draft"])
+                .order_by("created_at")
+            )
+            # Never return old/new arbitrary snapshots or intake source data.
+            activity_rows = list(
+                activities.values("id", "created_at", "field", "verb", "actor_id", "issue_id", "project_id")
+            )
+            comments = (
+                IssueComment.objects.filter(
+                    issue_id=issue_id,
+                    project_id=project_id,
+                    workspace__slug=slug,
+                    issue__archived_at__isnull=True,
+                    access="EXTERNAL",
+                )
+                .select_related("actor")
+                .order_by("created_at")
+            )
+            comment_rows = list(IssueCommentSerializer(comments, many=True).data)
+            activity_type = request.GET.get("activity_type")
+            if activity_type == "issue-property":
+                return Response(activity_rows)
+            if activity_type == "issue-comment":
+                return Response(comment_rows)
+            return Response(sorted(activity_rows + comment_rows, key=lambda row: str(row["created_at"])))
+
         filters = {}
         if request.GET.get("created_at__gt", None) is not None:
             filters = {"created_at__gt": request.GET.get("created_at__gt")}

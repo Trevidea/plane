@@ -1,5 +1,6 @@
 "use client";
 
+
 import type { FC } from "react";
 import { useMemo } from "react";
 import uniq from "lodash-es/uniq";
@@ -18,6 +19,7 @@ import { CommentCreate } from "@/components/comments/comment-create";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useProject } from "@/hooks/store/use-project";
 import { useUser, useUserPermissions } from "@/hooks/store/user";
+import { useUserReadOnly } from "@/hooks/use-user-readonly";
 // plane web components
 import { ActivityFilterRoot } from "@/plane-web/components/issues/worklog/activity/filter-root";
 import { IssueActivityWorklogCreateButton } from "@/plane-web/components/issues/worklog/activity/worklog-create-button";
@@ -42,6 +44,7 @@ export type TActivityOperations = {
 
 export const IssueActivity: FC<TIssueActivity> = observer((props) => {
   const { workspaceSlug, projectId, issueId, disabled = false, isIntakeIssue = false } = props;
+  const isReadOnlyUser = useUserReadOnly(workspaceSlug, projectId);
   // i18n
   const { t } = useTranslation();
   // hooks
@@ -64,7 +67,7 @@ export const IssueActivity: FC<TIssueActivity> = observer((props) => {
   const isAdmin = currentUserProjectRole === EUserPermissions.ADMIN;
   const isGuest = currentUserProjectRole === EUserPermissions.GUEST;
   const isAssigned = issue?.assignee_ids && currentUser?.id ? issue?.assignee_ids.includes(currentUser?.id) : false;
-  const isWorklogButtonEnabled = !isIntakeIssue && !isGuest && (isAdmin || isAssigned);
+  const isWorklogButtonEnabled = !disabled && !isReadOnlyUser && !isIntakeIssue && !isGuest && (isAdmin || isAssigned);
   // toggle filter
   const toggleFilter = (filter: TActivityFilters) => {
     if (!selectedFilters) return;
@@ -112,7 +115,7 @@ export const IssueActivity: FC<TIssueActivity> = observer((props) => {
               workspaceSlug={workspaceSlug}
               projectId={projectId}
               issueId={issueId}
-              disabled={disabled}
+              disabled={disabled || isReadOnlyUser}
             />
           )}
           <ActivitySortRoot sortOrder={sortOrder || E_SORT_ORDER.ASC} toggleSort={toggleSortOrder} />
@@ -129,7 +132,7 @@ export const IssueActivity: FC<TIssueActivity> = observer((props) => {
       <div className="space-y-3">
         <div className="min-h-[200px]">
           <div className="space-y-3">
-            {!disabled && sortOrder === E_SORT_ORDER.DESC && renderCommentCreationBox}
+            {!disabled && !isReadOnlyUser && sortOrder === E_SORT_ORDER.DESC && renderCommentCreationBox}
             <IssueActivityCommentRoot
               projectId={projectId}
               workspaceSlug={workspaceSlug}
@@ -138,10 +141,10 @@ export const IssueActivity: FC<TIssueActivity> = observer((props) => {
               selectedFilters={selectedFilters || defaultActivityFilters}
               activityOperations={activityOperations}
               showAccessSpecifier={!!project.anchor}
-              disabled={disabled}
+              disabled={disabled || isReadOnlyUser}
               sortOrder={sortOrder || E_SORT_ORDER.ASC}
             />
-            {!disabled && sortOrder === E_SORT_ORDER.ASC && renderCommentCreationBox}
+            {!disabled && !isReadOnlyUser && sortOrder === E_SORT_ORDER.ASC && renderCommentCreationBox}
           </div>
         </div>
       </div>

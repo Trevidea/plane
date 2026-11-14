@@ -63,7 +63,7 @@ def _http_base(value):
 
 
 def get_event_first_frame_thumbnail(
-    *, meta, event_payload, identity, worker_base, hls_base, timeout=10, token=""
+    *, meta, event_payload, identity, worker_base, hls_base, timeout=10, token="", allow_create=True
 ):
     stream_name = resolve_event_first_stream_name(_record(meta), event_payload)
     if not isinstance(stream_name, str) or not _STREAM_NAME.fullmatch(stream_name):
@@ -93,6 +93,8 @@ def get_event_first_frame_thumbnail(
         except urlerror.HTTPError as exc:
             if exc.code != 404:
                 return None
+        if not allow_create:
+            return None
         payload = {
             "url": f"{hls_base}/{stream_name}/llhls.m3u8",
             "timestamp": 0,

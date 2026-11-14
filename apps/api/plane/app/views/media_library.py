@@ -1,3 +1,6 @@
+from plane.utils.user_role_access import has_user_role
+from plane.utils.user_plane_read_data import sanitize_shared_data
+
 # Python imports
 import base64
 import binascii
@@ -269,7 +272,9 @@ def _format_duration_hhmmss(value: float | None) -> str | None:
 
 def _probe_transcode_source(path: Path) -> dict:
     if shutil.which("ffprobe") is None:
-        raise MediaSourceValidationError("SOURCE_PROBE_UNAVAILABLE", "ffprobe is not installed. Video uploads cannot be inspected.")
+        raise MediaSourceValidationError(
+            "SOURCE_PROBE_UNAVAILABLE", "ffprobe is not installed. Video uploads cannot be inspected."
+        )
     cmd = [
         "ffprobe",
         "-v",
@@ -306,7 +311,11 @@ def _inspect_transcode_source(path: Path) -> dict:
 
     width = int(_probe_number(video_stream.get("width")) or 0)
     height = int(_probe_number(video_stream.get("height")) or 0)
-    rotation = int(_probe_number((video_stream.get("tags") or {}).get("rotate")) or 0) if isinstance(video_stream.get("tags"), dict) else 0
+    rotation = (
+        int(_probe_number((video_stream.get("tags") or {}).get("rotate")) or 0)
+        if isinstance(video_stream.get("tags"), dict)
+        else 0
+    )
     if abs(rotation) in {90, 270}:
         display_width, display_height = height, width
     else:
@@ -1137,7 +1146,9 @@ def _find_manifest_artifact(manifest: dict, artifact_id: str) -> dict | None:
     artifacts = manifest.get("artifacts") or []
     if not isinstance(artifacts, list):
         return None
-    return next((artifact for artifact in artifacts if isinstance(artifact, dict) and artifact.get("name") == artifact_id), None)
+    return next(
+        (artifact for artifact in artifacts if isinstance(artifact, dict) and artifact.get("name") == artifact_id), None
+    )
 
 
 def _hydrate_manifest_artifact(manifest: dict, artifact: dict) -> dict:
@@ -1245,11 +1256,7 @@ def _upsert_manifest_thumbnail_artifact(
     )
     if thumbnail_entry is None:
         thumbnail_entry = next(
-            (
-                item
-                for item in artifacts
-                if isinstance(item, dict) and item.get("name") == thumbnail_name
-            ),
+            (item for item in artifacts if isinstance(item, dict) and item.get("name") == thumbnail_name),
             None,
         )
 
@@ -1289,6 +1296,33 @@ def _upsert_manifest_thumbnail_artifact(
     return 1 if changed else 0
 
 
+def save_event_first_frame_thumbnail(project_id: str, package_id: str, artifact_id: str, image: bytes):
+    """Persist a generated poster and its linked manifest entry during an authorized write."""
+    for value, label in ((project_id, "projectId"), (package_id, "packageId"), (artifact_id, "artifactId")):
+        validate_segment(value, label)
+    if not image.startswith(b"\xff\xd8\xff"):
+        raise ValueError("Expected a JPEG thumbnail.")
+    manifest_file = manifest_path(project_id, package_id)
+    relative_path = f"projects/{project_id}/packages/{package_id}/attachment/{artifact_id}-first-frame.jpg"
+    image_path = media_library_root() / relative_path
+    with manifest_write_lock(manifest_file):
+        manifest = read_manifest(manifest_file)
+        artifact = _find_manifest_artifact(manifest, artifact_id)
+        if not artifact:
+            raise NotFound("Artifact not found.")
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = image_path.with_suffix(f".{uuid4().hex}.tmp")
+        try:
+            temporary.write_bytes(image)
+            temporary.replace(image_path)
+        finally:
+            temporary.unlink(missing_ok=True)
+        _upsert_manifest_thumbnail_artifact(manifest, artifact, artifact_id, relative_path)
+        manifest["updatedAt"] = _now_iso()
+        normalize_manifest_metadata(manifest)
+        write_manifest_atomic(manifest_file, manifest)
+
+
 def _update_artifact_transcode_meta(
     project_id: str,
     package_id: str,
@@ -1311,10 +1345,14 @@ def _update_artifact_transcode_meta(
         current_meta = resolve_artifact_metadata(artifact, metadata)
         next_meta = {**current_meta, **updates}
         if next_meta.get("transcode_status") == "COMPLETED":
-            _delete_transcode_source(next_meta.get("transcode_source_path") or current_meta.get("transcode_source_path"))
+            _delete_transcode_source(
+                next_meta.get("transcode_source_path") or current_meta.get("transcode_source_path")
+            )
         if next_meta.get("transcode_status") in {"COMPLETED", "CANCELLED"}:
             next_meta.pop("transcode_source_path", None)
-        metadata_ref = normalize_metadata_ref(artifact.get("metadata_ref")) or normalize_metadata_ref(artifact.get("name"))
+        metadata_ref = normalize_metadata_ref(artifact.get("metadata_ref")) or normalize_metadata_ref(
+            artifact.get("name")
+        )
         updated_count = 0
         if metadata_ref:
             artifact["metadata_ref"] = metadata_ref
@@ -1399,7 +1437,9 @@ def _record_media_artifact_view(project_id: str, package_id: str, artifact_id: s
         if not isinstance(view_events, dict):
             view_events = {}
         existing_event = view_events.get(viewer_key)
-        existing_viewed_at = existing_event.get("last_viewed_at") if isinstance(existing_event, dict) else existing_event
+        existing_viewed_at = (
+            existing_event.get("last_viewed_at") if isinstance(existing_event, dict) else existing_event
+        )
         last_viewed_at = _parse_iso_datetime(existing_viewed_at)
         counted = not last_viewed_at or (now - last_viewed_at).total_seconds() >= _VIEW_DEDUPE_SECONDS
         current_views = next_meta.get("views")
@@ -1412,7 +1452,9 @@ def _record_media_artifact_view(project_id: str, package_id: str, artifact_id: s
         view_events[viewer_key] = {"last_viewed_at": now_iso}
         next_meta["views"] = views
         next_meta["view_events"] = view_events
-        metadata_ref = normalize_metadata_ref(artifact.get("metadata_ref")) or normalize_metadata_ref(artifact.get("name"))
+        metadata_ref = normalize_metadata_ref(artifact.get("metadata_ref")) or normalize_metadata_ref(
+            artifact.get("name")
+        )
         if metadata_ref:
             artifact["metadata_ref"] = metadata_ref
             metadata[metadata_ref] = next_meta
@@ -1464,6 +1506,21 @@ class MediaPackageCreateAPIView(BaseAPIView):
 
 
 class MediaLibraryInitAPIView(BaseAPIView):
+    user_role_readonly = True
+
+    @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
+    def get(self, request, slug, project_id):
+        # Bootstrap never creates directories, manifests or repairs invalid files.
+        project_id_str = str(project_id)
+        validate_segment(project_id_str, "projectId")
+        packages = media_library_root() / "projects" / project_id_str / "packages"
+        if packages.is_dir():
+            for directory in sorted(packages.iterdir(), key=lambda path: path.name):
+                manifest_file = directory / "manifest.json"
+                if directory.is_dir() and manifest_file.is_file():
+                    return Response(read_manifest(manifest_file), status=status.HTTP_200_OK)
+        return Response(create_manifest(project_id_str, "", "", "Media Library Package"), status=status.HTTP_200_OK)
+
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
     def post(self, request, slug, project_id):
         project_id_str = str(project_id)
@@ -1512,6 +1569,8 @@ class MediaLibraryInitAPIView(BaseAPIView):
 
 
 class MediaManifestDetailAPIView(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
     def get(self, request, slug, project_id, package_id):
         project_id_str = str(project_id)
@@ -1543,7 +1602,9 @@ class MediaManifestDetailAPIView(BaseAPIView):
         if meta is not None and not isinstance(meta, dict):
             return Response({"error": "meta must be an object."}, status=status.HTTP_400_BAD_REQUEST)
         if artifact_fields is not None and not artifact_id:
-            return Response({"error": "artifact_id is required for artifact updates."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "artifact_id is required for artifact updates."}, status=status.HTTP_400_BAD_REQUEST
+            )
         if artifact_fields is not None and not isinstance(artifact_fields, dict):
             return Response({"error": "artifact fields must be an object."}, status=status.HTTP_400_BAD_REQUEST)
         if artifact_fields is not None:
@@ -1595,6 +1656,8 @@ class MediaManifestDetailAPIView(BaseAPIView):
 
 
 class MediaArtifactFileAPIView(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
     def get(self, request, slug, project_id, package_id, artifact_id, artifact_path=None):
         project_id_str = str(project_id)
@@ -1630,6 +1693,7 @@ class MediaArtifactFileAPIView(BaseAPIView):
             if os.path.commonpath([str(base_root), str(candidate)]) == str(base_root) and candidate.exists():
                 file_path = candidate
 
+        readonly_user = hasattr(request, "user") and has_user_role(request, self)
         if request.query_params.get("thumbnail") == "first-stream":
             meta = resolve_artifact_metadata(artifact, manifest.get("metadata"))
             is_completed_event = meta.get("artifact_type") == "completed-event-json" or (
@@ -1653,9 +1717,12 @@ class MediaArtifactFileAPIView(BaseAPIView):
                 hls_base=getattr(settings, "MEDIA_EVENT_HLS_BASE_URL", ""),
                 timeout=getattr(settings, "MEDIA_EVENT_THUMBNAIL_TIMEOUT", 25),
                 token=getattr(settings, "MEDIA_TRANSCODE_INTERNAL_API_TOKEN", ""),
+                allow_create=not readonly_user,
             )
             if image is None:
                 raise NotFound("Event thumbnail not available.")
+            if not readonly_user:
+                save_event_first_frame_thumbnail(project_id_str, package_id, artifact_id, image)
             response = HttpResponse(image, content_type="image/jpeg")
             response["Cache-Control"] = "private, max-age=86400"
             return response
@@ -1703,7 +1770,7 @@ class MediaArtifactFileAPIView(BaseAPIView):
             ):
                 # Existing card snapshots may still reference this authenticated endpoint.
                 return HttpResponseRedirect(raw_path)
-            if external_url and download_requested and artifact_path is None and is_video:
+            if not readonly_user and external_url and download_requested and artifact_path is None and is_video:
                 mp4_path = package_root(project_id_str, package_id) / "artifacts" / f"{artifact_id}.mp4"
                 if not mp4_path.exists():
                     try:
@@ -1723,6 +1790,8 @@ class MediaArtifactFileAPIView(BaseAPIView):
             mp4_path = file_path
             if file_path.suffix.lower() != ".mp4":
                 mp4_path = file_path.with_suffix(".mp4")
+            if not mp4_path.exists() and readonly_user:
+                raise NotFound("Converted artifact file not available.")
             if not mp4_path.exists():
                 try:
                     transcode_video_to_mp4(file_path, mp4_path)
@@ -1730,8 +1799,15 @@ class MediaArtifactFileAPIView(BaseAPIView):
                     return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             file_path = mp4_path
 
-        if is_video and artifact_path is None:
+        if is_video and artifact_path is None and not readonly_user:
             _ensure_mp4_faststart(file_path, artifact.get("name"))
+
+        if readonly_user and (file_path.suffix.lower() == ".json" or format_value == "json") and file_path.is_file():
+            try:
+                payload = json.loads(file_path.read_text(encoding="utf-8"))
+            except (ValueError, UnicodeError, OSError):
+                raise NotFound("Artifact file not available.")
+            return Response(sanitize_shared_data(payload), status=status.HTTP_200_OK)
 
         content_type, _ = mimetypes.guess_type(str(file_path))
         content_type = content_type or "application/octet-stream"
@@ -1999,6 +2075,8 @@ class MediaArtifactFileAPIView(BaseAPIView):
 
 
 class MediaArtifactDetailAPIView(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
     def get(self, request, slug, project_id, package_id, artifact_id):
         project_id_str = str(project_id)
@@ -2298,7 +2376,12 @@ class MediaTranscodeCallbackAPIView(BaseAPIView):
         job_id = str(payload.get("job_id") or "").strip()
         if not (project_id and package_id and artifact_id and job_id):
             return Response(
-                {"error": {"code": "INVALID_CALLBACK", "message": "project_id, package_id, artifact_id, and job_id are required."}},
+                {
+                    "error": {
+                        "code": "INVALID_CALLBACK",
+                        "message": "project_id, package_id, artifact_id, and job_id are required.",
+                    }
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         validate_segment(project_id, "projectId")
@@ -2352,6 +2435,8 @@ class MediaTranscodeCallbackAPIView(BaseAPIView):
 
 
 class MediaArtifactsListAPIView(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission(allowed_roles=[ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST], level="PROJECT")
     def get(self, request, slug, project_id, package_id):
         try:
@@ -2514,7 +2599,6 @@ class MediaArtifactsListAPIView(BaseAPIView):
             primary_updated_at = updated_at
             artifacts_root = package_root(project_id_str, package_id) / "artifacts"
             attachment_root = package_root(project_id_str, package_id) / "attachment"
-            is_video_upload = format_value in _VIDEO_FORMATS or extension in _VIDEO_FORMATS
             is_transcode_source_upload = extension in _TRANSCODE_SOURCE_FORMATS
             # Keep uploaded videos in their original format; do not auto-transcode to HLS on upload.
             should_transcode = False
@@ -2528,7 +2612,8 @@ class MediaArtifactsListAPIView(BaseAPIView):
                 artifact_file_name = "index.m3u8"
                 file_path = artifact_dir / artifact_file_name
                 relative_path = (
-                    f"projects/{project_id_str}/packages/{package_id}/artifacts/{primary_artifact_name}/{artifact_file_name}"
+                    f"projects/{project_id_str}/packages/{package_id}/artifacts/"
+                    f"{primary_artifact_name}/{artifact_file_name}"
                 )
                 thumbnail_name = f"{primary_artifact_name}-thumbnail"
                 thumbnail_path = artifact_dir / "thumbnail.webp"
@@ -2555,9 +2640,7 @@ class MediaArtifactsListAPIView(BaseAPIView):
                 else:
                     artifact_file_name = f"{artifact_name}.{extension}"
                     file_path = artifacts_root / artifact_file_name
-                    relative_path = (
-                        f"projects/{project_id_str}/packages/{package_id}/artifacts/{artifact_file_name}"
-                    )
+                    relative_path = f"projects/{project_id_str}/packages/{package_id}/artifacts/{artifact_file_name}"
                 if not is_transcode_source_upload and format_value in _VIDEO_FORMATS and format_value != "m3u8":
                     video_thumbnail_name = f"{primary_artifact_name}-thumbnail"
                     video_thumbnail_file_name = f"{primary_artifact_name}-thumbnail.webp"
@@ -2747,7 +2830,9 @@ class MediaArtifactsListAPIView(BaseAPIView):
             transcode_source_file_path.parent.mkdir(parents=True, exist_ok=True)
             uploading_path = transcode_source_file_path.with_name(f"{transcode_source_file_path.name}.uploading")
             if uploading_path.exists():
-                return Response({"error": "Artifact source file upload already in progress."}, status=status.HTTP_409_CONFLICT)
+                return Response(
+                    {"error": "Artifact source file upload already in progress."}, status=status.HTTP_409_CONFLICT
+                )
             try:
                 file_write_started_at = time.monotonic()
                 bytes_written = 0
@@ -2854,7 +2939,9 @@ class MediaArtifactsListAPIView(BaseAPIView):
                     transcode_asset_id=asset_id,
                     transcode_profile="adaptive-1080p",
                 )
-                upstream_status, upstream_payload = _call_transcode_service("POST", "/transcoding/jobs", transcode_payload)
+                upstream_status, upstream_payload = _call_transcode_service(
+                    "POST", "/transcoding/jobs", transcode_payload
+                )
                 if upstream_status < 400:
                     transcode_job_response = upstream_payload
                     primary_meta.update(
@@ -3016,7 +3103,9 @@ class MediaArtifactsListAPIView(BaseAPIView):
                     except OSError:
                         pass
                     if not use_existing:
-                        if not (image_thumbnail_path and generate_thumbnail(file_path, image_thumbnail_path, seek=None)):
+                        if not (
+                            image_thumbnail_path and generate_thumbnail(file_path, image_thumbnail_path, seek=None)
+                        ):
                             thumbnail_relative_path = None
                     if thumbnail_relative_path:
                         thumbnail_entry = {
@@ -3146,10 +3235,7 @@ class MediaArtifactsListAPIView(BaseAPIView):
 
                     if resolved_path and resolved_path.exists():
                         try:
-                            if (
-                                resolved_path.suffix.lower() == ".webp"
-                                and resolved_path.stat().st_size <= max_bytes
-                            ):
+                            if resolved_path.suffix.lower() == ".webp" and resolved_path.stat().st_size <= max_bytes:
                                 thumbnail_relative_path = raw_path
                                 created_thumbnail = True
                         except OSError:
@@ -3386,9 +3472,7 @@ def _resolve_payload_media_path(raw_path: object, request, slug: str, project_id
     if "/" not in path:
         try:
             UUID(path)
-            return request.build_absolute_uri(
-                f"/api/assets/v2/workspaces/{slug}/projects/{project_id}/{path}/"
-            )
+            return request.build_absolute_uri(f"/api/assets/v2/workspaces/{slug}/projects/{project_id}/{path}/")
         except Exception:
             return path
     if path.startswith("/"):
@@ -3860,17 +3944,14 @@ class MediaWorkItemSyncAPIView(BaseAPIView):
 
         if include_attachments:
             attachment_meta = _build_issue_artifact_meta(issue, source="work_item_attachment")
-            attachments = (
-                FileAsset.objects.filter(
-                    issue_id=issue.id,
-                    workspace__slug=slug,
-                    project_id=project_id,
-                    entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
-                    is_deleted=False,
-                    is_uploaded=True,
-                )
-                .order_by("created_at")
-            )
+            attachments = FileAsset.objects.filter(
+                issue_id=issue.id,
+                workspace__slug=slug,
+                project_id=project_id,
+                entity_type=FileAsset.EntityTypeContext.ISSUE_ATTACHMENT,
+                is_deleted=False,
+                is_uploaded=True,
+            ).order_by("created_at")
             for attachment in attachments:
                 file_name = _resolve_attachment_file_name(attachment)
                 format_value = _resolve_artifact_format_from_name(file_name)
@@ -4006,12 +4087,7 @@ class MediaWorkItemSyncAPIView(BaseAPIView):
                 asset = _resolve_payload_media_asset(resolved_path, slug, project_id_str)
                 asset_attributes = asset.attributes if asset and isinstance(asset.attributes, dict) else {}
 
-                file_name = (
-                    item.get("file_name")
-                    or item.get("fileName")
-                    or item.get("filename")
-                    or item.get("name")
-                )
+                file_name = item.get("file_name") or item.get("fileName") or item.get("filename") or item.get("name")
                 if isinstance(file_name, str):
                     file_name = file_name.strip()
                 if not file_name:

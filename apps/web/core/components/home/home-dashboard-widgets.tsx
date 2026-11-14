@@ -6,8 +6,10 @@ import type { THomeWidgetKeys, THomeWidgetProps } from "@plane/types";
 // components
 import { SimpleEmptyState } from "@/components/empty-state/simple-empty-state-root";
 // hooks
+import { getVisibleHomeWidgetKeys, isUserReadOnly } from "@/helpers/user-readonly";
 import { useHome } from "@/hooks/store/use-home";
 import { useProject } from "@/hooks/store/use-project";
+import { useUserPermissions } from "@/hooks/store/user";
 // plane web components
 import { useResolvedAssetPath } from "@/hooks/use-resolved-asset-path";
 import { HomePageHeader } from "@/plane-web/components/home/header";
@@ -60,6 +62,10 @@ export const DashboardWidgets = observer(() => {
   const { toggleWidgetSettings, widgetsMap, showWidgetSettings, orderedWidgets, isAnyWidgetEnabled, loading } =
     useHome();
   const { loader } = useProject();
+  const { getWorkspaceRoleByWorkspaceSlug } = useUserPermissions();
+  const workspaceRole = getWorkspaceRoleByWorkspaceSlug(workspaceSlug?.toString() ?? "");
+  const readOnly = isUserReadOnly(workspaceRole);
+  const visibleWidgetKeys = getVisibleHomeWidgetKeys(orderedWidgets, workspaceRole);
   // plane hooks
   const { t } = useTranslation();
   // derived values
@@ -73,16 +79,18 @@ export const DashboardWidgets = observer(() => {
   return (
     <div className="h-full w-full relative flex flex-col gap-7">
       <HomePageHeader />
-      <ManageWidgetsModal
-        workspaceSlug={workspaceSlug.toString()}
-        isModalOpen={showWidgetSettings}
-        handleOnClose={() => toggleWidgetSettings(false)}
-      />
-      {!isWikiApp && <NoProjectsEmptyState />}
+      {!readOnly && (
+        <ManageWidgetsModal
+          workspaceSlug={workspaceSlug.toString()}
+          isModalOpen={showWidgetSettings}
+          handleOnClose={() => toggleWidgetSettings(false)}
+        />
+      )}
+      {!readOnly && !isWikiApp && <NoProjectsEmptyState />}
 
       {isAnyWidgetEnabled ? (
         <div className="flex flex-col divide-y-[1px] divide-custom-border-100">
-          {orderedWidgets.map((key) => {
+          {visibleWidgetKeys.map((key) => {
             const WidgetComponent = HOME_WIDGETS_LIST[key]?.component;
             const isEnabled = widgetsMap[key]?.is_enabled;
             if (!WidgetComponent || !isEnabled) return null;

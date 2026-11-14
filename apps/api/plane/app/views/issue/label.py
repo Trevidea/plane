@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Python imports
 import random
 
@@ -17,6 +19,7 @@ from plane.utils.cache import invalidate_cache
 
 
 class LabelViewSet(BaseViewSet):
+    user_role_readonly = True
     serializer_class = LabelSerializer
     model = Label
     permission_classes = [ProjectBasePermission]
@@ -27,7 +30,13 @@ class LabelViewSet(BaseViewSet):
             .get_queryset()
             .filter(workspace__slug=self.kwargs.get("slug"))
             .filter(project_id=self.kwargs.get("project_id"))
-            .filter(project__project_projectmember__member=self.request.user)
+            .filter(
+                **(
+                    {"project_id__in": user_readonly_projects(self.request.user, self.kwargs.get("slug")).values("id")}
+                    if has_user_role(self.request, self)
+                    else {"project__project_projectmember__member": self.request.user}
+                )
+            )
             .select_related("project")
             .select_related("workspace")
             .select_related("parent")

@@ -1,3 +1,6 @@
+from plane.app.serializers.workspace import WorkspaceMemberReadOnlySerializer
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Django imports
 from django.db import transaction
 from django.db.models import Count, Q, OuterRef, Subquery, IntegerField
@@ -25,17 +28,41 @@ from .. import BaseViewSet
 
 
 class WorkSpaceMemberViewSet(BaseViewSet):
+    user_role_readonly = True
     serializer_class = WorkspaceMemberAdminSerializer
     model = WorkspaceMember
 
     search_fields = ["member__display_name", "member__first_name"]
     use_read_replica = True
 
+    def get_serializer_class(self):
+        if has_user_role(self.request, self):
+            return WorkspaceMemberReadOnlySerializer
+        return super().get_serializer_class()
+
     def get_queryset(self):
         return self.filter_queryset(
             super()
             .get_queryset()
             .filter(workspace__slug=self.kwargs.get("slug"))
+            .filter(
+                Q(member=self.request.user)
+                | Q(
+                    member_id__in=ProjectMember.objects.filter(
+                        project_id__in=user_readonly_projects(self.request.user, self.kwargs.get("slug")).values("id"),
+                        is_active=True,
+                    ).values("member_id")
+                )
+                | Q(
+                    member_id__in=RosterPlayer.objects.filter(
+                        project_id__in=user_readonly_projects(self.request.user, self.kwargs.get("slug")).values("id"),
+                        user__isnull=False,
+                    ).values("user_id")
+                )
+                if has_user_role(self.request, self)
+                else Q()
+            )
+            .filter(**({"is_active": True} if has_user_role(self.request, self) else {}))
             .select_related("member", "member__avatar_asset")
         )
 
@@ -206,6 +233,7 @@ class WorkspaceMemberUserViewsEndpoint(BaseAPIView):
 
 
 class WorkspaceMemberUserEndpoint(BaseAPIView):
+    user_role_readonly = True
     use_read_replica = True
 
     def get(self, request, slug):
@@ -226,6 +254,7 @@ class WorkspaceMemberUserEndpoint(BaseAPIView):
 
 
 class WorkspaceProjectMemberEndpoint(BaseAPIView):
+    user_role_readonly = True
     serializer_class = ProjectMemberRoleSerializer
     model = ProjectMember
 
@@ -239,6 +268,8 @@ class WorkspaceProjectMemberEndpoint(BaseAPIView):
             .distinct()
         )
 
+        if has_user_role(request, self):
+            project_ids = user_readonly_projects(request.user, slug).values("id")
         # Get all the project members in which the user is involved
         project_members = ProjectMember.objects.filter(
             workspace__slug=slug, project_id__in=project_ids, is_active=True

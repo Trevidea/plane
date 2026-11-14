@@ -12,6 +12,7 @@ from plane.db.models import (
     ProjectIdentifier,
     DeployBoard,
     ProjectPublicMember,
+    WorkspaceMember,
 )
 from plane.utils.content_validator import (
     validate_html_content,
@@ -58,6 +59,25 @@ class ProjectSerializer(BaseSerializer):
             )
 
         return identifier
+
+    def validate_project_lead(self, user):
+        if user is None:
+            return None
+        workspace_id = self.context.get("workspace_id") or getattr(self.instance, "workspace_id", None)
+        if (
+            not user.is_active
+            or user.is_bot
+            or not WorkspaceMember.objects.filter(
+                workspace_id=workspace_id, member=user, is_active=True, role__in=[5, 15, 20]
+            ).exists()
+        ):
+            raise serializers.ValidationError("Select an active workspace member whose role is not User.")
+        if (
+            self.instance
+            and ProjectMember.objects.filter(project=self.instance, member=user, is_active=True, role=1).exists()
+        ):
+            raise serializers.ValidationError("A User-role program member cannot be the program lead.")
+        return user
 
     def validate(self, data):
         if "sport" in data and isinstance(data["sport"], str):
@@ -217,3 +237,11 @@ class ProjectPublicMemberSerializer(BaseSerializer):
         model = ProjectPublicMember
         fields = "__all__"
         read_only_fields = ["workspace", "project", "member"]
+
+
+class ProjectMemberReadOnlySerializer(BaseSerializer):
+    member = UserLiteSerializer(read_only=True)
+
+    class Meta:
+        model = ProjectMember
+        fields = ["id", "member", "project", "workspace", "role", "is_active"]

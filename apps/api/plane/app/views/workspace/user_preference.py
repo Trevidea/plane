@@ -12,6 +12,7 @@ from rest_framework import status
 
 
 class WorkspaceUserPreferenceViewSet(BaseAPIView):
+    user_role_readonly = True
     model = WorkspaceUserPreference
     use_read_replica = True
 

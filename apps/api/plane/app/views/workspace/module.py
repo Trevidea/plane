@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Django imports
 from django.db.models import Prefetch, Q, Count
 
@@ -13,11 +15,19 @@ from plane.app.serializers.module import ModuleSerializer
 
 
 class WorkspaceModulesEndpoint(BaseAPIView):
+    user_role_readonly = True
     permission_classes = [WorkspaceViewerPermission]
 
     def get(self, request, slug):
         modules = (
             Module.objects.filter(workspace__slug=slug)
+            .filter(
+                **(
+                    {"project_id__in": user_readonly_projects(request.user, slug).values("id")}
+                    if has_user_role(request, self)
+                    else {}
+                )
+            )
             .select_related("project")
             .select_related("workspace")
             .select_related("lead")

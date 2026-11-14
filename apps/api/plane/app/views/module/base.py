@@ -1,3 +1,5 @@
+from plane.utils.user_role_access import has_user_role, user_readonly_projects
+
 # Python imports
 import json
 
@@ -65,6 +67,7 @@ from plane.utils.host import base_host
 
 
 class ModuleViewSet(BaseViewSet):
+    user_role_readonly = True
     model = Module
     webhook_event = "module"
 
@@ -756,6 +759,7 @@ class ModuleViewSet(BaseViewSet):
 
 
 class ModuleLinkViewSet(BaseViewSet):
+    user_role_readonly = True
     permission_classes = [ProjectEntityPermission]
 
     model = ModuleLink
@@ -775,8 +779,14 @@ class ModuleLinkViewSet(BaseViewSet):
             .filter(project_id=self.kwargs.get("project_id"))
             .filter(module_id=self.kwargs.get("module_id"))
             .filter(
-                project__project_projectmember__member=self.request.user,
-                project__project_projectmember__is_active=True,
+                **(
+                    {"project_id__in": user_readonly_projects(self.request.user, self.kwargs.get("slug")).values("id")}
+                    if has_user_role(self.request, self)
+                    else {
+                        "project__project_projectmember__member": self.request.user,
+                        "project__project_projectmember__is_active": True,
+                    }
+                ),
                 project__archived_at__isnull=True,
             )
             .order_by("-created_at")
@@ -819,6 +829,8 @@ class ModuleFavoriteViewSet(BaseViewSet):
 
 
 class ModuleUserPropertiesEndpoint(BaseAPIView):
+    user_role_readonly = True
+
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER, ROLE.GUEST])
     def patch(self, request, slug, project_id, module_id):
         module_properties = ModuleUserProperties.objects.get(
