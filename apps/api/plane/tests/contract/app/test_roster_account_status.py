@@ -126,7 +126,7 @@ class RosterAccountStatusTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["account_status"], "email_missing")
 
-    def test_accepting_invitation_changes_account_status_to_linked(self):
+    def test_accepting_invitation_creates_pending_program_approval(self):
         self.player.email = "status-player@fixture.test"
         self.player.status = "active"
         self.player.save()
@@ -143,4 +143,6 @@ class RosterAccountStatusTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(self.client.get(f"{self.url}{self.player.pk}/").data["account_status"], "linked")
+        detail = self.client.get(f"{self.url}{self.player.pk}/").data
+        self.assertEqual(detail["account_status"], "not_linked")
+        self.assertEqual(detail["registration_status"], "pending")

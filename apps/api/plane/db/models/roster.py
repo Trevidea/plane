@@ -13,6 +13,7 @@ class RosterPlayerStatus(models.TextChoices):
     INJURED = "injured", "Injured"
     INACTIVE = "inactive", "Inactive"
     PENDING = "pending", "Pending"
+    REMOVED = "removed", "Removed"
 
 
 class RosterPlayer(ProjectBaseModel):
@@ -26,6 +27,7 @@ class RosterPlayer(ProjectBaseModel):
     class_year = models.CharField(max_length=50, null=True, blank=True)
     status = models.CharField(max_length=20, choices=RosterPlayerStatus.choices, default=RosterPlayerStatus.ACTIVE)
     notes = models.TextField(null=True, blank=True)
+    first_tagged_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -41,7 +43,9 @@ class RosterPlayer(ProjectBaseModel):
             ),
             models.UniqueConstraint(
                 fields=["project", "jersey_number"],
-                condition=Q(deleted_at__isnull=True) & Q(jersey_number__isnull=False) & ~Q(jersey_number=""),
+                condition=Q(deleted_at__isnull=True, status__in=["active", "injured", "pending"])
+                & Q(jersey_number__isnull=False)
+                & ~Q(jersey_number=""),
                 name="roster_player_unique_project_jersey_when_active",
             ),
         ]
@@ -60,3 +64,22 @@ class RosterPlayer(ProjectBaseModel):
             default=Value(2147483647),
             output_field=IntegerField(),
         )
+
+
+class RosterEvent(ProjectBaseModel):
+    roster_player = models.ForeignKey(
+        "db.RosterPlayer", on_delete=models.SET_NULL, null=True, related_name="lifecycle_events"
+    )
+    roster_identity = models.UUIDField(db_index=True)
+    player_name = models.CharField(max_length=255)
+    jersey_number = models.CharField(max_length=20, null=True, blank=True)
+    action = models.CharField(max_length=32)
+    previous_status = models.CharField(max_length=20, blank=True)
+    status = models.CharField(max_length=20)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="roster_actions"
+    )
+
+    class Meta:
+        db_table = "roster_events"
+        ordering = ("-created_at", "-id")

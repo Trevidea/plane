@@ -133,10 +133,13 @@ class PlayerActivityTests(TestCase):
         self.assertEqual(self.client.get(self.url).json()["total_count"], 0)
 
     def test_eligibility_revocation_and_anonymous_requests_fail(self):
-        for status in ("inactive", "graduated"):
+        for status in ("graduated",):
             self.player.status = status
             self.player.save()
             self.assertEqual(self.client.get(self.url).status_code, 404)
+        for preserved in ('inactive','removed'):
+            self.player.status=preserved;self.player.save()
+            self.assertEqual(self.client.get(self.url).status_code,200)
         self.player.status = "injured"
         self.player.save()
         self.assertEqual(self.client.get(self.url).status_code, 200)

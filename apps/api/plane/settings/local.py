@@ -3,6 +3,7 @@
 import os
 
 from .common import *  # noqa
+from .email import configured_email_backend
 
 DEBUG = True
 
@@ -12,8 +13,8 @@ MIDDLEWARE += ("debug_toolbar.middleware.DebugToolbarMiddleware",)  # noqa
 
 DEBUG_TOOLBAR_PATCH_SETTINGS = False
 
-# Only show emails in console don't send it to smtp
-EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+# Preserve the development console default; ENABLE_SMTP=0 always disables delivery.
+EMAIL_BACKEND = configured_email_backend("django.core.mail.backends.console.EmailBackend")
 
 CACHES = {
     "default": {

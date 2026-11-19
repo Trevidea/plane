@@ -1,7 +1,8 @@
 import type { IRosterPlayer, IRosterPlayerPayload, TRosterPlayerStatus } from "@plane/types";
 import { ROSTER_HEADER_MAP, STATUS_VALUES } from "../constants/roster.constants";
 
-export const toDisplayStatus = (status: string) => status.charAt(0).toUpperCase() + status.slice(1);
+export const toDisplayStatus = (status: string) =>
+  status === "injured" ? "Active" : status.charAt(0).toUpperCase() + status.slice(1);
 
 export const getRosterAccountStatus = (player: Pick<IRosterPlayer, "user" | "email" | "account_status">) =>
   player.account_status ?? (player.user ? "linked" : player.email?.trim() ? "not_linked" : "email_missing");
@@ -9,8 +10,8 @@ export const getRosterAccountStatus = (player: Pick<IRosterPlayer, "user" | "ema
 export const getRosterDisplayEmail = (player: Pick<IRosterPlayer, "user" | "email" | "account_email">) =>
   (player.user ? player.account_email || player.email : player.email) ?? "";
 
-export const canDeleteRosterPlayer = (player: Pick<IRosterPlayer, "user" | "email" | "account_status">) =>
-  !player.user && !player.email?.trim() && getRosterAccountStatus(player) === "email_missing";
+// Removal keeps the account and historical cards; staff permission is checked by the caller.
+export const canDeleteRosterPlayer = (player: Pick<IRosterPlayer, "status">) => player.status !== "removed";
 
 export const formatTimestamp = (value: string | null | undefined) =>
   value && !Number.isNaN(new Date(value).getTime())
@@ -42,9 +43,9 @@ const normalizeImportedStatus = (value: unknown): TRosterPlayerStatus => {
   const normalized = String(value ?? "")
     .trim()
     .toLowerCase();
-  if (!normalized) return "active";
+  if (!normalized || normalized === "injured") return "active";
   if (STATUS_VALUES.includes(normalized as TRosterPlayerStatus)) return normalized as TRosterPlayerStatus;
-  throw new Error(`Invalid status value "${String(value)}". Use active, injured, inactive, or pending.`);
+  throw new Error(`Invalid status value "${String(value)}". Use active or inactive.`);
 };
 
 export const mapImportedRows = (rows: Record<string, unknown>[]): IRosterPlayerPayload[] =>

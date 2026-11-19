@@ -78,7 +78,7 @@ from .favorite import UserFavorite
 from .issue_type import IssueType
 
 from .recent_visit import UserRecentVisit
-from .roster import RosterPlayer, RosterPlayerStatus
+from .roster import RosterPlayer, RosterPlayerStatus, RosterEvent
 
 from .label import Label
 
@@ -88,4 +88,5 @@ from .sticky import Sticky
 
 from .description import Description, DescriptionVersion
 from .player_activity import PlayerActivityProgress
+from .player_registration import PlayerRegistrationSession, PlayerRegistrationRequest
 from .private_card_message import CoachingCardPrivateMessage, CoachingCardPrivateAttachment

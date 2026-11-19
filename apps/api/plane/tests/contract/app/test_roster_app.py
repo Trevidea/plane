@@ -69,7 +69,7 @@ class TestRosterAPI(TestRosterBase):
 
         assert response.status_code == status.HTTP_200_OK
         player.refresh_from_db()
-        assert player.status == "injured"
+        assert player.status == "active"
         assert player.notes == "Week-to-week"
 
     @pytest.mark.django_db
@@ -82,7 +82,9 @@ class TestRosterAPI(TestRosterBase):
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["success"] is True
-        assert not RosterPlayer.objects.filter(pk=player.id).exists()
+        player.refresh_from_db()
+        assert player.status == "removed"
+        assert player.jersey_number is None
 
     @pytest.mark.django_db
     def test_duplicate_jersey_number_validation(self, session_client, workspace, create_user):

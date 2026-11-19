@@ -1,7 +1,12 @@
 from django.urls import path
 from plane.authentication.views.player_invitation import PlayerInvitationPreviewEndpoint
+from plane.authentication.views.player_registration import PlayerRegistrationPreviewEndpoint
 
-from plane.app.views.player import PlayerProgramConfigEndpoint, PlayerProgramsEndpoint
+from plane.app.views.player import (
+    PlayerProgramConfigEndpoint,
+    PlayerProgramsEndpoint,
+    PlayerRegistrationRequestsEndpoint,
+)
 from plane.app.views.player_media import PlayerCardPlaybackEndpoint, PlayerSignedMediaEndpoint
 from plane.app.views.player_thread import PlayerThreadEndpoint, PlayerThreadMessageEndpoint
 
@@ -27,6 +32,14 @@ from plane.app.views.private_card_thread import (
 from plane.app.views.private_card_attachments import PrivateClipUploadEndpoint, PrivateClipPlaybackEndpoint
 
 urlpatterns = [
+    path(
+        "player/registration/requests/",
+        PlayerRegistrationRequestsEndpoint.as_view(),
+        name="player-registration-requests",
+    ),
+    path(
+        "player/registration/preview/", PlayerRegistrationPreviewEndpoint.as_view(), name="player-registration-preview"
+    ),
     path("player/invitations/preview/", PlayerInvitationPreviewEndpoint.as_view(), name="player-invitation-preview"),
     path(
         "player/workspaces/<str:slug>/projects/<uuid:project_id>/coaching-cards/<uuid:card_id>/private-thread/attachments/",

@@ -57,12 +57,12 @@ class RosterEmailImportTests(TestCase):
         self.assertIsNone(RosterPlayer.objects.get(project=self.project).user_id)
         self.mail.assert_not_called()
 
-    def test_existing_member_matches_case_insensitively_without_invite(self):
+    def test_existing_member_email_is_normalized_but_requires_program_approval(self):
         user = self.account()
         response = self.import_rows([self.player_row(" PLAYER@fixture.test ")])
         self.assertEqual(response.status_code, 201, response.data)
         player = RosterPlayer.objects.get(project=self.project)
-        self.assertEqual(player.user_id, user.id)
+        self.assertIsNone(player.user_id)
         self.assertEqual(player.email, "player@fixture.test")
         self.assertEqual(response.data["data"][0]["email"], "player@fixture.test")
         self.assertFalse(WorkspaceMemberInvite.objects.exists())
@@ -143,7 +143,7 @@ class RosterEmailImportTests(TestCase):
         self.assertFalse(WorkspaceMemberInvite.objects.exists())
         self.assertFalse(RosterPlayer.objects.exists())
 
-    def test_in_app_acceptance_links_pending_player(self):
+    def test_in_app_acceptance_does_not_bypass_program_approval(self):
         user = self.account(member=False)
         self.import_rows([self.player_row()])
         invitation = WorkspaceMemberInvite.objects.get(email=user.email)
@@ -152,11 +152,11 @@ class RosterEmailImportTests(TestCase):
             "/api/users/me/workspaces/invitations/", {"invitations": [str(invitation.id)]}, format="json"
         )
         self.assertEqual(response.status_code, 204, response.data)
-        self.assertEqual(RosterPlayer.objects.get(project=self.project).user_id, user.id)
+        self.assertIsNone(RosterPlayer.objects.get(project=self.project).user_id)
         self.assertEqual(WorkspaceMember.objects.get(workspace=self.workspace, member=user).role, 1)
         self.assertFalse(ProjectMember.objects.filter(project=self.project, member=user).exists())
 
-    def test_email_acceptance_links_pending_player(self):
+    def test_email_acceptance_does_not_bypass_program_approval(self):
         user = self.account(member=False)
         self.import_rows([self.player_row()])
         invitation = WorkspaceMemberInvite.objects.get(email=user.email)
@@ -166,16 +166,16 @@ class RosterEmailImportTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(RosterPlayer.objects.get(project=self.project).user_id, user.id)
+        self.assertIsNone(RosterPlayer.objects.get(project=self.project).user_id)
 
-    def test_signup_after_acceptance_links_pending_player(self):
+    def test_signup_after_acceptance_still_requires_program_approval(self):
         self.import_rows([self.player_row()])
         WorkspaceMemberInvite.objects.filter(workspace=self.workspace).update(accepted=True)
         user = self.account(member=False)
         from plane.authentication.utils.workspace_project_join import process_workspace_project_invitations
 
         process_workspace_project_invitations(user)
-        self.assertEqual(RosterPlayer.objects.get(project=self.project).user_id, user.id)
+        self.assertIsNone(RosterPlayer.objects.get(project=self.project).user_id)
 
     def test_pending_link_is_scoped_to_accepted_workspace(self):
         self.import_rows([self.player_row()])
@@ -257,4 +257,4 @@ class RosterEmailConcurrencyTests(TransactionTestCase):
                 release_import.set()
                 importer.result(timeout=10)
                 acceptance.result(timeout=10)
-        self.assertEqual(RosterPlayer.objects.get(project=project).user_id, user.id)
+        self.assertIsNone(RosterPlayer.objects.get(project=project).user_id)

@@ -15,6 +15,7 @@ from corsheaders.defaults import default_headers
 
 # Module imports
 from plane.utils.url import is_valid_url
+from plane.settings.email import configured_email_backend
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -239,7 +240,7 @@ TIME_ZONE = "UTC"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email settings
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = configured_email_backend("django.core.mail.backends.smtp.EmailBackend")
 
 # Storage Settings
 # Use Minio settings

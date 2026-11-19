@@ -51,3 +51,31 @@ test("category assignment also uses tag context metadata", () => {
   assert.equal(getTimelineCategoryLaneId(row, footballCategoryLanes), "special");
   assert.deepEqual(getTimelineRowLaneIds(row, footballCategoryLanes), ["special"]);
 });
+
+test("same jersey worn by different retained identities produces separate player lanes", () => {
+  const previous = buildRow({
+    player: "#7",
+    context: {
+      roster_members: JSON.stringify({ rosters: { id: "11111111-1111-4111-8111-111111111111", jersey: "7" } }),
+    },
+  });
+  const replacement = buildRow({
+    player: "#7",
+    context: {
+      roster_members: JSON.stringify({ rosters: { id: "22222222-2222-4222-8222-222222222222", jersey: "7" } }),
+    },
+  });
+  assert.notDeepEqual(
+    getTimelineRowLaneIds(previous, footballCategoryLanes),
+    getTimelineRowLaneIds(replacement, footballCategoryLanes)
+  );
+});
+
+test("cleared roster jersey placeholders never create fake player lanes", () => {
+  for (const player of ["-", "#-", "--"]) {
+    assert.deepEqual(
+      getTimelineRowLaneIds(buildRow({ player, context: { roster_members: "{}" } }), footballCategoryLanes),
+      ["offense"]
+    );
+  }
+});

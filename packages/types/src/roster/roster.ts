@@ -1,4 +1,4 @@
-export type TRosterPlayerStatus = "active" | "injured" | "inactive" | "pending";
+export type TRosterPlayerStatus = "active" | "injured" | "inactive" | "pending" | "removed";
 
 export interface IRosterPlayer {
   id: string;
@@ -7,6 +7,9 @@ export interface IRosterPlayer {
   account_email?: string | null;
   user?: string | null;
   account_status?: "email_missing" | "not_linked" | "invitation_pending" | "linked";
+  registration_status?: "pending" | null;
+  registration_email?: string | null;
+  registration_name?: string | null;
   player_name: string;
   jersey_number: string | null;
   position: string | null;
@@ -47,4 +50,17 @@ export interface IRosterImportResponse {
   data: IRosterPlayer[];
   imported_count: number;
   message: string;
+}
+
+export interface IRosterLifecycleEvent {
+  id: string;
+  roster_identity: string;
+  player_name: string;
+  jersey_number: string | null;
+  action: string;
+  previous_status: TRosterPlayerStatus | null;
+  status: TRosterPlayerStatus;
+  created_at: string;
+  actor_name: string | null;
+  has_account: boolean;
 }

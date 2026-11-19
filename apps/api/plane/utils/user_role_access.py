@@ -70,7 +70,8 @@ def user_readonly_projects(user, slug=None):
         )
         .values("project_id")
     )
-    projects = Project.objects.using("default").filter(
+    excluded=RosterPlayer.objects.using('default').filter(user=user,status__in=['inactive','removed','pending']).values('project_id')
+    projects = Project.objects.using("default").exclude(pk__in=excluded).filter(
         Q(pk__in=joined) | Q(pk__in=roster),
         workspace_id__in=workspaces,
         archived_at__isnull=True,

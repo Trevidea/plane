@@ -15,6 +15,7 @@ type UseMatrixDataArgs = {
 
 const toMatrixSourceTag = (row: SgTagRow): MatrixSourceTag => ({
   action: row.action,
+  rosterMemberLabels: row.rosterMemberLabels,
   clipId: row.clipId,
   context: row.context,
   groupValue: row.matrixPeriod,

@@ -12,7 +12,7 @@ from rest_framework.response import Response
 
 from plane.app.views.base import BaseAPIView
 from plane.app.views.player import PlayerProgramQuerySerializer, _eligible_roster
-from plane.db.models import CardStageHistory, CommentReaction, Issue, IssueReaction, PlayerActivityProgress
+from plane.db.models import CardStageHistory, CommentReaction, Issue, IssueReaction, PlayerActivityProgress, Project
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY
 from plane.utils.player_activity_access import (
     activity_data,
@@ -64,6 +64,11 @@ class PlayerActivityBase(BaseAPIView):
 
 class PlayerAssignmentsEndpoint(PlayerActivityBase):
     def get(self, request):
+        # Retained personal cards remain navigable after participation ends.
+        visible = Project.objects.filter(
+            Q(pk__in=player_programs(request.user).values("pk"))
+            | Q(pk__in=player_activities(request.user).values("project_id"))
+        ).select_related("workspace")
         return Response(
             [
                 {
@@ -72,7 +77,7 @@ class PlayerAssignmentsEndpoint(PlayerActivityBase):
                     "workspace_slug": project.workspace.slug,
                     "workspace_name": project.workspace.name,
                 }
-                for project in player_programs(request.user).order_by("name", "id")
+                for project in visible.order_by("name", "id")
             ]
         )
 

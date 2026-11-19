@@ -1,3 +1,5 @@
+// @ts-expect-error Node type-stripping tests require the explicit extension.
+import { getTagRosterMembers } from "../../roster-tag-identity.ts";
 import type {
   MatrixCell,
   MatrixColumn,
@@ -23,7 +25,7 @@ type ResolvedEntity = {
   label: string;
 };
 
-const EMPTY_VALUES = new Set(["", "--", "\u2014", "n/a", "na", "none", "null", "undefined"]);
+const EMPTY_VALUES = new Set(["", "-", "#-", "--", "\u2014", "n/a", "na", "none", "null", "undefined"]);
 
 const hasValue = (value: string | null | undefined) =>
   !EMPTY_VALUES.has(
@@ -168,7 +170,11 @@ const buildActions = (sourceTags: readonly MatrixSourceTag[], config: SportMatri
 const getEntityValues = (tag: MatrixSourceTag) => ({
   team: tag.team,
   period: tag.groupValue,
-  player: tag.player,
+  player:
+    tag.player ||
+    getTagRosterMembers(tag.context)
+      .map((member) => member.jersey || "Player")
+      .join(" / "),
 });
 
 const selectMetricDimension = (sourceTags: readonly MatrixSourceTag[], config: SportMatrixConfig) =>
@@ -182,7 +188,16 @@ const getTagEntities = (
   metricDimension: Exclude<MatrixEntityDimension, "unassigned"> | null
 ) => {
   const values = getEntityValues(tag);
+  const members = getTagRosterMembers(tag.context);
   const entities = config.rowDimensionPriority.flatMap<ResolvedEntity>((dimension) => {
+    if (dimension === "player" && members.length) {
+      return members.map((member) => ({
+        dimension,
+        id: entityAxisId(dimension, member.id),
+        isMetric: dimension === metricDimension,
+        label: tag.rosterMemberLabels?.[member.id] || (member.jersey ? `#${member.jersey}` : "Player"),
+      }));
+    }
     const value = values[dimension];
     if (!hasValue(value)) return [];
     const label = String(value).trim();

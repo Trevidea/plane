@@ -403,7 +403,10 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
         )
 
         players_by_id = {
-            player.id: player for player in RosterPlayer.objects.filter(project=project, id__in=payload["player_ids"])
+            player.id: player
+            for player in RosterPlayer.objects.filter(
+                project=project, status__in=["active", "injured"], id__in=payload["player_ids"]
+            )
         }
         missing_player_ids = [player_id for player_id in payload["player_ids"] if player_id not in players_by_id]
         if missing_player_ids:
@@ -417,7 +420,9 @@ class CoachingCardBulkCreateEndpoint(BaseAPIView):
         recipients = [players_by_id[player_id] for player_id in payload["player_ids"]]
         if position_group:
             recipients = list(
-                RosterPlayer.objects.filter(project=project, position__iexact=position_group).order_by("id")
+                RosterPlayer.objects.filter(
+                    project=project, status__in=["active", "injured"], position__iexact=position_group
+                ).order_by("id")
             )
             if not recipients:
                 return Response(
@@ -582,7 +587,7 @@ class CoachingCardMineEndpoint(BaseAPIView):
             project_id=project_id,
             category=COACHING_CARD_CATEGORY,
         ).order_by("-created_at", "-id")
-        restricted_user = request.user if has_user_role(request, self) else None
+        restricted_user = request.user
         if restricted_user is not None:
             from plane.utils.player_activity_access import player_activities
 
@@ -665,7 +670,10 @@ class CoachingCardDetailEndpoint(BaseAPIView):
                 )
             player_ids = values.get("player_ids", [values["player_id"]] if "player_id" in values else [])
             players_by_id = {
-                player.id: player for player in RosterPlayer.objects.filter(project=card.project, id__in=player_ids)
+                player.id: player
+                for player in RosterPlayer.objects.filter(
+                    project=card.project, status__in=["active", "injured"], id__in=player_ids
+                )
             }
             if len(players_by_id) != len(player_ids):
                 return Response({"player_ids": ["One or more players are not in this program's roster."]}, status=400)
@@ -673,7 +681,9 @@ class CoachingCardDetailEndpoint(BaseAPIView):
             recipients = [players_by_id[player_id] for player_id in player_ids]
             if group:
                 recipients = list(
-                    RosterPlayer.objects.filter(project=card.project, position__iexact=group).order_by("id")
+                    RosterPlayer.objects.filter(
+                        project=card.project, status__in=["active", "injured"], position__iexact=group
+                    ).order_by("id")
                 )
                 if not recipients:
                     return Response({"position_group": ["The group is not in this program's roster."]}, status=400)

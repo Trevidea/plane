@@ -11,7 +11,6 @@ from urllib.parse import unquote, urlsplit
 
 from django.core import signing
 from django.conf import settings
-from django.db.models import Q
 from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -21,9 +20,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from plane.app.views.base import BaseAPIView
-from plane.app.views.player import _eligible_roster
 from plane.app.views.player_archive_media import archive_transport_allowed, stream_archive
-from plane.db.models import Issue, User
+from plane.db.models import User
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY
 from plane.utils.coaching_card_clips import normalize_card_clips
 from plane.utils.media_library import manifest_path, media_library_root, package_root, read_manifest, validate_segment
@@ -69,14 +67,14 @@ def _archived_playlist_url(filename):
 
 
 def _assigned(user, slug, project_id, card_id):
-    player = get_object_or_404(_eligible_roster(user), project_id=project_id, project__workspace__slug=slug)
+    from plane.utils.player_activity_access import player_activities
+
     return get_object_or_404(
-        Issue.issue_objects.filter(
-            Q(roster_player=player) | Q(coaching_card_data__recipient_ids__contains=[str(player.id)]),
-            project_id=project_id,
-            category=COACHING_CARD_CATEGORY,
-        ),
+        player_activities(user),
         pk=card_id,
+        project_id=project_id,
+        project__workspace__slug=slug,
+        category=COACHING_CARD_CATEGORY,
     )
 
 

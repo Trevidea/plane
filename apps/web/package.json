@@ -59,6 +59,7 @@
     "next": "catalog:",
     "next-themes": "^0.2.1",
     "posthog-js": "^1.131.3",
+    "qrcode.react": "^4.2.0",
     "react": "catalog:",
     "react-color": "^2.19.3",
     "react-dom": "catalog:",

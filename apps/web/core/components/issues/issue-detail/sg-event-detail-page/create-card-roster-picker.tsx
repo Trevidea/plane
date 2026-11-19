@@ -161,7 +161,7 @@ export const CreateCardRosterPicker = ({ players, selectedPlayers, onChange, isL
         ) : isLoading ? (
           "Loading roster players…"
         ) : players.length === 0 ? (
-          "Add players to this program’s roster to select them here."
+          "Link players to their accounts in this program’s roster to select them here."
         ) : null}
       </p>
     </section>

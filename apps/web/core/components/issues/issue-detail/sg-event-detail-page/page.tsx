@@ -46,6 +46,8 @@ import {
 import { buildTimelinePlayerLabelMap } from "./media-thumbnail-lookup";
 import { SgEventPlayerResizeHandle } from "./player-resize-handle";
 import type { PlaylistDraft } from "./playlist-draft";
+import { getTagRosterMembers, getRosterMemberLabel } from "./roster-tag-identity";
+import type { RosterIdentity } from "./roster-tag-identity";
 import { SgEventVideoPlayer } from "./sg-event-video-player";
 import { SgEventTagsPanel } from "./tags-view";
 import { SgEventTimelinePanel, isTimelineTagPlaybackOverrideId } from "./timeline-view";
@@ -361,7 +363,15 @@ export const SgEventDetailPage = ({
     () => rosterService.getRoster(workspaceSlug, projectId),
     { revalidateOnFocus: false }
   );
-  const timelinePlayerLabelByNumber = useMemo(() => buildTimelinePlayerLabelMap(rosterPlayers), [rosterPlayers]);
+  const { data: rosterIdentities } = useSWR(
+    workspaceSlug && projectId && canManageCards ? `PROJECT_ROSTER_IDENTITIES_${workspaceSlug}_${projectId}` : null,
+    () =>
+      rosterService
+        .get(`/api/workspaces/${workspaceSlug}/projects/${projectId}/roster/identities/`)
+        .then((response) => response.data as RosterIdentity[]),
+    { revalidateOnFocus: true }
+  );
+  const timelinePlayerLabelByNumber = useMemo(() => buildTimelinePlayerLabelMap(rosterIdentities), [rosterIdentities]);
 
   const eventDetails = useMemo(
     () => getEventMediaDetails(mediaItem) ?? sgMediaPayload?.eventDetails ?? null,
@@ -429,13 +439,18 @@ export const SgEventDetailPage = ({
     [eventPayload, mediaMeta, sgEventMeta]
   );
   const tagSourcePayload = shouldUseKanavioTagApi ? apiTagSourcePayload : fallbackTagSourcePayload;
-  const tagRows = useMemo(
-    () =>
-      tagSourcePayload
-        ? normalizeTagRows(tagSourcePayload, eventDetails, sportTableConfig.sport, baseEventDateTime)
-        : [],
-    [baseEventDateTime, eventDetails, sportTableConfig.sport, tagSourcePayload]
-  );
+  const tagRows = useMemo(() => {
+    if (!tagSourcePayload) return [];
+    return normalizeTagRows(tagSourcePayload, eventDetails, sportTableConfig.sport, baseEventDateTime).map((row) => {
+      const members = getTagRosterMembers(row.context);
+      if (!members.length) return row;
+      const rosterMemberLabels = Object.fromEntries(
+        members.map((member) => [member.id, getRosterMemberLabel(member, timelinePlayerLabelByNumber)])
+      );
+      const player = members.map((member) => rosterMemberLabels[member.id]).join(" / ");
+      return { ...row, player, matrixParticipant: player, rosterMemberLabels };
+    });
+  }, [baseEventDateTime, eventDetails, sportTableConfig.sport, tagSourcePayload, timelinePlayerLabelByNumber]);
   const payloadViewDevices = useMemo(() => buildEventPayloadDevices(eventPayload), [eventPayload]);
   const viewDevices = sgEventDevices && sgEventDevices.length > 0 ? sgEventDevices : payloadViewDevices;
   const primaryStreamName =

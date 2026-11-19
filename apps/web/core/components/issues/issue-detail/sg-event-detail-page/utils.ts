@@ -5,6 +5,7 @@ import { formatDateValue, formatTimeValue } from "ce/features/media-library/util
 import type { TEventMediaDetails } from "ce/features/media-library/utils/media-event";
 import { SPORT_TABLE_CONFIGS } from "./constants";
 import { findExactRawTagFieldValue } from "./raw-tag-fields";
+import { getNestedRosterContext } from "./roster-tag-identity";
 import type { SgTagRow, SportTableKind } from "./types";
 
 export const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
@@ -361,6 +362,8 @@ const buildTagContext = (tag: Record<string, unknown>): Readonly<Record<string, 
     if (key && value) context[key] = value;
   });
 
+  const rosterMembers = getNestedRosterContext(tag);
+  if (rosterMembers !== undefined) context.roster_members = rosterMembers;
   return context;
 };
 

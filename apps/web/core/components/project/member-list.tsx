@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { observer } from "mobx-react";
+import useSWR from "swr";
 import { Search } from "lucide-react";
 // plane imports
 import { EUserPermissions, EUserPermissionsLevel, MEMBER_TRACKER_ELEMENTS } from "@plane/constants";
@@ -28,11 +29,20 @@ export const ProjectMemberList: React.FC<TProjectMemberListProps> = observer((pr
   const [inviteModal, setInviteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const {
-    project: { projectMemberIds, getFilteredProjectMemberDetails, filters },
+    project: { projectMemberIds, getFilteredProjectMemberDetails, filters, fetchProjectMembers },
+    workspace: { fetchWorkspaceMembers },
   } = useMember();
   const { allowPermissions } = useUserPermissions();
 
   const { t } = useTranslation();
+
+  // Approval can introduce a profile that was absent when the workspace loaded.
+  // Refresh both halves of the member store when opening or refocusing settings.
+  const { error: membersError, mutate: refreshMembers } = useSWR(
+    workspaceSlug && projectId ? ["PROGRAM_SETTINGS_MEMBERS", workspaceSlug, projectId] : null,
+    () => Promise.all([fetchWorkspaceMembers(workspaceSlug), fetchProjectMembers(workspaceSlug, projectId, true)]),
+    { revalidateOnMount: true }
+  );
 
   const searchedProjectMembers = (projectMemberIds ?? []).filter((userId) => {
     const memberDetails = projectId ? getFilteredProjectMemberDetails(userId, projectId.toString()) : null;
@@ -109,7 +119,14 @@ export const ProjectMemberList: React.FC<TProjectMemberListProps> = observer((pr
           )}
         </div>
       </div>
-      {!projectMemberIds ? (
+      {membersError ? (
+        <div className="flex items-center justify-center gap-3 py-8 text-sm text-custom-text-300" role="alert">
+          Could not refresh program members.
+          <Button variant="neutral-primary" size="sm" onClick={() => void refreshMembers()}>
+            Retry
+          </Button>
+        </div>
+      ) : !projectMemberIds ? (
         <MembersSettingsLoader />
       ) : (
         <div className="divide-y divide-custom-border-100 overflow-scroll">

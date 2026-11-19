@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { IRosterPlayer } from "@plane/types";
 import type { TCustomPlaylist, TCustomPlaylistClip } from "@/services/media-library.service";
 // Node's type-stripping test runner requires explicit TypeScript extensions.
 // @ts-expect-error See comment above.
-import { buildCardPlaylists, buildCoachingCardPlaylists, getPositionGroups } from "../create-card-model.ts";
+import * as cardModel from "../create-card-model.ts";
 import type { SgTagRow } from "../types";
+
+const { buildCardPlaylists, buildCoachingCardPlaylists, getLinkedCardPlayers, getPositionGroups } = cardModel;
 
 const playlist = (id: string, clips: TCustomPlaylistClip[]): TCustomPlaylist => ({
   id,
@@ -127,4 +130,27 @@ test("coaching card payload includes only selected playlists and clips", () => {
 test("position groups come from distinct roster positions", () => {
   const players = [{ position: " Guard " }, { position: "guard" }, { position: "Forward" }, { position: null }];
   assert.deepEqual(getPositionGroups(players), ["Forward", "Guard"]);
+});
+
+test("card recipients include only linked active players, including legacy injured players", () => {
+  const players: (Pick<IRosterPlayer, "status" | "user"> & { id: string; account_status?: string })[] = [
+    { id: "linked", user: "account-1", account_status: "linked", status: "active" },
+    { id: "missing-email", user: null, account_status: "email_missing", status: "active" },
+    { id: "email-only", user: null, account_status: "not_linked", status: "active" },
+    { id: "invited", user: null, account_status: "invitation_pending", status: "active" },
+    { id: "legacy", user: "account-2", status: "injured" },
+    { id: "inactive", user: "account-3", status: "inactive" },
+    { id: "pending", user: "account-4", status: "pending" },
+    { id: "removed", user: "account-5", status: "removed" },
+    { id: "missing-link", account_status: "linked", status: "active" },
+  ];
+  assert.deepEqual(
+    getLinkedCardPlayers(players).map((player) => player.id),
+    ["linked", "legacy"]
+  );
+});
+
+test("removing an account link removes the player from card recipients", () => {
+  assert.deepEqual(getLinkedCardPlayers([{ id: "removed", user: null, status: "removed" }]), []);
+  assert.deepEqual(getLinkedCardPlayers([]), []);
 });

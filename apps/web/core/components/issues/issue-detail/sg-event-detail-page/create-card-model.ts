@@ -53,6 +53,9 @@ export type CardFormValues = {
   playlists: { id: string; clipIds: string[] }[];
 };
 
+export const getLinkedCardPlayers = <T extends Pick<IRosterPlayer, "user" | "status">>(players: T[]): T[] =>
+  players.filter((player) => Boolean(player.user) && (player.status === "active" || player.status === "injured"));
+
 export const getPositionGroups = (players: Pick<IRosterPlayer, "position">[]): string[] => {
   const positions = new Map<string, string>();
   for (const player of players) {

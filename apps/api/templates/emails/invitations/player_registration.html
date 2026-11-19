@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kanavio team registration</title></head>
+<body style="margin:0;background:#171717;color:#f5f5f5;font:16px system-ui,sans-serif;padding:32px">
+<main style="max-width:480px;margin:48px auto;padding:28px;border:1px solid #404040;border-radius:16px">
+<p style="color:#38bdf8;font-weight:700">KANAVIO</p>
+{% if expired %}<h1>Registration closed</h1><p>This QR code is unavailable or expired. Ask your coach for a new code.</p>
+{% else %}<h1>Join {{ registration.program_name }}</h1><p>{{ registration.workspace_name }}</p>
+<p>Open the Kanavio Player App, choose your school server, and tap <strong>Scan team QR</strong>.</p>
+<p>Scan your coach’s QR or paste this page’s address in the registration scanner. After signing up or signing in, wait for your coach or admin to approve your roster registration.</p>
+<p style="color:#a3a3a3">Registration closes at {{ registration.expires_at }}.</p>{% endif %}
+</main></body></html>

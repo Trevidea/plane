@@ -1,4 +1,3 @@
-import type { IRosterPlayer } from "@plane/types";
 import type { TMediaArtifact } from "@/services/media-library.service";
 import type { TMediaItem } from "ce/features/media-library/types/media-library.types";
 import { resolveArtifactSource } from "../../../../../ce/features/media-library/utils/media-artifact-url";
@@ -10,33 +9,9 @@ type TThumbnailLookupContext = {
   workspaceSlug: string;
 };
 
-const getJerseyNumberKeys = (value: string | null | undefined) => {
-  const normalizedValue = (value ?? "").trim().replace(/^#/, "").replace(/\s+/g, "");
-  if (!normalizedValue) return [];
-
-  const withoutLeadingZeros = normalizedValue.replace(/^0+(?=\d)/, "");
-  return Array.from(new Set([normalizedValue.toLowerCase(), withoutLeadingZeros.toLowerCase()].filter(Boolean)));
-};
-
-export const buildTimelinePlayerLabelMap = (players: IRosterPlayer[] | undefined) => {
-  const labelMap = new Map<string, string>();
-
-  (players ?? []).forEach((player) => {
-    const playerName = player.player_name.trim();
-    const jerseyNumber = player.jersey_number?.trim() ?? "";
-    const playerLabel = [playerName, jerseyNumber ? `#${jerseyNumber.replace(/^#/, "")}` : ""]
-      .filter(Boolean)
-      .join(", ");
-
-    if (!playerLabel) return;
-
-    getJerseyNumberKeys(jerseyNumber).forEach((key) => {
-      labelMap.set(key, playerLabel);
-    });
-  });
-
-  return labelMap;
-};
+// Historical names are resolved exclusively by retained roster UUID.
+export const buildTimelinePlayerLabelMap = (players: { id: string; player_name: string }[] | undefined) =>
+  new Map((players ?? []).map((player) => [player.id, player.player_name.trim()]));
 
 const getThumbnailLookupKeys = (value: string | null | undefined) => {
   const normalizedValue = (value ?? "").trim();

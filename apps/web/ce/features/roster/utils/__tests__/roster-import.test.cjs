@@ -1,19 +1,20 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS loader executes transpiled fixture modules. */
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const path = require("node:path");
 const { createRequire } = require("node:module");
-const vm = require("node:vm");
+const path = require("node:path");
 const test = require("node:test");
+const vm = require("node:vm");
 const webRequire = createRequire(path.resolve(__dirname, "../../../../../package.json"));
 const ts = webRequire("typescript");
 const load = (filename) => {
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const module = { exports: {} };
+  const loadedModule = { exports: {} };
   const localRequire = (id) => load(path.resolve(path.dirname(filename), `${id}.ts`));
-  vm.runInThisContext(`(function(require, module, exports) { ${source}\n})`)(localRequire, module, module.exports);
-  return module.exports;
+  vm.runInThisContext(`(function(require, module, exports) { ${source}\n})`)(localRequire, loadedModule, loadedModule.exports);
+  return loadedModule.exports;
 };
 const { mapImportedRows, getRosterAccountStatus, canDeleteRosterPlayer, getRosterDisplayEmail } = load(
   path.resolve(__dirname, "../roster.utils.ts")
@@ -35,17 +36,29 @@ test("linked players display their account email even when their roster email is
   );
 });
 
-test("only players with missing email and no linked account can be deleted from the roster", () => {
-  assert.equal(canDeleteRosterPlayer({ email: null, user: null, account_status: "email_missing" }), true);
-  assert.equal(canDeleteRosterPlayer({ email: "   ", user: null }), true);
-  assert.equal(canDeleteRosterPlayer({ email: "player@example.com", user: null }), false);
-  assert.equal(canDeleteRosterPlayer({ email: null, user: "linked-user" }), false);
-  assert.equal(canDeleteRosterPlayer({ email: null, user: null, account_status: "invitation_pending" }), false);
-  assert.equal(canDeleteRosterPlayer({ email: null, user: "linked-user", account_status: "email_missing" }), false);
-  assert.equal(
-    canDeleteRosterPlayer({ email: "player@example.com", user: null, account_status: "email_missing" }),
-    false
-  );
+test("staff can remove linked or unlinked players while removed identities stay out of the roster", () => {
+  for (const player of [
+    { status: "active", email: null, user: null },
+    { status: "active", email: "player@example.com", user: "linked-user" },
+    { status: "inactive", user: "linked-user" },
+    { status: "pending", registration_status: "pending" },
+  ])
+    assert.equal(canDeleteRosterPlayer(player), true);
+  assert.equal(canDeleteRosterPlayer({ status: "removed", user: "linked-user" }), false);
+});
+
+test("imports accept active/inactive and normalize injured without permitting pending approval or removed", () => {
+  for (const [input, expected] of [
+    ["", "active"],
+    ["ACTIVE", "active"],
+    ["injured", "active"],
+    ["Inactive", "inactive"],
+  ]) {
+    assert.equal(mapImportedRows([{ Name: "Player", Status: input }])[0].status, expected);
+  }
+  for (const status of ["pending", "removed", "unknown"]) {
+    assert.throws(() => mapImportedRows([{ Name: "Player", Status: status }]), /Use active or inactive/);
+  }
 });
 
 test("CSV/XLSX email headers are preserved and normalized", () => {

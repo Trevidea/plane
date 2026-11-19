@@ -30,8 +30,12 @@ def player_programs(user):
     joined = ProjectMember.objects.filter(member=user, is_active=True, workspace_id__in=active_workspaces).values(
         "project_id"
     )
+    excluded = RosterPlayer.objects.filter(user=user, status__in=["inactive", "removed", "pending"]).values(
+        "project_id"
+    )
     return (
-        Project.objects.filter(
+        Project.objects.exclude(pk__in=excluded)
+        .filter(
             Q(pk__in=roster) | Q(pk__in=joined),
             workspace_id__in=active_workspaces,
             archived_at__isnull=True,
@@ -44,19 +48,23 @@ def player_programs(user):
 
 def player_activities(user):
     programs = player_programs(user)
-    assigned = Q(pk__in=IssueAssignee.objects.filter(assignee=user).values("issue_id")) & ~Q(category="Coaching Card")
+    assigned = Q(pk__in=IssueAssignee.objects.filter(assignee=user).values("issue_id"), project_id__in=programs) & ~Q(
+        category="Coaching Card"
+    )
     legacy_recipients = (
         Q(coaching_card_data__recipient_ids__isnull=True)
         | Q(coaching_card_data__recipient_ids=None)
         | Q(coaching_card_data__recipient_ids=[])
     )
-    for player in RosterPlayer.objects.filter(user=user, project_id__in=programs, status__in=["active", "injured"]):
+    from plane.utils.player_access import player_card_roster_queryset
+
+    for player in player_card_roster_queryset(user):
         assigned |= Q(project_id=player.project_id, category="Coaching Card") & (
             (Q(roster_player=player) & legacy_recipients)
             | Q(coaching_card_data__recipient_ids__contains=[str(player.id)])
         )
     return (
-        Issue.issue_objects.filter(assigned, project_id__in=programs, archived_at__isnull=True)
+        Issue.issue_objects.filter(assigned, archived_at__isnull=True)
         .select_related("project__workspace", "state")
         .distinct()
     )
