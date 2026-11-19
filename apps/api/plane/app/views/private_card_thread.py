@@ -247,7 +247,7 @@ class CoachPrivateRecipientsEndpoint(BaseAPIView):
                 workspace_id=card.workspace_id,
                 user__is_active=True,
                 user__is_bot=False,
-                status__in=("active", "injured"),
+                status__in=("active", "injured", "inactive", "removed"),
             )
             .alias(
                 has_membership=Exists(
@@ -258,7 +258,6 @@ class CoachPrivateRecipientsEndpoint(BaseAPIView):
                     )
                 )
             )
-            .filter(has_membership=True)
             .order_by("player_name", "id")
         )
         recipients = list(

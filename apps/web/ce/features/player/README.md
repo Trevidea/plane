@@ -58,3 +58,12 @@ Tests: Django `test_user_player_role`, `test_player_programs`, and
 `test_roster_email_import`; `__tests__/player-area-browser.mjs` checks actual UI
 interactions with a fixture API. Set ESBUILD_PACKAGE_PATH, PLAYWRIGHT_PACKAGE_PATH,
 and CHROME_PATH as needed for local browser tools.
+
+## Participation and personal history
+
+Shared team content requires Active participation (legacy injured means Active).
+Inactive and Removed athletes retain only their own assigned coaching cards and
+associated feedback/history/media while their account exists. Personal program
+discovery includes those historical card programs. Roster removal preserves
+card/tag identities; separate Admin account deletion anonymizes retained roster
+identities to Former player.

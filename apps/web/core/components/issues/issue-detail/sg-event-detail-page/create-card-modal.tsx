@@ -13,6 +13,7 @@ import {
   formatCardDuration,
   formatCardPlayer,
   hasCardContextMetadata,
+  getLinkedCardPlayers,
   getPositionGroups,
 } from "./create-card-model";
 import type { CardContextValues, CardFormValues, CardPriority, CardType } from "./create-card-model";
@@ -67,9 +68,10 @@ export const CreateCardModal = ({
   };
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const linkedPlayers = useMemo(() => getLinkedCardPlayers(rosterPlayers), [rosterPlayers]);
   const selectedPlayers = useMemo(
-    () => selectedPlayerIds.flatMap((id) => rosterPlayers.find((player) => player.id === id) ?? []),
-    [rosterPlayers, selectedPlayerIds]
+    () => selectedPlayerIds.flatMap((id) => linkedPlayers.find((player) => player.id === id) ?? []),
+    [linkedPlayers, selectedPlayerIds]
   );
   const includedPlaylists = useMemo(() => groups.filter((group) => group.clips.length > 0), [groups]);
   const positionGroups = useMemo(() => getPositionGroups(rosterPlayers), [rosterPlayers]);
@@ -199,7 +201,7 @@ export const CreateCardModal = ({
               </fieldset>
               {assignmentType === "player" ? (
                 <CreateCardRosterPicker
-                  players={rosterPlayers}
+                  players={linkedPlayers}
                   selectedPlayers={selectedPlayers}
                   onChange={setSelectedPlayerIds}
                   isLoading={isRosterLoading}

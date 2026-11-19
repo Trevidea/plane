@@ -104,13 +104,16 @@ class PlayerMediaContractTests(TestCase):
         Issue.objects.filter(pk=self.card.pk).update(roster_player=None)
         self.assertEqual(self.client.get(self.grant_path).status_code, 404)
 
-    def test_playback_does_not_grant_user_access_to_the_generic_media_library(self):
+    def test_active_player_can_access_team_film_but_inactive_keeps_only_own_video(self):
         self.grant()
         generic = (
             f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}/"
             "media-library/packages/film/artifacts/movie/file/"
         )
-        self.assertEqual(self.client.get(generic).status_code, 403)
+        self.assertEqual(self.client.get(generic).status_code, 200)
+        RosterPlayer.objects.filter(pk=self.player.pk).update(status='inactive')
+        self.assertEqual(self.client.get(generic).status_code,403)
+        self.assertEqual(self.client.get(self.grant_path).status_code,200)
 
     def test_progressive_ranges_and_head_do_not_load_the_whole_video(self):
         url = self.grant()
@@ -136,8 +139,9 @@ class PlayerMediaContractTests(TestCase):
         self.client.force_authenticate(self.other)
         self.assertEqual(self.client.get(self.grant_path).status_code, 404)
         self.client.force_authenticate(self.user)
-        RosterPlayer.objects.filter(pk=self.player.pk).update(status="inactive")
-        self.assertEqual(self.client.get(self.grant_path).status_code, 404)
+        for status in ('inactive','removed'):
+            RosterPlayer.objects.filter(pk=self.player.pk).update(status=status)
+            self.assertEqual(self.client.get(self.grant_path).status_code,200)
 
     def test_invalid_card_clip_and_workspace_cannot_issue_a_grant(self):
         for path in (

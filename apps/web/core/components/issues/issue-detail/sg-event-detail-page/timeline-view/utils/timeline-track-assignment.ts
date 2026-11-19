@@ -1,3 +1,5 @@
+// @ts-expect-error Node type-stripping tests require the explicit extension.
+import { getTagRosterMembers } from "../../roster-tag-identity.ts";
 import type { SgTagRow } from "../../types";
 
 type TimelineCategoryDefinition = {
@@ -5,9 +7,9 @@ type TimelineCategoryDefinition = {
   keywords: string[];
 };
 
-const EMPTY_TIMELINE_VALUES = new Set(["", "--", "\u2014", "n/a", "na", "none", "null", "undefined"]);
+const EMPTY_TIMELINE_VALUES = new Set(["", "-", "#-", "--", "\u2014", "n/a", "na", "none", "null", "undefined"]);
 
-const hasTimelineValue = (value: string | null | undefined) =>
+export const hasTimelinePlayerValue = (value: string | null | undefined) =>
   !EMPTY_TIMELINE_VALUES.has(
     String(value ?? "")
       .trim()
@@ -66,8 +68,10 @@ export const getTimelineRowLaneIds = (
   categoryLanes: TimelineCategoryDefinition[]
 ) => {
   const categoryLaneId = getTimelineCategoryLaneId(row, categoryLanes);
+  const members = getTagRosterMembers(row.context);
+  if (members.length) return [categoryLaneId, ...members.map((member) => buildTimelinePlayerLaneId(member.id))];
   const player = row.player.trim();
-  if (!hasTimelineValue(player)) return [categoryLaneId];
+  if (!hasTimelinePlayerValue(player)) return [categoryLaneId];
 
   return [categoryLaneId, buildTimelinePlayerLaneId(getTimelinePlayerLaneKey(player))];
 };

@@ -5,9 +5,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useParams } from "next/navigation";
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
-import type { IRosterFilters, IRosterPlayer, IRosterPlayerPayload, TRosterPlayerStatus } from "@plane/types";
+import type {
+  IRosterFilters,
+  IRosterLifecycleEvent,
+  IRosterPlayer,
+  IRosterPlayerPayload,
+  TRosterPlayerStatus,
+} from "@plane/types";
 import { useUserPermissions } from "@/hooks/store/user";
 import { RosterService } from "@/services/roster.service";
+import { isPendingPlayer } from "../utils/roster-presentation";
 import { canDeleteRosterPlayer, getUniqueRosterValues } from "../utils/roster.utils";
 
 export type TRosterFormState = {
@@ -61,7 +68,23 @@ export type IRosterGroupedResponse = {
   results: IRosterGroup[];
 };
 
+export type TRosterTab = "all" | "inactive" | "requests" | "events";
+type TAccountDeletionTarget = { id: string; player_name: string };
+
 type TRosterContext = {
+  rosterTab: TRosterTab;
+  setRosterTab: (tab: TRosterTab) => void;
+  canDeleteAccounts: boolean;
+  events: IRosterLifecycleEvent[];
+  isLoadingEvents: boolean;
+  eventsError: string | null;
+  refetchEvents: () => Promise<void>;
+  accountDeletionTarget: TAccountDeletionTarget | null;
+  openDeleteAccountModal: (target: TAccountDeletionTarget) => void;
+  closeDeleteAccountModal: () => void;
+  deleteAccount: () => Promise<void>;
+  setPlayerStatus: (player: IRosterPlayer, status: "active" | "inactive") => Promise<void>;
+  setSelectedPlayerStatus: (status: "active" | "inactive") => Promise<void>;
   workspaceSlug: string;
   projectId: string;
   players: IRosterPlayer[];
@@ -112,7 +135,7 @@ type TRosterContext = {
   closeDeletePlayerModal: () => void;
   openBulkDeleteModal: () => void;
   closeBulkDeleteModal: () => void;
-  submitPlayer: (payload: TRosterFormState) => Promise<void>;
+  submitPlayer: (payload: TRosterFormState, options?: { keepOpen?: boolean }) => Promise<boolean>;
   deletePlayer: () => Promise<void>;
   deleteSelectedPlayers: () => Promise<void>;
   importPlayers: (players: IRosterPlayerPayload[]) => Promise<void>;
@@ -139,13 +162,13 @@ const DEFAULT_DISPLAY_PROPERTIES: Record<TRosterDisplayPropertyKey, boolean> = {
   player: true,
   jersey_number: true,
   position: true,
-  height: true,
-  weight: true,
+  height: false,
+  weight: false,
   class_year: true,
   status: true,
   account_status: true,
   notes: false,
-  created_at: false,
+  created_at: true,
   updated_at: false,
 };
 const STATUS_ORDER: TRosterPlayerStatus[] = ["active", "injured", "inactive", "pending"];
@@ -361,6 +384,11 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
   const { workspaceSlug, projectId } = useParams() as { workspaceSlug: string; projectId: string };
   const { allowPermissions } = useUserPermissions();
   const [allPlayers, setAllPlayers] = useState<IRosterPlayer[]>([]);
+  const [rosterTab, updateRosterTab] = useState<TRosterTab>("all");
+  const [events, setEvents] = useState<IRosterLifecycleEvent[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [accountDeletionTarget, setAccountDeletionTarget] = useState<TAccountDeletionTarget | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchValue, setSearchValue] = useState("");
@@ -371,7 +399,7 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
   const [displayProperties, setDisplayProperties] = useState(DEFAULT_DISPLAY_PROPERTIES);
   const [groupBy, setGroupBy] = useState<TRosterGroupByOption>("none");
   const [subGroupBy, setSubGroupBy] = useState<TRosterGroupByOption>("none");
-  const [orderBy, setOrderBy] = useState<TRosterOrderByOption>("created_at");
+  const [orderBy, setOrderBy] = useState<TRosterOrderByOption>("jersey_number");
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
   const [isImportRosterModalOpen, setIsImportRosterModalOpen] = useState(false);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
@@ -388,6 +416,28 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     workspaceSlug,
     projectId
   );
+
+  const canDeleteAccounts = allowPermissions([EUserPermissions.ADMIN], EUserPermissionsLevel.WORKSPACE, workspaceSlug);
+  const setRosterTab = (tab: TRosterTab) => {
+    updateRosterTab(tab);
+    setSelectedStatus("");
+    setSelectedPlayerIds([]);
+  };
+  const refetchEvents = useCallback(async () => {
+    if (!canManage) return;
+    setIsLoadingEvents(true);
+    setEventsError(null);
+    try {
+      setEvents(await rosterService.getRosterEvents(workspaceSlug, projectId));
+    } catch (error) {
+      setEventsError(getErrorMessage(error, "Event log could not be loaded. Please try again."));
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  }, [canManage, projectId, workspaceSlug]);
+  useEffect(() => {
+    if (rosterTab === "events") void refetchEvents();
+  }, [refetchEvents, rosterTab]);
 
   useEffect(() => {
     if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
@@ -407,12 +457,18 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     [debouncedSearch, selectedClassYear, selectedPosition, selectedStatus]
   );
 
-  const statusOptions = useMemo(() => getUniqueRosterValues(allPlayers, "status"), [allPlayers]);
+  const statusOptions = ["active", "inactive"];
   const positionOptions = useMemo(() => getUniqueRosterValues(allPlayers, "position"), [allPlayers]);
   const classYearOptions = useMemo(() => getUniqueRosterValues(allPlayers, "class_year"), [allPlayers]);
   const players = useMemo(() => {
     const filteredPlayers = allPlayers.filter(
       (player) =>
+        player.status !== "removed" &&
+        (rosterTab === "requests"
+          ? isPendingPlayer(player)
+          : rosterTab === "inactive"
+            ? player.status === "inactive"
+            : ["active", "injured"].includes(player.status)) &&
         matchesSearch(player, debouncedSearch) &&
         (!activeFilters.position || player.position === activeFilters.position) &&
         (!activeFilters.status || player.status === activeFilters.status) &&
@@ -420,7 +476,15 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     );
 
     return sortPlayers(filteredPlayers, orderBy);
-  }, [activeFilters.class_year, activeFilters.position, activeFilters.status, allPlayers, debouncedSearch, orderBy]);
+  }, [
+    activeFilters.class_year,
+    activeFilters.position,
+    activeFilters.status,
+    allPlayers,
+    debouncedSearch,
+    orderBy,
+    rosterTab,
+  ]);
   const groupedRoster = useMemo(
     () => buildGroupedRoster(players, groupBy, subGroupBy, orderBy),
     [groupBy, orderBy, players, subGroupBy]
@@ -440,7 +504,11 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       const roster = await rosterService.getRoster(workspaceSlug, projectId);
-      setAllPlayers(roster);
+      setAllPlayers(
+        roster
+          .filter((player) => player.status !== "removed")
+          .map((player) => (player.status === "injured" ? { ...player, status: "active" as const } : player))
+      );
     } catch (error) {
       setToast({
         type: TOAST_TYPE.ERROR,
@@ -462,6 +530,13 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const openEditPlayerModal = (player: IRosterPlayer) => {
+    if (
+      !canManage ||
+      player.status === "removed" ||
+      player.status === "pending" ||
+      player.registration_status === "pending"
+    )
+      return;
     setEditingPlayer(player);
     setIsAddPlayerModalOpen(true);
   };
@@ -521,7 +596,14 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     setSubGroupBy(value === groupBy ? "none" : value);
   };
 
-  const submitPlayer = async (payload: TRosterFormState) => {
+  const submitPlayer = async (payload: TRosterFormState, options?: { keepOpen?: boolean }) => {
+    if (!canManage || isSubmitting || !["active", "inactive"].includes(payload.status)) return false;
+    if (
+      editingPlayer?.registration_status === "pending" ||
+      editingPlayer?.status === "pending" ||
+      editingPlayer?.status === "removed"
+    )
+      return false;
     setIsSubmitting(true);
     try {
       if (editingPlayer) {
@@ -553,13 +635,90 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
         });
       }
 
-      closePlayerModal();
+      if (!options?.keepOpen || editingPlayer) closePlayerModal();
       await refetchRoster();
+      return true;
     } catch (error) {
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Error!",
         message: getErrorMessage(error, "Player could not be saved. Please try again."),
+      });
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const setPlayerStatus = async (player: IRosterPlayer, status: "active" | "inactive") => {
+    if (
+      !canManage ||
+      isSubmitting ||
+      player.status === "pending" ||
+      player.registration_status === "pending" ||
+      player.status === "removed"
+    )
+      return;
+    setIsSubmitting(true);
+    try {
+      await rosterService.updateRosterPlayer(workspaceSlug, projectId, player.id, { status });
+      setSelectedPlayerIds((ids) => ids.filter((id) => id !== player.id));
+      await refetchRoster();
+      setToast({ type: TOAST_TYPE.SUCCESS, title: "Player updated", message: `Player set ${status}.` });
+    } catch (error) {
+      setToast({
+        type: TOAST_TYPE.ERROR,
+        title: "Could not update player",
+        message: getErrorMessage(error, "Please try again."),
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  const setSelectedPlayerStatus = async (status: "active" | "inactive") => {
+    if (!canManage || isSubmitting) return;
+    const eligible = selectedPlayers.filter((player) => !isPendingPlayer(player) && player.status !== "removed");
+    if (!eligible.length) return;
+    setIsSubmitting(true);
+    try {
+      const results = await Promise.allSettled(
+        eligible.map((player) => rosterService.updateRosterPlayer(workspaceSlug, projectId, player.id, { status }))
+      );
+      const failedIds = eligible.filter((_, index) => results[index].status === "rejected").map((player) => player.id);
+      setSelectedPlayerIds(failedIds);
+      await refetchRoster();
+      setToast({
+        type: failedIds.length ? TOAST_TYPE.ERROR : TOAST_TYPE.SUCCESS,
+        title: failedIds.length ? "Some players could not be updated" : "Players updated",
+        message: `${eligible.length - failedIds.length} player(s) set ${status}.${failedIds.length ? ` ${failedIds.length} could not be updated. Their selection is kept so you can retry.` : ""}`,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  const openDeleteAccountModal = (target: TAccountDeletionTarget) => {
+    if (canDeleteAccounts) setAccountDeletionTarget(target);
+  };
+  const closeDeleteAccountModal = () => setAccountDeletionTarget(null);
+  const deleteAccount = async () => {
+    if (!canDeleteAccounts || !accountDeletionTarget || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await rosterService.deletePlayerAccount(workspaceSlug, projectId, accountDeletionTarget.id);
+      closeDeleteAccountModal();
+      setSelectedPlayerIds([]);
+      await refetchRoster();
+      if (rosterTab === "events") await refetchEvents();
+      setToast({
+        type: TOAST_TYPE.SUCCESS,
+        title: "Account deleted",
+        message: "The athlete account has been permanently deleted.",
+      });
+    } catch (error) {
+      setToast({
+        type: TOAST_TYPE.ERROR,
+        title: "Could not delete account",
+        message: getErrorMessage(error, "Please try again."),
       });
     } finally {
       setIsSubmitting(false);
@@ -571,15 +730,22 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
 
     setIsSubmitting(true);
     try {
-      await rosterService.deleteRosterPlayer(workspaceSlug, projectId, deletingPlayer.id);
-      setAllPlayers((currentPlayers) => currentPlayers.filter((player) => player.id !== deletingPlayer.id));
+      const declining = deletingPlayer.registration_status === "pending" && !deletingPlayer.user;
+      if (declining) {
+        await rosterService.declinePlayer(workspaceSlug, projectId, deletingPlayer.id);
+      } else {
+        await rosterService.deleteRosterPlayer(workspaceSlug, projectId, deletingPlayer.id);
+        setAllPlayers((currentPlayers) => currentPlayers.filter((player) => player.id !== deletingPlayer.id));
+      }
       setSelectedPlayerIds((currentSelectedPlayerIds) =>
         currentSelectedPlayerIds.filter((playerId) => playerId !== deletingPlayer.id)
       );
       setToast({
         type: TOAST_TYPE.SUCCESS,
         title: "Success!",
-        message: "Player deleted successfully.",
+        message: declining
+          ? "Join request declined. The account and any existing roster entry are retained."
+          : "Player removed from roster. Their account and historical cards are retained.",
       });
       closeDeletePlayerModal();
       await refetchRoster();
@@ -587,7 +753,7 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Error!",
-        message: getErrorMessage(error, "Player could not be deleted. Please try again."),
+        message: getErrorMessage(error, "Player could not be removed. Please try again."),
       });
     } finally {
       setIsSubmitting(false);
@@ -665,6 +831,19 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
   return (
     <RosterContext.Provider
       value={{
+        rosterTab,
+        setRosterTab,
+        canDeleteAccounts,
+        events,
+        isLoadingEvents,
+        eventsError,
+        refetchEvents,
+        accountDeletionTarget,
+        openDeleteAccountModal,
+        closeDeleteAccountModal,
+        deleteAccount,
+        setPlayerStatus,
+        setSelectedPlayerStatus,
         workspaceSlug,
         projectId,
         players,
@@ -743,7 +922,7 @@ export const getRosterFormState = (player?: IRosterPlayer | null): TRosterFormSt
         height: player.height ?? "",
         weight: player.weight ?? "",
         class_year: player.class_year ?? "",
-        status: player.status ?? "active",
+        status: player.status === "injured" ? "active" : (player.status ?? "active"),
         notes: player.notes ?? "",
       }
     : DEFAULT_FORM_STATE;

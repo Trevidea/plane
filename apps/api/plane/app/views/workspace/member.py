@@ -21,7 +21,7 @@ from plane.app.serializers import (
     WorkSpaceMemberSerializer,
 )
 from plane.app.views.base import BaseAPIView
-from plane.db.models import Project, ProjectMember, WorkspaceMember, DraftIssue, RosterPlayer, Workspace, Issue
+from plane.db.models import Project, ProjectMember, WorkspaceMember, DraftIssue, RosterPlayer, Workspace
 from plane.utils.cache import invalidate_cache
 
 from .. import BaseViewSet
@@ -150,13 +150,12 @@ class WorkSpaceMemberViewSet(BaseViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Keep work items, but clear their optional roster reference before
-        # soft-deleting the member's linked players in this workspace only.
-        players = RosterPlayer.objects.filter(
+        from plane.utils.roster_lifecycle import remove_player
+
+        for player in RosterPlayer.objects.filter(
             workspace_id=workspace_member.workspace_id, user_id=workspace_member.member_id
-        )
-        Issue.objects.filter(roster_player_id__in=players.values("id")).update(roster_player=None)
-        players.delete()
+        ):
+            remove_player(player, request.user)
 
         # Deactivate the users from the projects where the user is part of
         _ = ProjectMember.objects.filter(

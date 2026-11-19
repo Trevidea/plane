@@ -31,6 +31,7 @@ export type SgEventDetailPageProps = {
 };
 
 export type SgTagRow = {
+  rosterMemberLabels?: Readonly<Record<string, string>>;
   action: string;
   clipDurationSeconds?: number | null;
   clipId: string | null;

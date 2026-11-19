@@ -1,4 +1,3 @@
-
 """Protect linked players and scope roster cleanup to removed memberships."""
 
 from unittest.mock import patch
@@ -27,11 +26,11 @@ class RosterMemberDeletionTests(TestCase):
         self.member_url = f"/api/workspaces/{self.workspace.slug}/members/{self.membership.id}/"
         self.enterContext(patch("plane.db.mixins.soft_delete_related_objects.delay"))
 
-    def test_linked_roster_cannot_be_deleted_directly(self):
+    def test_unused_linked_roster_can_be_removed_without_deleting_account(self):
         response = self.client.delete(f"{self.roster_url}{self.roster.id}/")
-        self.assertEqual(response.status_code, 400, response.data)
-        self.assertIn("member", response.data["error"].lower())
-        self.assertTrue(RosterPlayer.objects.filter(pk=self.roster.pk).exists())
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertFalse(RosterPlayer.objects.filter(pk=self.roster.pk).exists())
+        self.assertTrue(User.objects.filter(pk=self.player.pk).exists())
         self.membership.refresh_from_db()
         self.assertTrue(self.membership.is_active)
 
@@ -77,7 +76,9 @@ class RosterMemberDeletionTests(TestCase):
         self.assertEqual(response.status_code, 204, response.data)
         card.refresh_from_db()
         self.assertIsNone(card.deleted_at)
-        self.assertIsNone(card.roster_player_id)
+        self.assertEqual(card.roster_player_id, self.roster.id)
+        self.roster.refresh_from_db()
+        self.assertEqual(self.roster.status, "removed")
 
     def test_non_admin_cannot_remove_member_or_roster(self):
         membership = WorkspaceMember.objects.get(workspace=self.workspace, member=self.coach)

@@ -4,7 +4,7 @@ import type { ChangeEvent, DragEvent } from "react";
 import { useRef, useState } from "react";
 import Link from "next/link";
 
-import { FileSpreadsheet, ShieldCheck, UploadCloud, Users } from "lucide-react";
+import { FileSpreadsheet, Plus, ShieldCheck, UploadCloud, Users } from "lucide-react";
 import { Button } from "@plane/propel/button";
 import { useRoster } from "../store/roster-context";
 
@@ -12,7 +12,7 @@ const IMPORT_FIELDS = ["Player name", "Jersey #", "Position", "Height", "Weight"
 const SUPPORTED_FILES = ["XLSX", "CSV"];
 
 export const RosterEmptyState = () => {
-  const { canManage, openImportRosterModal, setPendingImportFile } = useRoster();
+  const { canManage, openCreatePlayerModal, openImportRosterModal, setPendingImportFile } = useRoster();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -56,16 +56,28 @@ export const RosterEmptyState = () => {
         </div>
 
         <div className="max-w-2xl">
-          <h2 className="text-xl font-semibold text-custom-text-100 sm:text-2xl">No roster uploaded yet</h2>
+          <h2 className="text-xl font-semibold text-custom-text-100 sm:text-2xl">No players on this roster yet</h2>
           <p className="mt-2 text-sm leading-6 text-custom-text-300 sm:text-base">
-            Import your team roster to organize player details, filter members, and manage the lineup for this program.
+            Add a player individually or import your team roster to organize player details and manage this program’s
+            lineup.
           </p>
         </div>
 
         <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row">
-          {canManage ? (
+          {canManage && (
             <Button
               variant="primary"
+              size="sm"
+              className="w-full sm:w-auto"
+              prependIcon={<Plus />}
+              onClick={openCreatePlayerModal}
+            >
+              Add player
+            </Button>
+          )}
+          {canManage ? (
+            <Button
+              variant="neutral-primary"
               size="sm"
               className="w-full sm:w-auto"
               prependIcon={<UploadCloud />}

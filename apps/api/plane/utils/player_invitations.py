@@ -7,10 +7,11 @@ from django.conf import settings
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Exists, F, OuterRef
 from django.utils import timezone
 
 from plane.db.models import (
+    PlayerRegistrationRequest,
     Project,
     ProjectMember,
     RosterPlayer,
@@ -69,7 +70,11 @@ def ticket_data(token):
 
 
 def invitation_roster(invitation):
+    pending_approval = PlayerRegistrationRequest.objects.filter(
+        roster_player_id=OuterRef("pk"), approved_at__isnull=True
+    )
     return RosterPlayer.objects.filter(
+        ~Exists(pending_approval),
         workspace_id=invitation.workspace_id,
         workspace_id__exact=F("project__workspace_id"),
         email__iexact=invitation.email,
@@ -169,15 +174,17 @@ def accept_player_ticket(request, token, name, password):
     for player in players:
         if RosterPlayer.objects.filter(project_id=player.project_id, user=user).exclude(pk=player.pk).exists():
             raise InvalidPlayerInvitation("Account already linked to another player in this program.")
-        player.user = user
-        player.save(update_fields=["user"])
-        program_member, _ = ProjectMember.objects.get_or_create(
-            project_id=player.project_id, member=user, defaults={"role": 1}
-        )
-        if not program_member.is_active:
-            program_member.is_active = True
-            program_member.role = 1
-            program_member.save(update_fields=["is_active", "role"])
+        # Email invitation acceptance proves account ownership, not approval for
+        # each program. Reuse the same pending queue as shared team QR joining.
+        if not player.user_id:
+            program_member = ProjectMember.objects.filter(project_id=player.project_id, member=user).first()
+            if program_member and not program_member.is_active:
+                raise InvalidPlayerInvitation("Program membership is inactive.")
+            registration, _ = PlayerRegistrationRequest.objects.get_or_create(
+                project_id=player.project_id, user=user, defaults={"roster_player": player}
+            )
+            if registration.roster_player_id != player.pk or registration.approved_at:
+                raise InvalidPlayerInvitation("Account already has a registration in this program.")
     invite.accepted = True
     invite.responded_at = timezone.now()
     invite.save(update_fields=["accepted", "responded_at"])

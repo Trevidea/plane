@@ -268,15 +268,15 @@ class UserPlayerRoleTests(TestCase):
             CardStageHistory.objects.filter(issue=self.card, to_stage_id=self.reviewed_state.id).count(), 1
         )
 
-    def test_inactive_roster_revokes_mobile_mine_and_review_access(self):
+    def test_inactive_roster_preserves_own_mobile_cards_and_review_access(self):
         self.player.status = "inactive"
         self.player.save()
-        self.assertEqual(self.client.get(f"{self.generic}coaching-cards/mine/").status_code, 404)
+        self.assertEqual(self.client.get(f"{self.generic}coaching-cards/mine/").status_code, 200)
         self.assertEqual(
             self.client.post(
                 f"{self.generic}coaching-cards/{self.card.id}/review-complete/", {}, format="json"
             ).status_code,
-            404,
+            200,
         )
 
     def test_mobile_mine_uses_sanitized_card_payload(self):

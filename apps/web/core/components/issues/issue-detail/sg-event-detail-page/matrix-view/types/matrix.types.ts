@@ -7,6 +7,7 @@ export type MatrixEntityDimension = "team" | "period" | "player" | "unassigned";
 export type MatrixAxisKind = "entity" | "action";
 
 export type MatrixSourceTag = {
+  rosterMemberLabels?: Readonly<Record<string, string>>;
   id: string;
   sourceTagId?: string | null;
   action: string;

@@ -497,3 +497,25 @@ test("entity ordering keeps numbered periods in chronological order", () => {
     ["Quarter 1", "Quarter 2", "Quarter 10"]
   );
 });
+
+test("matrix keeps two stable roster identities with the same jersey in separate entities", () => {
+  const tags = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"].map((id) => ({
+    id,
+    action: "pass_complete",
+    player: "#7",
+    context: { roster_members: JSON.stringify({ rosters: { id, jersey: "7" } }) },
+  }));
+  const matrix = buildMatrixData(tags, footballConfig, "entities-by-actions");
+  assert.equal(matrix.rows.filter((row) => row.dimension === "player").length, 2);
+});
+
+test("cleared roster jersey placeholders never create fake matrix player entities", () => {
+  for (const player of ["-", "#-", "--"]) {
+    const matrix = buildMatrixData(
+      [{ id: "cleared", action: "pass_complete", player, context: { roster_members: "{}" } }],
+      footballConfig,
+      "entities-by-actions"
+    );
+    assert.equal(matrix.rows.filter((row) => row.dimension === "player").length, 0);
+  }
+});

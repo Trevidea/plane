@@ -65,16 +65,18 @@ class PlayerAppInvitationTests(TestCase):
         self.assertFalse(self.invite.accepted)
         self.assertIn("no-store", response.headers["Cache-Control"])
 
-    def test_new_account_gets_session_roster_and_user_program_membership(self):
+    def test_new_account_gets_session_and_waits_for_program_approval(self):
         response = self.accept()
         self.assertEqual(response.status_code, 200, response.content)
         user = User.objects.get(email=self.player.email)
         self.assertTrue(user.check_password(self.password))
         self.assertEqual(self.client.get("/api/users/me/").status_code, 200)
         self.player.refresh_from_db()
-        self.assertEqual(self.player.user_id, user.id)
+        self.assertIsNone(self.player.user_id)
         self.assertEqual(WorkspaceMember.objects.get(workspace=self.workspace, member=user).role, 1)
-        self.assertEqual(ProjectMember.objects.get(project=self.project, member=user).role, 1)
+        self.assertFalse(ProjectMember.objects.filter(project=self.project, member=user).exists())
+        pending = self.client.get("/api/player/registration/requests/").json()["results"]
+        self.assertEqual(pending[0]["program_name"], self.project.name)
         self.invite.refresh_from_db()
         self.assertTrue(self.invite.accepted)
 
@@ -84,7 +86,7 @@ class PlayerAppInvitationTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(User.objects.filter(email=self.player.email).count(), 1)
         self.player.refresh_from_db()
-        self.assertEqual(self.player.user_id, user.id)
+        self.assertIsNone(self.player.user_id)
         self.assertEqual(self.client.get("/api/users/me/").status_code, 200)
 
     def test_wrong_password_creates_no_memberships(self):
@@ -126,13 +128,13 @@ class PlayerAppInvitationTests(TestCase):
         user.refresh_from_db()
         self.assertFalse(user.is_active)
 
-    def test_removed_membership_is_reactivated_at_user_role(self):
+    def test_removed_program_membership_is_not_reactivated_by_invitation(self):
         user = self.existing_user()
         WorkspaceMember.objects.create(workspace=self.workspace, member=user, role=20, is_active=False)
         ProjectMember.objects.create(project=self.project, member=user, role=20, is_active=False)
-        self.assertEqual(self.accept().status_code, 200)
-        self.assertEqual(WorkspaceMember.objects.get(workspace=self.workspace, member=user).role, 1)
-        self.assertEqual(ProjectMember.objects.get(project=self.project, member=user).role, 1)
+        self.assertEqual(self.accept().status_code, 400)
+        self.assertFalse(WorkspaceMember.objects.get(workspace=self.workspace, member=user).is_active)
+        self.assertFalse(ProjectMember.objects.get(project=self.project, member=user).is_active)
 
     def test_inactive_program_rejects_acceptance(self):
         self.project.archived_at = timezone.now()
@@ -150,7 +152,7 @@ class PlayerAppInvitationTests(TestCase):
         self.client.force_login(self.coach)
         self.assertEqual(self.accept().status_code, 400)
 
-    def test_all_matching_programs_are_linked_but_other_workspaces_are_not(self):
+    def test_matching_programs_each_require_approval_and_other_workspaces_are_untouched(self):
         second = Project.objects.create(workspace=self.workspace, name="Basketball", identifier="BB")
         other = RosterPlayer.objects.create(project=second, player_name="Player", email=self.player.email)
         foreign_workspace = Workspace.objects.create(name="Other", slug="app-other", owner=self.coach)
@@ -159,9 +161,11 @@ class PlayerAppInvitationTests(TestCase):
         self.assertEqual(self.accept().status_code, 200)
         other.refresh_from_db()
         foreign.refresh_from_db()
-        self.assertIsNotNone(other.user_id)
+        self.assertIsNone(other.user_id)
         self.assertIsNone(foreign.user_id)
-        self.assertEqual(ProjectMember.objects.filter(member_id=other.user_id).count(), 2)
+        user = User.objects.get(email=self.player.email)
+        self.assertEqual(ProjectMember.objects.filter(member=user).count(), 0)
+        self.assertEqual(len(self.client.get("/api/player/registration/requests/").json()["results"]), 2)
 
     def test_program_summary_stays_within_the_mobile_wire_contract(self):
         self.project.name = "Football " * 20
@@ -204,8 +208,9 @@ class PlayerAppInvitationTests(TestCase):
         )
         self.assertEqual(response.status_code, 200, response.content)
         self.assertContains(response, "Your account is ready")
+        self.assertContains(response, "An admin or coach must approve access to each program.")
         self.player.refresh_from_db()
-        self.assertIsNotNone(self.player.user_id)
+        self.assertIsNone(self.player.user_id)
 
     def test_weak_password_does_not_create_an_account(self):
         self.assertEqual(self.accept(password="12345678").status_code, 400)

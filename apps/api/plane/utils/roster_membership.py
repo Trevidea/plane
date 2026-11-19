@@ -7,7 +7,15 @@ from django.db.models import Exists, OuterRef
 from rest_framework.exceptions import ValidationError
 
 from plane.bgtasks.workspace_invitation_task import workspace_invitation
-from plane.db.models import Project, RosterPlayer, Workspace, WorkspaceMember, WorkspaceMemberInvite
+from plane.db.models import (
+    Project,
+    ProjectMember,
+    RosterPlayer,
+    Workspace,
+    WorkspaceMember,
+    WorkspaceMemberInvite,
+    PlayerRegistrationRequest,
+)
 from plane.utils.exception_logger import log_exception
 
 
@@ -18,11 +26,17 @@ def roster_with_account_status(queryset):
         accepted=False,
         responded_at__isnull=True,
     )
-    return queryset.select_related("user").annotate(_has_pending_invitation=Exists(pending))
+    approvals = PlayerRegistrationRequest.objects.filter(roster_player_id=OuterRef("pk"), approved_at__isnull=True)
+    memberships = ProjectMember.all_objects.filter(project_id=OuterRef("project_id"), member_id=OuterRef("user_id"))
+    return queryset.select_related("user", "registration_request__user").annotate(
+        _has_pending_invitation=Exists(pending),
+        _registration_pending=Exists(approvals),
+        _program_membership_exists=Exists(memberships),
+    )
 
 
 def link_roster_memberships(user, workspace_ids):
-    """Link only after active membership exists, without replacing existing links."""
+    """Restore approved links only; workspace invitation acceptance is not program approval."""
     if not user.is_active or user.is_bot:
         return
     eligible = WorkspaceMember.objects.filter(member=user, workspace_id__in=workspace_ids, is_active=True).values_list(
@@ -37,6 +51,9 @@ def link_roster_memberships(user, workspace_ids):
             email__iexact=user.email,
             user__isnull=True,
             project__deleted_at__isnull=True,
+            registration_request__user=user,
+            registration_request__approved_at__isnull=False,
+            registration_request__deleted_at__isnull=True,
         )
         # The import path takes the same project lock to serialize account linking.
         projects = list(Project.objects.select_for_update().filter(pk__in=players.values("project_id")).order_by("id"))
@@ -47,7 +64,10 @@ def link_roster_memberships(user, workspace_ids):
 
 def attach_imported_roster_member(player, request):
     """Called inside the import transaction, after all rows have been validated."""
-    if not player.email:
+    if (
+        not player.email
+        or PlayerRegistrationRequest.objects.filter(roster_player=player, approved_at__isnull=True).exists()
+    ):
         return
     membership = (
         WorkspaceMember.objects.filter(
@@ -69,8 +89,9 @@ def attach_imported_roster_member(player, request):
             .exists()
         ):
             raise ValidationError({"players": ["This member is already linked to a player in this program."]})
-        player.user = membership.member
-        player.save(update_fields=["user"])
+        # Matching email identifies an account, but must not grant program access.
+        # The authenticated team join records a request; approval links the account
+        # and creates its program membership together.
         return
 
     invitation = WorkspaceMemberInvite.objects.filter(

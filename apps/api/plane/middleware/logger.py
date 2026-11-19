@@ -88,7 +88,11 @@ class APITokenLogMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.path.startswith("/auth/player-invitation/") or request.path == "/api/player/invitations/preview/":
+        if (
+            request.path.startswith(("/auth/player-invitation/", "/auth/player-registration/"))
+            or request.path in ("/api/player/invitations/preview/", "/api/player/registration/preview/")
+            or request.path.endswith("/roster/registration/")
+        ):
             # Never persist invitation tickets or account passwords in API-key logs.
             return self.get_response(request)
         response = self.get_response(request)

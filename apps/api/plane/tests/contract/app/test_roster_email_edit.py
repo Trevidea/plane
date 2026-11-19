@@ -61,12 +61,12 @@ class RosterEmailEditTests(TestCase):
         self.assertFalse(User.objects.filter(email=invitation.email).exists())
         self.mail.assert_called_once()
 
-    def test_patch_links_existing_member_without_project_access(self):
+    def test_patch_matching_email_waits_for_program_approval(self):
         member = self.member()
         response = self.edit(email=" MEMBER@fixture.test ")
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data["user"], member.id)
-        self.assertEqual(response.data["account_status"], "linked")
+        self.assertIsNone(response.data["user"])
+        self.assertEqual(response.data["account_status"], "not_linked")
         self.assertFalse(ProjectMember.objects.filter(project=self.project, member=member).exists())
         self.assertFalse(WorkspaceMemberInvite.objects.exists())
         self.mail.assert_not_called()

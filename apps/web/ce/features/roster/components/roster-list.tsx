@@ -13,6 +13,9 @@ import {
   CircleDot,
   Eraser,
   GraduationCap,
+  Eye,
+  KeyRound,
+  Link2,
   Hash,
   MoveRight,
   Pencil,
@@ -21,12 +24,25 @@ import {
   Shirt,
   Trash2,
 } from "lucide-react";
+import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
+import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IRosterPlayer, TRosterPlayerStatus } from "@plane/types";
-import { Checkbox, CustomMenu, cn } from "@plane/ui";
+import { Avatar, Checkbox, CustomMenu, cn } from "@plane/ui";
+import { useUserPermissions } from "@/hooks/store/user";
 import { useUserReadOnly } from "@/hooks/use-user-readonly";
+import { RosterService } from "@/services/roster.service";
 import type { IRosterGroup, IRosterGroupedResponse } from "../store/roster-context";
 import { useRoster } from "../store/roster-context";
-import { canDeleteRosterPlayer, formatTimestamp, getRosterAccountStatus, toDisplayStatus } from "../utils/roster.utils";
+import {
+  canDeleteRosterPlayer,
+  formatTimestamp,
+  getRosterAccountStatus,
+  getRosterDisplayEmail,
+  toDisplayStatus,
+} from "../utils/roster.utils";
+import { RegistrationQRModal } from "./registration-qr-modal";
+import { RosterApprovalButton } from "./roster-approval-button";
+const rosterService = new RosterService();
 
 type TRosterColumnKey =
   | "jersey_number"
@@ -70,7 +86,8 @@ const sortCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
 
 const statusStyles: Record<TRosterPlayerStatus, string> = {
   active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  injured: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  injured: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  removed: "border-custom-border-300 bg-custom-background-90 text-custom-text-300",
   inactive: "border-custom-border-300 bg-custom-background-90 text-custom-text-300",
   pending: "border-sky-500/30 bg-sky-500/10 text-sky-300",
 };
@@ -86,7 +103,7 @@ const RosterValue = ({ value, className }: { value: string | null | undefined; c
   );
 };
 
-const RosterStatusPill = ({ status }: { status: TRosterPlayerStatus }) => (
+export const RosterStatusPill = ({ status }: { status: TRosterPlayerStatus }) => (
   <span
     className={cn(
       "inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium leading-4",
@@ -98,13 +115,24 @@ const RosterStatusPill = ({ status }: { status: TRosterPlayerStatus }) => (
 );
 
 const accountStatusLabels = {
-  email_missing: "Email missing",
+  email_missing: "No account linked",
   not_linked: "Not linked",
   invitation_pending: "Invitation pending",
   linked: "Linked",
 };
 
-const RosterAccountStatusPill = ({ player }: { player: IRosterPlayer }) => {
+export const RosterAccountStatusPill = ({ player }: { player: IRosterPlayer }) => {
+  if (player.registration_status === "pending")
+    return (
+      <span
+        className={cn(
+          "inline-flex whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium",
+          statusStyles.pending
+        )}
+      >
+        Waiting for approval
+      </span>
+    );
   const status = getRosterAccountStatus(player);
   return (
     <span
@@ -205,72 +233,72 @@ const ROSTER_COLUMNS: TRosterColumn[] = [
     key: "jersey_number",
     label: "Jersey #",
     icon: Hash,
-    headerClassName: "min-w-32",
-    cellClassName: "min-w-32 text-custom-text-200",
+    headerClassName: "min-w-20",
+    cellClassName: "min-w-20 text-custom-text-200",
     render: (player) => <RosterValue value={player.jersey_number} className="text-custom-text-200" />,
   },
   {
     key: "position",
     label: "Position",
     icon: Shirt,
-    headerClassName: "min-w-36",
-    cellClassName: "min-w-36 text-custom-text-300",
+    headerClassName: "min-w-28",
+    cellClassName: "min-w-28 text-custom-text-300",
     render: (player) => <RosterValue value={player.position} />,
   },
   {
     key: "height",
     label: "Height",
     icon: Ruler,
-    headerClassName: "min-w-36",
-    cellClassName: "min-w-36 text-custom-text-300",
+    headerClassName: "min-w-28",
+    cellClassName: "min-w-28 text-custom-text-300",
     render: (player) => <RosterValue value={player.height} />,
   },
   {
     key: "weight",
     label: "Weight",
     icon: Scale,
-    headerClassName: "min-w-36",
-    cellClassName: "min-w-36 text-custom-text-300",
+    headerClassName: "min-w-28",
+    cellClassName: "min-w-28 text-custom-text-300",
     render: (player) => <RosterValue value={player.weight} />,
   },
   {
     key: "class_year",
-    label: "Class/Year",
+    label: "Grad year / class",
     icon: GraduationCap,
-    headerClassName: "min-w-44",
-    cellClassName: "min-w-44 text-custom-text-300",
+    headerClassName: "min-w-32",
+    cellClassName: "min-w-32 text-custom-text-300",
     render: (player) => <RosterValue value={player.class_year} />,
+  },
+  {
+    key: "account_status",
+    label: "Account",
+    icon: CircleDot,
+    headerClassName: "min-w-32",
+    cellClassName: "min-w-32",
+    render: (player) => <RosterAccountStatusPill player={player} />,
   },
   {
     key: "status",
     label: "Status",
     icon: CircleDot,
-    headerClassName: "min-w-40",
-    cellClassName: "min-w-40",
+    headerClassName: "min-w-28",
+    cellClassName: "min-w-28",
     render: (player) => <RosterStatusPill status={player.status} />,
   },
   {
-    key: "account_status",
-    label: "Account status",
-    icon: CircleDot,
-    headerClassName: "min-w-44",
-    cellClassName: "min-w-44",
-    render: (player) => <RosterAccountStatusPill player={player} />,
-  },
-  {
     key: "created_at",
-    label: "Created on",
+    label: "Added",
     icon: CalendarDays,
-    headerClassName: "min-w-40",
-    cellClassName: "min-w-40 text-custom-text-300",
+    headerClassName: "min-w-28",
+    cellClassName: "min-w-28 text-custom-text-300",
     render: (player) => <RosterValue value={formatTimestamp(player.created_at)} />,
   },
   {
     key: "updated_at",
     label: "Updated on",
     icon: CalendarDays,
-    headerClassName: "min-w-40",
-    cellClassName: "min-w-40 text-custom-text-300",
+    headerClassName: "min-w-28",
+    cellClassName: "min-w-28 text-custom-text-300",
     render: (player) => <RosterValue value={formatTimestamp(player.updated_at)} />,
   },
 ];
@@ -364,9 +392,9 @@ const RosterSortableHeaderCell = ({
 }) => (
   <th
     className={cn(
-      "h-11 bg-custom-background-90 py-1 text-sm font-medium text-custom-text-200",
+      "h-11 bg-custom-background-100 py-1 text-xs font-medium text-custom-text-300",
       isFirstColumn
-        ? "sticky left-0 z-[15] min-w-80 border-r-[0.5px] border-custom-border-100"
+        ? "sticky left-0 z-[15] min-w-64 border-r-[0.5px] border-custom-border-100"
         : "border border-b-0 border-t-0 border-custom-border-100",
       className
     )}
@@ -424,7 +452,7 @@ const RosterSortableHeaderCell = ({
 const RosterTableHeaderCell = ({ label, className }: { label: string; className?: string }) => (
   <th
     className={cn(
-      "h-11 min-w-28 border border-b-0 border-t-0 border-custom-border-100 bg-custom-background-90 py-1 text-sm font-medium text-custom-text-200",
+      "h-11 min-w-28 border-b border-custom-border-100 bg-custom-background-100 py-1 text-xs font-medium text-custom-text-300",
       className
     )}
     tabIndex={-1}
@@ -450,8 +478,8 @@ const RosterTableCell = ({
 }) => (
   <td
     className={cn(
-      "h-11 border-b-[0.5px] border-r-[1px] border-custom-border-100 bg-custom-background-100 px-4 text-sm group-hover:bg-custom-background-90/60",
-      isFirstColumn && "sticky left-0 z-10 min-w-80 max-w-[32rem] border-r-[0.5px] border-custom-border-200 px-0",
+      "h-16 border-b border-custom-border-100 bg-custom-background-100 px-4 text-[13px] group-hover:bg-custom-background-90/60",
+      isFirstColumn && "sticky left-0 z-10 min-w-64 max-w-[32rem] border-r-[0.5px] border-custom-border-200 px-0",
       isActionsColumn && "min-w-28",
       className
     )}
@@ -461,50 +489,200 @@ const RosterTableCell = ({
   </td>
 );
 
-const RosterPlayerCell = ({ player, selectionControl }: { player: IRosterPlayer; selectionControl?: ReactNode }) => (
+const RosterPlayerCell = ({
+  player,
+  selectionControl,
+  onSelect,
+  showAccountDetails = true,
+}: {
+  player: IRosterPlayer;
+  selectionControl?: ReactNode;
+  onSelect?: () => void;
+  showAccountDetails?: boolean;
+}) => (
   <RosterTableCell isFirstColumn>
-    <div className="flex h-11 min-w-0 items-center gap-3 px-6">
+    <div className="flex h-16 min-w-0 items-center gap-3 px-6">
       {selectionControl ? <div className="flex flex-shrink-0 items-center">{selectionControl}</div> : null}
-      <span className="truncate text-[0.825rem] font-medium text-custom-text-100">
-        {player.player_name || "Unnamed player"}
-      </span>
+      <Avatar
+        name={player.player_name}
+        fallbackText={player.player_name
+          .split(/\s+/)
+          .map((name) => name[0])
+          .slice(0, 2)
+          .join("")}
+        size={28}
+        showTooltip={false}
+        className={
+          !player.user
+            ? "border border-dashed border-custom-border-300 !bg-custom-background-90 !text-custom-text-300"
+            : ""
+        }
+      />
+      <div className="min-w-0 space-y-0.5">
+        {onSelect ? (
+          <button
+            type="button"
+            onClick={onSelect}
+            className="block max-w-full truncate text-left text-[13px] font-medium text-custom-text-100 hover:text-custom-primary-100"
+          >
+            {player.player_name || "Unnamed player"}
+          </button>
+        ) : (
+          <span className="block truncate text-[13px] font-medium text-custom-text-100">
+            {player.player_name || "Unnamed player"}
+          </span>
+        )}
+        {showAccountDetails && (
+          <p className="truncate text-xs text-custom-text-400">
+            {getRosterDisplayEmail(player) ||
+              (player.registration_status === "pending" ? "Waiting for your approval" : "Account not linked yet")}
+          </p>
+        )}
+      </div>
     </div>
   </RosterTableCell>
 );
 
-const RosterActionsMenu = observer(({ player }: { player: IRosterPlayer }) => {
-  const { canManage, openEditPlayerModal, openDeletePlayerModal } = useRoster();
-  if (!canManage) return null;
+const RosterActionsMenu = observer(
+  ({ player, onOpenDetails }: { player: IRosterPlayer; onOpenDetails?: () => void }) => {
+    const {
+      workspaceSlug,
+      projectId,
+      canManage,
+      canDeleteAccounts,
+      isSubmitting,
+      openEditPlayerModal,
+      openDeletePlayerModal,
+      setPlayerStatus,
+      openDeleteAccountModal,
+    } = useRoster();
+    const { allowPermissions } = useUserPermissions();
+    const [copying, setCopying] = useState(false);
+    const [showJoin, setShowJoin] = useState(false);
+    const canShare =
+      canManage &&
+      allowPermissions(
+        [EUserPermissions.ADMIN, EUserPermissions.MEMBER],
+        EUserPermissionsLevel.WORKSPACE,
+        workspaceSlug
+      );
+    const copyJoinLink = async () => {
+      if (!canShare || copying) return;
+      setCopying(true);
+      try {
+        const session = await rosterService.getRegistration(workspaceSlug, projectId);
+        if (!session || Date.parse(session.expires_at) <= Date.now()) {
+          setShowJoin(true);
+          return;
+        }
+        await navigator.clipboard.writeText(session.url);
+        setToast({
+          type: TOAST_TYPE.SUCCESS,
+          title: "Join link copied",
+          message: "Share it with the player in your own message.",
+        });
+      } catch {
+        setToast({
+          type: TOAST_TYPE.ERROR,
+          title: "Could not copy join link",
+          message: "Open the team join dialog to copy or generate a link.",
+        });
+      } finally {
+        setCopying(false);
+      }
+    };
+    if (!canManage) return null;
+    const isPending = player.registration_status === "pending" || player.status === "pending";
 
-  return (
-    <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
-      <CustomMenu
-        ellipsis
-        placement="bottom-end"
-        closeOnSelect
-        buttonClassName="grid size-7 place-items-center rounded text-custom-text-400 hover:bg-custom-background-80 hover:text-custom-text-100"
-      >
-        <CustomMenu.MenuItem
-          className={cn("flex items-center gap-2", !canManage && "text-custom-text-400")}
-          disabled={!canManage}
-          onClick={() => openEditPlayerModal(player)}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          Edit
-        </CustomMenu.MenuItem>
-        {canManage && canDeleteRosterPlayer(player) && (
-          <CustomMenu.MenuItem
-            className="flex items-center gap-2 text-red-500"
-            onClick={() => openDeletePlayerModal(player)}
+    return (
+      <div className="flex justify-end gap-2" onClick={(event) => event.stopPropagation()}>
+        {player.status === "inactive" && (
+          <button
+            type="button"
+            disabled={isSubmitting}
+            className="whitespace-nowrap rounded border border-custom-border-200 px-2 py-1 text-xs text-custom-text-200 hover:bg-custom-background-80 disabled:opacity-50"
+            onClick={() => void setPlayerStatus(player, "active")}
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </CustomMenu.MenuItem>
+            Make active
+          </button>
         )}
-      </CustomMenu>
-    </div>
-  );
-});
+        {isPending && <RosterApprovalButton player={player} />}
+        <CustomMenu
+          ellipsis
+          placement="bottom-end"
+          closeOnSelect
+          buttonClassName="grid size-7 place-items-center rounded text-custom-text-400 hover:bg-custom-background-80 hover:text-custom-text-100"
+        >
+          {onOpenDetails && (
+            <CustomMenu.MenuItem className="flex items-center gap-2" onClick={onOpenDetails}>
+              <Eye className="size-3.5" />
+              Open details
+            </CustomMenu.MenuItem>
+          )}
+          {!isPending && (
+            <>
+              <CustomMenu.MenuItem
+                className={cn("flex items-center gap-2", !canManage && "text-custom-text-400")}
+                disabled={!canManage}
+                onClick={() => openEditPlayerModal(player)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit
+              </CustomMenu.MenuItem>
+              <CustomMenu.MenuItem
+                className="flex items-center gap-2"
+                disabled={isSubmitting}
+                onClick={() => void setPlayerStatus(player, player.status === "inactive" ? "active" : "inactive")}
+              >
+                <CircleDot className="h-3.5 w-3.5" />
+                {player.status === "inactive" ? "Set active" : "Set inactive"}
+              </CustomMenu.MenuItem>
+            </>
+          )}
+          {player.user ? (
+            <CustomMenu.MenuItem disabled className="flex items-center gap-2 text-custom-text-400">
+              <KeyRound className="size-3.5" />
+              Reset password · unavailable
+            </CustomMenu.MenuItem>
+          ) : (
+            canShare && (
+              <CustomMenu.MenuItem
+                disabled={copying}
+                onClick={() => void copyJoinLink()}
+                className="flex items-center gap-2"
+              >
+                <Link2 className="size-3.5" />
+                Copy team join link
+              </CustomMenu.MenuItem>
+            )
+          )}
+          {canManage && canDeleteRosterPlayer(player) && (
+            <CustomMenu.MenuItem
+              className="flex items-center gap-2 text-red-500"
+              onClick={() => openDeletePlayerModal(player)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Remove from roster
+            </CustomMenu.MenuItem>
+          )}
+          {canDeleteAccounts && player.user && (
+            <CustomMenu.MenuItem
+              className="flex items-center gap-2 text-red-500"
+              disabled={isSubmitting}
+              onClick={() => openDeleteAccountModal({ id: player.id, player_name: player.player_name })}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete account
+            </CustomMenu.MenuItem>
+          )}
+        </CustomMenu>
+        {showJoin && canShare && (
+          <RegistrationQRModal workspaceSlug={workspaceSlug} projectId={projectId} onClose={() => setShowJoin(false)} />
+        )}
+      </div>
+    );
+  }
+);
 
 const RosterLoadingRows = ({ columns, showActions }: { columns: TRosterColumn[]; showActions: boolean }) => (
   <>
@@ -576,10 +754,12 @@ export const RosterTable = observer(
     players,
     groupedRoster,
     isLoading = false,
+    onSelectPlayer,
   }: {
     players: IRosterPlayer[];
     groupedRoster?: IRosterGroupedResponse | null;
     isLoading?: boolean;
+    onSelectPlayer?: (player: IRosterPlayer) => void;
   }) => {
     const {
       canManage,
@@ -657,6 +837,8 @@ export const RosterTable = observer(
       >
         <RosterPlayerCell
           player={player}
+          showAccountDetails={!isReadOnlyUser}
+          onSelect={onSelectPlayer ? () => onSelectPlayer(player) : undefined}
           selectionControl={
             canManage ? (
               <Checkbox
@@ -678,7 +860,10 @@ export const RosterTable = observer(
         ))}
         {!isReadOnlyUser && (
           <RosterTableCell isActionsColumn>
-            <RosterActionsMenu player={player} />
+            <RosterActionsMenu
+              player={player}
+              onOpenDetails={onSelectPlayer ? () => onSelectPlayer(player) : undefined}
+            />
           </RosterTableCell>
         )}
       </tr>
@@ -716,7 +901,7 @@ export const RosterTable = observer(
       });
 
     return (
-      <div className="relative flex h-full w-full flex-col overflow-x-hidden whitespace-nowrap rounded-lg bg-custom-background-200 text-custom-text-200">
+      <div className="relative flex h-full min-h-0 w-full flex-col overflow-x-hidden whitespace-nowrap bg-custom-background-100 text-custom-text-200">
         <div ref={containerRef} className="vertical-scrollbar horizontal-scrollbar scrollbar-lg h-full w-full">
           <table className="w-full min-w-max overflow-y-auto bg-custom-background-100">
             <thead className="sticky left-0 top-0 z-[12] border-b-[0.5px] border-custom-border-100">

@@ -4,9 +4,9 @@ from rest_framework import serializers, status
 from rest_framework.response import Response
 
 from plane.app.views.base import BaseAPIView
-from plane.db.models import State
+from plane.db.models import State, PlayerRegistrationRequest
 from plane.utils.coaching_card_lifecycle import get_project_card_stage_config
-from plane.utils.player_access import player_roster_queryset
+from plane.utils.player_access import player_card_roster_queryset
 
 
 class PlayerProgramQuerySerializer(serializers.Serializer):
@@ -14,11 +14,51 @@ class PlayerProgramQuerySerializer(serializers.Serializer):
     offset = serializers.IntegerField(min_value=0, max_value=2**31 - 1, default=0)
 
 
+class PlayerRegistrationRequestsEndpoint(BaseAPIView):
+    user_role_access = True
+
+    def get(self, request):
+        query = PlayerProgramQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        limit, offset = query.validated_data["limit"], query.validated_data["offset"]
+        rows = (
+            PlayerRegistrationRequest.objects.filter(
+                user=request.user,
+                user__is_active=True,
+                approved_at__isnull=True,
+                roster_player__deleted_at__isnull=True,
+                project__deleted_at__isnull=True,
+                project__archived_at__isnull=True,
+                workspace__deleted_at__isnull=True,
+            )
+            .select_related("project", "workspace")
+            .order_by("-created_at", "id")
+        )
+        return Response(
+            {
+                "total_count": rows.count(),
+                "limit": limit,
+                "offset": offset,
+                "results": [
+                    {
+                        "id": str(row.id),
+                        "program_id": str(row.project_id),
+                        "program_name": row.project.name,
+                        "workspace_name": row.workspace.name,
+                        "status": "pending",
+                    }
+                    for row in rows[offset : offset + limit]
+                ],
+            },
+            headers={"Cache-Control": "private, no-store"},
+        )
+
+
 def _eligible_roster(user):
-    return player_roster_queryset(user).filter(
+    return player_card_roster_queryset(user).filter(
         user__is_active=True,
         user__is_bot=False,
-        status__in=("active", "injured"),
+        status__in=("active", "injured", "inactive", "removed"),
     )
 
 
@@ -29,8 +69,16 @@ class PlayerProgramsEndpoint(BaseAPIView):
         query = PlayerProgramQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
         limit, offset = query.validated_data["limit"], query.validated_data["offset"]
-        players = _eligible_roster(request.user).order_by(
-            "project__workspace__slug", "project__name", "project_id", "id"
+        from django.db.models import Q
+
+        # JSON recipients are checked in the personal activity query, including shared cards.
+        from plane.utils.player_activity_access import player_activities
+
+        own_projects = player_activities(request.user).filter(category="Coaching Card").values("project_id")
+        players = (
+            _eligible_roster(request.user)
+            .filter(Q(status__in=["active", "injured"]) | Q(project_id__in=own_projects))
+            .order_by("project__workspace__slug", "project__name", "project_id", "id")
         )
         total = players.count()
         page = list(players[offset : offset + limit])
@@ -73,7 +121,19 @@ class PlayerProgramConfigEndpoint(BaseAPIView):
     user_role_access = True
 
     def get(self, request, slug, project_id):
-        player = _eligible_roster(request.user).filter(project_id=project_id, project__workspace__slug=slug).first()
+        from django.db.models import Q
+        from plane.utils.player_activity_access import player_activities
+
+        own_projects = player_activities(request.user).filter(category="Coaching Card").values("project_id")
+        player = (
+            _eligible_roster(request.user)
+            .filter(
+                Q(status__in=["active", "injured"]) | Q(project_id__in=own_projects),
+                project_id=project_id,
+                project__workspace__slug=slug,
+            )
+            .first()
+        )
         if player is None:
             return Response({"detail": "Program not found."}, status=status.HTTP_404_NOT_FOUND)
         return Response(get_project_card_stage_config(player.project), headers={"Cache-Control": "private, no-store"})

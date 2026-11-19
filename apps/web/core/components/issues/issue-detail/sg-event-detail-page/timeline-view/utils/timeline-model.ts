@@ -1,3 +1,4 @@
+import { getTagRosterMembers, getRosterMemberLabel } from "../../roster-tag-identity";
 import type { SgTagRow, SportTableKind } from "../../types";
 import { parseTimecodeToSeconds } from "../../utils";
 import { getTimelineTagEndSeconds, isTimelineTagPlaybackOverrideId } from "./timeline-scale";
@@ -13,9 +14,9 @@ import {
 import {
   buildTimelinePlayerLaneId,
   getTimelineCategoryLaneId,
-  getTimelineJerseyNumberKeys,
   getTimelinePlayerLaneKey,
   getTimelineRowLaneIds,
+  hasTimelinePlayerValue,
 } from "./timeline-track-assignment";
 
 export {
@@ -62,13 +63,7 @@ const normalizeLabel = (value: string) => value.trim();
 
 export const getTimelineTagTypeKey = getObservedTimelineTagTypeKey;
 
-const formatPlayerLaneLabel = (player: string, playerLabelByNumber: Map<string, string>) => {
-  const rosterLabel = getTimelineJerseyNumberKeys(player)
-    .map((key) => playerLabelByNumber.get(key))
-    .find((label): label is string => Boolean(label));
-
-  if (rosterLabel) return rosterLabel;
-
+const formatPlayerLaneLabel = (player: string) => {
   const normalizedPlayer = normalizeLabel(player);
   if (/^\d+$/.test(normalizedPlayer)) return `#${normalizedPlayer}`;
 
@@ -380,12 +375,21 @@ export const getPlaybackOverrideRowId = (playbackOverrideId: string | null) =>
   isTimelineTagPlaybackOverrideId(playbackOverrideId) ? (playbackOverrideId?.slice("sg-tag-".length) ?? null) : null;
 
 const buildPlayerLanes = (rows: SgTagRow[], playerLabelByNumber: Map<string, string>) => {
+  const labels = new Map<string, string>();
   const playerCounts = rows.reduce<Map<string, number>>((accumulator, row) => {
+    const members = getTagRosterMembers(row.context);
+    if (members.length) {
+      members.forEach((member) => {
+        accumulator.set(member.id, (accumulator.get(member.id) ?? 0) + 1);
+        labels.set(member.id, getRosterMemberLabel(member, playerLabelByNumber));
+      });
+      return accumulator;
+    }
     const player = normalizeLabel(row.player);
-    if (!player || player === "--") return accumulator;
-
+    if (!hasTimelinePlayerValue(player)) return accumulator;
     const playerKey = getTimelinePlayerLaneKey(player);
     accumulator.set(playerKey, (accumulator.get(playerKey) ?? 0) + 1);
+    labels.set(playerKey, formatPlayerLaneLabel(playerKey));
     return accumulator;
   }, new Map<string, number>());
 
@@ -393,7 +397,7 @@ const buildPlayerLanes = (rows: SgTagRow[], playerLabelByNumber: Map<string, str
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
     .map(([playerKey], index) => ({
       id: buildTimelinePlayerLaneId(playerKey),
-      label: formatPlayerLaneLabel(playerKey, playerLabelByNumber),
+      label: labels.get(playerKey) ?? playerKey,
       rows: [],
       tone: index % 2 === 0 ? "playerA" : "playerB",
     })) satisfies TimelineLane[];

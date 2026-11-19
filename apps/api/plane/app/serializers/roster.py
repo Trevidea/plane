@@ -10,7 +10,16 @@ from rest_framework.exceptions import PermissionDenied
 
 # Module imports
 from .base import BaseSerializer
-from plane.db.models import RosterPlayer, RosterPlayerStatus, User, Workspace, WorkspaceMember, WorkspaceMemberInvite
+from plane.db.models import (
+    RosterPlayer,
+    RosterPlayerStatus,
+    User,
+    Workspace,
+    WorkspaceMember,
+    WorkspaceMemberInvite,
+    PlayerRegistrationRequest,
+    ProjectMember,
+)
 from plane.utils.roster_membership import attach_imported_roster_member
 
 
@@ -20,6 +29,9 @@ class RosterPlayerSerializer(BaseSerializer):
     email = serializers.EmailField(required=False, allow_blank=True, allow_null=True, max_length=254)
     account_email = serializers.SerializerMethodField()
     account_status = serializers.SerializerMethodField()
+    registration_status = serializers.SerializerMethodField()
+    registration_email = serializers.SerializerMethodField()
+    registration_name = serializers.SerializerMethodField()
 
     class Meta:
         model = RosterPlayer
@@ -30,6 +42,9 @@ class RosterPlayerSerializer(BaseSerializer):
             "email",
             "account_email",
             "account_status",
+            "registration_status",
+            "registration_email",
+            "registration_name",
             "player_name",
             "jersey_number",
             "position",
@@ -48,6 +63,35 @@ class RosterPlayerSerializer(BaseSerializer):
             return None
         return player.user.email
 
+    def _pending_claimant(self, player):
+        if not self.context.get("can_view_registration_claim", False):
+            return None
+        registration = getattr(player, "registration_request", None)
+        if registration and registration.deleted_at is None and registration.approved_at is None:
+            return registration.user
+        return None
+
+    def get_registration_email(self, player):
+        user = self._pending_claimant(player)
+        return user.email if user else None
+
+    def get_registration_name(self, player):
+        user = self._pending_claimant(player)
+        return (user.first_name or user.display_name) if user else None
+
+    def get_registration_status(self, player):
+        pending = getattr(player, "_registration_pending", None)
+        if pending is None:
+            pending = PlayerRegistrationRequest.objects.filter(roster_player=player, approved_at__isnull=True).exists()
+        if not pending and player.user_id and player.status in ("active", "injured"):
+            membership_exists = getattr(player, "_program_membership_exists", None)
+            if membership_exists is None:
+                membership_exists = ProjectMember.all_objects.filter(
+                    project_id=player.project_id, member_id=player.user_id
+                ).exists()
+            pending = not membership_exists
+        return "pending" if pending else None
+
     def get_account_status(self, player):
         if player.user_id is not None:
             return "linked"
@@ -64,9 +108,9 @@ class RosterPlayerSerializer(BaseSerializer):
         return "invitation_pending" if pending else "not_linked"
 
     def validate_status(self, value):
-        if not value:
-            return RosterPlayerStatus.ACTIVE
-        return value
+        if value == "removed":
+            raise serializers.ValidationError("Use Remove from roster to remove a player.")
+        return RosterPlayerStatus.ACTIVE if not value or value == "injured" else value
 
     def validate_player_name(self, value):
         if not value or not value.strip():
@@ -83,7 +127,19 @@ class RosterPlayerSerializer(BaseSerializer):
         return (value or "").strip().lower()
 
     def validate(self, attrs):
+        if self.instance and self.instance.status == "removed":
+            raise serializers.ValidationError(
+                {"detail": "Removed roster identities cannot be edited. Refresh the roster."}
+            )
         project = self.context["project"]
+        if self.instance and not self.instance.user_id and self.get_registration_status(self.instance) == "pending":
+            changes_link = "user" in attrs and (attrs["user"].pk if attrs["user"] else None) != self.instance.user_id
+            changes_email = "email" in attrs and attrs["email"] != self.instance.email
+            changes_status = "status" in attrs and attrs["status"] != self.instance.status
+            if changes_link or changes_email or changes_status:
+                raise serializers.ValidationError(
+                    {"detail": "Approve this registration before changing its account, email, or status."}
+                )
         previous_email = (self.instance.email or "").strip().lower() if self.instance else ""
         email_changed = "email" in attrs and attrs["email"] != previous_email
         if "email" in attrs:
@@ -109,6 +165,10 @@ class RosterPlayerSerializer(BaseSerializer):
         previous_user_id = self.instance.user_id if self.instance else None
         selected_user_id = attrs["user"].pk if attrs.get("user") else None
         user_changed = "user" in attrs and selected_user_id != previous_user_id
+        if selected_user_id and user_changed:
+            raise serializers.ValidationError(
+                {"user": "The player must join using the team link and receive approval before linking this account."}
+            )
         if email_changed or user_changed:
             selected_user = attrs.get("user", self.instance.user if self.instance else None)
             email = attrs.get("email", self.instance.email if self.instance else "")
@@ -124,9 +184,21 @@ class RosterPlayerSerializer(BaseSerializer):
                 linked = linked.exclude(pk=self.instance.pk)
             if linked.exists():
                 raise serializers.ValidationError({"user": "The account is already linked to a roster player."})
+        participation = attrs.get("status", self.instance.status if self.instance else "active")
+        if participation == "inactive":
+            attrs["jersey_number"] = None
+        elif (
+            self.instance
+            and self.instance.status == "inactive"
+            and participation == "active"
+            and "jersey_number" not in attrs
+        ):
+            attrs["jersey_number"] = None
         jersey_number = attrs.get("jersey_number")
         if jersey_number:
-            queryset = RosterPlayer.objects.filter(project=project, jersey_number=jersey_number)
+            queryset = RosterPlayer.objects.filter(
+                project=project, jersey_number=jersey_number, status__in=["active", "injured", "pending"]
+            )
             if self.instance:
                 queryset = queryset.exclude(pk=self.instance.pk)
             if queryset.exists():
@@ -163,10 +235,18 @@ class RosterPlayerSerializer(BaseSerializer):
         type(project).objects.select_for_update().get(pk=project.pk)
         self.instance = RosterPlayer.objects.select_for_update().get(pk=instance.pk)
         self.validate(validated_data)
+        previous_status = self.instance.status
+        previous_jersey = self.instance.jersey_number
         previous_email = (self.instance.email or "").strip().lower()
         email_changed = "email" in validated_data and validated_data["email"] != previous_email
         # Reloading also discards the old _has_pending_invitation annotation.
         player = super().update(self.instance, validated_data)
+        if previous_status != player.status:
+            from plane.utils.roster_lifecycle import event
+
+            log = event(player, self.context["request"].user, "status_changed", previous_status)
+            log.jersey_number = previous_jersey
+            log.save(update_fields=["jersey_number"])
         if email_changed and player.email:
             self._attach_email(player)
         return player
