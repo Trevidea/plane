@@ -34,6 +34,7 @@ import {
   IssueTitleInput,
 } from "@/components/issues/issue-modal/components";
 // helpers
+import { getEventDateError } from "@/helpers/event-date-error";
 // hooks
 import { useIssueModal } from "@/hooks/context/use-issue-modal";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
@@ -316,11 +317,11 @@ export const IssueFormRoot: FC<IssueFormProps> = observer((props) => {
         ...data,
         ...getValues(),
       } as TWorkspaceDraftIssue);
-    } catch {
+    } catch (error) {
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Error!",
-        message: "Failed to move work item to program. Please try again.",
+        message: getEventDateError(error) ?? "Failed to move work item to program. Please try again.",
       });
     } finally {
       setIsMoving(false);

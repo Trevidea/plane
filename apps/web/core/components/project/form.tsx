@@ -28,6 +28,7 @@ import { usePlatformOS } from "@/hooks/use-platform-os";
 // services
 import { ProjectService } from "@/services/project";
 // local imports
+import { ProjectEventMetadataFields } from "./event-metadata-fields";
 import { ProjectNetworkIcon } from "./project-network-icon";
 
 export interface IProjectDetailsForm {
@@ -161,6 +162,9 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
       identifier: formData.identifier,
       description: formData.description,
       sport: formData.sport ?? null,
+      event_season: formData.event_season ?? null,
+      event_program: formData.event_program ?? null,
+      event_level: formData.event_level ?? null,
       default_swimlane_view: formData.default_swimlane_view ?? "stage",
 
       logo_props: formData.logo_props,
@@ -426,6 +430,12 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
                 </>
               )}
             />
+          </div>
+          <div className="col-span-full flex flex-col gap-1">
+            <h4 className="text-sm">Event defaults</h4>
+            <div className="flex flex-wrap items-center gap-2">
+              <ProjectEventMetadataFields control={control} disabled={!isAdmin} />
+            </div>
           </div>
           {project.sport && (
             <div className="flex flex-col gap-1">

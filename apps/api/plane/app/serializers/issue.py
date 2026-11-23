@@ -44,7 +44,7 @@ from plane.utils.content_validator import (
     validate_html_content,
     validate_binary_data,
 )
-from plane.utils.issue_datetime import is_issue_start_datetime_in_past
+from plane.utils.issue_datetime import get_issue_season_date_error, is_issue_start_datetime_in_past
 from plane.utils.opposition_team import normalize_opposition_team
 
 
@@ -124,6 +124,9 @@ class IssueCreateSerializer(BaseSerializer):
             "roster_player",
             "position_group",
             "coaching_card_data",
+            "year",
+            "program",
+            "level",
         ]
 
     def to_representation(self, instance):
@@ -135,13 +138,17 @@ class IssueCreateSerializer(BaseSerializer):
         return data
 
     def validate(self, attrs):
-        project_sport = (
-            Project.objects.filter(pk=self.context.get("project_id")).values_list("sport", flat=True).first()
+        project_sport, project_season = (
+            Project.objects.filter(pk=self.context.get("project_id")).values_list("sport", "event_season").first()
+            or (None, None)
         )
         if isinstance(project_sport, str):
             project_sport = project_sport.strip() or None
         if project_sport:
             attrs["sport"] = project_sport
+
+        if season_error := get_issue_season_date_error(attrs, self.instance, project_season):
+            raise serializers.ValidationError(season_error)
 
         should_validate_start_datetime = self.instance is None or "start_date" in attrs or "start_time" in attrs
         start_date = attrs.get("start_date", getattr(self.instance, "start_date", None))

@@ -12,6 +12,7 @@ import { renderFormattedPayloadDate } from "@plane/utils";
 import { ETimeLineTypeType, TimeLineTypeContext } from "@/components/gantt-chart/contexts";
 import { GanttChartRoot } from "@/components/gantt-chart/root";
 import { IssueGanttSidebar } from "@/components/gantt-chart/sidebar/issues/sidebar";
+import { getEventDateError } from "@/helpers/event-date-error";
 // hooks
 import { useIssues } from "@/hooks/store/use-issues";
 import { useUserPermissions } from "@/hooks/store/user";
@@ -93,11 +94,11 @@ export const BaseGanttRoot: React.FC<IBaseGanttRoot> = observer((props: IBaseGan
         target_date?: string;
       }[]
     ) =>
-      issues.updateIssueDates(workspaceSlug.toString(), updates, projectId.toString()).catch(() => {
+      issues.updateIssueDates(workspaceSlug.toString(), updates, projectId.toString()).catch((error) => {
         setToast({
           type: TOAST_TYPE.ERROR,
           title: t("toast.error"),
-          message: "Error while updating work item dates, Please try again Later",
+          message: getEventDateError(error) ?? "Error while updating work item dates, Please try again Later",
         });
       }),
     [issues, projectId, workspaceSlug]

@@ -70,6 +70,9 @@ class Project(BaseModel):
     description_text = models.JSONField(verbose_name="Project Description RT", blank=True, null=True)
     description_html = models.JSONField(verbose_name="Project Description HTML", blank=True, null=True)
     sport = models.CharField(max_length=100, null=True, blank=True)
+    event_season = models.CharField(max_length=20, null=True, blank=True)
+    event_program = models.CharField(max_length=100, null=True, blank=True)
+    event_level = models.CharField(max_length=100, null=True, blank=True)
     default_swimlane_view = models.CharField(
         max_length=20,
         default="stage",

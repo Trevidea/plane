@@ -67,6 +67,7 @@ export const ProgramDropdown: React.FC<Props> = observer((props) => {
 
   /* Fetch Programs */
   useEffect(() => {
+    if (disabled) return;
     const API_URL = `${process.env.NEXT_PUBLIC_CP_SERVER_URL}/meta-type?key='PROGRAM'`;
     setLoading(true);
 
@@ -83,7 +84,7 @@ export const ProgramDropdown: React.FC<Props> = observer((props) => {
       })
       .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [disabled]);
 
   const filteredPrograms = programs.filter((p) => p.toLowerCase().includes(search.toLowerCase()));
 

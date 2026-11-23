@@ -90,3 +90,43 @@ class TestIssueStartDateTimeValidation:
             )
 
             assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize("serializer_class", [APIIssueSerializer, AppIssueSerializer])
+    @pytest.mark.parametrize(
+        ("date_field", "scheduled_date", "valid"),
+        [
+            ("start_date", "2028-09-17", False),
+            ("target_date", "2028-09-17", False),
+            ("start_date", "2026-08-31", True),
+            ("start_date", "2027-01-01", True),
+        ],
+    )
+    def test_create_validates_program_season(self, db, serializer_class, date_field, scheduled_date, valid):
+        workspace, project = self._create_project()
+        project.event_season = "2026-2027"
+        project.save(update_fields=["event_season"])
+
+        serializer = serializer_class(
+            data={"name": "Game", date_field: scheduled_date, "year": "2028-2029"},
+            context=self._get_context(workspace, project),
+        )
+        assert serializer.is_valid() is valid, serializer.errors
+        if not valid:
+            assert "2026-2027" in serializer.errors[date_field][0]
+
+    @pytest.mark.parametrize("serializer_class", [APIIssueSerializer, AppIssueSerializer])
+    def test_reschedule_validates_saved_season_after_program_rollover(self, db, serializer_class):
+        workspace, project = self._create_project()
+        project.event_season = "2026-2027"
+        project.save(update_fields=["event_season"])
+        issue = Issue.objects.create(name="Game", project=project, start_date=date(2026, 12, 1))
+        project.event_season = "2027-2028"
+        project.save(update_fields=["event_season"])
+        context = self._get_context(workspace, project)
+
+        rejected = serializer_class(issue, data={"start_date": "2028-09-17"}, partial=True, context=context)
+        assert not rejected.is_valid()
+        assert "2026-2027" in rejected.errors["start_date"][0]
+
+        accepted = serializer_class(issue, data={"start_date": "2027-05-01"}, partial=True, context=context)
+        assert accepted.is_valid(), accepted.errors
