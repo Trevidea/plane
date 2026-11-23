@@ -53,7 +53,7 @@ const ProgramRosterPage = observer(() => {
   return (
     <>
       <PageHead title="Roster" />
-      <div className="relative flex h-full min-h-0 w-full flex-col bg-custom-background-100">
+      <div className="roster-surface relative flex h-full min-h-0 w-full flex-col bg-custom-background-100">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-custom-border-200 px-4 py-2 sm:px-6">
           <div className="flex items-center gap-1 overflow-x-auto" role="tablist" aria-label="Roster views">
             {tabs.map((tab, index) => (
