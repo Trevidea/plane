@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.utils import ConnectionHandler
 from django.test import override_settings
 
+from plane.bgtasks.service_gateway_sync_helpers import _make_event_payload
 from plane.bgtasks.service_gateway_webhook_task import (
     ServiceGatewaySyncError,
     _sync_error_message,
@@ -14,6 +15,16 @@ from plane.bgtasks.service_gateway_webhook_task import (
     _trigger_event_send_for_ids,
     service_gateway_event_sync,
 )
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("date_field", ["start_date", "target_date"])
+def test_gateway_payload_preserves_date_even_outside_season(date_field):
+    payload = _make_event_payload({date_field: "2028-09-17", "year": "2026/2027", "start_time": "15:30"})
+    fields = {column["field"]: column["value"] for column in payload["columns"]}
+    assert fields["dt_event"] == "2028-09-17"
+    assert fields["year"] == "2026-2027"
+    assert fields["tm_event"] == 1530
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { observer } from "mobx-react";
 import type { Control } from "react-hook-form";
 import { Controller } from "react-hook-form";
-import { LayoutPanelTop } from "lucide-react";
+import { Calendar, LayoutPanelTop, SignalHigh, User } from "lucide-react";
 // plane imports
 import { ETabIndices, EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { useTranslation } from "@plane/i18n";
@@ -18,16 +18,13 @@ import { getTabIndex, isDateTimePast, renderFormattedPayloadDate } from "@plane/
 import { CategoryDropdown } from "@/components/dropdowns/category-property";
 import { DateDropdown } from "@/components/dropdowns/date";
 // import { EstimateDropdown } from "@/components/dropdowns/estimate";
-import { LevelDropdown } from "@/components/dropdowns/level-property";
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 // import { ModuleDropdown } from "@/components/dropdowns/module/dropdown";
 // import { PriorityDropdown } from "@/components/dropdowns/priority";
-import { ProgramDropdown } from "@/components/dropdowns/program-property";
 // import { StateDropdown } from "@/components/dropdowns/state/dropdown";
 
 import SportDropdown from "@/components/dropdowns/sport-property";
 import { TimeDropdown } from "@/components/dropdowns/time-picker";
-import { YearRangeDropdown } from "@/components/dropdowns/year-property";
 // import { ParentIssuesListModal } from "@/components/issues/parent-issues-list-modal";
 // import { IssueLabelSelect } from "@/components/issues/select";
 // helpers
@@ -59,6 +56,17 @@ type TIssueDefaultPropertiesProps = {
   handleFormChange: () => void;
   setSelectedParentIssue: (issue: ISearchIssueResponse) => void;
 };
+
+function EventMetadataValue({ label, value, icon }: { label: string; value?: string | null; icon: React.ReactNode }) {
+  return (
+    <div className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded border border-custom-border-200 px-2 py-1 text-xs text-custom-text-200">
+      {icon}
+      <span className="break-words min-w-0">
+        {label}: {value || "Not set"}
+      </span>
+    </div>
+  );
+}
 
 export const IssueDefaultProperties: React.FC<TIssueDefaultPropertiesProps> = observer((props) => {
   const {
@@ -98,6 +106,7 @@ export const IssueDefaultProperties: React.FC<TIssueDefaultPropertiesProps> = ob
   const currentSport = props.Sport?.trim() || null;
   const shouldShowSportField = !!projectSport || !!currentSport;
   const isSportLockedForCreation = !id && !!projectSport;
+  const usesProgramMetadata = !id || isDraft;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -139,22 +148,10 @@ export const IssueDefaultProperties: React.FC<TIssueDefaultPropertiesProps> = ob
         )}
       /> */}
 
-      <Controller
-        control={control}
-        name="year"
-        render={({ field: { value, onChange } }) => (
-          <div className="h-7">
-            <YearRangeDropdown
-              value={value}
-              onChange={(year) => {
-                onChange(year);
-                handleFormChange();
-              }}
-              buttonVariant="border-with-text"
-              placeholder={t("year_field")}
-            />
-          </div>
-        )}
+      <EventMetadataValue
+        label={t("year_field")}
+        value={usesProgramMetadata ? projectDetails?.event_season : props.Year}
+        icon={<Calendar aria-hidden="true" className="size-3 shrink-0" />}
       />
 
       <Controller
@@ -299,40 +296,16 @@ export const IssueDefaultProperties: React.FC<TIssueDefaultPropertiesProps> = ob
         )}
       />
 
-      <Controller
-        control={control}
-        name="program"
-        render={({ field: { value, onChange } }) => (
-          <div className="h-7">
-            <ProgramDropdown
-              value={value}
-              onChange={(program) => {
-                onChange(program);
-                handleFormChange();
-              }}
-              buttonVariant="border-with-text"
-              placeholder={t("program_field")}
-            />
-          </div>
-        )}
+      <EventMetadataValue
+        label="Men/Women"
+        value={usesProgramMetadata ? projectDetails?.event_program : props.Program}
+        icon={<User aria-hidden="true" className="size-3 shrink-0" />}
       />
 
-      <Controller
-        control={control}
-        name="level"
-        render={({ field: { value, onChange } }) => (
-          <div className="h-7">
-            <LevelDropdown
-              value={value}
-              onChange={(level) => {
-                onChange(level);
-                handleFormChange();
-              }}
-              buttonVariant="border-with-text"
-              placeholder={t("level_field")}
-            />
-          </div>
-        )}
+      <EventMetadataValue
+        label={t("level_field")}
+        value={usesProgramMetadata ? projectDetails?.event_level : props.Level}
+        icon={<SignalHigh aria-hidden="true" className="size-3 shrink-0" />}
       />
 
       {/* {projectDetails?.cycle_view && (

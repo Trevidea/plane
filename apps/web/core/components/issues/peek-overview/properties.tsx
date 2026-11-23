@@ -22,6 +22,7 @@ import { ProgramDropdown } from "@/components/dropdowns/program-property";
 import SportDropdown from "@/components/dropdowns/sport-property";
 import { TimeDropdown } from "@/components/dropdowns/time-picker";
 import { YearRangeDropdown } from "@/components/dropdowns/year-property";
+import { getEventDateError } from "@/helpers/event-date-error";
 import { parseOppositionTeam, serializeOppositionTeam } from "@/helpers/opposition-team";
 import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useMember } from "@/hooks/store/use-member";
@@ -132,7 +133,15 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
         });
         return;
       }
-      await handlePropertyUpdate(data);
+      try {
+        await handlePropertyUpdate(data);
+      } catch (error) {
+        setToast({
+          type: TOAST_TYPE.ERROR,
+          title: t("error"),
+          message: getEventDateError(error) ?? t("issue_could_not_be_updated"),
+        });
+      }
     },
     [handlePropertyUpdate, isDateTimeLocked, issue.start_date, issue.start_time, t]
   );
@@ -219,15 +228,10 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
 
           <LevelDropdown
             value={issue?.level}
-            onChange={(level) => {
-              void handlePropertyUpdate({
-                level: level,
-              });
-            }}
-            placeholder={t("add_level")}
+            placeholder="Not set"
             buttonVariant="transparent-with-text"
             className="w-3/4 flex-grow group"
-            disabled={isReadOnly}
+            disabled
             buttonContainerClassName="w-full text-left"
             buttonClassName={`text-sm ${issue?.level ? "" : "text-custom-text-400"}`}
             hideIcon
@@ -244,15 +248,10 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
 
           <ProgramDropdown
             value={issue?.program}
-            onChange={(program) => {
-              void handlePropertyUpdate({
-                program: program,
-              });
-            }}
-            placeholder={t("add_program")}
+            placeholder="Not set"
             buttonVariant="transparent-with-text"
             className="w-3/4 flex-grow group"
-            disabled={isReadOnly}
+            disabled
             buttonContainerClassName="w-full text-left"
             buttonClassName={`text-sm ${issue?.program ? "" : "text-custom-text-400"}`}
             hideIcon
@@ -339,15 +338,10 @@ export const PeekOverviewProperties: FC<IPeekOverviewProperties> = observer((pro
 
           <YearRangeDropdown
             value={issue?.year}
-            onChange={(year) => {
-              void handlePropertyUpdate({
-                year: year,
-              });
-            }}
-            placeholder={t("add_year")}
+            placeholder="Not set"
             buttonVariant="transparent-with-text"
             className="w-3/4 flex-grow group"
-            disabled={isReadOnly}
+            disabled
             buttonContainerClassName="w-full text-left"
             buttonClassName={`text-sm ${issue?.year ? "" : "text-custom-text-400"}`}
             hideIcon

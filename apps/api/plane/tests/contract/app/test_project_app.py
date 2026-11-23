@@ -45,6 +45,27 @@ class TestProjectAPIPost(TestProjectBase):
     """Test project POST operations"""
 
     @pytest.mark.django_db
+    def test_program_metadata_is_persisted_and_exposed(self, session_client, workspace):
+        url = self.get_project_url(workspace.slug)
+        fields = {"event_season": "2026-2027", "event_program": "Men", "event_level": "Varsity"}
+        response = session_client.post(url, {"name": "American Football", "identifier": "AFB", **fields}, format="json")
+        assert response.status_code == status.HTTP_201_CREATED, response.data
+        assert {field: response.data.get(field) for field in fields} == fields
+
+        project_id = response.data["id"]
+        response = session_client.get(url)
+        assert response.status_code == status.HTTP_200_OK, response.data
+        listed = next(item for item in response.data if str(item["id"]) == str(project_id))
+        assert {field: listed.get(field) for field in fields} == fields
+
+        response = session_client.patch(
+            self.get_project_url(workspace.slug, pk=project_id), {"event_season": "2027-2028"}, format="json"
+        )
+        assert response.status_code == status.HTTP_200_OK, response.data
+        assert response.data["event_season"] == "2027-2028"
+        assert response.data["event_level"] == "Varsity"
+
+    @pytest.mark.django_db
     def test_create_project_empty_data(self, session_client, workspace):
         """Test creating a project with empty data"""
 

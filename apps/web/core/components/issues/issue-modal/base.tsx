@@ -11,6 +11,7 @@ import type { TBaseIssue, TIssue } from "@plane/types";
 import { EIssuesStoreType } from "@plane/types";
 import { EModalPosition, EModalWidth, ModalCore } from "@plane/ui";
 // hooks
+import { getEventDateError } from "@/helpers/event-date-error";
 import { captureError, captureSuccess } from "@/helpers/event-tracker.helper";
 import { useIssueModal } from "@/hooks/context/use-issue-modal";
 import { useCycle } from "@/hooks/store/use-cycle";
@@ -279,7 +280,11 @@ export const CreateUpdateIssueModalBase: React.FC<IssuesModalProps> = observer((
       setToast({
         type: TOAST_TYPE.ERROR,
         title: error?.title ?? t("error"),
-        message: error?.error ?? error?.detail ?? t(is_draft_issue ? "draft_creation_failed" : "issue_creation_failed"),
+        message:
+          getEventDateError(error) ??
+          error?.error ??
+          error?.detail ??
+          t(is_draft_issue ? "draft_creation_failed" : "issue_creation_failed"),
       });
       captureError({
         eventName: WORK_ITEM_TRACKER_EVENTS.create,
@@ -391,7 +396,7 @@ export const CreateUpdateIssueModalBase: React.FC<IssuesModalProps> = observer((
     setToast({
       type: TOAST_TYPE.ERROR,
       title: error?.title ?? t("error"),
-      message: error?.error ?? error?.detail ?? t("issue_could_not_be_updated"),
+      message: getEventDateError(error) ?? error?.error ?? error?.detail ?? t("issue_could_not_be_updated"),
     });
 
     captureError({
@@ -399,6 +404,7 @@ export const CreateUpdateIssueModalBase: React.FC<IssuesModalProps> = observer((
       payload: { id: data.id },
       error: error as Error,
     });
+    throw error;
   }
 };
 
