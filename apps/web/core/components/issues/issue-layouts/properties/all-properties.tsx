@@ -52,6 +52,7 @@ import { StateDropdown } from "@/components/dropdowns/state/dropdown";
 // helpers
 import { TimeDropdown } from "@/components/dropdowns/time-picker";
 import { YearRangeDropdown } from "@/components/dropdowns/year-property";
+import { getEventDateError } from "@/helpers/event-date-error";
 import { captureSuccess } from "@/helpers/event-tracker.helper";
 // hooks
 import { useProjectEstimates } from "@/hooks/store/estimates";
@@ -171,16 +172,24 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
   const handleEventPropertyUpdate = useCallback(
     (data: Partial<TIssue>) => {
       if (!updateIssue) return;
-      updateIssue(issue.project_id, issue.id, data).then(() => {
-        captureSuccess({
-          eventName: WORK_ITEM_TRACKER_EVENTS.update,
-          payload: { id: issue.id },
+      updateIssue(issue.project_id, issue.id, data)
+        .then(() => {
+          captureSuccess({
+            eventName: WORK_ITEM_TRACKER_EVENTS.update,
+            payload: { id: issue.id },
+          });
+          const nextIssue = { ...issue, ...data } as TIssue;
+          void updateManifestMeta(nextIssue);
+        })
+        .catch((error) => {
+          setToast({
+            type: TOAST_TYPE.ERROR,
+            title: t("error"),
+            message: getEventDateError(error) ?? t("issue_could_not_be_updated"),
+          });
         });
-        const nextIssue = { ...issue, ...data } as TIssue;
-        void updateManifestMeta(nextIssue);
-      });
     },
-    [issue, updateIssue, updateManifestMeta]
+    [issue, t, updateIssue, updateManifestMeta]
   );
 
   const handleState = (stateId: string) => {
@@ -305,20 +314,8 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
   const handleSport = (sport: string | null) => {
     handleEventPropertyUpdate({ sport: sport ?? null });
   };
-  const handleYear = (year: string | null) => {
-    handleEventPropertyUpdate({ year: year ?? null });
-  };
-
-  const handleLevel = (level: string | null) => {
-    handleEventPropertyUpdate({ level: level ?? null });
-  };
-
   const handleCategory = (category: string | null) => {
     handleEventPropertyUpdate({ category: category ?? null });
-  };
-
-  const handleProgram = (program: string | null) => {
-    handleEventPropertyUpdate({ program: program ?? null });
   };
 
   const handleTargetDate = (date: Date | null) => {
@@ -399,12 +396,11 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
         <div className="h-5" onFocus={handleEventPropagation} onClick={handleEventPropagation}>
           <YearRangeDropdown
             value={issue.year ?? null}
-            onChange={handleYear}
             placeholder={t("year_field")}
             icon={<Calendar className="h-3 w-3 flex-shrink-0" />}
             buttonVariant={issue?.year ? "border-with-text" : "border-without-text"}
             clearIconClassName="!text-custom-text-100"
-            disabled={isReadOnly}
+            disabled
             renderByDefault={isMobile}
             showTooltip
           />
@@ -498,12 +494,11 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
         <div className="h-5" onFocus={handleEventPropagation} onClick={handleEventPropagation}>
           <LevelDropdown
             value={issue.level ?? null}
-            onChange={handleLevel}
             placeholder={t("level_field")}
             icon={<SignalIcon className="h-3 w-3 flex-shrink-0" />}
             buttonVariant={issue?.level ? "border-with-text" : "border-without-text"}
             clearIconClassName="!text-custom-text-100"
-            disabled={isReadOnly}
+            disabled
             renderByDefault={isMobile}
             showTooltip
           />
@@ -548,12 +543,11 @@ export const IssueProperties: React.FC<IIssueProperties> = observer((props) => {
         <div className="h-5" onFocus={handleEventPropagation} onClick={handleEventPropagation}>
           <ProgramDropdown
             value={issue.program ?? null}
-            onChange={handleProgram}
             placeholder={t("program_field")}
             icon={<User className="h-3 w-3 flex-shrink-0" />}
             buttonVariant={issue?.program ? "border-with-text" : "border-without-text"}
             clearIconClassName="!text-custom-text-100"
-            disabled={isReadOnly}
+            disabled
             renderByDefault={isMobile}
             showTooltip
           />

@@ -67,6 +67,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
 
   /* ─────────────── Fetch Levels ─────────────── */
   useEffect(() => {
+    if (disabled) return;
     const API_URL = `${process.env.NEXT_PUBLIC_CP_SERVER_URL}/meta-type?key='LEVEL'`;
     setLoading(true);
 
@@ -84,7 +85,7 @@ export const LevelDropdown: React.FC<Props> = observer((props) => {
       })
       .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [disabled]);
 
   const filteredLevels = levels.filter((l) => l.toLowerCase().includes(search.toLowerCase()));
 

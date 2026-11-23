@@ -11,6 +11,7 @@ import { getTabIndex } from "@plane/utils";
 // components
 import { MemberDropdown } from "@/components/dropdowns/member/dropdown";
 import SportDropdown from "@/components/dropdowns/sport-property";
+import { ProjectEventMetadataFields } from "@/components/project/event-metadata-fields";
 import { ProjectNetworkIcon } from "@/components/project/project-network-icon";
 import { isProgramLeadCandidate } from "@/helpers/project-lead";
 import { useMember } from "@/hooks/store/use-member";
@@ -113,6 +114,7 @@ const ProjectAttributes: FC<Props> = (props) => {
           </div>
         )}
       />
+      <ProjectEventMetadataFields control={control} />
     </div>
   );
 };

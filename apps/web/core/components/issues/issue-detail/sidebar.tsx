@@ -43,6 +43,7 @@ import { useIssueDetail } from "@/hooks/store/use-issue-detail";
 import { useMember } from "@/hooks/store/use-member";
 import { useProject } from "@/hooks/store/use-project";
 import { useProjectState } from "@/hooks/store/use-project-state";
+import { getEventDateError } from "@/helpers/event-date-error";
 import { parseOppositionTeam, serializeOppositionTeam } from "@/helpers/opposition-team";
 // plane web components
 // components
@@ -118,7 +119,13 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
       return;
     }
 
-    return handleEventDetailsUpdate(data);
+    return handleEventDetailsUpdate(data)?.catch((error) => {
+      setToast({
+        type: TOAST_TYPE.ERROR,
+        title: t("error"),
+        message: getEventDateError(error) ?? t("issue_could_not_be_updated"),
+      });
+    });
   };
 
   return (
@@ -157,9 +164,8 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
               </div>
               <YearRangeDropdown
                 value={issue?.year}
-                onChange={(val) => handleEventDetailsUpdate({ year: val })}
-                disabled={isEventDetailsReadOnly}
-                placeholder={t("add_year")}
+                disabled
+                placeholder="Not set"
                 buttonVariant="transparent-with-text"
                 className="group w-3/5 flex-grow"
                 buttonContainerClassName="w-full text-left"
@@ -371,11 +377,8 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
               </div>
               <ProgramDropdown
                 value={issue.program}
-                onChange={(val: string | null) => {
-                  handleEventDetailsUpdate({ program: val });
-                }}
-                disabled={isEventDetailsReadOnly}
-                placeholder={t("add_program")}
+                disabled
+                placeholder="Not set"
                 hideIcon
                 buttonVariant="transparent-with-text"
                 className="group w-3/5 flex-grow"
@@ -393,11 +396,8 @@ export const IssueDetailsSidebar: React.FC<Props> = observer((props) => {
               </div>
               <LevelDropdown
                 value={issue.level}
-                onChange={(val: string | null) => {
-                  handleEventDetailsUpdate({ level: val });
-                }}
-                disabled={isEventDetailsReadOnly}
-                placeholder={t("add_level")}
+                disabled
+                placeholder="Not set"
                 hideIcon
                 buttonVariant="transparent-with-text"
                 className="group w-3/5 flex-grow"

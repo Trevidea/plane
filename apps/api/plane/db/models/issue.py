@@ -203,6 +203,11 @@ class Issue(ProjectBaseModel):
                 project_sport = project_sport.strip() or None
             if project_sport:
                 self.sport = project_sport
+            # Events snapshot the program settings. Coaching cards keep their source metadata.
+            if self.coaching_card_data is None:
+                self.year = self.project.event_season or None
+                self.program = self.project.event_program or None
+                self.level = self.project.event_level or None
 
         if self.state is None:
             try:

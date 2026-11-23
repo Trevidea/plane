@@ -10,6 +10,7 @@ import json
 # Django imports
 from django.db.models import Exists, F, OuterRef, Prefetch, Q, Subquery
 from django.core.serializers.json import DjangoJSONEncoder
+from django.shortcuts import get_object_or_404
 
 # Third Party imports
 from rest_framework.response import Response
@@ -178,6 +179,9 @@ class ProjectViewSet(BaseViewSet):
                     "project_lead",
                     "network",
                     "sport",
+                    "event_season",
+                    "event_program",
+                    "event_level",
                 )
             )
             return Response(projects)
@@ -219,6 +223,9 @@ class ProjectViewSet(BaseViewSet):
             "project_lead",
             "network",
             "sport",
+            "event_season",
+            "event_program",
+            "event_level",
             "created_at",
             "updated_at",
             "created_by",
@@ -381,7 +388,7 @@ class ProjectViewSet(BaseViewSet):
 
         workspace = Workspace.objects.get(slug=slug)
 
-        project = Project.objects.get(pk=pk)
+        project = get_object_or_404(Project, pk=pk, workspace=workspace)
         intake_view = request.data.get("inbox_view", project.intake_view)
         current_instance = json.dumps(ProjectSerializer(project).data, cls=DjangoJSONEncoder)
         if project.archived_at:

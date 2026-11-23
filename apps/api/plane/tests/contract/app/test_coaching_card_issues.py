@@ -40,6 +40,9 @@ class TestCoachingCardIssues:
             identifier="BALL",
             workspace=workspace,
             sport="Basketball",
+            event_season="2026-27",
+            event_program="Men's Basketball",
+            event_level="Varsity",
         )
         ProjectMember.objects.create(project=project, member=create_user, role=20, is_active=True)
         event_state = State.objects.create(
@@ -54,9 +57,6 @@ class TestCoachingCardIssues:
             project=project,
             state=event_state,
             sg_event_id=441,
-            level="Varsity",
-            program="Men's Basketball",
-            year="2026-27",
         )
         players = [
             RosterPlayer.objects.create(

@@ -28,7 +28,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.gzip import gzip_page
 
 # Third Party imports
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.response import Response
 
 # Module imports
@@ -64,6 +64,7 @@ from plane.db.models import (
 )
 from plane.utils.filters import ComplexFilterBackend, IssueFilterSet
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY
+from plane.utils.issue_datetime import get_issue_season_date_error
 from plane.utils.global_paginator import paginate
 from plane.utils.grouper import (
     issue_group_values,
@@ -1268,25 +1269,6 @@ class IssueDetailEndpoint(BaseAPIView):
 
 
 class IssueBulkUpdateDateEndpoint(BaseAPIView):
-    def validate_dates(self, current_start, current_target, new_start, new_target):
-        """
-        Validate that start date is before target date.
-        """
-        from datetime import datetime
-
-        start = new_start or current_start
-        target = new_target or current_target
-
-        # Convert string dates to datetime objects if they're strings
-        if isinstance(start, str):
-            start = datetime.strptime(start, "%Y-%m-%d").date()
-        if isinstance(target, str):
-            target = datetime.strptime(target, "%Y-%m-%d").date()
-
-        if start and target and start > target:
-            return False
-        return True
-
     @allow_permission([ROLE.ADMIN, ROLE.MEMBER])
     def post(self, request, slug, project_id):
         updates = request.data.get("updates", [])
@@ -1295,9 +1277,10 @@ class IssueBulkUpdateDateEndpoint(BaseAPIView):
         epoch = int(timezone.now().timestamp())
 
         # Fetch all relevant issues in a single query
-        issues = list(Issue.objects.filter(id__in=issue_ids))
+        issues = Issue.objects.filter(id__in=issue_ids, project_id=project_id, workspace__slug=slug)
         issues_dict = {str(issue.id): issue for issue in issues}
-        issues_to_update = []
+        activity = []
+        date_field = serializers.DateField()
 
         for update in updates:
             issue_id = update["id"]
@@ -1306,43 +1289,44 @@ class IssueBulkUpdateDateEndpoint(BaseAPIView):
             if not issue:
                 continue
 
-            start_date = update.get("start_date")
-            target_date = update.get("target_date")
-            validate_dates = self.validate_dates(issue.start_date, issue.target_date, start_date, target_date)
-            if not validate_dates:
+            dates = {}
+            for field in ("start_date", "target_date"):
+                if update.get(field):
+                    try:
+                        dates[field] = date_field.run_validation(update[field])
+                    except serializers.ValidationError as exc:
+                        return Response({field: exc.detail}, status=status.HTTP_400_BAD_REQUEST)
+
+            start = dates.get("start_date", issue.start_date)
+            target = dates.get("target_date", issue.target_date)
+            if start and target and start > target:
                 return Response(
                     {"message": "Start date cannot exceed target date"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if start_date:
-                issue_activity.delay(
-                    type="issue.activity.updated",
-                    requested_data=json.dumps({"start_date": update.get("start_date")}),
-                    current_instance=json.dumps({"start_date": str(issue.start_date)}),
-                    issue_id=str(issue_id),
-                    actor_id=str(request.user.id),
-                    project_id=str(project_id),
-                    epoch=epoch,
-                )
-                issue.start_date = start_date
-                issues_to_update.append(issue)
+            if issue.category != COACHING_CARD_CATEGORY:
+                if season_error := get_issue_season_date_error(dates, issue):
+                    return Response(season_error, status=status.HTTP_400_BAD_REQUEST)
 
-            if target_date:
-                issue_activity.delay(
-                    type="issue.activity.updated",
-                    requested_data=json.dumps({"target_date": update.get("target_date")}),
-                    current_instance=json.dumps({"target_date": str(issue.target_date)}),
-                    issue_id=str(issue_id),
-                    actor_id=str(request.user.id),
-                    project_id=str(project_id),
-                    epoch=epoch,
-                )
-                issue.target_date = target_date
-                issues_to_update.append(issue)
+            for field, value in dates.items():
+                current = getattr(issue, field)
+                if current != value:
+                    setattr(issue, field, value)
+                    activity.append((issue, field, current, value))
 
-        # Bulk update issues
-        Issue.objects.bulk_update(issues_to_update, ["start_date", "target_date"])
+        issues_to_update = {issue.id: issue for issue, *_ in activity}
+        Issue.objects.bulk_update(issues_to_update.values(), ["start_date", "target_date"])
+        for issue, field, current, value in activity:
+            issue_activity.delay(
+                type="issue.activity.updated",
+                requested_data=json.dumps({field: value.isoformat()}),
+                current_instance=json.dumps({field: str(current)}),
+                issue_id=str(issue.id),
+                actor_id=str(request.user.id),
+                project_id=str(project_id),
+                epoch=epoch,
+            )
 
         return Response({"message": "Issues updated successfully"}, status=status.HTTP_200_OK)
 

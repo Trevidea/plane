@@ -11,6 +11,8 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 
+from plane.utils.issue_datetime import parse_season_year_range
+
 logger = logging.getLogger("plane.worker")
 
 
@@ -29,7 +31,6 @@ CLOCK_TIME_PATTERN = re.compile(r"^(\d{1,2}):(\d{2})(?::\d{2})?$")
 FLEX_CLOCK_TIME_PATTERN = re.compile(
     r"^\s*(\d{1,2})\s*:\s*(\d{1,2})(?:\s*:\s*(\d{1,2}))?\s*([a-zA-Z.\s]*)\s*$"
 )
-SESSION_YEAR_PATTERN = re.compile(r"^\s*(\d{4})\s*[-/]\s*(\d{4})\s*$")
 
 
 def _none_if_blank(value: Any) -> Any:
@@ -166,18 +167,7 @@ def _extract_date(event_data: Dict[str, Any]) -> Optional[str]:
 
 def _parse_session_year_range(event_data: Dict[str, Any]) -> Optional[tuple[int, int]]:
     raw_year = _string_field(_pick_first(event_data, "year", "session", "season", "academic_year", "academicYear"))
-    if not raw_year:
-        return None
-
-    match = SESSION_YEAR_PATTERN.match(raw_year)
-    if not match:
-        return None
-
-    start_year = int(match.group(1))
-    end_year = int(match.group(2))
-    if end_year < start_year:
-        return None
-    return start_year, end_year
+    return parse_season_year_range(raw_year)
 
 
 def _normalize_session_year_text(event_data: Dict[str, Any]) -> Optional[str]:
@@ -185,43 +175,6 @@ def _normalize_session_year_text(event_data: Dict[str, Any]) -> Optional[str]:
     if year_range is None:
         return _string_field(event_data.get("year"))
     return f"{year_range[0]}-{year_range[1]}"
-
-
-def _align_event_date_to_session(event_date: Optional[str], event_data: Dict[str, Any]) -> Optional[str]:
-    if not event_date:
-        return event_date
-
-    year_range = _parse_session_year_range(event_data)
-    if year_range is None:
-        return event_date
-
-    start_year, end_year = year_range
-    try:
-        dt = datetime.date.fromisoformat(event_date)
-    except ValueError:
-        return event_date
-
-    if start_year <= dt.year <= end_year:
-        return event_date
-
-    target_year = start_year if dt.month >= 7 else end_year
-    try:
-        aligned = dt.replace(year=target_year)
-    except ValueError:
-        if dt.month == 2 and dt.day == 29:
-            aligned = datetime.date(target_year, 2, 28)
-        else:
-            return event_date
-
-    logger.info(
-        "Aligned event date %s -> %s using session %s-%s for work-item %s",
-        event_date,
-        aligned.isoformat(),
-        start_year,
-        end_year,
-        event_data.get("id"),
-    )
-    return aligned.isoformat()
 
 
 def _parse_meridiem_token(raw_token: str) -> Optional[str]:
@@ -431,7 +384,6 @@ def _make_event_payload(
 ) -> Dict[str, Any]:
     if event_date is None:
         event_date = _extract_date(event_data)
-    event_date = _align_event_date_to_session(event_date, event_data)
     if event_time is None:
         event_time = _extract_time(event_data)
 

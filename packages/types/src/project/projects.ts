@@ -30,6 +30,9 @@ export interface IPartialProject {
   project_lead?: IUserLite | string | null;
   network?: number;
   sport?: string | null;
+  event_season?: string | null;
+  event_program?: string | null;
+  event_level?: string | null;
   default_swimlane_view?: SwimlaneView;
   // Timestamps
   created_at?: Date;
