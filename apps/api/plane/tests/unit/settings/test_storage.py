@@ -6,8 +6,11 @@ from plane.settings.storage import S3Storage
 class RequestStub:
     scheme = "http"
 
+    def __init__(self, host="localhost:8000"):
+        self.host = host
+
     def get_host(self):
-        return "localhost:8000"
+        return self.host
 
 
 def _configure_minio(monkeypatch, *, external_endpoint, internal_endpoint):
@@ -23,6 +26,7 @@ def _configure_minio(monkeypatch, *, external_endpoint, internal_endpoint):
         monkeypatch.delenv("MINIO_INTERNAL_ENDPOINT_URL", raising=False)
     monkeypatch.setenv("USE_MINIO", "1")
     monkeypatch.setenv("MINIO_ENDPOINT_SSL", "0")
+    monkeypatch.delenv("PLAYER_APP_STORAGE_ENDPOINT_URL", raising=False)
 
 
 def test_presigned_upload_uses_distinct_external_minio_endpoint(monkeypatch):
@@ -65,3 +69,24 @@ def test_presigned_upload_uses_request_host_without_internal_endpoint(monkeypatc
 
     target = urlparse(upload["url"])
     assert (target.scheme, target.netloc, target.path) == ("http", "localhost:8000", "/uploads")
+
+
+def test_player_api_origin_uses_its_public_storage_for_upload_and_display(monkeypatch):
+    _configure_minio(
+        monkeypatch,
+        external_endpoint="http://localhost:9100",
+        internal_endpoint="http://plane-local-minio:9000",
+    )
+    monkeypatch.setenv("PLAYER_APP_API_URL", "http://192.168.1.207:8000/")
+    monkeypatch.setenv("PLAYER_APP_STORAGE_ENDPOINT_URL", "http://192.168.1.207:9100")
+
+    player_storage = S3Storage(request=RequestStub("192.168.1.207:8000"))
+    upload = player_storage.generate_presigned_post("avatar.png", "image/png", 100)
+    assert upload["url"] == "http://192.168.1.207:9100/uploads"
+    assert urlparse(player_storage.generate_presigned_url("avatar.png")).netloc == "192.168.1.207:9100"
+
+    desktop_storage = S3Storage(request=RequestStub())
+    assert desktop_storage.generate_presigned_post("avatar.png", "image/png", 100)["url"] == (
+        "http://localhost:9100/uploads"
+    )
+    assert S3Storage().s3_client.meta.endpoint_url == "http://plane-local-minio:9000"

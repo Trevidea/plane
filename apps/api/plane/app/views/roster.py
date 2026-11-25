@@ -93,9 +93,9 @@ class RosterPlayerViewSet(BaseViewSet):
         context["project"] = Project.objects.get(
             workspace__slug=self.kwargs.get("slug"), pk=self.kwargs.get("project_id")
         )
-        # Match workspace member email visibility, even when a workspace Guest
-        # has an elevated project role. Compute once for the whole response.
-        context["can_view_account_email"] = WorkspaceMember.objects.filter(
+        # Match workspace member visibility for linked account details, even
+        # when a workspace Guest has an elevated project role.
+        context["can_view_linked_account_details"] = WorkspaceMember.objects.filter(
             workspace_id=context["project"].workspace_id,
             member=self.request.user,
             is_active=True,

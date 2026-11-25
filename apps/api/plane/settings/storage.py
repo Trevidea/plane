@@ -42,13 +42,19 @@ class S3Storage(S3Boto3Storage):
                 endpoint_protocol = request.scheme if request else "http"
             # Create an S3 client for MinIO
             if request:
-                endpoint_url = (
-                    self.aws_s3_endpoint_url
-                    if self.aws_s3_endpoint_url
-                    and self.aws_s3_internal_endpoint_url
-                    and self.aws_s3_endpoint_url.rstrip("/") != self.aws_s3_internal_endpoint_url.rstrip("/")
-                    else f"{endpoint_protocol}://{request.get_host()}"
-                )
+                request_origin = f"{request.scheme}://{request.get_host()}"
+                player_api_origin = os.environ.get("PLAYER_APP_API_URL", "").rstrip("/")
+                player_endpoint = os.environ.get("PLAYER_APP_STORAGE_ENDPOINT_URL")
+                if player_endpoint and player_api_origin == request_origin:
+                    endpoint_url = player_endpoint
+                else:
+                    endpoint_url = (
+                        self.aws_s3_endpoint_url
+                        if self.aws_s3_endpoint_url
+                        and self.aws_s3_internal_endpoint_url
+                        and self.aws_s3_endpoint_url.rstrip("/") != self.aws_s3_internal_endpoint_url.rstrip("/")
+                        else f"{endpoint_protocol}://{request.get_host()}"
+                    )
             else:
                 endpoint_url = self.aws_s3_internal_endpoint_url or self.aws_s3_endpoint_url
             self.s3_client = boto3.client(

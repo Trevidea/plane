@@ -45,6 +45,7 @@ export default function Link({children}){return <span>{children}</span>};
 export const EUserPermissions={ADMIN:20,MEMBER:15}; export const EUserPermissionsLevel={WORKSPACE:'workspace',PROJECT:'project'};
 export const useUserPermissions=()=>({allowPermissions:(roles)=>roles.includes(15)||window.testRole==='admin'});
 export const useUserReadOnly=()=>false;
+export const getFileURL=(path)=>path||undefined;
 export const TOAST_TYPE={SUCCESS:'success',ERROR:'error'}; export const setToast=(toast)=>{window.lastToast=toast};
 `
 );
@@ -68,6 +69,7 @@ export class RosterService {
  async approvePlayer(w,p,id){const row=roster.find(r=>r.id===id);row.status='active';row.registration_status=null;row.user='approved';return row}
 }
 window.emptyRoster=()=>{roster=[]};
+window.renameRosterPlayer=(id,name)=>{roster.find((player)=>player.id===id).player_name=name};
 window.addRosterClaim=()=>{roster.push({...mk('claim','Roster Athlete','active',null,'pending'),jersey_number:'10',registration_email:'claimant@example.com',registration_name:'Account Name'})};
 `
 );
@@ -100,7 +102,7 @@ await build({
         builder.onResolve(
           {
             filter:
-              /^(@\/hooks\/store\/user|@\/hooks\/use-user-readonly|@\/components\/core\/page-title|next\/navigation|next\/link|@plane\/constants|@plane\/propel\/toast)$/,
+              /^(@\/hooks\/store\/user|@\/hooks\/use-user-readonly|@\/components\/core\/page-title|next\/navigation|next\/link|@plane\/constants|@plane\/propel\/toast|@plane\/utils)$/,
           },
           () => ({ path: files.boundaries })
         );
@@ -133,10 +135,21 @@ try {
   await page.goto("http://127.0.0.1:" + server.address().port);
   const row = (name) => page.getByRole("row").filter({ has: page.getByText(name, { exact: true }) });
   await page.getByRole("tab", { name: "All players (2)", exact: true }).waitFor();
+  const refresh = page.getByRole("button", { name: "Refresh", exact: true });
+  await page.getByLabel("Search roster").fill("Alex");
+  await page.evaluate(() => window.renameRosterPlayer("a", "Alex Updated"));
+  await refresh.click();
+  await row("Alex Updated").waitFor();
+  assert.equal(await page.getByLabel("Search roster").inputValue(), "Alex");
+  await page.evaluate(() => window.renameRosterPlayer("a", "Alex"));
+  await refresh.click();
+  await page.getByLabel("Search roster").fill("");
+  await row("Casey").waitFor();
   assert.equal(await row("Blake").count(), 0);
   assert.equal(await row("Casey").getByText("Active", { exact: true }).count(), 1);
   assert.equal(await page.getByRole("button", { name: "Delete account", exact: true }).count(), 0);
   await page.getByRole("tab", { name: "Join requests (1)", exact: true }).click();
+  assert.equal(await refresh.count(), 1);
   assert.equal(await page.getByRole("button", { name: "Edit", exact: true }).count(), 0);
   await page.getByRole("button", { name: "Approve Pending", exact: true }).click();
   await page.getByRole("tab", { name: "Join requests (0)", exact: true }).waitFor();
@@ -202,8 +215,7 @@ try {
   await page.getByRole("tab", { name: "Event log", exact: true }).click();
   await row("Former Athlete").waitFor();
   await page.evaluate(() => (window.failEvents = true));
-  await page.getByRole("tab", { name: "All players (0)", exact: true }).click();
-  await page.getByRole("tab", { name: "Event log", exact: true }).click();
+  await refresh.click();
   await page.getByRole("alert").getByText("Fixture history failure", { exact: true }).waitFor();
   await page.evaluate(() => (window.failEvents = false));
   await page.getByRole("button", { name: "Retry", exact: true }).click();
