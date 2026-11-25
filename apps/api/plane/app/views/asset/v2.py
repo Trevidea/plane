@@ -7,6 +7,7 @@ import uuid
 # Django imports
 from django.conf import settings
 from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import IntegrityError
 
@@ -26,6 +27,17 @@ from plane.bgtasks.storage_metadata_task import get_asset_object_metadata
 
 class UserAssetsV2Endpoint(BaseAPIView):
     """This endpoint is used to upload user profile images."""
+
+    user_role_access = True
+
+    def own_profile_asset(self, request, asset_id):
+        return get_object_or_404(
+            FileAsset,
+            id=asset_id,
+            user_id=request.user.id,
+            is_deleted=False,
+            entity_type__in=["USER_AVATAR", "USER_COVER"],
+        )
 
     def asset_delete(self, asset_id):
         asset = FileAsset.objects.filter(id=asset_id).first()
@@ -167,7 +179,7 @@ class UserAssetsV2Endpoint(BaseAPIView):
 
     def patch(self, request, asset_id):
         # get the asset id
-        asset = FileAsset.objects.get(id=asset_id, user_id=request.user.id)
+        asset = self.own_profile_asset(request, asset_id)
         # get the storage metadata
         asset.is_uploaded = True
         # get the storage metadata
@@ -187,7 +199,7 @@ class UserAssetsV2Endpoint(BaseAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def delete(self, request, asset_id):
-        asset = FileAsset.objects.get(id=asset_id, user_id=request.user.id)
+        asset = self.own_profile_asset(request, asset_id)
         asset.is_deleted = True
         asset.deleted_at = timezone.now()
         # get the entity and save the asset id for the request field

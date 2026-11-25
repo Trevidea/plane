@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from plane.db.models import (
+    FileAsset,
     Project,
     ProjectMember,
     RosterPlayer,
@@ -82,23 +83,29 @@ class RosterAccountStatusTests(TestCase):
         self.player.save()
         data = self.detail()
         self.assertEqual(data.get("account_email"), "status-coach@fixture.test")
+        self.assertIsNone(data["account_avatar_url"])
         self.assertEqual(data["email"], "")
         self.player.refresh_from_db()
         self.assertEqual(self.player.email, "")
 
-    def test_linked_account_email_is_loaded_with_the_roster_query(self):
+    def test_linked_account_details_are_loaded_with_the_roster_query(self):
         from plane.app.serializers import RosterPlayerSerializer
         from plane.utils.roster_membership import roster_with_account_status
 
         self.player.user = self.coach
         self.player.save()
+        photo = FileAsset.objects.create(
+            user=self.coach, entity_type=FileAsset.EntityTypeContext.USER_AVATAR, asset="coach.jpg", is_uploaded=True
+        )
+        User.objects.filter(pk=self.coach.pk).update(avatar_asset=photo)
         with self.assertNumQueries(1):
             data = RosterPlayerSerializer(
                 roster_with_account_status(RosterPlayer.objects.filter(project=self.project)),
                 many=True,
-                context={"can_view_account_email": True},
+                context={"can_view_linked_account_details": True},
             ).data
             self.assertEqual(data[0].get("account_email"), "status-coach@fixture.test")
+        self.assertEqual(data[0]["account_avatar_url"], photo.asset_url)
 
     def test_workspace_guest_cannot_read_linked_account_email_even_as_project_admin(self):
         self.player.user = self.coach
@@ -146,3 +153,33 @@ class RosterAccountStatusTests(TestCase):
         detail = self.client.get(f"{self.url}{self.player.pk}/").data
         self.assertEqual(detail["account_status"], "not_linked")
         self.assertEqual(detail["registration_status"], "pending")
+
+    def test_signup_photo_appears_in_roster_after_approval(self):
+        self.player.email = "signup-photo@fixture.test"
+        self.player.status = "active"
+        self.player.save()
+        invite = WorkspaceMemberInvite.objects.create(
+            workspace=self.workspace, email=self.player.email, token="fixture", role=1
+        )
+        response = APIClient().post(
+            "/auth/player-invitation/accept/",
+            {
+                "token": create_player_ticket(invite),
+                "name": "Player",
+                "password": "Fixture-player-password-827!",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        athlete = User.objects.get(email=self.player.email)
+        photo = FileAsset.objects.create(
+            user=athlete, entity_type=FileAsset.EntityTypeContext.USER_AVATAR, asset="signup.jpg", is_uploaded=True
+        )
+        User.objects.filter(pk=athlete.pk).update(avatar_asset=photo)
+        self.assertIsNone(self.client.get(self.url).data[0]["account_avatar_url"])
+
+        response = self.client.post(f"{self.url}{self.player.pk}/approve/", {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get(self.url).data[0]["account_avatar_url"], photo.asset_url)
+
+        WorkspaceMember.objects.filter(workspace=self.workspace, member=self.coach).update(role=5)
+        self.assertIsNone(self.client.get(self.url).data[0]["account_avatar_url"])

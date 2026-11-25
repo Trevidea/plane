@@ -40,7 +40,7 @@ export const ProjectRosterHeader = observer(() => {
 
   return (
     <>
-      <Header className="flex-wrap !gap-y-2">
+      <Header className="roster-surface flex-wrap !gap-y-2">
         <Header.LeftItem className="min-w-0">
           <div className="flex items-center gap-2.5">
             <Breadcrumbs isLoading={loader === "init-loader"} className="flex-grow-0">

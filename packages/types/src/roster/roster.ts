@@ -5,6 +5,7 @@ export interface IRosterPlayer {
   program_id: string;
   email?: string;
   account_email?: string | null;
+  account_avatar_url?: string | null;
   user?: string | null;
   account_status?: "email_missing" | "not_linked" | "invitation_pending" | "linked";
   registration_status?: "pending" | null;

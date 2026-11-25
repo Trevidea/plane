@@ -7,7 +7,7 @@ import { formatTimestamp, getRosterDisplayEmail } from "../utils/roster.utils";
 import { RosterApprovalButton } from "./roster-approval-button";
 
 export const RosterJoinRequests = () => {
-  const { players, isLoading, refetchRoster, openDeletePlayerModal } = useRoster();
+  const { players, isLoading, openDeletePlayerModal } = useRoster();
   return (
     <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
       <div className="flex items-start gap-2 rounded-lg border border-custom-border-200 bg-custom-background-90 p-3 text-xs leading-5 text-custom-text-300">
@@ -17,12 +17,7 @@ export const RosterJoinRequests = () => {
           to this program.
         </p>
       </div>
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-custom-text-100">Pending join requests</h2>
-        <Button variant="neutral-primary" size="sm" onClick={() => void refetchRoster()} disabled={isLoading}>
-          Refresh
-        </Button>
-      </div>
+      <h2 className="text-sm font-medium text-custom-text-100">Pending join requests</h2>
       {isLoading ? (
         <p role="status" className="p-8 text-center text-sm text-custom-text-300">
           Loading requests…
