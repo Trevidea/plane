@@ -33,6 +33,7 @@ class RosterPlayerSerializer(BaseSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
     email = serializers.EmailField(required=False, allow_blank=True, allow_null=True, max_length=254)
     account_email = serializers.SerializerMethodField()
+    account_avatar_url = serializers.SerializerMethodField()
     account_status = serializers.SerializerMethodField()
     invitation_delivery = serializers.SerializerMethodField()
     registration_status = serializers.SerializerMethodField()
@@ -49,6 +50,7 @@ class RosterPlayerSerializer(BaseSerializer):
             "user",
             "email",
             "account_email",
+            "account_avatar_url",
             "account_status",
             "account_link_held",
             "invitation_delivery",
@@ -69,9 +71,14 @@ class RosterPlayerSerializer(BaseSerializer):
         read_only_fields = ["id", "program_id", "account_link_held", "created_at", "updated_at"]
 
     def get_account_email(self, player):
-        if not self.context.get("can_view_account_email", False) or player.user_id is None:
+        if not self.context.get("can_view_linked_account_details", False) or player.user_id is None:
             return None
         return player.user.email
+
+    def get_account_avatar_url(self, player):
+        if not self.context.get("can_view_linked_account_details", False) or player.user_id is None:
+            return None
+        return player.user.avatar_url
 
     def _pending_claimant(self, player):
         if player.account_link_held or not self.context.get("can_view_registration_claim", False):

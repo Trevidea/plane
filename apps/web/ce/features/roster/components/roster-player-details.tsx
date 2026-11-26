@@ -146,7 +146,7 @@ export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer
                 unstyled
                 disabled={!canManage || isSubmitting}
                 onClick={() => openDeletePlayerModal(player)}
-                className="rounded px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 disabled:opacity-50"
+                className="rounded px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 disabled:opacity-50 [[data-theme^=dark]_&]:text-red-400"
               >
                 Removed
               </Button>
@@ -255,7 +255,7 @@ export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer
           <Button
             variant="neutral-primary"
             size="sm"
-            className="text-red-500"
+            className="text-red-500 [[data-theme^=dark]_&]:text-red-400"
             prependIcon={<Trash2 />}
             onClick={() => openDeletePlayerModal(player)}
             disabled={isSubmitting}

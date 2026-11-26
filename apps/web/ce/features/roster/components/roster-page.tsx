@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { observer } from "mobx-react";
-import { Pause, Play, Trash2, X } from "lucide-react";
+import { Pause, Play, Radio, RefreshCw, Trash2, X } from "lucide-react";
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { AlertModalCore, Button, cn } from "@plane/ui";
 import { PageHead } from "@/components/core/page-title";
@@ -25,12 +25,14 @@ const ProgramRosterPage = observer(({ openJoinRequests = false }: { openJoinRequ
     players,
     groupedRoster,
     isLoading,
+    isLoadingEvents,
+    refetchRoster,
+    refetchEvents,
     rosterTab,
     setRosterTab,
     canManage,
     workspaceSlug,
     projectId,
-    refetchRoster,
     selectedPlayerIds,
     selectedPlayers,
     setSelectedPlayerStatus,
@@ -60,11 +62,14 @@ const ProgramRosterPage = observer(({ openJoinRequests = false }: { openJoinRequ
       : []),
   ];
   const showEmptyState = !isLoading && allPlayers.length === 0;
+  const showEventLog = rosterTab === "events" && canManage;
+  const isRefreshing = showEventLog ? isLoadingEvents : isLoading;
+  const refresh = showEventLog ? refetchEvents : refetchRoster;
 
   return (
     <>
       <PageHead title="Roster" />
-      <div className="relative flex h-full min-h-0 w-full flex-col bg-custom-background-100">
+      <div className="roster-surface relative flex h-full min-h-0 w-full flex-col bg-custom-background-100">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-custom-border-200 px-4 py-2 sm:px-6">
           {canManage && <RosterIssueReport key={projectId} />}
           {!canManage &&
@@ -133,22 +138,34 @@ const ProgramRosterPage = observer(({ openJoinRequests = false }: { openJoinRequ
               </Button>
             ))}
           </div>
-          {canManage && (
-            <div className="flex items-center gap-4 text-[11px] text-custom-text-300" aria-label="Account summary">
-              <span>
-                <i className="mr-1.5 inline-block size-1.5 rounded-full bg-emerald-500" />
-                {summary.linked} linked
-              </span>
-              <span>
-                <i className="mr-1.5 inline-block size-1.5 rounded-full bg-amber-500" />
-                {summary.requests} requested
-              </span>
-              <span>
-                <i className="mr-1.5 inline-block size-1.5 rounded-full bg-custom-text-400" />
-                {summary.unmatched} not linked
-              </span>
-            </div>
-          )}
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+            <Button
+              variant="neutral-primary"
+              size="sm"
+              prependIcon={<RefreshCw aria-hidden="true" className={cn(isRefreshing && "motion-safe:animate-spin")} />}
+              loading={isRefreshing}
+              aria-busy={isRefreshing}
+              onClick={() => void refresh()}
+            >
+              Refresh
+            </Button>
+            {canManage && (
+              <div className="flex items-center gap-4 text-[11px] text-custom-text-300" aria-label="Account summary">
+                <span>
+                  <i className="mr-1.5 inline-block size-1.5 rounded-full bg-emerald-500" />
+                  {summary.linked} linked
+                </span>
+                <span>
+                  <i className="mr-1.5 inline-block size-1.5 rounded-full bg-amber-500" />
+                  {summary.requests} requested
+                </span>
+                <span>
+                  <i className="mr-1.5 inline-block size-1.5 rounded-full bg-custom-text-400" />
+                  {summary.unmatched} not linked
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         {/* {canManage && rosterTab === "all" && !isLoading && (
           <div className="mx-4 my-3 flex shrink-0 items-start gap-2 rounded-lg border border-custom-border-200 bg-custom-background-90 px-3 py-2.5 sm:mx-6">
@@ -165,7 +182,7 @@ const ProgramRosterPage = observer(({ openJoinRequests = false }: { openJoinRequ
           aria-labelledby={`roster-tab-${rosterTab}`}
           className="flex min-h-0 flex-1 flex-col"
         >
-          {rosterTab === "events" && canManage ? (
+          {showEventLog ? (
             <RosterEventLog />
           ) : rosterTab === "requests" && canManage ? (
             <RosterJoinRequests />

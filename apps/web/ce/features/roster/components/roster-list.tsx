@@ -28,6 +28,7 @@ import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IRosterPlayer, TRosterPlayerStatus } from "@plane/types";
 import { Avatar, Checkbox, CustomMenu, cn } from "@plane/ui";
+import { getFileURL } from "@plane/utils";
 import { useUserPermissions } from "@/hooks/store/user";
 import { useUserReadOnly } from "@/hooks/use-user-readonly";
 import { RosterService } from "@/services/roster.service";
@@ -526,6 +527,7 @@ const RosterPlayerCell = ({
       {selectionControl ? <div className="flex flex-shrink-0 items-center">{selectionControl}</div> : null}
       <Avatar
         name={player.player_name}
+        src={getFileURL(player.account_avatar_url ?? "")}
         fallbackText={player.player_name
           .split(/\s+/)
           .map((name) => name[0])

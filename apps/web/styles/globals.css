@@ -586,6 +586,13 @@
     --color-sidebar-border-400: var(--color-border-400); /* strong sidebar border- 2 */
   }
 
+  /* Keep roster labels, secondary text, and placeholders readable on dark surfaces. */
+  [data-theme="dark"] .roster-surface {
+    --color-text-200: 196, 196, 196;
+    --color-text-300: 174, 174, 174;
+    --color-text-400: 150, 150, 150;
+  }
+
   /* stickies and editor colors */
   :root {
     /* text colors */

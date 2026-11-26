@@ -34,7 +34,7 @@ def roster_with_account_status(queryset):
     approvals = PlayerRegistrationRequest.objects.filter(roster_player_id=OuterRef("pk"), approved_at__isnull=True)
     memberships = ProjectMember.all_objects.filter(project_id=OuterRef("project_id"), member_id=OuterRef("user_id"))
     player_invites = pending_player_invitations(OuterRef("workspace_id"), OuterRef("email"))
-    return queryset.select_related("user", "registration_request__user").annotate(
+    return queryset.select_related("user__avatar_asset", "registration_request__user").annotate(
         _has_pending_invitation=Exists(pending),
         _registration_pending=Exists(approvals),
         _program_membership_exists=Exists(memberships),
