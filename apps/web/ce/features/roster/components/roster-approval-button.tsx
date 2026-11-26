@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
+import { beginRosterUI, rosterUIFailure } from "@plane/logger/diagnostics-browser";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IRosterPlayer } from "@plane/types";
 import { Button } from "@plane/ui";
@@ -28,9 +29,10 @@ export const RosterApprovalButton = ({ player }: { player: IRosterPlayer }) => {
       aria-label={`Approve ${player.player_name}`}
       onClick={() => {
         if (busy) return;
+        const span = beginRosterUI("approve");
         setBusy(true);
         void service
-          .approvePlayer(workspaceSlug, projectId, player.id)
+          .approvePlayer(workspaceSlug, projectId, player.id, span.headers)
           .then(async () => {
             await refetchRoster();
             setToast({
@@ -38,14 +40,16 @@ export const RosterApprovalButton = ({ player }: { player: IRosterPlayer }) => {
               title: "Athlete approved",
               message: "Program and workspace memberships are linked.",
             });
+            span.finish("confirmed");
           })
-          .catch(() =>
+          .catch((error) => {
+            span.finish(rosterUIFailure(error));
             setToast({
               type: TOAST_TYPE.ERROR,
               title: "Approval failed",
               message: "Refresh the roster and check the athlete's memberships before trying again.",
-            })
-          )
+            });
+          })
           .finally(() => setBusy(false));
       }}
     >

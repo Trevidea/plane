@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { beginRosterUI, rosterUIFailure } from "@plane/logger/diagnostics-browser";
+import { isAxiosError } from "axios";
 import { useParams } from "next/navigation";
 import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
@@ -10,6 +12,7 @@ import type {
   IRosterLifecycleEvent,
   IRosterPlayer,
   IRosterPlayerPayload,
+  TRosterImportRow,
   TRosterPlayerStatus,
 } from "@plane/types";
 import { useUserPermissions } from "@/hooks/store/user";
@@ -28,6 +31,11 @@ export type TRosterFormState = {
   status: TRosterPlayerStatus;
   notes: string;
 };
+
+type TRosterImportOutcome =
+  | { kind: "saved" }
+  | { kind: "unknown" }
+  | { kind: "rejected"; rowError?: { index: number; message: string } };
 
 export type TRosterDisplayPropertyKey =
   | "player"
@@ -74,7 +82,7 @@ type TAccountDeletionTarget = { id: string; player_name: string };
 type TRosterContext = {
   rosterTab: TRosterTab;
   setRosterTab: (tab: TRosterTab) => void;
-  canDeleteAccounts: boolean;
+  canPreviewAccounts: boolean;
   events: IRosterLifecycleEvent[];
   isLoadingEvents: boolean;
   eventsError: string | null;
@@ -82,7 +90,7 @@ type TRosterContext = {
   accountDeletionTarget: TAccountDeletionTarget | null;
   openDeleteAccountModal: (target: TAccountDeletionTarget) => void;
   closeDeleteAccountModal: () => void;
-  deleteAccount: () => Promise<void>;
+  deleteAccount: (confirmation: string) => Promise<boolean>;
   setPlayerStatus: (player: IRosterPlayer, status: "active" | "inactive") => Promise<void>;
   setSelectedPlayerStatus: (status: "active" | "inactive") => Promise<void>;
   workspaceSlug: string;
@@ -135,10 +143,13 @@ type TRosterContext = {
   closeDeletePlayerModal: () => void;
   openBulkDeleteModal: () => void;
   closeBulkDeleteModal: () => void;
-  submitPlayer: (payload: TRosterFormState, options?: { keepOpen?: boolean }) => Promise<boolean>;
+  submitPlayer: (
+    payload: TRosterFormState,
+    options?: { keepOpen?: boolean; existingAccountId?: string }
+  ) => Promise<boolean>;
   deletePlayer: () => Promise<void>;
   deleteSelectedPlayers: () => Promise<void>;
-  importPlayers: (players: IRosterPlayerPayload[]) => Promise<void>;
+  importPlayers: (players: TRosterImportRow[], importId: string, retry?: boolean) => Promise<TRosterImportOutcome>;
   refetchRoster: () => Promise<void>;
 };
 
@@ -417,12 +428,12 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     projectId
   );
 
-  const canDeleteAccounts = allowPermissions([EUserPermissions.ADMIN], EUserPermissionsLevel.WORKSPACE, workspaceSlug);
-  const setRosterTab = (tab: TRosterTab) => {
+  const isWorkspaceAdmin = allowPermissions([EUserPermissions.ADMIN], EUserPermissionsLevel.WORKSPACE, workspaceSlug);
+  const setRosterTab = useCallback((tab: TRosterTab) => {
     updateRosterTab(tab);
     setSelectedStatus("");
     setSelectedPlayerIds([]);
-  };
+  }, []);
   const refetchEvents = useCallback(async () => {
     if (!canManage) return;
     setIsLoadingEvents(true);
@@ -596,7 +607,10 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     setSubGroupBy(value === groupBy ? "none" : value);
   };
 
-  const submitPlayer = async (payload: TRosterFormState, options?: { keepOpen?: boolean }) => {
+  const submitPlayer = async (
+    payload: TRosterFormState,
+    options?: { keepOpen?: boolean; existingAccountId?: string }
+  ) => {
     if (!canManage || isSubmitting || !["active", "inactive"].includes(payload.status)) return false;
     if (
       editingPlayer?.registration_status === "pending" ||
@@ -604,6 +618,7 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
       editingPlayer?.status === "removed"
     )
       return false;
+    const observed = beginRosterUI(editingPlayer && editingPlayer.status !== payload.status ? "status" : "save");
     setIsSubmitting(true);
     try {
       if (editingPlayer) {
@@ -611,7 +626,8 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
           workspaceSlug,
           projectId,
           editingPlayer.id,
-          normalizePayload(payload)
+          normalizePayload(payload),
+          observed.headers
         );
         setAllPlayers((currentPlayers) =>
           currentPlayers.map((player) => (player.id === updatedPlayer.id ? updatedPlayer : player))
@@ -625,24 +641,35 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
         const createdPlayer = await rosterService.createRosterPlayer(
           workspaceSlug,
           projectId,
-          normalizePayload(payload)
+          {
+            ...normalizePayload(payload),
+            ...(options?.existingAccountId ? { existing_account_id: options.existingAccountId } : {}),
+          },
+          observed.headers
         );
         setAllPlayers((currentPlayers) => [...currentPlayers, createdPlayer]);
         setToast({
           type: TOAST_TYPE.SUCCESS,
           title: "Success!",
-          message: "Player added successfully.",
+          message: options?.existingAccountId
+            ? "Player added and linked to their existing account."
+            : "Player added successfully.",
         });
       }
 
       if (!options?.keepOpen || editingPlayer) closePlayerModal();
       await refetchRoster();
+      observed.finish("confirmed");
       return true;
     } catch (error) {
+      observed.finish(rosterUIFailure(error));
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Error!",
-        message: getErrorMessage(error, "Player could not be saved. Please try again."),
+        message: getErrorMessage(
+          isAxiosError(error) ? error.response?.data : error,
+          "Player could not be saved. Please try again."
+        ),
       });
       return false;
     } finally {
@@ -697,14 +724,14 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   const openDeleteAccountModal = (target: TAccountDeletionTarget) => {
-    if (canDeleteAccounts) setAccountDeletionTarget(target);
+    if (isWorkspaceAdmin) setAccountDeletionTarget(target);
   };
   const closeDeleteAccountModal = () => setAccountDeletionTarget(null);
-  const deleteAccount = async () => {
-    if (!canDeleteAccounts || !accountDeletionTarget || isSubmitting) return;
+  const deleteAccount = async (confirmation: string) => {
+    if (!isWorkspaceAdmin || !accountDeletionTarget || isSubmitting) return false;
     setIsSubmitting(true);
     try {
-      await rosterService.deletePlayerAccount(workspaceSlug, projectId, accountDeletionTarget.id);
+      await rosterService.deletePlayerAccount(workspaceSlug, projectId, accountDeletionTarget.id, confirmation);
       closeDeleteAccountModal();
       setSelectedPlayerIds([]);
       await refetchRoster();
@@ -714,12 +741,14 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
         title: "Account deleted",
         message: "The athlete account has been permanently deleted.",
       });
+      return true;
     } catch (error) {
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Could not delete account",
         message: getErrorMessage(error, "Please try again."),
       });
+      return false;
     } finally {
       setIsSubmitting(false);
     }
@@ -805,24 +834,56 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const importPlayers = async (playersToImport: IRosterPlayerPayload[]) => {
+  const importPlayers = async (
+    playersToImport: TRosterImportRow[],
+    importId: string,
+    retry = false
+  ): Promise<TRosterImportOutcome> => {
+    const observed = beginRosterUI("import");
     setIsSubmitting(true);
     try {
-      const response = await rosterService.importRoster(workspaceSlug, projectId, { players: playersToImport });
-      setAllPlayers((currentPlayers) => [...currentPlayers, ...response.data]);
+      const response = await rosterService.importRoster(
+        workspaceSlug,
+        projectId,
+        {
+          players: playersToImport,
+          import_id: importId,
+        },
+        observed.headers,
+        observed.progress
+      );
+      if (response?.success !== true || !Array.isArray(response.data)) {
+        observed.finish("unverified");
+        return { kind: "unknown" };
+      }
+      setAllPlayers((currentPlayers) => [
+        ...new Map([...currentPlayers, ...response.data].map((player) => [player.id, player])).values(),
+      ]);
       setToast({
         type: TOAST_TYPE.SUCCESS,
         title: "Success!",
         message: response.message || "Roster imported successfully.",
       });
       closeImportRosterModal();
-      await refetchRoster();
+      void refetchRoster();
+      observed.finish("confirmed");
+      return { kind: "saved" };
     } catch (error) {
+      observed.finish(rosterUIFailure(error));
+      const response = isAxiosError(error) ? error.response : undefined;
+      if (!response || response.status >= 500 || response.status === 408 || response.status === 429)
+        return { kind: "unknown" };
+      // Authorization or routing can reject a retry before it reaches the batch receipt.
+      if (retry && response.status !== 400) return { kind: "unknown" };
+      const row = response.data?.row_error;
+      if (row && typeof row.index === "string" && /^\d+$/.test(row.index) && typeof row.message === "string")
+        return { kind: "rejected", rowError: { index: Number(row.index), message: row.message } };
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Error!",
-        message: getErrorMessage(error, "Roster could not be imported. Please try again."),
+        message: getErrorMessage(response.data, "Roster could not be imported. Please try again."),
       });
+      return { kind: "rejected" };
     } finally {
       setIsSubmitting(false);
     }
@@ -833,7 +894,7 @@ export const RosterProvider = ({ children }: { children: ReactNode }) => {
       value={{
         rosterTab,
         setRosterTab,
-        canDeleteAccounts,
+        canPreviewAccounts: isWorkspaceAdmin,
         events,
         isLoadingEvents,
         eventsError,

@@ -33,7 +33,9 @@ class RosterEmailEditTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(self.coach)
         self.url = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}/roster/"
-        self.mail = self.enterContext(patch("plane.bgtasks.workspace_invitation_task.workspace_invitation.delay"))
+        self.mail = self.enterContext(
+            patch("plane.bgtasks.workspace_invitation_task.roster_player_invitation.apply_async")
+        )
         self.enterContext(patch("plane.utils.cache.invalidate_cache_directly"))
         self.enterContext(patch("plane.db.mixins.soft_delete_related_objects.delay"))
 

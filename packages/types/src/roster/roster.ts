@@ -1,13 +1,21 @@
 export type TRosterPlayerStatus = "active" | "injured" | "inactive" | "pending" | "removed";
 
+export type TRosterInvitationDelivery = {
+  status: "queued" | "sending" | "accepted" | "failed" | "unconfirmed" | "untracked";
+  retry_after: string | null;
+};
+
 export interface IRosterPlayer {
   id: string;
+  member_id?: string;
   program_id: string;
   email?: string;
   account_email?: string | null;
   account_avatar_url?: string | null;
   user?: string | null;
+  account_link_held?: boolean;
   account_status?: "email_missing" | "not_linked" | "invitation_pending" | "linked";
+  invitation_delivery?: TRosterInvitationDelivery | null;
   registration_status?: "pending" | null;
   registration_email?: string | null;
   registration_name?: string | null;
@@ -42,8 +50,11 @@ export interface IRosterPlayerPayload {
   notes?: string | null;
 }
 
+export type TRosterImportRow = IRosterPlayerPayload & { existing_account_id?: string };
+
 export interface IRosterImportPayload {
-  players: IRosterPlayerPayload[];
+  players: TRosterImportRow[];
+  import_id?: string;
 }
 
 export interface IRosterImportResponse {

@@ -3,9 +3,32 @@
 <body style="margin:0;background:#171717;color:#f5f5f5;font:16px system-ui,sans-serif;padding:32px">
 <main style="max-width:480px;margin:48px auto;padding:28px;border:1px solid #404040;border-radius:16px">
 <p style="color:#38bdf8;font-weight:700">KANAVIO</p>
-{% if expired %}<h1>Registration closed</h1><p>This QR code is unavailable or expired. Ask your coach for a new code.</p>
+{% if expired %}<h1>Registration closed</h1><p>This team invitation is unavailable or expired. Ask your coach for a new link or code.</p>
+{% elif script_nonce %}
+<h1>Team registration</h1>
+<p id="team-join-status" role="status">Checking your team invitation…</p>
+<noscript><p>Enable JavaScript to open this link, or scan the QR or enter the code in the Player App.</p></noscript>
+<form method="post" action="{% url 'player-registration-landing' %}" id="team-join-lookup" hidden>
+  {% csrf_token %}<input type="hidden" name="token">
+</form>
+<script nonce="{{ script_nonce }}">
+  (() => {
+    const params = new URLSearchParams(location.hash.slice(1));
+    const token = params.get("token");
+    if (Array.from(params.entries()).length !== 1 || !token || token.length > 2048 || !/^[A-Za-z0-9_:-]+$/.test(token)) {
+      document.getElementById("team-join-status").textContent = "Open the link from your coach or use the short code in the Player App.";
+      return;
+    }
+    const form = document.getElementById("team-join-lookup");
+    try { history.replaceState(null, "", location.pathname); } catch (failure) {}
+    form.elements.namedItem("token").value = token;
+    form.submit();
+  })();
+</script>
 {% else %}<h1>Join {{ registration.program_name }}</h1><p>{{ registration.workspace_name }}</p>
-<p>Open the Kanavio Player App, choose your school server, and tap <strong>Scan team QR</strong>.</p>
-<p>Scan your coach’s QR or enter the team code shown next to it. After signing up or signing in, wait for your coach or admin to approve your roster registration.</p>
+<p><a style="color:#171717;background:#38bdf8;display:inline-block;padding:12px 16px;border-radius:6px;font-weight:700" href="{{ app_url }}">Open in Player App</a></p>
+{% if browser_url %}<p><a style="color:#7dd3fc" href="{{ browser_url }}">Continue in browser</a></p>
+{% else %}<p style="color:#d4d4d4">Browser registration is not configured for this school. On a device with the Player App, open this link or enter the short code from your coach.</p>{% endif %}
+<p>Sign in or create an account, then request to join. Your coach must approve the request before you can access the team.</p>
 <p style="color:#a3a3a3">Registration closes at {{ registration.expires_at }}.</p>{% endif %}
 </main></body></html>

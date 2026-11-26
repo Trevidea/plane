@@ -55,6 +55,7 @@ from .project import (
     ProjectMemberInvite,
     ProjectPublicMember,
 )
+from .roster_import import RosterImportReceipt
 from .session import Session
 from .social_connection import SocialLoginConnection
 from .state import State
@@ -62,6 +63,7 @@ from .user import Account, Profile, User
 from .view import IssueView
 from .webhook import Webhook, WebhookLog
 from .workspace import (
+    RosterInvitationDelivery,
     Workspace,
     WorkspaceBaseModel,
     WorkspaceMember,
@@ -79,6 +81,8 @@ from .issue_type import IssueType
 
 from .recent_visit import UserRecentVisit
 from .roster import RosterPlayer, RosterPlayerStatus, RosterEvent
+from .roster_notice import RosterNotice, RosterNoticeKind
+from .team_season import RosterJerseyAssignment, TeamSeason, TeamSeasonStaff
 
 from .label import Label
 
@@ -88,5 +92,5 @@ from .sticky import Sticky
 
 from .description import Description, DescriptionVersion
 from .player_activity import PlayerActivityProgress
-from .player_registration import PlayerRegistrationSession, PlayerRegistrationRequest
+from .player_registration import PlayerPasswordReset, PlayerRegistrationSession, PlayerRegistrationRequest
 from .private_card_message import CoachingCardPrivateMessage, CoachingCardPrivateAttachment

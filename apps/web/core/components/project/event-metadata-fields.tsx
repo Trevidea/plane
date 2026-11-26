@@ -11,9 +11,10 @@ import { YearRangeDropdown } from "@/components/dropdowns/year-property";
 type Props = {
   control: Control<IProject>;
   disabled?: boolean;
+  futureSeasonYears?: number;
 };
 
-export function ProjectEventMetadataFields({ control, disabled }: Props) {
+export function ProjectEventMetadataFields({ control, disabled, futureSeasonYears = 0 }: Props) {
   const { t } = useTranslation();
   const fields = [
     { name: "event_season", label: t("year_field"), Dropdown: YearRangeDropdown },
@@ -36,6 +37,7 @@ export function ProjectEventMetadataFields({ control, disabled }: Props) {
                 placeholder={label}
                 buttonVariant="border-with-text"
                 disabled={disabled}
+                {...(name === "event_season" ? { futureYears: futureSeasonYears } : {})}
               />
             </div>
           )}

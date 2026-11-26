@@ -6,7 +6,9 @@ import re
 from itertools import islice
 
 PRIVATE = re.compile(
-    r"authorization|password|secret|token|cookie|headers|private.?key|signed|body|payload|sql|params|parameters|email|player_name|full_name",
+    r"authorization|password|secret|token|cookie|headers|private.?key|signed|body|payload|sql|params|parameters"
+    r"|email|(?:player|full|first|last)[_-]?name|graduation[_-]?year|birth[_-]?date"
+    r"|(?:reset|short|join|invite|registration)[_-]?code|avatar|photo|file[_-]?name|roster[_-]?rows",
     re.I,
 )
 BUILTINS = frozenset(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
@@ -24,7 +26,8 @@ def clean(value, depth=0, budget=None):
         value = re.sub(r"(https?://[^?\s]+)\?[^\s]+", r"\1?[REDACTED]", value)
         value = re.sub(r"\b[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}\b", "[REDACTED EMAIL]", value)
         value = re.sub(
-            r"\b(?:password|secret|token|authorization|cookie|body|payload|sql|params|parameters)\s*[:=].*",
+            r"\b(?:password|secret|token|authorization|cookie|body|payload|sql|params|parameters"
+            r"|(?:reset|short|join|invite|registration)[_-]?code|avatar[_-]?url|photo[_-]?url)\s*[:=].*",
             "[REDACTED FIELDS]",
             value,
             flags=re.I | re.S,

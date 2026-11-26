@@ -39,12 +39,11 @@ GUNICORN_KEEP_ALIVE="${GUNICORN_KEEP_ALIVE:-120}"
 
 exec gunicorn \
   -w "$GUNICORN_WORKERS" \
-  -k uvicorn.workers.UvicornWorker \
+  -k plane.utils.asgi_worker.DiagnosticUvicornWorker \
   plane.asgi:application \
   --bind 0.0.0.0:"${PORT:-8000}" \
   --timeout "$GUNICORN_TIMEOUT" \
   --graceful-timeout "$GUNICORN_GRACEFUL_TIMEOUT" \
   --keep-alive "$GUNICORN_KEEP_ALIVE" \
   --max-requests 1200 \
-  --max-requests-jitter 1000 \
-  --access-logfile -
+  --max-requests-jitter 1000

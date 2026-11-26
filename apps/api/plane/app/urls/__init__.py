@@ -12,6 +12,7 @@ from .page import urlpatterns as page_urls
 from .player import urlpatterns as player_urls
 from .project import urlpatterns as project_urls
 from .roster import urlpatterns as roster_urls
+from .team_admin import urlpatterns as team_admin_urls
 from .media_library import urlpatterns as media_library_urls
 from .search import urlpatterns as search_urls
 from .state import urlpatterns as state_urls
@@ -36,6 +37,7 @@ urlpatterns = [
     *page_urls,
     *project_urls,
     *roster_urls,
+    *team_admin_urls,
     *media_library_urls,
     *search_urls,
     *state_urls,

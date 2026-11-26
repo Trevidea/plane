@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Ban, Copy, Globe, Info, Maximize2, Minimize2, QrCode, RefreshCw, X } from "lucide-react";
 import { Dialog } from "@headlessui/react";
+import { isAxiosError } from "axios";
 import { Button, EModalWidth, Input, ModalCore } from "@plane/ui";
 import { RosterService } from "@/services/roster.service";
 import type { TRosterRegistration } from "@/services/roster.service";
@@ -22,7 +23,7 @@ export const RegistrationQRModal = ({
   const [session, setSession] = useState<TRosterRegistration | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -49,19 +50,38 @@ export const RegistrationQRModal = ({
   const mutate = async (close: boolean) => {
     setBusy(true);
     setError("");
-    setCopied(false);
+    setCopied(null);
     try {
       if (close) {
-        await service.closeRegistration(workspaceSlug, projectId);
+        await service.closeRegistration(workspaceSlug, projectId, session?.version);
         setSession(null);
       } else {
-        setSession(await service.generateRegistration(workspaceSlug, projectId));
+        setSession(await service.generateRegistration(workspaceSlug, projectId, active ? session?.version : "none"));
         setNow(Date.now());
       }
-    } catch {
-      setError("Unable to update registration. Check your roster and workspace permissions, then try again.");
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 412) {
+        try {
+          setSession(await service.getRegistration(workspaceSlug, projectId));
+          setNow(Date.now());
+          setError("Registration changed in another window. Review the current invitation before updating it.");
+        } catch {
+          setError("Registration changed. Close and reopen this window before updating it.");
+        }
+      } else {
+        setError("Unable to update registration. Check your roster and workspace permissions, then try again.");
+      }
     } finally {
       setBusy(false);
+    }
+  };
+  const copy = async (kind: "code" | "link", value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      setError("");
+    } catch {
+      setError("Copy is unavailable. Select and copy the text.");
     }
   };
   let server = "";
@@ -86,7 +106,7 @@ export const RegistrationQRModal = ({
         <div>
           <Dialog.Title className="text-base font-semibold text-custom-text-100">Team join code</Dialog.Title>
           <p className="mt-1 text-xs leading-5 text-custom-text-300">
-            Share the QR or short code so players can register or sign in to this program.
+            Share the QR, short code or link so players can request to join this program.
           </p>
         </div>
         <Button
@@ -109,7 +129,7 @@ export const RegistrationQRModal = ({
         {active && session ? (
           <>
             <div className={`grid items-start gap-5 ${expanded ? "" : "sm:grid-cols-[180px_1fr]"}`}>
-              <div className="mx-auto max-w-full rounded-lg border border-custom-border-200 bg-white p-3">
+              <div data-support-private className="mx-auto max-w-full rounded-lg border border-custom-border-200 bg-white p-3">
                 <QRCodeSVG
                   value={session.url}
                   size={expanded ? 288 : 156}
@@ -119,17 +139,27 @@ export const RegistrationQRModal = ({
                 />
               </div>
               <div className="min-w-0 space-y-4">
-                <div>
+                <div data-support-private>
                   <p className="text-xs text-custom-text-400">Program</p>
                   <p className="mt-1 text-sm font-medium text-custom-text-100">{session.program_name}</p>
                   <p className="mt-1 text-xs text-custom-text-300">{session.workspace_name}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-custom-text-400">Short code</p>
-                  <p className="mt-1 select-all font-mono text-xl font-semibold tracking-wider text-custom-text-100">
-                    {session.join_code}
-                  </p>
-                </div>
+                {session.short_code && (
+                  <div>
+                    <p className="text-xs text-custom-text-400">Short code</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <code data-support-private className="text-lg font-semibold text-custom-text-100">{session.short_code}</code>
+                      <Button
+                        variant="neutral-primary"
+                        size="sm"
+                        prependIcon={<Copy />}
+                        onClick={() => void copy("code", session.short_code!)}
+                      >
+                        {copied === "code" ? "Code copied" : "Copy code"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label htmlFor="roster-registration-link" className="text-xs text-custom-text-300">
                     Join link
@@ -137,6 +167,7 @@ export const RegistrationQRModal = ({
                   <div className="mt-1.5 flex gap-2">
                     <Input
                       id="roster-registration-link"
+                      data-support-private
                       aria-label="Registration link"
                       readOnly
                       value={session.url}
@@ -146,21 +177,16 @@ export const RegistrationQRModal = ({
                       variant="neutral-primary"
                       size="sm"
                       prependIcon={<Copy />}
-                      onClick={() => {
-                        void navigator.clipboard
-                          .writeText(session.url)
-                          .then(() => setCopied(true))
-                          .catch(() => setError("Copy is unavailable. Select and copy the registration link."));
-                      }}
+                      onClick={() => void copy("link", session.url)}
                     >
-                      {copied ? "Copied" : "Copy"}
+                      {copied === "link" ? "Copied" : "Copy"}
                     </Button>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-xs">
                   <Globe className="mt-0.5 size-3.5 shrink-0 text-custom-text-400" />
                   <div>
-                    <p className="break-all text-custom-text-200">{server}</p>
+                    <p data-support-private className="break-all text-custom-text-200">{server}</p>
                     <p className="mt-1 text-custom-text-400">School server</p>
                   </div>
                 </div>
@@ -177,9 +203,9 @@ export const RegistrationQRModal = ({
             <div className="flex items-start gap-2 rounded-lg border border-custom-border-200 bg-custom-background-90 p-3">
               <Info className="mt-0.5 size-4 shrink-0 text-custom-primary-100" />
               <p className="text-xs leading-5 text-custom-text-300">
-                In the Player App, select this school’s server and tap{" "}
+                Share the link by email or team chat. In the Player App, select this school’s server and tap{" "}
                 <strong className="font-medium text-custom-text-200">Scan team QR</strong> to scan the QR or enter the
-                short code. A coach approves registrations before players gain access.
+                short code. A coach approves requests before players gain access.
               </p>
             </div>
           </>
@@ -192,10 +218,10 @@ export const RegistrationQRModal = ({
               <QrCode className="mb-3 size-8 text-custom-text-400" />
               <p className="text-sm font-medium text-custom-text-200">
                 {session
-                  ? "This QR has expired. Generate a new QR to continue."
+                  ? "The team invitation expired."
                   : "Registration is closed. Generate a QR to let athletes join."}
               </p>
-              <p className="mt-2 text-xs text-custom-text-400">Generating a new QR also generates a new short code.</p>
+              <p className="mt-2 text-xs text-custom-text-400">The QR, code and link expire together.</p>
             </div>
           )
         )}
@@ -205,7 +231,8 @@ export const RegistrationQRModal = ({
           </p>
         )}
         <p className="text-xs leading-5 text-custom-text-400">
-          Closing this window keeps registration open until it expires. Replacing the QR invalidates the previous code.
+          Closing this window keeps registration open. Replacing or closing registration invalidates the current QR,
+          link and code.
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-custom-border-200 px-5 py-3">

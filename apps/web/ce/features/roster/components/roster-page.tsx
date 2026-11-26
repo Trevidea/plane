@@ -1,21 +1,25 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { observer } from "mobx-react";
 import { Pause, Play, Radio, RefreshCw, Trash2, X } from "lucide-react";
+import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { AlertModalCore, Button, cn } from "@plane/ui";
 import { PageHead } from "@/components/core/page-title";
+import { useUserPermissions } from "@/hooks/store/user";
 import type { TRosterTab } from "../store/roster-context";
 import { useRoster } from "../store/roster-context";
 import { summarizeRoster } from "../utils/roster-presentation";
+import { DelegatedRosterEditor } from "./delegated-roster-editor";
 import { RosterEmptyState } from "./roster-empty-state";
 import { RosterEventLog } from "./roster-event-log";
 import { RosterJoinRequests } from "./roster-join-requests";
 import { RosterTable } from "./roster-list";
 import { AddPlayerModal, DeleteAccountModal, DeletePlayerModal, ImportRosterModal } from "./roster-modals";
 import { RosterPlayerDetails } from "./roster-player-details";
+import { RosterIssueReport } from "./roster-issue-report";
 
-const ProgramRosterPage = observer(() => {
+const ProgramRosterPage = observer(({ openJoinRequests = false }: { openJoinRequests?: boolean }) => {
   const {
     allPlayers,
     players,
@@ -27,6 +31,8 @@ const ProgramRosterPage = observer(() => {
     rosterTab,
     setRosterTab,
     canManage,
+    workspaceSlug,
+    projectId,
     selectedPlayerIds,
     selectedPlayers,
     setSelectedPlayerStatus,
@@ -37,7 +43,11 @@ const ProgramRosterPage = observer(() => {
     deleteSelectedPlayers,
     isSubmitting,
   } = useRoster();
+  const { allowPermissions } = useUserPermissions();
   const [detailId, setDetailId] = useState<string | null>(null);
+  useEffect(() => {
+    if (openJoinRequests && canManage) setRosterTab("requests");
+  }, [openJoinRequests, canManage, setRosterTab]);
   const closeDetails = useCallback(() => setDetailId(null), []);
   const detailPlayer = allPlayers.find((player) => player.id === detailId);
   const summary = summarizeRoster(allPlayers);
@@ -61,6 +71,20 @@ const ProgramRosterPage = observer(() => {
       <PageHead title="Roster" />
       <div className="roster-surface relative flex h-full min-h-0 w-full flex-col bg-custom-background-100">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-custom-border-200 px-4 py-2 sm:px-6">
+          {canManage && <RosterIssueReport key={projectId} />}
+          {!canManage &&
+            allowPermissions(
+              [EUserPermissions.ADMIN, EUserPermissions.MEMBER],
+              EUserPermissionsLevel.WORKSPACE,
+              workspaceSlug
+            ) && (
+              <DelegatedRosterEditor
+                key={projectId}
+                slug={workspaceSlug}
+                project={projectId}
+                onChange={refetchRoster}
+              />
+            )}
           <div className="flex items-center gap-1 overflow-x-auto" role="tablist" aria-label="Roster views">
             {tabs.map((tab, index) => (
               <Button

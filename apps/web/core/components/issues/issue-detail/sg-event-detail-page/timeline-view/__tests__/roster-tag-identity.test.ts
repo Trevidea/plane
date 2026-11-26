@@ -21,6 +21,14 @@ test("malformed references cannot manufacture named historical players", () => {
 });
 
 test("Phase1 object context retains the same stable roster references as gateway string pins", () => {
-  const references = { rosters: member };
-  assert.equal(getNestedRosterContext({ context: { roster_members: references } }), JSON.stringify(references));
+  const references = { rosters: { member_id: member.id, jersey: member.jersey } };
+  for (const field of ["context", "event_context"]) {
+    const pins = getNestedRosterContext({ [field]: { roster_members: references } });
+    assert.deepEqual(getTagRosterMembers({ roster_members: pins ?? "" }), [member]);
+  }
+  assert.deepEqual(getTagRosterMembers({ roster_members: JSON.stringify({ rosters: member }) }), [member]);
+});
+test("conflicting aliases cannot change the player on a saved tag", () => {
+  const references = { rosters: { ...member, member_id: "22222222-2222-4222-8222-222222222222" } };
+  assert.deepEqual(getTagRosterMembers({ roster_members: JSON.stringify(references) }), []);
 });

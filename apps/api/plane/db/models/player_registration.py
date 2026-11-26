@@ -9,7 +9,8 @@ from .project import ProjectBaseModel
 
 class PlayerRegistrationSession(ProjectBaseModel):
     nonce = models.UUIDField(default=uuid.uuid4, editable=False)
-    join_code = models.CharField(max_length=8, null=True, blank=True, unique=True)
+    team_season = models.ForeignKey("db.TeamSeason", on_delete=models.CASCADE, null=True, editable=False)
+    code_digest = models.CharField(max_length=64, unique=True, null=True, editable=False)
     expires_at = models.DateTimeField()
     closed_at = models.DateTimeField(null=True, blank=True)
 
@@ -38,3 +39,17 @@ class PlayerRegistrationRequest(ProjectBaseModel):
                 name="unique_program_player_registration",
             )
         ]
+
+
+class PlayerPasswordReset(models.Model):
+    user = models.OneToOneField("db.User", primary_key=True, on_delete=models.CASCADE)
+    roster_player = models.ForeignKey("db.RosterPlayer", on_delete=models.CASCADE)
+    issued_by = models.ForeignKey("db.User", null=True, on_delete=models.SET_NULL, related_name="+")
+    generation = models.UUIDField(default=uuid.uuid4, editable=False)
+    digest = models.CharField(max_length=64)
+    issued_at = models.DateTimeField()
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "player_password_resets"

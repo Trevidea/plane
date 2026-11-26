@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import secrets
 from uuid import UUID
 
 from django.core.cache import cache
@@ -9,19 +10,22 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 
 from plane.authentication.adapter.error import AuthenticationException, AUTHENTICATION_ERROR_CODES
 from plane.authentication.views.player_invitation import private
+from plane.utils.enrollment_reports import bind_project
 from plane.utils.player_registration import (
     InvalidRegistration,
     RegistrationAccountExists,
     InvalidRegistrationToken,
     WeakRegistrationPassword,
     accept_registration,
+    exchange_registration_code,
+    registration_handoff,
     registration_session,
-    registration_session_for_code,
-    registration_ticket,
     session_details,
 )
 
@@ -43,7 +47,7 @@ def unavailable(status=400):
         JsonResponse(
             {
                 "detail": (
-                    "Registration unavailable. Check your details or ask your coach for a new QR or team code."
+                    "Registration unavailable. Check your details or ask your coach for a new QR or email invitation."
                 )
             },
             status=status,
@@ -59,30 +63,33 @@ def registration_error(code):
         ),
         "password_mismatch": "Your passwords do not match. Enter the same password in both fields.",
         "registration_unavailable": (
-            "This registration is expired, replaced or unavailable. "
-            "Ask your coach for a new QR or team code."
+            "This team invitation is expired, replaced or unavailable. "
+            "Ask your coach for a new link or code."
         ),
         "signup_disabled": "New account signup is disabled on this server. Contact your school administrator.",
     }
     return private(JsonResponse({"code": code, "detail": messages[code]}, status=400))
 
 
+@method_decorator(sensitive_post_parameters(), name="dispatch")
 class PlayerRegistrationPreviewEndpoint(View):
+    @sensitive_variables()
     def post(self, request):
-        if limited(request, "preview", 300):
-            return unavailable(429)
         try:
             if len(request.body) > 4096:
                 raise InvalidRegistration()
             payload = json.loads(request.body)
-            if not isinstance(payload, dict):
-                raise InvalidRegistration()
-            if set(payload) == {"code"}:
-                session = registration_session_for_code(payload["code"])
-                details = session_details(session, user=request.user)
-                details["token"] = registration_ticket(session)
-                return private(JsonResponse(details))
-            if "token" not in payload or set(payload) - {"token", "roster_offset", "roster_search"}:
+            if isinstance(payload, dict) and set(payload) == {"code"}:
+                request._roster_code_lookup = True
+                if limited(request, "code-network", 100) or limited(request, "code-installation", 1000, "all"):
+                    return unavailable(429)
+                return private(JsonResponse({"token": exchange_registration_code(payload["code"], request)}))
+            if limited(request, "preview", 300):
+                return unavailable(429)
+            if (
+                not isinstance(payload, dict) or "token" not in payload
+                or set(payload) - {"token", "roster_offset", "roster_search"}
+            ):
                 raise InvalidRegistration()
             offset, search = payload.get("roster_offset", 0), payload.get("roster_search", "")
             if (
@@ -90,8 +97,10 @@ class PlayerRegistrationPreviewEndpoint(View):
                 or not isinstance(search, str) or len(search) > 100
             ):
                 raise InvalidRegistration()
+            session = registration_session(payload["token"])
+            bind_project(request, session.workspace.slug, session.project_id)
             details = session_details(
-                registration_session(payload["token"]), user=request.user,
+                session, user=request.user,
                 roster_offset=offset, roster_search=search.strip()
             )
             return private(JsonResponse(details))
@@ -99,18 +108,48 @@ class PlayerRegistrationPreviewEndpoint(View):
             return unavailable()
 
 
+@method_decorator(sensitive_post_parameters(), name="dispatch")
 class PlayerRegistrationLandingEndpoint(View):
+    @sensitive_variables()
     def get(self, request):
+        tokens = request.GET.getlist("token")
+        if not request.GET:
+            nonce = secrets.token_urlsafe(24)
+            return self.render_page(request, {"script_nonce": nonce}, script_nonce=nonce)
+        return self.confirm(request, tokens[0] if len(tokens) == 1 else "")
+
+    @sensitive_variables()
+    def post(self, request):
+        if limited(request, "landing", 300):
+            return self.render_page(request, {"expired": True}, status=429)
+        if request.content_type != "application/x-www-form-urlencoded" or len(request.body) > 4096:
+            return self.render_page(request, {"expired": True}, status=400)
+        values = request.POST
+        tokens = values.getlist("token")
+        return self.confirm(request, tokens[0] if len(tokens) == 1 else "")
+
+    @staticmethod
+    def render_page(request, context, *, status=200, script_nonce=None):
+        response = private(
+            render(request, "emails/invitations/player_registration.html", context, status=status),
+            script_nonce=script_nonce,
+        )
+        if not script_nonce:
+            response["Referrer-Policy"] = "no-referrer"
+        return response
+
+    @sensitive_variables()
+    def confirm(self, request, token):
         try:
-            details = session_details(registration_session(request.GET.get("token", "")))
-            return private(render(request, "emails/invitations/player_registration.html", {"registration": details}))
+            details = session_details(registration_session(token))
+            return self.render_page(request, {"registration": details, **registration_handoff(token)})
         except InvalidRegistration:
-            return private(
-                render(request, "emails/invitations/player_registration.html", {"expired": True}, status=400)
-            )
+            return self.render_page(request, {"expired": True}, status=400)
 
 
+@method_decorator(sensitive_post_parameters(), name="dispatch")
 class PlayerRegistrationAcceptEndpoint(View):
+    @sensitive_variables()
     def post(self, request):
         # School NATs, reverse proxies and the browser gateway share REMOTE_ADDR.
         # Keep a generous network ceiling plus a separate per-account attempt limit.
@@ -139,7 +178,10 @@ class PlayerRegistrationAcceptEndpoint(View):
                 request, roster_player_id=player_id, account_only=values.get("account_only") == "1",
                 **{key: values.get(key, "") for key in ("token", "name", "email", "password", "mode")}
             )
-            return private(JsonResponse({"accepted": True, "user_id": str(user.id)}))
+            return private(JsonResponse({
+                "accepted": True, "user_id": str(user.id),
+                "registration_state": getattr(request, "_roster_registration_state", None),
+            }))
         except RegistrationAccountExists:
             return private(
                 JsonResponse(

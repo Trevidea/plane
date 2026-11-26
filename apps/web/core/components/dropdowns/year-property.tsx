@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { observer } from "mobx-react";
 import { createPortal } from "react-dom";
 import { usePopper } from "react-popper";
@@ -19,6 +19,7 @@ type Props = TDropdownProps & {
   placeholder?: string;
   disabled?: boolean;
   startYear?: number;
+  futureYears?: number;
   renderByDefault?: boolean;
   icon?: React.ReactNode;
   clearIconClassName?: string;
@@ -42,6 +43,7 @@ export const YearRangeDropdown: React.FC<Props> = observer((props) => {
     value,
     onChange,
     startYear = 2020,
+    futureYears = 0,
     dropdownClassName = "",
     isClearable = true,
   } = props;
@@ -66,7 +68,7 @@ export const YearRangeDropdown: React.FC<Props> = observer((props) => {
 
   /* Generate Year Ranges */
   const generateYearSessions = (startYear: number): string[] => {
-    const currentYear = new Date().getFullYear();
+    const currentYear = new Date().getFullYear() + futureYears;
     const sessions: string[] = [];
     for (let year = currentYear; year >= startYear; year--) {
       sessions.push(`${year}-${year + 1}`);

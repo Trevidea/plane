@@ -114,10 +114,14 @@ class Adapter:
             user_activation_email.delay(base_host(request=self.request), user.id)
         # Set user as active
         user.is_active = True
-        user.save()
+        # Login bookkeeping must not write an older password over a concurrent reset.
+        user.save(update_fields=[
+            "last_login_medium", "last_active", "last_login_time", "last_login_ip", "last_login_uagent",
+            "token", "token_updated_at", "is_active", "display_name", "updated_at",
+        ])
         return user
 
-    def complete_login_or_signup(self):
+    def complete_login_or_signup(self, verified_user=None):
         # Get email
         email = self.user_data.get("email")
 
@@ -125,7 +129,7 @@ class Adapter:
         email = self.sanitize_email(email)
 
         # Check if the user is present
-        user = User.objects.filter(email=email).first()
+        user = verified_user if verified_user is not None else User.objects.filter(email=email).first()
         # Check if sign up case or login
         is_signup = bool(user)
         # If user is not present, create a new user

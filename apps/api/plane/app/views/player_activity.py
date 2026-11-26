@@ -8,11 +8,12 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.html import format_html
 from rest_framework import serializers
+from rest_framework.permissions import SAFE_METHODS
 from rest_framework.response import Response
 
 from plane.app.views.base import BaseAPIView
 from plane.app.views.player import PlayerProgramQuerySerializer, _eligible_roster
-from plane.db.models import CardStageHistory, CommentReaction, Issue, IssueReaction, PlayerActivityProgress, Project
+from plane.db.models import CardStageHistory, CommentReaction, IssueReaction, PlayerActivityProgress, Project
 from plane.utils.coaching_card import COACHING_CARD_CATEGORY
 from plane.utils.player_activity_access import (
     activity_data,
@@ -58,7 +59,10 @@ class PlayerActivityBase(BaseAPIView):
 
     def activity(self, request, slug, project_id, issue_id):
         return get_object_or_404(
-            player_activities(request.user), pk=issue_id, project_id=project_id, workspace__slug=slug
+            player_activities(request.user, writable=request.method not in SAFE_METHODS),
+            pk=issue_id,
+            project_id=project_id,
+            workspace__slug=slug,
         )
 
 
@@ -242,17 +246,14 @@ class PlayerRoleEndpoint(PlayerActivityBase):
 
 class PlayerStageHistoryEndpoint(PlayerActivityBase):
     def get(self, request, slug, project_id):
-        player = get_object_or_404(_eligible_roster(request.user), project_id=project_id, project__workspace__slug=slug)
+        get_object_or_404(_eligible_roster(request.user), project_id=project_id, project__workspace__slug=slug)
         query = PlayerProgramQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
         limit, offset = query.validated_data["limit"], query.validated_data["offset"]
-        legacy = Q(coaching_card_data__recipient_ids__isnull=True) | Q(coaching_card_data__recipient_ids=None)
-        cards = Issue.issue_objects.filter(
-            Q(coaching_card_data__recipient_ids__contains=[str(player.id)]) | (legacy & Q(roster_player_id=player.id)),
+        cards = player_activities(request.user).filter(
             project_id=project_id,
-            workspace_id=player.workspace_id,
+            workspace__slug=slug,
             category=COACHING_CARD_CATEGORY,
-            archived_at__isnull=True,
         )
         history = (
             CardStageHistory.objects.filter(issue_id__in=cards.values("id"))

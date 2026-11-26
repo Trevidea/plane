@@ -11,6 +11,7 @@ from plane.db.models import (
     WorkspaceMember,
     ProjectMember,
     RosterPlayer,
+    RosterNotice,
     Issue,
     State,
 )
@@ -18,7 +19,10 @@ from plane.utils.player_activity_access import player_activities, player_program
 from plane.utils.user_role_access import user_readonly_projects
 
 
-@override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+@override_settings(
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+    ROSTER_ACCOUNT_DELETION_ENABLED=True,
+)
 class RosterLifecycleTests(TestCase):
     def setUp(self):
         self.coach = User.objects.create(email="lifecycle-admin@fixture.test", username="lc-admin")
@@ -58,6 +62,13 @@ class RosterLifecycleTests(TestCase):
         self.root = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}/roster/"
         self.url = self.root + str(self.player.id) + "/"
         self.enterContext(patch("plane.db.mixins.soft_delete_related_objects.delay"))
+
+    def confirm_account_deletion(self):
+        preview = self.client.get(self.url + "account/")
+        self.assertEqual(preview.status_code, 200, preview.content)
+        return self.client.delete(
+            self.url + "account/", {"confirmation": preview.json()["confirmation"]}, format="json"
+        )
 
     def test_inactive_keeps_own_cards_but_revokes_team_access_and_frees_jersey(self):
         response = self.client.patch(self.url, {"status": "inactive"}, format="json")
@@ -110,6 +121,7 @@ class RosterLifecycleTests(TestCase):
         WorkspaceMember.objects.create(workspace=self.workspace, member=member, role=15)
         ProjectMember.objects.create(project=self.project, member=member, role=15)
         self.client.force_authenticate(member)
+        self.assertEqual(self.client.get(self.root + "account-deletion/").status_code, 403)
         self.assertEqual(self.client.delete(self.url + "account/").status_code, 403)
         self.assertEqual(self.client.delete(self.url).status_code, 200)
         self.assertTrue(User.objects.filter(pk=self.athlete.id).exists())
@@ -140,9 +152,23 @@ class RosterLifecycleTests(TestCase):
         second_player = RosterPlayer.objects.create(
             project=second, user=self.athlete, player_name="Athlete Name", jersey_number="5"
         )
-        response = self.client.delete(self.url + "account/")
+        notice = RosterNotice.objects.create(
+            project=second, receiver=self.athlete, kind="team_added",
+            event_id=second_player.pk, roster_identity=second_player.pk,
+        )
+        preview = self.client.get(self.url + "account/")
+        self.assertEqual(preview.status_code, 200, preview.content)
+        self.assertEqual(preview.json()["impact"]["personal_cards"], 1)
+        self.assertEqual(preview.json()["impact"]["shared_cards"], 1)
+        self.assertEqual(preview.json()["impact"]["roster_entries"], 2)
+        self.assertEqual(preview.json()["impact"]["roster_notices"], 1)
+        self.assertTrue(User.objects.filter(pk=self.athlete.pk).exists())
+        response = self.client.delete(
+            self.url + "account/", {"confirmation": preview.json()["confirmation"]}, format="json"
+        )
         self.assertEqual(response.status_code, 204, getattr(response, "data", None))
         self.assertFalse(User.objects.filter(pk=self.athlete.id).exists())
+        self.assertFalse(RosterNotice.objects.filter(pk=notice.pk).exists())
         self.assertFalse(Issue.all_objects.filter(pk=self.card.id).exists())
         for roster in [self.player, second_player]:
             roster.refresh_from_db()
@@ -164,6 +190,54 @@ class RosterLifecycleTests(TestCase):
         self.assertEqual(
             self.client.post(self.root, {"player_name": "Removed", "status": "removed"}, format="json").status_code, 400
         )
+
+    @override_settings(ROSTER_ACCOUNT_DELETION_ENABLED=False)
+    def test_permanent_account_deletion_is_disabled_by_default(self):
+        policy = self.client.get(self.root + "account-deletion/")
+        self.assertEqual(policy.status_code, 200)
+        self.assertEqual(policy.data, {"enabled": False})
+        self.assertIn("no-store", policy.headers["Cache-Control"])
+        preview = self.client.get(self.url + "account/")
+        self.assertEqual(preview.status_code, 200, preview.content)
+        self.assertFalse(preview.json()["enabled"])
+        self.assertIsNone(preview.json()["confirmation"])
+        response = self.client.delete(self.url + "account/")
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(User.objects.filter(pk=self.athlete.pk).exists())
+        self.assertTrue(Issue.objects.filter(pk=self.card.pk).exists())
+
+    def test_delete_refuses_missing_confirmation_and_changed_impact(self):
+        self.assertEqual(self.client.delete(self.url + "account/").status_code, 400)
+        self.assertEqual(self.client.delete(self.url + "account/", ["invalid"], format="json").status_code, 400)
+        preview = self.client.get(self.url + "account/").json()
+        Issue.objects.create(
+            project=self.project, name="Newly assigned", category="Coaching Card", roster_player=self.player
+        )
+        result = self.client.delete(self.url + "account/", {"confirmation": preview["confirmation"]}, format="json")
+        self.assertEqual(result.status_code, 409, result.content)
+        self.assertTrue(User.objects.filter(pk=self.athlete.pk).exists())
+
+    def test_account_delete_requires_csrf_even_with_valid_preview(self):
+        protected = APIClient(enforce_csrf_checks=True)
+        protected.force_login(self.coach)
+        preview = protected.get(self.url + "account/")
+        self.assertEqual(preview.status_code, 200, preview.content)
+        self.assertEqual(protected.delete(
+            self.url + "account/", {"confirmation": preview.json()["confirmation"]}, format="json"
+        ).status_code, 403)
+        self.assertTrue(User.objects.filter(pk=self.athlete.pk).exists())
+
+    def test_scope_guard_denies_deletion_for_account_with_historical_foreign_membership(self):
+        other_workspace = Workspace.objects.create(name="Another school", slug="lifecycle-another", owner=self.coach)
+        foreign_membership = WorkspaceMember.objects.create(
+            workspace=other_workspace, member=self.athlete, role=1, is_active=False
+        )
+        response = self.client.delete(self.url + "account/")
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(User.objects.filter(pk=self.athlete.pk).exists())
+        self.assertTrue(WorkspaceMember.objects.filter(pk=foreign_membership.pk).exists())
+        self.assertTrue(Issue.objects.filter(pk=self.card.pk).exists())
+
 
     def test_legacy_injured_status_is_normalized_to_active(self):
         response = self.client.patch(self.url, {"status": "injured"}, format="json")
@@ -214,7 +288,7 @@ class RosterLifecycleTests(TestCase):
         )
         self.player.first_tagged_at = timezone.now()
         self.player.save()
-        self.assertEqual(self.client.delete(self.url + "account/").status_code, 204)
+        self.assertEqual(self.confirm_account_deletion().status_code, 204)
         photo.refresh_from_db()
         self.assertTrue(photo.is_deleted)
         self.assertIsNotNone(photo.deleted_at)
@@ -251,7 +325,7 @@ class RosterLifecycleTests(TestCase):
             entity_type="COMMENT_DESCRIPTION",
             asset="shared-film.mp4",
         )
-        self.assertEqual(self.client.delete(self.url + "account/").status_code, 204)
+        self.assertEqual(self.confirm_account_deletion().status_code, 204)
         self.assertTrue(FileAsset.all_objects.filter(pk=film.pk).exists())
         comment.refresh_from_db()
         self.assertIsNone(comment.actor_id)

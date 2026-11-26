@@ -257,6 +257,27 @@ class WorkspaceMemberInvite(BaseModel):
         return f"{self.workspace.name} {self.email} {self.accepted}"
 
 
+class RosterInvitationDelivery(models.Model):
+    """Latest roster email attempt for a shared workspace invitation."""
+
+    class State(models.TextChoices):
+        QUEUED = "queued"
+        SENDING = "sending"
+        ACCEPTED = "accepted"
+        FAILED = "failed"
+        UNCONFIRMED = "unconfirmed"
+
+    invitation = models.OneToOneField(
+        WorkspaceMemberInvite, on_delete=models.CASCADE, primary_key=True, related_name="roster_delivery"
+    )
+    attempt_id = models.UUIDField()
+    state = models.CharField(max_length=16, choices=State.choices)
+    changed_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "roster_invitation_deliveries"
+
+
 class Team(BaseModel):
     name = models.CharField(max_length=255, verbose_name="Team Name")
     description = models.TextField(verbose_name="Team Description", blank=True)

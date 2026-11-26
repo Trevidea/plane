@@ -27,6 +27,7 @@ class PlayerRegistrationRequestsEndpoint(BaseAPIView):
                 user__is_active=True,
                 approved_at__isnull=True,
                 roster_player__deleted_at__isnull=True,
+                roster_player__account_link_held=False,
                 project__deleted_at__isnull=True,
                 project__archived_at__isnull=True,
                 workspace__deleted_at__isnull=True,
@@ -78,6 +79,7 @@ class PlayerProgramsEndpoint(BaseAPIView):
         players = (
             _eligible_roster(request.user)
             .filter(Q(status__in=["active", "injured"]) | Q(project_id__in=own_projects))
+            .select_related("project__team_season")
             .order_by("project__workspace__slug", "project__name", "project_id", "id")
         )
         total = players.count()
@@ -102,6 +104,8 @@ class PlayerProgramsEndpoint(BaseAPIView):
                         "sport": player.project.sport or "",
                         "logo_props": player.project.logo_props,
                         "player_id": str(player.id),
+                        "member_id": str(player.id),
+                        "team_season_id": getattr(getattr(player.project, "team_season", None), "pk", None),
                         "stages": stages.get(player.project_id, []),
                         "roster": {
                             "player_name": player.player_name,
