@@ -274,7 +274,7 @@ class PrivateClipUploadEndpoint(BaseAPIView):
     def post(self, request, slug, project_id, card_id, recipient_user_id=None):
         from .private_card_thread import participant_context, private_response
 
-        card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
+        card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id, writing=True)
         content_type = request.content_type
         try:
             declared = int(request.headers.get("X-Video-Size", request.headers.get("Content-Length", "0")))
@@ -314,7 +314,7 @@ class PrivateClipUploadEndpoint(BaseAPIView):
                 Path(temporary.name), name, content_type, inspect_video
             )
             # Recheck access after the potentially slow transfer/inspection.
-            card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
+            card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id, writing=True)
             item = CoachingCardPrivateAttachment(
                 issue=card,
                 coach_id=card.created_by_id,

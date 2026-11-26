@@ -1,4 +1,4 @@
-import type { IRosterPlayer, IRosterPlayerPayload, TRosterPlayerStatus } from "@plane/types";
+import type { IRosterPlayer, IRosterPlayerPayload, TRosterInvitationDelivery, TRosterPlayerStatus } from "@plane/types";
 import { ROSTER_HEADER_MAP, STATUS_VALUES } from "../constants/roster.constants";
 
 export const toDisplayStatus = (status: string) =>
@@ -6,6 +6,15 @@ export const toDisplayStatus = (status: string) =>
 
 export const getRosterAccountStatus = (player: Pick<IRosterPlayer, "user" | "email" | "account_status">) =>
   player.account_status ?? (player.user ? "linked" : player.email?.trim() ? "not_linked" : "email_missing");
+
+export const invitationDeliveryLabels: Record<TRosterInvitationDelivery["status"], string> = {
+  queued: "Email queued",
+  sending: "Sending email",
+  accepted: "Accepted by mail server",
+  failed: "Email failed",
+  unconfirmed: "Delivery unconfirmed",
+  untracked: "Delivery not tracked",
+};
 
 export const getRosterDisplayEmail = (player: Pick<IRosterPlayer, "user" | "email" | "account_email">) =>
   (player.user ? player.account_email || player.email : player.email) ?? "";

@@ -84,6 +84,9 @@ def get_default_display_properties():
 # TODO: Handle identifiers for Bulk Inserts - nk
 class IssueManager(SoftDeletionManager):
     def get_queryset(self):
+        return self.including_archived_projects().exclude(project__archived_at__isnull=False)
+
+    def including_archived_projects(self):
         return (
             super()
             .get_queryset()
@@ -96,7 +99,6 @@ class IssueManager(SoftDeletionManager):
             .filter(deleted_at__isnull=True)
             .filter(state__is_triage=False)
             .exclude(archived_at__isnull=False)
-            .exclude(project__archived_at__isnull=False)
             .exclude(is_draft=True)
         )
 

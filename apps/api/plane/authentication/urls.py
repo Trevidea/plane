@@ -3,6 +3,7 @@ from plane.authentication.views.player import PlayerSessionEndpoint, PlayerSignI
 
 from .views.player_invitation import PlayerInvitationAcceptEndpoint, PlayerInvitationLandingEndpoint
 from .views.player_registration import PlayerRegistrationAcceptEndpoint, PlayerRegistrationLandingEndpoint
+from .views.player_password_reset import PlayerPasswordResetEndpoint
 
 from .views import (
     CSRFTokenEndpoint,
@@ -49,6 +50,7 @@ urlpatterns = [
     path("player-registration/", PlayerRegistrationLandingEndpoint.as_view(), name="player-registration-landing"),
     path("player-registration/accept/", PlayerRegistrationAcceptEndpoint.as_view(), name="player-registration-accept"),
     path("player/session/", PlayerSessionEndpoint.as_view(), name="player-session"),
+    path("player/password-reset/", PlayerPasswordResetEndpoint.as_view(), name="player-password-reset"),
     path("player/sign-in/", PlayerSignInEndpoint.as_view(), name="player-sign-in"),
     path("player/sign-out/", PlayerSignOutEndpoint.as_view(), name="player-sign-out"),
     path("player-invitation/", PlayerInvitationLandingEndpoint.as_view(), name="player-invitation-landing"),

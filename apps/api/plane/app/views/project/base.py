@@ -31,11 +31,9 @@ from plane.db.models import (
     UserFavorite,
     Intake,
     DeployBoard,
-    IssueUserProperty,
     Project,
     ProjectIdentifier,
     ProjectMember,
-    State,
     Workspace,
     WorkspaceMember,
 )
@@ -45,7 +43,7 @@ from plane.bgtasks.recent_visited_task import recent_visited_task
 from plane.utils.exception_logger import log_exception
 from plane.utils.host import base_host
 from plane.utils.media_library import delete_project_library
-from plane.utils.coaching_card_lifecycle import default_project_state_definitions
+from plane.utils.program_creation import initialize_program
 
 
 class ProjectViewSet(BaseViewSet):
@@ -302,48 +300,7 @@ class ProjectViewSet(BaseViewSet):
         if serializer.is_valid():
             serializer.save()
 
-            # Add the user as Administrator to the project
-            _ = ProjectMember.objects.create(
-                project_id=serializer.data["id"],
-                member=request.user,
-                role=ROLE.ADMIN.value,
-            )
-            # Also create the issue property for the user
-            _ = IssueUserProperty.objects.create(project_id=serializer.data["id"], user=request.user)
-
-            if serializer.data["project_lead"] is not None and str(serializer.data["project_lead"]) != str(
-                request.user.id
-            ):
-                ProjectMember.objects.create(
-                    project_id=serializer.data["id"],
-                    member_id=serializer.data["project_lead"],
-                    role=ROLE.ADMIN.value,
-                )
-                # Also create the issue property for the user
-                IssueUserProperty.objects.create(
-                    project_id=serializer.data["id"],
-                    user_id=serializer.data["project_lead"],
-                )
-
-            # Default states
-            states = default_project_state_definitions(serializer.instance)
-
-            State.objects.bulk_create(
-                [
-                    State(
-                        name=state["name"],
-                        color=state["color"],
-                        project=serializer.instance,
-                        sequence=state["sequence"],
-                        workspace=serializer.instance.workspace,
-                        group=state["group"],
-                        default=state.get("default", False),
-                        lifecycle_role=state.get("lifecycle_role", ""),
-                        created_by=request.user,
-                    )
-                    for state in states
-                ]
-            )
+            initialize_program(serializer.instance, request.user)
 
             project = self.get_queryset().filter(pk=serializer.data["id"]).first()
 

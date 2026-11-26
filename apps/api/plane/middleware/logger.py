@@ -15,6 +15,7 @@ from rest_framework.request import Request
 from plane.utils.ip_address import get_client_ip
 from plane.db.models import APIActivityLog
 from plane.utils.diagnostic_logging import context, current, emit, outgoing_headers
+from plane.utils.roster_diagnostics import enrollment_context, private_enrollment_path, roster_fields, roster_route
 
 api_logger = logging.getLogger("plane.api.request")
 
@@ -37,7 +38,12 @@ class RequestLoggerMiddleware:
             return self.get_response(request)
         from django.db import connections
 
-        token = current.set(context(request.headers))
+        roster = roster_route(request)
+        token = current.set(
+            enrollment_context(request.headers)
+            if roster or private_enrollment_path(request.path_info)
+            else context(request.headers)
+        )
         started, status_code = time.perf_counter(), 500
         database = {"count": 0, "duration": 0.0, "errors": 0}
 
@@ -63,6 +69,21 @@ class RequestLoggerMiddleware:
                     response[key] = value
             return response
         finally:
+            if roster:
+                duration = (time.perf_counter() - started) * 1000
+                fields = roster_fields(request, roster, status_code)
+                emit(
+                    "roster.api.completed",
+                    duration_ms=duration,
+                    outcome="error" if status_code >= 400 else "ok",
+                    fields=fields,
+                )
+                try:
+                    from plane.utils.enrollment_reports import remember
+
+                    remember(request, (current.get() or {}).get("operation_id"), fields, duration)
+                except Exception:
+                    pass  # An unavailable report grant must never change enrollment.
             emit(
                 "api.request.completed",
                 duration_ms=(time.perf_counter() - started) * 1000,
@@ -88,12 +109,8 @@ class APITokenLogMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if (
-            request.path.startswith(("/auth/player-invitation/", "/auth/player-registration/"))
-            or request.path in ("/api/player/invitations/preview/", "/api/player/registration/preview/")
-            or request.path.endswith("/roster/registration/")
-        ):
-            # Never persist invitation tickets or account passwords in API-key logs.
+        if private_enrollment_path(request.path_info):
+            # Business roster audit events have separate, role-scoped storage.
             return self.get_response(request)
         response = self.get_response(request)
         self.process_request(request, response, None)

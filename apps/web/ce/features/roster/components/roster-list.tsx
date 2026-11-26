@@ -39,6 +39,7 @@ import {
   formatTimestamp,
   getRosterAccountStatus,
   getRosterDisplayEmail,
+  invitationDeliveryLabels,
   toDisplayStatus,
 } from "../utils/roster.utils";
 import { RegistrationQRModal } from "./registration-qr-modal";
@@ -123,6 +124,12 @@ const accountStatusLabels = {
 };
 
 export const RosterAccountStatusPill = ({ player }: { player: IRosterPlayer }) => {
+  if (player.account_link_held)
+    return (
+      <span className={cn("inline-flex rounded border px-2 py-0.5 text-xs font-medium", statusStyles.pending)}>
+        Account access revoked
+      </span>
+    );
   if (player.registration_status === "pending")
     return (
       <span
@@ -276,7 +283,21 @@ const ROSTER_COLUMNS: TRosterColumn[] = [
     icon: CircleDot,
     headerClassName: "min-w-32",
     cellClassName: "min-w-32",
-    render: (player) => <RosterAccountStatusPill player={player} />,
+    render: (player) => (
+      <div className="flex flex-col items-start gap-1">
+        <RosterAccountStatusPill player={player} />
+        {player.invitation_delivery && (
+          <span
+            className={cn(
+              "text-xs",
+              player.invitation_delivery.status === "failed" ? "text-red-500" : "text-custom-text-300"
+            )}
+          >
+            {invitationDeliveryLabels[player.invitation_delivery.status]}
+          </span>
+        )}
+      </div>
+    ),
   },
   {
     key: "status",
@@ -551,7 +572,7 @@ const RosterActionsMenu = observer(
       workspaceSlug,
       projectId,
       canManage,
-      canDeleteAccounts,
+      canPreviewAccounts,
       isSubmitting,
       openEditPlayerModal,
       openDeletePlayerModal,
@@ -667,14 +688,14 @@ const RosterActionsMenu = observer(
               Remove from roster
             </CustomMenu.MenuItem>
           )}
-          {canDeleteAccounts && player.user && (
+          {canPreviewAccounts && player.user && (
             <CustomMenu.MenuItem
               className="flex items-center gap-2 text-red-500"
               disabled={isSubmitting}
               onClick={() => openDeleteAccountModal({ id: player.id, player_name: player.player_name })}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Delete account
+              Preview account deletion
             </CustomMenu.MenuItem>
           )}
         </CustomMenu>

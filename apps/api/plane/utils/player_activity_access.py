@@ -17,6 +17,7 @@ from plane.db.models import (
     WorkspaceMember,
 )
 from plane.utils.coaching_card_clips import normalize_card_clips
+from plane.utils.player_access import player_card_roster_queryset, player_roster_queryset
 from plane.utils.player_card_annotations import player_clip_drawings
 
 
@@ -46,28 +47,22 @@ def player_programs(user):
     )
 
 
-def player_activities(user):
+def player_activities(user, *, writable=False):
     programs = player_programs(user)
     assigned = Q(pk__in=IssueAssignee.objects.filter(assignee=user).values("issue_id"), project_id__in=programs) & ~Q(
         category="Coaching Card"
     )
-    legacy_recipients = (
-        Q(coaching_card_data__recipient_ids__isnull=True)
-        | Q(coaching_card_data__recipient_ids=None)
-        | Q(coaching_card_data__recipient_ids=[])
-    )
-    from plane.utils.player_access import player_card_roster_queryset
+    legacy_recipients = Q(coaching_card_data__recipient_ids__isnull=True) | Q(coaching_card_data__recipient_ids=None)
 
-    for player in player_card_roster_queryset(user):
+    roster = player_roster_queryset(user) if writable else player_card_roster_queryset(user)
+    for player in roster:
         assigned |= Q(project_id=player.project_id, category="Coaching Card") & (
             (Q(roster_player=player) & legacy_recipients)
             | Q(coaching_card_data__recipient_ids__contains=[str(player.id)])
         )
-    return (
-        Issue.issue_objects.filter(assigned, archived_at__isnull=True)
-        .select_related("project__workspace", "state")
-        .distinct()
-    )
+    # Only the roster scopes above can include an archived program, and only for assigned cards.
+    issues = Issue.issue_objects.all() if writable else Issue.issue_objects.including_archived_projects()
+    return issues.filter(assigned).select_related("project__workspace", "state").distinct()
 
 
 def progress_data(progress):

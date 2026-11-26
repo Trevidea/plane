@@ -329,6 +329,7 @@ def _player_card_response(card, player_id, restricted_user=None, annotation_cach
             },
         }
         response["roster_player_id"] = player_id
+        response["member_id"] = player_id
         response["position_group"] = None
         response["parent_id"] = None
     response["coaching_card_data"] = data
@@ -603,9 +604,12 @@ class CoachingCardMineEndpoint(BaseAPIView):
                 "limit": limit,
                 "offset": offset,
                 "results": [
-                    _player_card_response(
-                        card, player.id, restricted_user=restricted_user, annotation_cache=annotation_cache
-                    )
+                    {
+                        **_player_card_response(
+                            card, player.id, restricted_user=restricted_user, annotation_cache=annotation_cache
+                        ),
+                        "read_only": player.status in ("inactive", "removed"),
+                    }
                     for card in cards[offset : offset + limit]
                 ],
             }
@@ -886,6 +890,8 @@ class CoachingCardReviewCompleteEndpoint(BaseAPIView):
 
     @transaction.atomic
     def post(self, request, slug, project_id, card_id):
+        from plane.utils.player_access import player_roster_queryset
+
         card = (
             Issue.issue_objects.select_for_update(of=("self",))
             .select_related("project")
@@ -895,7 +901,7 @@ class CoachingCardReviewCompleteEndpoint(BaseAPIView):
         if card is None:
             return Response({"detail": "Coaching card not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        player = _linked_player(request, project_id, slug)
+        player = player_roster_queryset(request.user).filter(project_id=project_id, workspace__slug=slug).first()
         data = dict(card.coaching_card_data or {})
         restricted_user = has_user_role(request, self)
         recipient_ids = data.get("recipient_ids") or ([str(card.roster_player_id)] if card.roster_player_id else [])

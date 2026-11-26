@@ -12,6 +12,22 @@ SPEC.loader.exec_module(module)
 
 
 class RedactionTests(unittest.TestCase):
+    def test_codes_and_photo_metadata_are_private_but_operational_codes_survive(self):
+        record = logging.makeLogRecord(
+            {
+                "msg": "reset_code=shared-secret-marker",
+                "context": {
+                    "avatar_url": "signed-location-marker",
+                    "fileName": "athlete-photo-marker.png",
+                    "roster_rows": {"full_name": "student-name-marker"},
+                    "error_code": "SMTP_REJECTED",
+                },
+            }
+        )
+        module.DiagnosticRedactionFilter().filter(record)
+        self.assertNotIn("-marker", str(record.__dict__))
+        self.assertEqual(record.context["error_code"], "SMTP_REJECTED")
+
     def test_exception_message_sql_and_credentials_are_not_rendered(self):
         try:
             raise RuntimeError("password=private SELECT customer")

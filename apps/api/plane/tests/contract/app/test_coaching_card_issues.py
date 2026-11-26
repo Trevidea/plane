@@ -891,8 +891,8 @@ class TestCoachingCardLifecycle:
         assert session_client.post(review_url).status_code == 404
         player_account = User.objects.create(email="player-review@example.com", username="player-review")
         WorkspaceMember.objects.create(workspace=workspace, member=player_account, role=5, is_active=True)
-        linked = session_client.patch(f"{root}/roster/{player.id}/", {"user": str(player_account.id)}, format="json")
-        assert linked.status_code == 200
+        # Exercise the legacy linked-player case without bypassing the public approval API in production.
+        RosterPlayer.objects.filter(pk=player.pk).update(user=player_account)
         player_client = APIClient()
         player_client.force_authenticate(user=player_account)
         Issue.objects.create(

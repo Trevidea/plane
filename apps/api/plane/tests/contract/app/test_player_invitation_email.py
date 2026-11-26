@@ -96,7 +96,7 @@ class PlayerInvitationEmailTests(TestCase):
             use_ssl=False,
         )
         self.invitation.refresh_from_db()
-        self.assertEqual(self.invitation.message, message.body)
+        self.assertEqual(self.invitation.message, "")
 
     def test_player_email_embeds_its_images_without_remote_asset_urls(self):
         message = self.send()
@@ -121,7 +121,8 @@ class PlayerInvitationEmailTests(TestCase):
         self.assertEqual(url.scheme, "https")
         self.assertEqual(url.netloc, "sports.example")
         self.assertEqual(url.path, "/auth/player-invitation/")
-        ticket = parse_qs(url.query)["token"][0]
+        self.assertEqual(url.query, "")
+        ticket = parse_qs(url.fragment)["token"][0]
         self.assertEqual(ticket_data(ticket)["id"], str(self.invitation.id))
         self.assertEqual(ticket_data(ticket)["nonce"], self.invitation.token)
         self.assertIn(href, message.body)
@@ -136,7 +137,8 @@ class PlayerInvitationEmailTests(TestCase):
         self.assertIn(href, message.body)
         self.assertNotIn("https://sports.example", message.body)
         self.assertNotIn("https://sports.example", html)
-        token = parse_qs(url.query)["token"][0]
+        self.assertEqual(url.query, "")
+        token = parse_qs(url.fragment)["token"][0]
         app = urlsplit(player_app_url(token))
         self.assertEqual(app.scheme, "kanavioplayerapp")
         self.assertEqual(parse_qs(app.query)["server"], ["http://192.168.1.207:8000"])

@@ -32,6 +32,9 @@ class ReadReplicaRouter:
         Returns:
             str: Database alias ('replica' or 'default')
         """
+        # Session deletion and password changes must take effect on the next authentication check.
+        if model._meta.label_lower in {"db.session", "db.user"}:
+            return "default"
         if should_use_read_replica():
             logger.debug(f"Routing read for {model._meta.label} to replica database")
             return "replica"

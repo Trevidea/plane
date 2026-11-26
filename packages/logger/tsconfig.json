@@ -4,6 +4,7 @@
     "module": "ESNext",
     "target": "ESNext",
     "moduleResolution": "node",
+    "rewriteRelativeImportExtensions": true,
     "esModuleInterop": true,
     "outDir": "./dist",
     "rootDir": "./src",

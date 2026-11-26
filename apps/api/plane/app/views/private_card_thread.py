@@ -83,14 +83,21 @@ def private_card(request, slug, project_id, card_id, *, coach_request=False):
     return card
 
 
-def participant_context(request, slug, project_id, card_id, recipient_user_id=None):
+def participant_context(request, slug, project_id, card_id, recipient_user_id=None, *, writing=False):
+    from plane.utils.player_access import player_roster_queryset
+
     card = private_card(request, slug, project_id, card_id, coach_request=recipient_user_id is not None)
     recipient = (
         get_object_or_404(User.objects.filter(is_active=True, is_bot=False), pk=recipient_user_id)
         if recipient_user_id
         else request.user
     )
-    player = get_object_or_404(_eligible_roster(recipient), project_id=project_id, project__workspace__slug=slug)
+    roster = (
+        player_roster_queryset(recipient)
+        if recipient_user_id is None and writing
+        else _eligible_roster(recipient)
+    )
+    player = get_object_or_404(roster, project_id=project_id, project__workspace__slug=slug)
     data = card.coaching_card_data or {}
     recipients = data.get("recipient_ids")
     if recipients is None:
@@ -156,7 +163,7 @@ class PrivateCardThreadEndpoint(BaseAPIView):
         )
 
     def post(self, request, slug, project_id, card_id, recipient_user_id=None):
-        card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
+        card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id, writing=True)
         payload = PrivateWriteSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
         data = payload.validated_data
@@ -170,7 +177,7 @@ class PrivateCardThreadEndpoint(BaseAPIView):
         with transaction.atomic():
             # Serialize send/retry for this card to enforce attachment ownership atomically.
             Issue.issue_objects.select_related(None).select_for_update(of=("self",)).get(pk=card.id)
-            card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
+            card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id, writing=True)
             if data.get("client_id"):
                 existing = messages(card, recipient).filter(actor=request.user, client_id=data["client_id"]).first()
                 if existing:
@@ -195,7 +202,7 @@ class PrivateCardMessageEndpoint(BaseAPIView):
     user_role_access = True
 
     def message(self, request, slug, project_id, card_id, comment_id, recipient_user_id=None, writing=False):
-        card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id)
+        card, recipient = participant_context(request, slug, project_id, card_id, recipient_user_id, writing=writing)
         message = get_object_or_404(messages(card, recipient), pk=comment_id)
         if writing and message.actor_id != request.user.id:
             raise PermissionDenied("You can change only your own messages.")

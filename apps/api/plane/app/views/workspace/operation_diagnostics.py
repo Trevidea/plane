@@ -22,6 +22,7 @@ from plane.app.views.workspace.diagnostics import (
     _bridge_key,
     _bridge_origin,
     _invalid_number,
+    diagnostics_workspace_allowed,
     WorkspaceDiagnosticsEndpoint,
 )
 from plane.utils.diagnostic_logging import logger
@@ -39,15 +40,19 @@ class OperationDiagnosticsThrottle(UserRateThrottle):
     scope = "operation_diagnostics"
 
 
-def product_request(user_id, slug, project_id, path, body=None):
-    origin, key = _bridge_origin(), _bridge_key()
+def product_actor(user_id, key):
     identity_path = settings.CUSTOMER_DIAGNOSTICS_IDENTITY_KEY_FILE
     actor_key = _bridge_key(identity_path) if identity_path else key
+    return hmac.new(actor_key.encode(), f"product-actor:{user_id}".encode(), hashlib.sha256).hexdigest()
+
+
+def product_request(user_id, slug, project_id, path, body=None, *, role="coach"):
+    origin, key = _bridge_origin(), _bridge_key()
     principal = {
         "workspace": slug,
         "project": str(project_id),
-        "actor": hmac.new(actor_key.encode(), f"product-actor:{user_id}".encode(), hashlib.sha256).hexdigest(),
-        "role": "coach",
+        "actor": product_actor(user_id, key),
+        "role": role,
     }
     claims = base64.urlsafe_b64encode(json.dumps(principal, separators=(",", ":")).encode()).decode().rstrip("=")
     payload = b"" if body is None else json.dumps(body, separators=(",", ":"), allow_nan=False).encode()
@@ -177,7 +182,7 @@ class ProjectOperationDiagnosticsEndpoint(WorkspaceDiagnosticsEndpoint):
     def bridge(self, request, slug, project_id, body=None):
         if not settings.CUSTOMER_DIAGNOSTICS_ENABLED:
             return Response({"enabled": False})
-        if slug != settings.CUSTOMER_DIAGNOSTICS_WORKSPACE or not request.user.is_active or request.user.is_bot:
+        if not diagnostics_workspace_allowed(slug) or not request.user.is_active or request.user.is_bot:
             return Response({"error": "Diagnostics is not available for this program."}, status=403)
         view, identity = request.query_params.get("view"), request.query_params.get("id")
         if set(request.query_params) - {"view", "id"}:
@@ -190,6 +195,8 @@ class ProjectOperationDiagnosticsEndpoint(WorkspaceDiagnosticsEndpoint):
         ):
             return Response({"error": "Invalid diagnostics action."}, status=400)
         try:
+            if view == "report" and isinstance(body, dict) and body.get("action") == "enrollment":
+                return Response({"error": "Use the enrollment report endpoint."}, status=400)
             if view == "measurement":
                 try:
                     record = browser_measurement(body, f"{slug}/{project_id}")

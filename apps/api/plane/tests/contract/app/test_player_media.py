@@ -15,6 +15,7 @@ from django.test import AsyncClient, TestCase, override_settings
 from asgiref.sync import async_to_sync, sync_to_async
 from django.core.signals import request_finished
 from django.db import close_old_connections
+from django.utils import timezone
 from rest_framework.test import APIClient
 from requests import Response as UpstreamResponse
 
@@ -114,6 +115,13 @@ class PlayerMediaContractTests(TestCase):
         RosterPlayer.objects.filter(pk=self.player.pk).update(status='inactive')
         self.assertEqual(self.client.get(generic).status_code,403)
         self.assertEqual(self.client.get(self.grant_path).status_code,200)
+
+    def test_archiving_a_former_players_program_preserves_assigned_clip_playback(self):
+        RosterPlayer.objects.filter(pk=self.player.pk).update(status="removed")
+        Project.objects.filter(pk=self.project.pk).update(archived_at=timezone.now())
+        response, content = self.read(self.grant())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content, b"test-video-bytes")
 
     def test_progressive_ranges_and_head_do_not_load_the_whole_video(self):
         url = self.grant()
