@@ -20,6 +20,8 @@ from plane.utils.player_registration import (
     WeakRegistrationPassword,
     accept_registration,
     registration_session,
+    registration_session_for_code,
+    registration_ticket,
     session_details,
 )
 
@@ -41,7 +43,7 @@ def unavailable(status=400):
         JsonResponse(
             {
                 "detail": (
-                    "Registration unavailable. Check your details or ask your coach for a new QR or email invitation."
+                    "Registration unavailable. Check your details or ask your coach for a new QR or team code."
                 )
             },
             status=status,
@@ -57,8 +59,8 @@ def registration_error(code):
         ),
         "password_mismatch": "Your passwords do not match. Enter the same password in both fields.",
         "registration_unavailable": (
-            "This team QR is expired, replaced or unavailable. "
-            "Ask your coach for a new QR and scan it again."
+            "This registration is expired, replaced or unavailable. "
+            "Ask your coach for a new QR or team code."
         ),
         "signup_disabled": "New account signup is disabled on this server. Contact your school administrator.",
     }
@@ -73,10 +75,14 @@ class PlayerRegistrationPreviewEndpoint(View):
             if len(request.body) > 4096:
                 raise InvalidRegistration()
             payload = json.loads(request.body)
-            if (
-                not isinstance(payload, dict) or "token" not in payload
-                or set(payload) - {"token", "roster_offset", "roster_search"}
-            ):
+            if not isinstance(payload, dict):
+                raise InvalidRegistration()
+            if set(payload) == {"code"}:
+                session = registration_session_for_code(payload["code"])
+                details = session_details(session, user=request.user)
+                details["token"] = registration_ticket(session)
+                return private(JsonResponse(details))
+            if "token" not in payload or set(payload) - {"token", "roster_offset", "roster_search"}:
                 raise InvalidRegistration()
             offset, search = payload.get("roster_offset", 0), payload.get("roster_search", "")
             if (

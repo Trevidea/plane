@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from plane.db.models import Project, ProjectMember, RosterPlayer, User, Workspace, WorkspaceMember
+from plane.db.models import PlayerRegistrationSession, Project, ProjectMember, RosterPlayer, User, Workspace, WorkspaceMember
 
 
 @override_settings(
@@ -66,6 +66,45 @@ class PlayerRegistrationTests(TestCase):
         self.assertIn("no-store", preview.headers["Cache-Control"])
         self.assertEqual(self.client.delete(self.management_url).status_code, 204)
         self.assertEqual(self.accept(ticket).status_code, 400)
+
+    def test_team_code_resolves_to_a_ticket_for_the_same_program(self):
+        ticket = self.generate()
+        code = ticket["join_code"]
+        self.assertRegex(code, r"^[A-Z2-9]{4}-[A-Z2-9]{4}$")
+        self.assertEqual(self.client.get(self.management_url).json()["join_code"], code)
+        preview = self.public.post(
+            "/api/player/registration/preview/", {"code": code.replace("-", "").lower()}, format="json"
+        )
+        self.assertEqual(preview.status_code, 200, preview.content)
+        self.assertEqual(preview.json()["program_name"], "Varsity")
+        self.assertEqual(self.accept(preview.json()).status_code, 200)
+
+    def test_replacing_or_closing_registration_invalidates_team_codes(self):
+        original = self.generate()
+        replacement = self.generate()
+        self.assertNotEqual(original["join_code"], replacement["join_code"])
+        preview_url = "/api/player/registration/preview/"
+        self.assertEqual(
+            self.public.post(preview_url, {"code": original["join_code"]}, format="json").status_code, 400
+        )
+        self.assertEqual(self.client.delete(self.management_url).status_code, 204)
+        self.assertEqual(
+            self.public.post(preview_url, {"code": replacement["join_code"]}, format="json").status_code, 400
+        )
+
+    def test_existing_qr_gets_a_team_code_with_the_original_expiry(self):
+        ticket = self.generate()
+        session = PlayerRegistrationSession.objects.get(project=self.project)
+        PlayerRegistrationSession.objects.filter(pk=session.pk).update(join_code=None)
+        response = self.client.get(self.management_url)
+        self.assertEqual(response.status_code, 200)
+        code = response.json()["join_code"]
+        preview_url = "/api/player/registration/preview/"
+        preview = self.public.post(preview_url, {"token": ticket["token"]}, format="json")
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.json()["expires_at"], response.json()["expires_at"])
+        PlayerRegistrationSession.objects.filter(pk=session.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+        self.assertEqual(self.public.post(preview_url, {"code": code}, format="json").status_code, 400)
 
     def test_signup_waits_for_approval_without_memberships_or_roster_link(self):
         response = self.accept(self.generate())

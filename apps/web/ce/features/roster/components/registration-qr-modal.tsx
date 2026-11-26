@@ -86,7 +86,7 @@ export const RegistrationQRModal = ({
         <div>
           <Dialog.Title className="text-base font-semibold text-custom-text-100">Team join code</Dialog.Title>
           <p className="mt-1 text-xs leading-5 text-custom-text-300">
-            Share the QR code or link so players can register or sign in to this program.
+            Share the QR or short code so players can register or sign in to this program.
           </p>
         </div>
         <Button
@@ -126,7 +126,9 @@ export const RegistrationQRModal = ({
                 </div>
                 <div>
                   <p className="text-xs text-custom-text-400">Short code</p>
-                  <p className="mt-1 text-sm text-custom-text-300">Use the QR code or join link</p>
+                  <p className="mt-1 select-all font-mono text-xl font-semibold tracking-wider text-custom-text-100">
+                    {session.join_code}
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="roster-registration-link" className="text-xs text-custom-text-300">
@@ -175,9 +177,9 @@ export const RegistrationQRModal = ({
             <div className="flex items-start gap-2 rounded-lg border border-custom-border-200 bg-custom-background-90 p-3">
               <Info className="mt-0.5 size-4 shrink-0 text-custom-primary-100" />
               <p className="text-xs leading-5 text-custom-text-300">
-                Paste the link into your own email, team chat or text message. In the Player App, select this school’s
-                server and tap <strong className="font-medium text-custom-text-200">Scan team QR</strong>. A coach
-                approves registrations before players gain access.
+                In the Player App, select this school’s server and tap{" "}
+                <strong className="font-medium text-custom-text-200">Scan team QR</strong> to scan the QR or enter the
+                short code. A coach approves registrations before players gain access.
               </p>
             </div>
           </>
@@ -193,7 +195,7 @@ export const RegistrationQRModal = ({
                   ? "This QR has expired. Generate a new QR to continue."
                   : "Registration is closed. Generate a QR to let athletes join."}
               </p>
-              <p className="mt-2 text-xs text-custom-text-400">The QR and link use the same registration session.</p>
+              <p className="mt-2 text-xs text-custom-text-400">Generating a new QR also generates a new short code.</p>
             </div>
           )
         )}

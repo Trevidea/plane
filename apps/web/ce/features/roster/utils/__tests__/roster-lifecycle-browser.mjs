@@ -24,7 +24,7 @@ await put(
 import React from 'react';
 export const cn=(...args)=>args.filter(Boolean).join(' ');
 export const ToggleSwitch=({value,onChange,label,disabled})=><button type="button" role="switch" aria-checked={value} aria-label={label} disabled={disabled} onClick={()=>onChange(!value)} />;
-export const Avatar=({name})=><span aria-hidden="true">{name?.slice(0,1)}</span>;
+export const Avatar=({name,src})=>src?<img src={src} alt={name}/>:<span aria-hidden="true">{name?.slice(0,1)}</span>;
 export const Button=React.forwardRef(({children,onClick,disabled,type='button',variant,size,loading,unstyled,prependIcon,appendIcon,...props},ref)=><button ref={ref} type={type} onClick={onClick} disabled={disabled||loading} {...props}>{children}</button>);
 export const Checkbox=({checked,onClick,disabled,'aria-label':label})=><input type="checkbox" checked={checked} readOnly onClick={onClick} disabled={disabled} aria-label={label}/>;
 export const CustomMenu=({children,customButton})=><div>{customButton}{children}</div>;
@@ -54,7 +54,7 @@ await put(
   "service",
   `
 const mk=(id,name,status,user=null,registration_status=null)=>({id,player_name:name,status,user,registration_status,jersey_number:'17',created_at:'2026-11-18',updated_at:'2026-11-18'});
-let roster=[mk('a','Alex','active','account-a'),mk('b','Blake','inactive','account-b'),mk('c','Casey','injured','account-c'),mk('p','Pending','pending',null,'pending')];
+let roster=[{...mk('a','Alex','active','account-a'),account_avatar_url:'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='},mk('b','Blake','inactive','account-b'),mk('c','Casey','injured','account-c'),mk('p','Pending','pending',null,'pending')];
 let events=[{id:'old',roster_identity:'former',player_name:'Former Athlete',jersey_number:'42',action:'removed',previous_status:'active',status:'removed',created_at:'2026-11-18',actor_name:'Coach',has_account:true}];
 window.requests=[];
 export class WorkspaceService { async fetchWorkspaceMembers(){return [{id:'membership',role:1,is_active:true,member:{id:'avery-account',first_name:'Avery',last_name:'Lee',email:'avery@example.com',is_bot:false}}]} }
@@ -156,8 +156,50 @@ try {
   await page.getByRole("tab", { name: "All players (3)", exact: true }).click();
   await row("Pending").getByText("Linked", { exact: true }).waitFor();
   await row("Alex").getByRole("button", { name: "Alex", exact: true }).click();
-  await page.getByRole("heading", { name: "Alex", exact: true }).waitFor();
-  await page.getByRole("button", { name: "Close player details", exact: true }).click();
+  const alexDetails = page.getByRole("complementary", { name: "Alex", exact: true });
+  await alexDetails.waitFor();
+  const rowPhoto = await row("Alex").getByRole("img", { name: "Alex", exact: true }).getAttribute("src");
+  const detailsPhoto = alexDetails.getByRole("img", { name: "Alex", exact: true });
+  assert.equal(await detailsPhoto.count(), 1, "Player details should display the roster photo");
+  assert.equal(await detailsPhoto.getAttribute("src"), rowPhoto);
+
+  const statusButtons = alexDetails.getByRole("group", { name: "Roster status" });
+  const inactiveStatus = statusButtons.getByRole("button", { name: "inactive", exact: true });
+  const activeStatus = statusButtons.getByRole("button", { name: "active", exact: true });
+  const confirmInactive = page.getByRole("dialog", { name: "Set player inactive?" });
+  await inactiveStatus.click();
+  assert.equal(await confirmInactive.count(), 1, "Changing status should ask for confirmation");
+  assert.equal((await page.evaluate(() => window.requests)).length, 0);
+  await confirmInactive.getByRole("button", { name: "Cancel" }).click();
+  assert.equal(await activeStatus.getAttribute("aria-pressed"), "true");
+  assert.equal((await page.evaluate(() => window.requests)).length, 0);
+
+  await inactiveStatus.click();
+  await confirmInactive.getByRole("button", { name: "Set inactive" }).click();
+  await confirmInactive.waitFor({ state: "hidden" });
+  assert.equal(await inactiveStatus.getAttribute("aria-pressed"), "true");
+
+  await activeStatus.click();
+  const confirmActive = page.getByRole("dialog", { name: "Set player active?" });
+  await confirmActive.waitFor();
+  assert.deepEqual(await page.evaluate(() => window.requests), [["patch", "a", { status: "inactive" }]]);
+  await confirmActive.getByRole("button", { name: "Set active" }).click();
+  await confirmActive.waitFor({ state: "hidden" });
+  assert.equal(await activeStatus.getAttribute("aria-pressed"), "true");
+
+  await statusButtons.getByRole("button", { name: "Removed", exact: true }).click();
+  const confirmRemoved = page.getByRole("dialog", { name: "Remove from roster", exact: true });
+  await confirmRemoved.getByRole("button", { name: "Cancel" }).click();
+  assert.deepEqual(await page.evaluate(() => window.requests), [
+    ["patch", "a", { status: "inactive" }],
+    ["patch", "a", { status: "active" }],
+  ]);
+  await alexDetails.getByRole("button", { name: "Close player details", exact: true }).click();
+  await row("Casey").getByRole("button", { name: "Casey", exact: true }).click();
+  const caseyDetails = page.getByRole("complementary", { name: "Casey", exact: true });
+  await caseyDetails.getByText("C", { exact: true }).waitFor();
+  assert.equal(await caseyDetails.locator("img").count(), 0);
+  await caseyDetails.getByRole("button", { name: "Close player details", exact: true }).click();
   await page.evaluate(() => (window.failStatus = true));
   await row("Alex").getByRole("button", { name: "Set inactive", exact: true }).click();
   await page.waitForFunction(() => window.lastToast?.message === "Fixture status failure");
@@ -266,7 +308,7 @@ try {
   ]);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: active/inactive tabs and counts; injured normalization; pending approval; member status/remove/error/cancel flows; no account deletion on removal; removed event snapshots; admin global deletion confirmation and identity; empty roster/history; event retry."
+    "PASS: Player Details photo and initial fallback; active/inactive tabs and counts; injured normalization; pending approval; member status/remove/error/cancel flows; no account deletion on removal; removed event snapshots; admin global deletion confirmation and identity; empty roster/history; event retry."
   );
 } finally {
   await browser?.close();

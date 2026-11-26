@@ -5,6 +5,7 @@ import { APIService } from "@/services/api.service";
 export type TRosterRegistration = {
   url: string;
   token: string;
+  join_code: string;
   workspace_name: string;
   program_name: string;
   expires_at: string;

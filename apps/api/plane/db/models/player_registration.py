@@ -9,6 +9,7 @@ from .project import ProjectBaseModel
 
 class PlayerRegistrationSession(ProjectBaseModel):
     nonce = models.UUIDField(default=uuid.uuid4, editable=False)
+    join_code = models.CharField(max_length=8, null=True, blank=True, unique=True)
     expires_at = models.DateTimeField()
     closed_at = models.DateTimeField(null=True, blank=True)
 

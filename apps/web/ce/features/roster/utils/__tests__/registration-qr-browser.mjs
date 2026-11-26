@@ -41,7 +41,7 @@ let current = null;
 export class RosterService {
   async getRegistration() { return current; }
   async generateRegistration() {
-    current = { token: 'fixture', url: 'http://localhost:8000/auth/player-registration/?token=fixture',
+    current = { token: 'fixture', url: 'http://localhost:8000/auth/player-registration/?token=fixture', join_code: 'AB7D-2XY9',
       workspace_name: 'Fixture School', program_name: 'Varsity Basketball', expires_at: new Date(Date.now()+900000).toISOString() };
     return current;
   }
@@ -153,6 +153,7 @@ try {
   await page.getByRole("button", { name: "Close registration", exact: true }).waitFor();
   assert.match(await page.getByRole("timer").innerText(), /Registration open/);
   assert.equal(await page.locator("svg title").filter({ hasText: "Scan to sign up" }).count(), 1);
+  await page.getByText("AB7D-2XY9", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Copy", exact: true }).click();
   await page.getByRole("button", { name: "Copied", exact: true }).waitFor();
   assert.equal(
@@ -175,6 +176,7 @@ try {
   await page.clock.fastForward(901000);
   await page.getByText("This QR has expired.", { exact: false }).waitFor();
   assert.equal(await page.locator("svg title").filter({ hasText: "Scan to sign up" }).count(), 0);
+  assert.equal(await page.getByText("AB7D-2XY9", { exact: true }).count(), 0);
   await page.getByRole("button", { name: "Generate QR", exact: true }).click();
   await page.getByRole("button", { name: "Close registration", exact: true }).click();
   await page.getByText("Registration is closed.", { exact: false }).waitFor();

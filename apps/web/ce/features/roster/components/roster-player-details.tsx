@@ -17,7 +17,8 @@ import {
   X,
 } from "lucide-react";
 import type { IRosterPlayer } from "@plane/types";
-import { Avatar, Button, cn } from "@plane/ui";
+import { AlertModalCore, Avatar, Button, cn } from "@plane/ui";
+import { getFileURL } from "@plane/utils";
 import { useRoster } from "../store/roster-context";
 import { isPendingPlayer } from "../utils/roster-presentation";
 import { formatTimestamp, getRosterDisplayEmail, toDisplayStatus } from "../utils/roster.utils";
@@ -37,6 +38,8 @@ export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer
     eventsError,
   } = useRoster();
   const [expanded, setExpanded] = useState(false);
+  const [statusChange, setStatusChange] = useState<{ playerId: string; status: "active" | "inactive" } | null>(null);
+  const statusToConfirm = statusChange?.playerId === player.id ? statusChange.status : null;
   const closeButton = useRef<HTMLButtonElement>(null);
   const pending = isPendingPlayer(player);
   const active = ["active", "injured"].includes(player.status) && !pending;
@@ -96,7 +99,12 @@ export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer
       </div>
       <div className="flex-1 space-y-6 overflow-y-auto p-5">
         <div className="flex items-center gap-3">
-          <Avatar name={player.player_name} size={48} showTooltip={false} />
+          <Avatar
+            name={player.player_name}
+            src={getFileURL(player.account_avatar_url ?? "")}
+            size={48}
+            showTooltip={false}
+          />
           <div className="min-w-0">
             <h2 id="roster-player-detail-title" className="break-words text-lg font-semibold text-custom-text-100">
               {player.player_name}
@@ -124,7 +132,10 @@ export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer
                   unstyled
                   disabled={!canManage || isSubmitting}
                   aria-pressed={status === "active" ? active : player.status === "inactive"}
-                  onClick={() => void setPlayerStatus(player, status)}
+                  aria-disabled={player.status === status || undefined}
+                  onClick={() => {
+                    if (player.status !== status) setStatusChange({ playerId: player.id, status });
+                  }}
                   className={cn(
                     "flex items-center justify-center gap-2 rounded px-3 py-2 text-xs capitalize text-custom-text-300 disabled:opacity-50",
                     (status === "active" ? active : player.status === "inactive") &&
@@ -269,6 +280,31 @@ export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer
             Remove
           </Button>
         </div>
+      )}
+      {canManage && !pending && statusToConfirm && (
+        <AlertModalCore
+          isOpen
+          variant="primary"
+          title={`Set player ${statusToConfirm}?`}
+          primaryButtonText={{ default: `Set ${statusToConfirm}`, loading: "Updating player" }}
+          isSubmitting={isSubmitting}
+          handleClose={() => {
+            if (!isSubmitting) setStatusChange(null);
+          }}
+          handleSubmit={() => {
+            if (!isSubmitting) void setPlayerStatus(player, statusToConfirm).then(() => setStatusChange(null));
+          }}
+          content={
+            <>
+              Are you sure you want to set{" "}
+              <span className="font-medium text-custom-text-100">{player.player_name}</span> {statusToConfirm} for this
+              program?{" "}
+              {statusToConfirm === "inactive"
+                ? "This frees their jersey number and removes access to team film and playlists."
+                : "A linked player will regain access to team film and playlists."}
+            </>
+          }
+        />
       )}
     </aside>
   );

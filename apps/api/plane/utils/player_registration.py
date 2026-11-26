@@ -1,13 +1,15 @@
-"""Shared QR tickets grant enrollment in exactly one active program."""
+"""Shared QR tickets and team codes grant enrollment in one active program."""
 
+import re
 from datetime import timedelta
+from secrets import choice
 from urllib.parse import urlencode
 
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.contrib.auth.password_validation import validate_password
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
@@ -26,6 +28,8 @@ from plane.utils.player_invitations import public_player_api_origin
 
 SALT = "plane.player-registration.v1"
 LIFETIME = 15 * 60
+JOIN_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+JOIN_CODE_PATTERN = re.compile(rf"[{JOIN_CODE_ALPHABET}]{{4}}-?[{JOIN_CODE_ALPHABET}]{{4}}", re.ASCII | re.I)
 
 
 class InvalidRegistration(ValueError):
@@ -95,11 +99,40 @@ def session_details(session, *, include_ticket=False, user=None, roster_offset=0
                 )[roster_offset:roster_offset + 50]),
             }
     if include_ticket:
-        token = signing.dumps({"id": str(session.id), "nonce": str(session.nonce)}, salt=SALT)
+        token = registration_ticket(session)
         details.update(
-            token=token, url=public_player_api_origin() + "/auth/player-registration/?" + urlencode({"token": token})
+            token=token,
+            url=public_player_api_origin() + "/auth/player-registration/?" + urlencode({"token": token}),
+            join_code=f"{session.join_code[:4]}-{session.join_code[4:]}",
         )
     return details
+
+
+def registration_ticket(session):
+    return signing.dumps({"id": str(session.id), "nonce": str(session.nonce)}, salt=SALT)
+
+
+def _active_registration_session(**lookup):
+    try:
+        session = PlayerRegistrationSession.objects.select_related("workspace", "project__workspace").get(
+            **lookup,
+            closed_at__isnull=True,
+            expires_at__gt=timezone.now(),
+            workspace__deleted_at__isnull=True,
+            project__deleted_at__isnull=True,
+            project__archived_at__isnull=True,
+        )
+    except PlayerRegistrationSession.DoesNotExist:
+        raise InvalidRegistrationToken() from None
+    if session.workspace_id != session.project.workspace_id:
+        raise InvalidRegistrationToken()
+    return session
+
+
+def registration_session_for_code(code):
+    if not isinstance(code, str) or not JOIN_CODE_PATTERN.fullmatch(code.strip()):
+        raise InvalidRegistrationToken()
+    return _active_registration_session(join_code=code.strip().upper().replace("-", ""))
 
 
 def registration_session(token):
@@ -107,21 +140,9 @@ def registration_session(token):
         raise InvalidRegistrationToken()
     try:
         data = signing.loads(token, salt=SALT, max_age=LIFETIME)
-        session = PlayerRegistrationSession.objects.select_related("workspace", "project__workspace").get(
-            pk=data["id"],
-            nonce=data["nonce"],
-            closed_at__isnull=True,
-            expires_at__gt=timezone.now(),
-            workspace__deleted_at__isnull=True,
-            project__deleted_at__isnull=True,
-            project__archived_at__isnull=True,
-        )
-        if session.workspace_id != session.project.workspace_id:
-            raise InvalidRegistration()
-        return session
+        return _active_registration_session(pk=data["id"], nonce=data["nonce"])
     except (
         signing.BadSignature,
-        PlayerRegistrationSession.DoesNotExist,
         ValidationError,
         KeyError,
         TypeError,
@@ -358,6 +379,22 @@ def decline_registration(project, actor, player_id):
     return player
 
 
+def _ensure_join_code(session):
+    if session.join_code:
+        return
+    for attempt in range(5):
+        code = "".join(choice(JOIN_CODE_ALPHABET) for _ in range(8))
+        try:
+            with transaction.atomic():
+                PlayerRegistrationSession.objects.filter(pk=session.pk).update(join_code=code)
+        except IntegrityError:
+            if attempt == 4:
+                raise
+        else:
+            session.join_code = code
+            return
+
+
 @transaction.atomic
 def manage_registration(project, user, action):
     Workspace.objects.select_for_update().get(pk=project.workspace_id)
@@ -375,4 +412,7 @@ def manage_registration(project, user, action):
         )
     else:
         session = sessions.filter(expires_at__gt=timezone.now()).first()
-    return session_details(session, include_ticket=True) if session else None
+    if session is None:
+        return None
+    _ensure_join_code(session)
+    return session_details(session, include_ticket=True)
