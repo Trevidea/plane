@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 from plane.db.models import (
     Project,
     ProjectMember,
+    RosterInvitationDelivery,
     RosterPlayer,
     User,
     Workspace,
@@ -31,7 +32,9 @@ class RosterEmailImportTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(self.coach)
         self.url = f"/api/workspaces/{self.workspace.slug}/projects/{self.project.id}/roster/import/"
-        self.mail = self.enterContext(patch("plane.bgtasks.workspace_invitation_task.workspace_invitation.delay"))
+        self.mail = self.enterContext(
+            patch("plane.bgtasks.workspace_invitation_task.roster_player_invitation.apply_async")
+        )
         self.enterContext(patch("plane.app.views.workspace.invite.workspace_invite_event.delay"))
         self.enterContext(patch("plane.db.mixins.soft_delete_related_objects.delay"))
         self.enterContext(patch("plane.utils.cache.invalidate_cache_directly"))
@@ -58,7 +61,7 @@ class RosterEmailImportTests(TestCase):
         self.mail.assert_not_called()
 
     def test_existing_member_email_is_normalized_but_requires_program_approval(self):
-        user = self.account()
+        self.account()
         response = self.import_rows([self.player_row(" PLAYER@fixture.test ")])
         self.assertEqual(response.status_code, 201, response.data)
         player = RosterPlayer.objects.get(project=self.project)
@@ -77,8 +80,10 @@ class RosterEmailImportTests(TestCase):
         self.assertEqual(invitation.role, 1)
         self.assertFalse(User.objects.filter(email=invitation.email).exists())
         self.assertIsNone(RosterPlayer.objects.get(project=self.project).user_id)
-        self.mail.assert_called_once()
-        self.assertEqual(self.mail.call_args.args[0], "player@fixture.test")
+        delivery = RosterInvitationDelivery.objects.get(invitation=invitation)
+        self.mail.assert_called_once_with(
+            args=(str(invitation.pk), str(delivery.attempt_id), str(self.coach.pk)), retry=False
+        )
 
     def test_account_outside_workspace_must_accept_invitation(self):
         user = self.account(member=False)

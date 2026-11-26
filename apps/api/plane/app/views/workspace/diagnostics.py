@@ -25,6 +25,13 @@ OVERVIEW_PATH = "/api/product/overview"
 MAX_EXPORT_BYTES = 16 * 1024 * 1024 + 8192
 
 
+def diagnostics_workspace_allowed(slug):
+    configured = settings.CUSTOMER_DIAGNOSTICS_WORKSPACES or settings.CUSTOMER_DIAGNOSTICS_WORKSPACE
+    return bool(re.fullmatch(r"[a-z0-9][a-z0-9-]{0,99}", slug)) and slug in {
+        workspace.strip() for workspace in configured.split(",")
+    }
+
+
 class DiagnosticsBridgeError(ValueError):
     def __init__(self, status=503):
         self.status = status if status in {403, 404, 409, 429} else 503
@@ -195,7 +202,7 @@ class WorkspaceDiagnosticsEndpoint(BaseAPIView):
             return Response({"error": "This endpoint only reads the installation overview."}, status=400)
         if not settings.CUSTOMER_DIAGNOSTICS_ENABLED:
             return Response({"version": 1, "enabled": False})
-        if slug != settings.CUSTOMER_DIAGNOSTICS_WORKSPACE:
+        if not diagnostics_workspace_allowed(slug):
             return Response({"error": "Diagnostics is not enabled for this workspace."}, status=403)
         try:
             return Response(read_diagnostics_overview(request.user.id, slug))
@@ -214,7 +221,7 @@ class WorkspaceDiagnosticsReportExportEndpoint(WorkspaceDiagnosticsEndpoint):
     def get(self, request, slug, analysis_id):
         if request.query_params:
             return Response({"error": "Export accepts a fixed report ID only."}, status=400)
-        if not settings.CUSTOMER_DIAGNOSTICS_ENABLED or slug != settings.CUSTOMER_DIAGNOSTICS_WORKSPACE:
+        if not settings.CUSTOMER_DIAGNOSTICS_ENABLED or not diagnostics_workspace_allowed(slug):
             return Response({"error": "Diagnostics exports are not enabled for this workspace."}, status=403)
         try:
             value = read_diagnostics_export(request.user.id, slug, analysis_id)

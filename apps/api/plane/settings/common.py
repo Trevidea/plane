@@ -82,6 +82,8 @@ REST_FRAMEWORK = {
 # Django Auth Backend
 AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)  # default
 PLAYER_APP_API_URL = os.environ.get("PLAYER_APP_API_URL", "")
+PLAYER_APP_WEB_URL = os.environ.get("PLAYER_APP_WEB_URL", "")
+ROSTER_ACCOUNT_DELETION_ENABLED = os.environ.get("ROSTER_ACCOUNT_DELETION_ENABLED", "0") == "1"
 
 # Root Urls
 ROOT_URLCONF = "plane.urls"
@@ -288,6 +290,7 @@ CELERY_IMPORTS = (
     "plane.bgtasks.exporter_expired_task",
     "plane.bgtasks.file_asset_task",
     "plane.bgtasks.email_notification_task",
+    "plane.bgtasks.workspace_invitation_task",
     "plane.bgtasks.cleanup_task",
     "plane.license.bgtasks.tracer",
     # management tasks
@@ -500,6 +503,7 @@ MONGO_DB_DATABASE = os.environ.get("MONGO_DB_DATABASE", False)
 # The customer-local diagnostics service is opt-in; the browser never receives its credential.
 CUSTOMER_DIAGNOSTICS_ENABLED = os.environ.get("CUSTOMER_DIAGNOSTICS_ENABLED", "false").lower() == "true"
 CUSTOMER_DIAGNOSTICS_WORKSPACE = os.environ.get("CUSTOMER_DIAGNOSTICS_WORKSPACE", "")
+CUSTOMER_DIAGNOSTICS_WORKSPACES = os.environ.get("CUSTOMER_DIAGNOSTICS_WORKSPACES", "")
 CUSTOMER_DIAGNOSTICS_URL = os.environ.get("CUSTOMER_DIAGNOSTICS_URL", "")
 CUSTOMER_DIAGNOSTICS_BRIDGE_KEY_FILE = os.environ.get("CUSTOMER_DIAGNOSTICS_BRIDGE_KEY_FILE", "")
 CUSTOMER_DIAGNOSTICS_IDENTITY_KEY_FILE = os.environ.get("CUSTOMER_DIAGNOSTICS_IDENTITY_KEY_FILE", "")

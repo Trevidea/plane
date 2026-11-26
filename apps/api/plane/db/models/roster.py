@@ -28,9 +28,14 @@ class RosterPlayer(ProjectBaseModel):
     status = models.CharField(max_length=20, choices=RosterPlayerStatus.choices, default=RosterPlayerStatus.ACTIVE)
     notes = models.TextField(null=True, blank=True)
     first_tagged_at = models.DateTimeField(null=True, blank=True)
+    account_link_held = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
+            models.CheckConstraint(
+                check=Q(account_link_held=False) | Q(user__isnull=True, email=""),
+                name="roster_held_link_requires_empty_account",
+            ),
             models.UniqueConstraint(
                 fields=["project", "email"],
                 condition=Q(deleted_at__isnull=True) & ~Q(email=""),
@@ -74,6 +79,8 @@ class RosterEvent(ProjectBaseModel):
     player_name = models.CharField(max_length=255)
     jersey_number = models.CharField(max_length=20, null=True, blank=True)
     action = models.CharField(max_length=32)
+    previous_account_id = models.UUIDField(null=True)
+    replacement_account_id = models.UUIDField(null=True)
     previous_status = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=20)
     actor = models.ForeignKey(

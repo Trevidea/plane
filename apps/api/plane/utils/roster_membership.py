@@ -3,10 +3,9 @@
 from uuid import uuid4
 
 from django.db import transaction
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Subquery
 from rest_framework.exceptions import ValidationError
 
-from plane.bgtasks.workspace_invitation_task import workspace_invitation
 from plane.db.models import (
     Project,
     ProjectMember,
@@ -16,7 +15,13 @@ from plane.db.models import (
     WorkspaceMemberInvite,
     PlayerRegistrationRequest,
 )
-from plane.utils.exception_logger import log_exception
+from plane.utils.roster_invitation_delivery import queue_roster_invitation
+
+
+def pending_player_invitations(workspace_id, email):
+    return WorkspaceMemberInvite.objects.filter(
+        workspace_id=workspace_id, email__iexact=email, role=1, accepted=False, responded_at__isnull=True
+    )
 
 
 def roster_with_account_status(queryset):
@@ -28,10 +33,14 @@ def roster_with_account_status(queryset):
     )
     approvals = PlayerRegistrationRequest.objects.filter(roster_player_id=OuterRef("pk"), approved_at__isnull=True)
     memberships = ProjectMember.all_objects.filter(project_id=OuterRef("project_id"), member_id=OuterRef("user_id"))
+    player_invites = pending_player_invitations(OuterRef("workspace_id"), OuterRef("email"))
     return queryset.select_related("user", "registration_request__user").annotate(
         _has_pending_invitation=Exists(pending),
         _registration_pending=Exists(approvals),
         _program_membership_exists=Exists(memberships),
+        _player_invitation_exists=Exists(player_invites),
+        _invitation_delivery_state=Subquery(player_invites.values("roster_delivery__state")[:1]),
+        _invitation_delivery_changed_at=Subquery(player_invites.values("roster_delivery__changed_at")[:1]),
     )
 
 
@@ -50,6 +59,7 @@ def link_roster_memberships(user, workspace_ids):
             workspace_id__in=eligible,
             email__iexact=user.email,
             user__isnull=True,
+            account_link_held=False,
             project__deleted_at__isnull=True,
             registration_request__user=user,
             registration_request__approved_at__isnull=False,
@@ -66,6 +76,7 @@ def attach_imported_roster_member(player, request):
     """Called inside the import transaction, after all rows have been validated."""
     if (
         not player.email
+        or player.status not in ("active", "injured")
         or PlayerRegistrationRequest.objects.filter(roster_player=player, approved_at__isnull=True).exists()
     ):
         return
@@ -109,17 +120,4 @@ def attach_imported_roster_member(player, request):
             raise ValidationError({"players": ["This invitation was declined. Resend it from workspace settings."]})
         return
 
-    from plane.utils.host import base_host
-
-    origin = base_host(request=request, is_app=True)
-
-    def enqueue():
-        try:
-            workspace_invitation.delay(
-                invitation.email, invitation.workspace_id, invitation.token, origin, request.user.email
-            )
-        except Exception as error:
-            # The invite remains available in workspace settings for resending.
-            log_exception(error)
-
-    transaction.on_commit(enqueue)
+    queue_roster_invitation(invitation, request.user.pk)

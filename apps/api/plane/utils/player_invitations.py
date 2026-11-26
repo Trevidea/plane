@@ -125,7 +125,7 @@ def preview_player_ticket(token):
 def player_invitation_url(invitation):
     return (
         public_player_api_origin()
-        + "/auth/player-invitation/?"
+        + "/auth/player-invitation/#"
         + urlencode({"token": create_player_ticket(invitation)})
     )
 
@@ -189,4 +189,8 @@ def accept_player_ticket(request, token, name, password):
     invite.responded_at = timezone.now()
     invite.save(update_fields=["accepted", "responded_at"])
     user_login(request, user, is_app=True)
+    if len({player.project_id for player in players}) == 1:
+        from plane.utils.enrollment_reports import bind_project
+
+        bind_project(request, invite.workspace.slug, players[0].project_id)
     return user

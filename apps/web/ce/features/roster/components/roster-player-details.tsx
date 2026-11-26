@@ -6,7 +6,6 @@ import {
   Clock3,
   GraduationCap,
   Hash,
-  KeyRound,
   Link2,
   Mail,
   Maximize2,
@@ -21,8 +20,11 @@ import { Avatar, Button, cn } from "@plane/ui";
 import { useRoster } from "../store/roster-context";
 import { isPendingPlayer } from "../utils/roster-presentation";
 import { formatTimestamp, getRosterDisplayEmail, toDisplayStatus } from "../utils/roster.utils";
+import { RosterAccountCorrection } from "./roster-account-correction";
 import { RosterApprovalButton } from "./roster-approval-button";
+import { RosterInvitationDelivery } from "./roster-invitation-delivery";
 import { RosterAccountStatusPill, RosterStatusPill } from "./roster-list";
+import { RosterPasswordReset } from "./roster-password-reset";
 
 export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer; onClose: () => void }) => {
   const {
@@ -166,17 +168,8 @@ export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer
             Status changes leave historical tags, playlists and coaching cards intact.
           </p>
         </section>
-        {player.user && (
-          <section className="space-y-3 border-t border-custom-border-200 pt-5">
-            <h3 className="text-xs font-medium text-custom-text-300">Password</h3>
-            <Button variant="neutral-primary" size="sm" prependIcon={<KeyRound />} disabled>
-              Reset password
-            </Button>
-            <p className="text-xs leading-5 text-custom-text-400">
-              Reset codes are not available yet. Contact your school administrator for help with this account.
-            </p>
-          </section>
-        )}
+        <RosterPasswordReset key={`${player.id}:${player.user}`} player={player} />
+        <RosterAccountCorrection key={`correction:${player.id}:${player.user}`} player={player} />
         <section className="space-y-3 border-t border-custom-border-200 pt-5">
           <h3 className="text-xs font-medium text-custom-text-300">Properties</h3>
           <dl className="space-y-3">
@@ -191,6 +184,7 @@ export const RosterPlayerDetails = ({ player, onClose }: { player: IRosterPlayer
             ))}
           </dl>
         </section>
+        <RosterInvitationDelivery key={player.id} player={player} />
         {player.notes && (
           <section className="space-y-2 border-t border-custom-border-200 pt-5">
             <h3 className="text-xs font-medium text-custom-text-300">Notes</h3>

@@ -21,7 +21,8 @@ const permissions = path.join(temp, "permissions.ts");
 const toast = path.join(temp, "toast.ts");
 await writeFile(
   context,
-  `import { createContext, useContext } from 'react'; export const RosterContext=createContext(null); export const useRoster=()=>useContext(RosterContext);`
+  `import { createContext, useContext } from 'react'; export const RosterContext=createContext(null); export const useRoster=()=>useContext(RosterContext);
+export const getRosterFormState=()=>({player_name:'',email:'',jersey_number:'',position:'',height:'',weight:'',class_year:'',status:'active',notes:''});`
 );
 await writeFile(permissions, `export const useUserPermissions=()=>({allowPermissions:()=>true});`);
 await writeFile(toast, `export const TOAST_TYPE={SUCCESS:'success',ERROR:'error'}; export const setToast=()=>{};`);
@@ -30,6 +31,8 @@ await writeFile(
   `
 export { Button } from ${JSON.stringify(path.join(repo, "packages/ui/src/button/button.tsx"))};
 export { Input } from ${JSON.stringify(path.join(repo, "packages/ui/src/form-fields/input.tsx"))};
+export { TextArea } from ${JSON.stringify(path.join(repo, "packages/ui/src/form-fields/textarea.tsx"))};
+export { ToggleSwitch } from ${JSON.stringify(path.join(repo, "packages/ui/src/button/toggle-switch.tsx"))};
 export { CustomMenu } from ${JSON.stringify(path.join(repo, "packages/ui/src/dropdowns/custom-menu.tsx"))};
 export { CustomSelect } from ${JSON.stringify(path.join(repo, "packages/ui/src/dropdowns/custom-select.tsx"))};
 export { ModalCore } from ${JSON.stringify(path.join(repo, "packages/ui/src/modals/modal-core.tsx"))};
@@ -42,6 +45,19 @@ await writeFile(
   `
 let current = null;
 export class RosterService {
+  async findImportReturningAccounts(workspace, program, queries) {
+    window.importMatchQueries = queries;
+    return {rows: queries.map(query => ({
+      results: query.player_name === 'Jordan Lee' ? [
+        {id:'first-account',email:'jordan@example.com',previous_program:'2025 Varsity'},
+        {id:'second-account',email:'jordan2@example.com',previous_program:'2024 JV'}
+      ] : [], has_more:false
+    }))};
+  }
+  async findReturningAccounts(workspace, program, name, year) {
+    window.matchQuery = { workspace, program, name, year };
+    return { results: [{id:'first-account',email:'jordan@example.com'},{id:'second-account',email:'jordan2@example.com'}], has_more:false };
+  }
   async getRegistration() { return current; }
   async generateRegistration() {
     current = { token: 'fixture', url: 'http://localhost:8000/auth/player-registration/?token=fixture',
@@ -61,15 +77,25 @@ import {createRoot} from 'react-dom/client';
 import {RosterAddPlayerActions} from ${JSON.stringify(path.join(web, "ce/features/roster/components/roster-add-player-actions.tsx"))};
 import {RosterExportDropdown} from ${JSON.stringify(path.join(web, "ce/features/roster/components/roster-export-dropdown.tsx"))};
 import {ImportRosterModal} from ${JSON.stringify(path.join(web, "ce/features/roster/components/roster-import-modal.tsx"))};
+import {AddPlayerModal} from ${JSON.stringify(path.join(web, "ce/features/roster/components/roster-add-player-modal.tsx"))};
 import {RosterContext} from ${JSON.stringify(context)};
 function Fixture(){
- const [open,setOpen]=useState(false),[busy,setBusy]=useState(false);
- return <><RosterExportDropdown projectId="fixture" players={[{id:'export-player',player_name:'Export Player',email:'export@example.com',jersey_number:'07',status:'active'}]}/><RosterAddPlayerActions onAdd={()=>window.addClicks=(window.addClicks||0)+1} onImport={()=>setOpen(true)}/><button onClick={()=>setOpen(true)}>Open import</button><RosterContext.Provider value={{
+ const [open,setOpen]=useState(false),[busy,setBusy]=useState(false),[adding,setAdding]=useState(false);
+ return <><RosterExportDropdown projectId="fixture" players={[{id:'export-player',player_name:'Export Player',email:'export@example.com',jersey_number:'07',status:'active'}]}/><RosterAddPlayerActions onAdd={()=>window.addClicks=(window.addClicks||0)+1} onImport={()=>setOpen(true)}/><button onClick={()=>setOpen(true)}>Open import</button><button onClick={()=>setAdding(true)}>Open add form</button><RosterContext.Provider value={{
  isImportRosterModalOpen:open,isSubmitting:busy,canManage:true,
+ isAddPlayerModalOpen:adding,closePlayerModal:()=>setAdding(false),workspaceSlug:'school',projectId:'fixture',positionOptions:[],classYearOptions:[],
+ submitPlayer:async(payload,options)=>{window.addedPlayer={payload,options};setAdding(false);return true},
  closeImportRosterModal:()=>setOpen(false),pendingImportFile:null,setPendingImportFile:()=>{},
  allPlayers:[{id:'existing',player_name:'Existing Player',email:'existing@example.com',jersey_number:'7',status:'active'}],
- importPlayers:async(rows)=>{window.importedRows=rows;setBusy(true);await new Promise(r=>setTimeout(r,100));setBusy(false);setOpen(false)}
- }}><ImportRosterModal/></RosterContext.Provider></>
+ importPlayers:async(rows,importId,retry)=>{
+   window.importedRows=rows;window.importAttempts=[...(window.importAttempts||[]),{rows,importId}];
+   window.isExactRetry=retry;
+   setBusy(true);await new Promise(r=>setTimeout(r,100));setBusy(false);
+   if(window.failImportOnce){window.failImportOnce=false;return {kind:'unknown'};}
+   if(window.rejectMatchOnce){window.rejectMatchOnce=false;return {kind:'rejected',rowError:{index:0,message:'No longer a match.'}};}
+   setOpen(false);return {kind:'saved'};
+ }
+ }}><ImportRosterModal/><AddPlayerModal/></RosterContext.Provider></>
 }
 createRoot(document.getElementById('root')).render(<Fixture/>);
 `
@@ -110,6 +136,7 @@ const css = await postcss([
     content: [
       path.join(web, "ce/features/roster/components/roster-import-modal.tsx"),
       path.join(web, "ce/features/roster/components/roster-add-player-actions.tsx"),
+      path.join(web, "ce/features/roster/components/roster-add-player-modal.tsx"),
       path.join(web, "ce/features/roster/components/roster-approval-button.tsx"),
       path.join(repo, "packages/ui/src/modals/*.{ts,tsx}"),
       path.join(repo, "packages/ui/src/button/*.{ts,tsx}"),
@@ -254,6 +281,7 @@ try {
   await page.getByLabel("Player name for row 4", { exact: true }).fill("");
   assert.equal(await submit().isDisabled(), true);
   await page.getByLabel("Player name for row 4", { exact: true }).fill("New Player");
+  await page.getByRole("button", { name: "Check returning accounts", exact: true }).click();
   const row = page.getByRole("row").filter({ has: page.getByLabel("Email for row 3", { exact: true }) });
   await row.getByRole("button", { name: "Exclude", exact: true }).click();
   await page.getByRole("button", { name: "Import 2 players", exact: true }).waitFor();
@@ -296,15 +324,98 @@ try {
   await page.getByLabel("Player name for row 2", { exact: true }).fill("Taylor Smith ");
   assert.equal(await duplicateSubmit.isDisabled(), true);
   await page.getByRole("button", { name: "Same person · exclude row", exact: true }).nth(1).click();
+  await page.getByRole("button", { name: "Check returning accounts", exact: true }).click();
   assert.equal(await page.getByRole("button", { name: "Import 1 player", exact: true }).isDisabled(), false);
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Open import", exact: true }).click();
+  await page.locator("input[type=file]").setInputFiles({
+    name: "returning.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("Name,Grad Year,Email\nJordan Lee,2027,\nNew Athlete,2029,new@example.test"),
+  });
+  await page.getByRole("button", { name: "Map columns", exact: true }).click();
+  await page.getByRole("button", { name: "Review rows", exact: true }).click();
+  const matchButton = page.getByRole("button", { name: /Account for row 2:/ });
+  await matchButton.waitFor();
+  assert.equal(await duplicateSubmit.isDisabled(), true, "a suggested account is not selected automatically");
+  await matchButton.click();
+  await page.getByRole("menuitem", { name: /jordan@example.com.*2025 Varsity/ }).click();
+  assert.equal(await duplicateSubmit.isEnabled(), true);
+  await page.getByLabel("Email for row 2", { exact: true }).fill("jordan2@example.com");
+  assert.equal(await duplicateSubmit.isDisabled(), true, "editing the contact clears confirmation");
+  await page.getByRole("button", { name: "Check returning accounts", exact: true }).click();
+  await matchButton.click();
+  assert.equal(
+    await page.getByRole("menuitem", { name: /jordan@example.com.*2025 Varsity/ }).isDisabled(),
+    true,
+    "conflicting login email cannot be selected"
+  );
+  await page.getByRole("menuitem", { name: /jordan2@example.com.*2024 JV/ }).click();
+  await page.evaluate(() => {
+    window.rejectMatchOnce = true;
+  });
+  await duplicateSubmit.click();
+  await page.getByRole("alert").filter({ hasText: "No longer a match." }).waitFor();
+  assert.equal(await duplicateSubmit.isDisabled(), true, "a rejected account cannot be blindly resubmitted");
+  await page.getByRole("button", { name: "Check returning accounts", exact: true }).click();
+  await matchButton.click();
+  await page.getByRole("menuitem", { name: /jordan2@example.com.*2024 JV/ }).click();
+  await page.evaluate(() => {
+    window.failImportOnce = true;
+    window.importAttempts = [];
+  });
+  await duplicateSubmit.click();
+  await page.getByRole("button", { name: "Retry import", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Open import", exact: true }).click();
+  await page.getByRole("button", { name: "Retry import", exact: true }).click();
+  await page.waitForFunction(() => window.importAttempts?.length === 2);
+  const attempts = await page.evaluate(() => window.importAttempts);
+  assert.match(attempts[0].importId, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(attempts[1], attempts[0], "retry must reuse the batch id and reviewed rows");
+  assert.equal(await page.evaluate(() => window.isExactRetry), true);
+  assert.equal(attempts[1].rows[0].existing_account_id, "second-account");
+  assert.equal(attempts[1].rows[1].existing_account_id, undefined);
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Open import", exact: true }).click();
   const bounds = await page.getByRole("dialog").boundingBox();
   assert.ok(bounds.width <= 390);
+  await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Open add form", exact: true }).click();
+  const addForm = page.getByRole("dialog");
+  await addForm.getByLabel("First name *", { exact: true }).fill("Jordan");
+  await addForm.getByLabel("Last name *", { exact: true }).fill("Lee");
+  const find = addForm.getByRole("button", { name: "Find matching accounts", exact: true });
+  assert.equal(await find.isDisabled(), true);
+  const year = addForm.getByLabel("Grad year / class", { exact: true });
+  await year.fill("2027");
+  await find.click();
+  await addForm.getByRole("radio", { name: "Keep unlinked", exact: true }).waitFor();
+  assert.equal(await addForm.getByRole("radio", { name: "Keep unlinked", exact: true }).isChecked(), true);
+  assert.equal(await addForm.getByRole("button", { name: "Add and link player", exact: true }).count(), 0);
+  await addForm.getByRole("radio", { name: "jordan2@example.com", exact: true }).check();
+  await year.fill("2028");
+  assert.equal(await addForm.getByRole("button", { name: "Add and link player", exact: true }).count(), 0);
+  await find.click();
+  await addForm.getByRole("radio", { name: "jordan2@example.com", exact: true }).check();
+  const email = addForm.getByLabel("Email (optional)", { exact: true });
+  await email.fill("other@example.com");
+  const confirm = addForm.getByRole("button", { name: "Add and link player", exact: true });
+  assert.equal(await confirm.isDisabled(), true);
+  await email.fill("");
+  await confirm.click();
+  assert.deepEqual(await page.evaluate(() => window.matchQuery), {
+    workspace: "school",
+    program: "fixture",
+    name: "Jordan Lee",
+    year: "2028",
+  });
+  assert.equal(await page.evaluate(() => window.addedPlayer.options.existingAccountId), "second-account");
+  assert.equal(await page.evaluate(() => window.addedPlayer.payload.email), "");
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: real Plane import controls; CSV mapping; file/existing-roster duplicate highlighting; inline correction; required name; exclude/restore; exact submission payload; reset; invalid file; mobile width. Screenshot /tmp/kanavio-roster-import-duplicates.png"
+    "PASS: Plane roster import and returning-account confirmation, including ambiguous matches, stale selection reset, email conflict, and exact submission payload at mobile width."
   );
 } finally {
   await browser?.close();

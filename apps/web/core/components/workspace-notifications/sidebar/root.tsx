@@ -22,6 +22,7 @@ import { NotificationEmptyState } from "./empty-state";
 import { AppliedFilters } from "./filters/applied-filter";
 import { NotificationSidebarHeader } from "./header";
 import { NotificationsLoader } from "./loader";
+import { RosterNotices } from "./roster-notices";
 
 export const NotificationsSidebarRoot: FC = observer(() => {
   const { workspaceSlug } = useParams();
@@ -90,6 +91,8 @@ export const NotificationsSidebarRoot: FC = observer(() => {
             </div>
           ))}
         </Header>
+
+        <RosterNotices key={workspace.slug} workspace={workspace.slug} />
 
         {/* applied filters */}
         <AppliedFilters workspaceSlug={workspaceSlug.toString()} />

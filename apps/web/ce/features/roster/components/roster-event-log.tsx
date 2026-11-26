@@ -3,9 +3,10 @@
 import { observer } from "mobx-react";
 import { useRoster } from "../store/roster-context";
 import { formatTimestamp, toDisplayStatus } from "../utils/roster.utils";
+import { RosterAccountCorrection } from "./roster-account-correction";
 
 export const RosterEventLog = observer(() => {
-  const { canManage, events, eventsError, isLoadingEvents, refetchEvents, canDeleteAccounts, openDeleteAccountModal } =
+  const { canManage, events, eventsError, isLoadingEvents, refetchEvents, canPreviewAccounts, openDeleteAccountModal } =
     useRoster();
   if (!canManage) return null;
   if (isLoadingEvents)
@@ -56,16 +57,19 @@ export const RosterEventLog = observer(() => {
                 </td>
                 <td className="p-3">{event.actor_name || "—"}</td>
                 <td className="p-3">
-                  {canDeleteAccounts && event.has_account ? (
-                    <button
-                      type="button"
-                      className="text-red-500"
-                      onClick={() =>
-                        openDeleteAccountModal({ id: event.roster_identity, player_name: event.player_name })
-                      }
-                    >
-                      Delete account
-                    </button>
+                  {canPreviewAccounts && event.has_account ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        className="text-red-500"
+                        onClick={() =>
+                          openDeleteAccountModal({ id: event.roster_identity, player_name: event.player_name })
+                        }
+                      >
+                        Preview account deletion
+                      </button>
+                      {event.status === "removed" && <RosterAccountCorrection historyId={event.roster_identity} />}
+                    </div>
                   ) : event.has_account ? (
                     "Linked"
                   ) : (

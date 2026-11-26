@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Download } from "lucide-react";
+import { beginRosterUI } from "@plane/logger/diagnostics-browser";
 import { TOAST_TYPE, setToast } from "@plane/propel/toast";
 import type { IRosterPlayer } from "@plane/types";
 import { CustomMenu } from "@plane/ui";
@@ -12,6 +13,7 @@ export const RosterExportDropdown = ({ players, projectId }: { players: IRosterP
   const [busy, setBusy] = useState(false);
   const exportRoster = async (format: "xlsx" | "csv") => {
     if (busy) return;
+    const operation = beginRosterUI("export");
     setBusy(true);
     try {
       if (format === "xlsx") {
@@ -30,7 +32,9 @@ export const RosterExportDropdown = ({ players, projectId }: { players: IRosterP
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
+      operation.finish("confirmed"); // Browser download dispatched; disk completion is not observable.
     } catch {
+      operation.finish("failed");
       setToast({
         type: TOAST_TYPE.ERROR,
         title: "Export failed",

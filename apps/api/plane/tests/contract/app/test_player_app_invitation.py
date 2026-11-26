@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -183,8 +184,27 @@ class PlayerAppInvitationTests(TestCase):
         self.assertContains(response, "kanavioplayerapp://signup?")
         self.assertContains(response, "csrfmiddlewaretoken")
         self.assertContains(response, self.player.email)
-        self.assertEqual("same-origin", response.headers["Referrer-Policy"])
-        self.assertContains(response, 'name="referrer" content="same-origin"')
+        self.assertEqual("strict-origin", response.headers["Referrer-Policy"])
+        self.assertContains(response, 'name="referrer" content="strict-origin"')
+
+    def test_fragment_bootstrap_posts_ticket_under_csrf_without_putting_it_in_the_url(self):
+        client = APIClient(enforce_csrf_checks=True)
+        path = "/auth/player-invitation/"
+        bootstrap = client.get(path)
+        self.assertContains(bootstrap, "location.hash")
+        self.assertContains(bootstrap, "history.replaceState")
+        self.assertNotContains(bootstrap, self.ticket)
+        self.assertEqual(bootstrap.headers["Cache-Control"], "private, no-store")
+        self.assertEqual(client.post(path, {"token": self.ticket}).status_code, 403)
+        csrf = client.cookies["csrftoken"].value
+        landing = client.post(
+            path,
+            urlencode({"token": self.ticket, "csrfmiddlewaretoken": csrf}),
+            content_type="application/x-www-form-urlencoded",
+        )
+        self.assertContains(landing, "kanavioplayerapp://signup?")
+        self.assertEqual(landing.headers["Referrer-Policy"], "strict-origin")
+        self.assertEqual(landing.headers["Cache-Control"], "private, no-store")
 
     def test_acceptance_requires_csrf(self):
         self.client = APIClient(enforce_csrf_checks=True)

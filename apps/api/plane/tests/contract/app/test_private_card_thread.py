@@ -178,11 +178,23 @@ class PrivateCardThreadTests(TestCase):
 
     def test_ineligible_recipient_removes_coach_and_player_access(self):
         self.assertEqual(self.send(self.players[0]).status_code, 201)
-        self.rosters[0].status = "inactive"
+        self.rosters[0].status = "pending"
         self.rosters[0].save(update_fields=["status"])
         self.assertEqual(self.client.get(self.url).status_code, 404)
         self.client.force_authenticate(self.coach)
         self.assertEqual(self.client.get(self.coach_url).status_code, 404)
+
+    def test_former_player_can_read_own_thread_but_cannot_write_or_upload(self):
+        sent = self.send(self.players[0])
+        self.assertEqual(sent.status_code, 201)
+        detail = self.url + sent.data["id"] + "/"
+        RosterPlayer.objects.filter(pk=self.rosters[0].pk).update(status="inactive")
+        self.assertEqual(self.client.get(detail).status_code, 200)
+        self.assertEqual(self.send(self.players[0]).status_code, 404)
+        self.assertEqual(self.client.patch(detail, {"comment_html": "<p>Edit</p>"}, format="json").status_code, 404)
+        self.assertEqual(self.client.delete(detail).status_code, 404)
+        response = self.client.generic("POST", self.url + "attachments/", b"", content_type="video/mp4")
+        self.assertEqual(response.status_code, 404)
 
     def test_pagination_is_private_before_counting_and_cache_is_not_shared(self):
         for i in range(3):

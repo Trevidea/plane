@@ -1,6 +1,8 @@
 # Python imports
 import os
 
+from django.db import transaction
+
 # Module imports
 from plane.authentication.adapter.credential import CredentialAdapter
 from plane.db.models import User
@@ -19,6 +21,7 @@ class EmailProvider(CredentialAdapter):
         self.key = key
         self.code = code
         self.is_signup = is_signup
+        self.verified_user = None
 
         (ENABLE_EMAIL_PASSWORD,) = get_configuration_value(
             [
@@ -35,6 +38,25 @@ class EmailProvider(CredentialAdapter):
                 error_message="EMAIL_PASSWORD_AUTHENTICATION_DISABLED",
             )
 
+    def authenticate(self):
+        self.set_user_data()
+        verified = self.verified_user
+        if verified is not None and not User.objects.filter(
+            pk=verified.pk, email=verified.email, password=verified.password
+        ).exists():
+            self._invalid_password()
+        # The authenticated session must use exactly the password hash that was verified.
+        return self.complete_login_or_signup(verified_user=verified)
+
+    def _invalid_password(self):
+        error = "AUTHENTICATION_FAILED_SIGN_UP" if self.is_signup else "AUTHENTICATION_FAILED_SIGN_IN"
+        raise AuthenticationException(
+            error_message=error,
+            error_code=AUTHENTICATION_ERROR_CODES[error],
+            payload={"email": self.key},
+        )
+
+    @transaction.atomic
     def set_user_data(self):
         if self.is_signup:
             # Check if the user already exists
@@ -58,7 +80,7 @@ class EmailProvider(CredentialAdapter):
             )
             return
         else:
-            user = User.objects.filter(email=self.key).first()
+            user = User.objects.select_for_update().filter(email=self.key).first()
 
             # User does not exists
             if not user:
@@ -70,15 +92,8 @@ class EmailProvider(CredentialAdapter):
 
             # Check user password
             if not user.check_password(self.code):
-                raise AuthenticationException(
-                    error_message=(
-                        "AUTHENTICATION_FAILED_SIGN_UP" if self.is_signup else "AUTHENTICATION_FAILED_SIGN_IN"
-                    ),
-                    error_code=AUTHENTICATION_ERROR_CODES[
-                        ("AUTHENTICATION_FAILED_SIGN_UP" if self.is_signup else "AUTHENTICATION_FAILED_SIGN_IN")
-                    ],
-                    payload={"email": self.key},
-                )
+                self._invalid_password()
+            self.verified_user = user
 
             super().set_user_data(
                 {

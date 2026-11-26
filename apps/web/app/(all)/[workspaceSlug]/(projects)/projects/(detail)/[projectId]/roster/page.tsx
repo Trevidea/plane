@@ -1,3 +1,9 @@
 "use client";
 
-export { RosterPage as default } from "@/plane-web/features/roster";
+import { useSearchParams } from "next/navigation";
+import { RosterPage } from "@/plane-web/features/roster";
+
+export default function ProjectRosterPage() {
+  const query = useSearchParams();
+  return <RosterPage openJoinRequests={query.get("view") === "join-requests"} />;
+}

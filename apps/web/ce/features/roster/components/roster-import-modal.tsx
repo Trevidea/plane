@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react";
+import { v4 as uuidv4 } from "uuid";
 import { AlertTriangle, Check, FileSpreadsheet, Upload, X } from "lucide-react";
+import { EUserPermissions, EUserPermissionsLevel } from "@plane/constants";
 import { Button } from "@plane/propel/button";
-import type { IRosterPlayerPayload } from "@plane/types";
+import type { IRosterPlayerPayload, TRosterImportRow } from "@plane/types";
 import { cn, CustomMenu, EModalPosition, EModalWidth, Input, ModalCore } from "@plane/ui";
+import { useUserPermissions } from "@/hooks/store/user";
 import { useRoster } from "../store/roster-context";
 import {
   getMappingErrors,
@@ -15,6 +18,7 @@ import {
   validateRosterImport,
 } from "../utils/roster-import-review";
 import type { ImportField, RosterMapping } from "../utils/roster-import-review";
+import { canCheckRosterImportMatch, useRosterImportMatches } from "../utils/use-roster-import-matches";
 
 const inputClass =
   "rounded-md border border-custom-border-200 bg-custom-background-100 px-2.5 py-2 text-sm text-custom-text-100 focus:border-custom-primary-100 focus:outline-none disabled:opacity-50";
@@ -30,7 +34,7 @@ const ImportFieldDropdown = ({
   value: string;
   label: string;
   ariaLabel: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; disabled?: boolean }[];
   onChange: (value: string) => void;
   disabled?: boolean;
   hasError?: boolean;
@@ -54,6 +58,7 @@ const ImportFieldDropdown = ({
     {options.map((option) => (
       <CustomMenu.MenuItem
         key={option.value}
+        disabled={option.disabled}
         onClick={() => onChange(option.value)}
         className="flex items-center justify-between gap-3"
       >
@@ -76,7 +81,11 @@ const reviewFields: { key: keyof IRosterPlayerPayload; label: string }[] = [
   { key: "notes", label: "Notes" },
 ];
 
-type Filter = "all" | "ready" | "warning" | "error" | "excluded";
+type Filter = "all" | "ready" | "warning" | "matches" | "error" | "excluded";
+type ImportAttempt = { id: string; scope: string; players: TRosterImportRow[]; sourceRows: number[] };
+const KEEP_UNLINKED = "unlinked";
+const matchFields = new Set<keyof IRosterPlayerPayload>(["player_name", "class_year", "email", "status"]);
+const candidateLabel = (email: string, program: string | null) => (program ? `${email} · ${program}` : email);
 
 export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) => {
   const {
@@ -88,10 +97,23 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
     setPendingImportFile,
     allPlayers,
     canManage,
+    workspaceSlug,
+    projectId,
   } = useRoster();
+  const { allowPermissions } = useUserPermissions();
+  const canLookup =
+    canManage &&
+    allowPermissions([EUserPermissions.ADMIN, EUserPermissions.MEMBER], EUserPermissionsLevel.WORKSPACE, workspaceSlug);
+  const matches = useRosterImportMatches(workspaceSlug, projectId);
+  const { reset: resetMatches } = matches;
   const modalOpen = isOpen ?? isImportRosterModalOpen;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const parseVersion = useRef(0);
+  const importInFlight = useRef(false);
+  const scope = `${workspaceSlug}/${projectId}`;
+  const [retry, setRetry] = useState<ImportAttempt | null>(null);
+  const pendingImport = retry?.scope === scope ? retry : null;
+  const [matchError, setMatchError] = useState<{ index: number; message: string } | null>(null);
   const [step, setStep] = useState(1);
   const [fileName, setFileName] = useState("");
   const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
@@ -106,6 +128,8 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
   const [isDragging, setIsDragging] = useState(false);
   const reset = useCallback(() => {
     parseVersion.current += 1;
+    resetMatches();
+    setMatchError(null);
     setStep(1);
     setFileName("");
     setRawRows([]);
@@ -119,19 +143,19 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
     setIsParsing(false);
     setIsDragging(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
-  }, []);
+  }, [resetMatches]);
   const handleClose = () => {
-    if (isSubmitting) return;
-    reset();
+    if (isSubmitting || importInFlight.current) return;
+    if (!pendingImport) reset();
     (onClose ?? closeImportRosterModal)();
   };
 
   useEffect(() => {
-    if (!modalOpen) reset();
+    if (!modalOpen && !pendingImport) reset();
     return () => {
       parseVersion.current += 1;
     };
-  }, [modalOpen, reset]);
+  }, [modalOpen, pendingImport, reset]);
 
   const parseFile = useCallback(
     async (file: File) => {
@@ -157,6 +181,8 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
           .filter((row) => row.some((value) => String(value).trim()))
           .map((row) => Object.fromEntries(columns.map((column, index) => [column, row[index] ?? ""])));
         if (!data.length) throw new Error("No player rows were found below the header row.");
+        if (data.length > 500)
+          throw new Error("Import up to 500 rows at a time. Split this file into smaller rosters.");
         if (version !== parseVersion.current) return;
         setHeaders(columns);
         setRawRows(data);
@@ -173,10 +199,10 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
 
   useEffect(() => {
     if (modalOpen && pendingImportFile) {
-      void parseFile(pendingImportFile);
+      if (!pendingImport) void parseFile(pendingImportFile);
       setPendingImportFile(null);
     }
-  }, [modalOpen, pendingImportFile, parseFile, setPendingImportFile]);
+  }, [modalOpen, pendingImport, pendingImportFile, parseFile, setPendingImportFile]);
 
   const validation = validateRosterImport(rows, allPlayers, excluded);
   const visibleReviewFields = reviewFields.filter(
@@ -188,6 +214,22 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
     validation[index].warnings.length > 0 ||
     validation[index].errors.some((error) => /duplicate|repeated|already exists/i.test(error));
   const mappingErrors = getMappingErrors(mapping);
+  const totalToCheck = canLookup
+    ? rows.filter((row, i) => !excluded.has(i) && canCheckRosterImportMatch(row)).length
+    : 0;
+  const isUnchecked = (row: IRosterPlayerPayload, index: number) =>
+    canLookup && !excluded.has(index) && canCheckRosterImportMatch(row) && !matches.results[index];
+  const uncheckedCount = rows.filter(isUnchecked).length;
+  const hasMatch = (index: number) => canLookup && Boolean(matches.results[index]?.results.length);
+  const accountReviewNeeded = (index: number) => hasMatch(index) && !matches.decisions[index];
+  const unresolvedMatches = rows.filter((_, i) => !excluded.has(i) && accountReviewNeeded(i)).length;
+  const selectedAccounts = canLookup
+    ? Object.entries(matches.decisions)
+        .filter(([index, account]) => !excluded.has(Number(index)) && account && account !== KEEP_UNLINKED)
+        .map(([, account]) => account)
+    : [];
+  const hasRepeatedAccount = new Set(selectedAccounts).size !== selectedAccounts.length;
+  const reviewBusy = isSubmitting || matches.isChecking;
   const includedCount = rows.length - excluded.size;
   const errorCount = validation.filter((result) => result.errors.length).length;
   const warningCount = validation.filter(
@@ -195,29 +237,121 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
   ).length;
   const readyCount = validation.filter(
     (result, index) =>
-      !excluded.has(index) && !result.errors.length && (!result.warnings.length || differentPeople.has(index))
+      !excluded.has(index) &&
+      !result.errors.length &&
+      (!result.warnings.length || differentPeople.has(index)) &&
+      !accountReviewNeeded(index) &&
+      (matches.skipMissing || !isUnchecked(rows[index], index))
   ).length;
   const unresolvedDuplicates = validation.filter(
     (result, index) => result.warnings.length > 0 && !excluded.has(index) && !differentPeople.has(index)
   ).length;
-  const canImport = canManage && includedCount > 0 && errorCount === 0 && unresolvedDuplicates === 0 && !isSubmitting;
+  const canImport =
+    canManage &&
+    includedCount > 0 &&
+    errorCount === 0 &&
+    unresolvedDuplicates === 0 &&
+    unresolvedMatches === 0 &&
+    !hasRepeatedAccount &&
+    (!uncheckedCount || matches.skipMissing) &&
+    !reviewBusy;
   const showRow = (index: number) =>
     filter === "all" ||
     (filter === "excluded"
       ? excluded.has(index)
       : !excluded.has(index) &&
-        (filter === "error"
-          ? validation[index].errors.length > 0
-          : filter === "warning"
-            ? hasDuplicate(index) && (validation[index].errors.length > 0 || !differentPeople.has(index))
-            : !validation[index].errors.length && (!validation[index].warnings.length || differentPeople.has(index))));
+        (filter === "matches"
+          ? hasMatch(index)
+          : filter === "error"
+            ? validation[index].errors.length > 0
+            : filter === "warning"
+              ? hasDuplicate(index) && (validation[index].errors.length > 0 || !differentPeople.has(index))
+              : !validation[index].errors.length &&
+                (!validation[index].warnings.length || differentPeople.has(index)) &&
+                !accountReviewNeeded(index) &&
+                (matches.skipMissing || !isUnchecked(rows[index], index))));
   const summary: { key: Filter; label: string; count: number }[] = [
     { key: "all", label: "All rows", count: rows.length },
     { key: "ready", label: "Ready to import", count: readyCount },
     { key: "warning", label: "Duplicates to review", count: warningCount },
+    ...(canLookup
+      ? [
+          {
+            key: "matches" as const,
+            label: "Account matches",
+            count: rows.filter((_, i) => !excluded.has(i) && hasMatch(i)).length,
+          },
+        ]
+      : []),
     { key: "error", label: "Need a fix", count: errorCount },
     { key: "excluded", label: "Excluded", count: excluded.size },
   ];
+
+  const runImport = async (attempt: ImportAttempt, retry = false) => {
+    if (importInFlight.current) return;
+    importInFlight.current = true;
+    try {
+      const outcome = await importPlayers(attempt.players, attempt.id, retry);
+      setRetry(outcome.kind === "unknown" ? attempt : null);
+      if (outcome.kind === "rejected" && outcome.rowError) {
+        const index = attempt.sourceRows[outcome.rowError.index];
+        if (index !== undefined) {
+          matches.invalidate(index, true);
+          setMatchError({ index, message: outcome.rowError.message });
+          setFilter("all");
+        }
+      }
+    } finally {
+      importInFlight.current = false;
+    }
+  };
+
+  const submitImport = () => {
+    if (!canImport) return;
+    const sourceRows: number[] = [];
+    const players: TRosterImportRow[] = rows.flatMap((row, index) => {
+      if (excluded.has(index)) return [];
+      sourceRows.push(index);
+      const account = matches.decisions[index];
+      return [
+        {
+          ...row,
+          player_name: row.player_name.trim(),
+          email: row.email?.trim().toLowerCase() || null,
+          ...(canLookup && account && account !== KEEP_UNLINKED ? { existing_account_id: account } : {}),
+        },
+      ];
+    });
+    setMatchError(null);
+    void runImport({ id: uuidv4(), scope, players, sourceRows });
+  };
+
+  if (pendingImport) {
+    return (
+      <ModalCore isOpen={modalOpen} handleClose={handleClose} position={EModalPosition.TOP} width={EModalWidth.LG}>
+        <div className="space-y-2 p-6">
+          <h3 className="text-lg font-semibold text-custom-text-100">Import not confirmed</h3>
+          <p role="status" className="text-sm text-custom-text-300">
+            Plane did not receive a confirmation. Retry this batch to check its result without importing it twice.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-custom-border-200 px-6 py-4">
+          <Button variant="neutral-primary" size="sm" onClick={handleClose} disabled={isSubmitting}>
+            Close
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={isSubmitting || !canManage}
+            loading={isSubmitting}
+            onClick={() => void runImport(pendingImport, true)}
+          >
+            Retry import
+          </Button>
+        </div>
+      </ModalCore>
+    );
+  }
 
   return (
     <ModalCore
@@ -439,10 +573,37 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                 </button>
               ))}
             </div>
-            <p className="text-xs text-custom-text-300">
-              Edit any cell to resolve issues. Excluded rows will not be imported. Review possible duplicates before
-              continuing.
-            </p>
+            {totalToCheck > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="neutral-primary"
+                  size="sm"
+                  disabled={reviewBusy}
+                  loading={matches.isChecking}
+                  onClick={() => {
+                    setMatchError(null);
+                    void matches.check(rows, excluded, uncheckedCount === 0);
+                  }}
+                >
+                  Check returning accounts
+                </Button>
+                {matches.failed && !matches.skipMissing && (
+                  <>
+                    <span role="alert" className="text-xs text-amber-600 dark:text-amber-400">
+                      Account lookup failed for {uncheckedCount} row{uncheckedCount === 1 ? "" : "s"}.
+                    </span>
+                    <Button variant="neutral-primary" size="sm" disabled={reviewBusy} onClick={matches.skip}>
+                      Continue without unchecked matches
+                    </Button>
+                  </>
+                )}
+                {matches.skipMissing && (
+                  <span role="status" className="text-xs text-custom-text-300">
+                    Unchecked rows will import without an account match.
+                  </span>
+                )}
+              </div>
+            )}
             <div className="max-h-[46vh] overflow-y-auto rounded-lg border border-custom-border-200">
               <table className="w-full table-fixed text-left text-sm" aria-label="Roster import review">
                 <thead className="sticky top-0 z-[1] bg-custom-background-90 text-xs text-custom-text-300">
@@ -464,7 +625,13 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                     const isExcluded = excluded.has(index);
                     const needsReview =
                       !isExcluded &&
-                      (result.errors.length > 0 || (result.warnings.length > 0 && !differentPeople.has(index)));
+                      (result.errors.length > 0 ||
+                        (result.warnings.length > 0 && !differentPeople.has(index)) ||
+                        accountReviewNeeded(index) ||
+                        (!matches.skipMissing && isUnchecked(row, index)));
+                    const accountResult = canLookup ? matches.results[index] : undefined;
+                    const accountDecision = matches.decisions[index];
+                    const account = accountResult?.results.find(({ id }) => id === accountDecision);
                     const renderField = (field: (typeof reviewFields)[number]) => {
                       const fieldWord =
                         field.key === "player_name"
@@ -477,6 +644,10 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                       const fieldErrors = result.errors.filter((error) => error.toLowerCase().includes(fieldWord));
                       const fieldId = `roster-import-field-${index}-${field.key}`;
                       const change = (value: string) => {
+                        if (matchFields.has(field.key)) {
+                          matches.invalidate(index, field.key !== "email");
+                          if (matchError?.index === index) setMatchError(null);
+                        }
                         setDifferentPeople(new Set());
                         setRows((current) =>
                           current.map((item, i) => (i === index ? { ...item, [field.key]: value } : item))
@@ -508,7 +679,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                                 { value: "active", label: "Active" },
                                 { value: "inactive", label: "Inactive" },
                               ]}
-                              disabled={isSubmitting || isExcluded}
+                              disabled={reviewBusy || isExcluded}
                               hasError={fieldErrors.length > 0}
                               onChange={change}
                             />
@@ -518,7 +689,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                               inputSize="xs"
                               aria-label={`${field.label} for row ${index + 2}`}
                               value={row[field.key] ?? ""}
-                              disabled={isSubmitting || isExcluded}
+                              disabled={reviewBusy || isExcluded}
                               aria-invalid={fieldErrors.length > 0}
                               aria-describedby={
                                 fieldErrors.length ? `${fieldId}-error` : `roster-import-review-${index}`
@@ -579,7 +750,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                               <Button
                                 variant="neutral-primary"
                                 size="sm"
-                                disabled={isSubmitting}
+                                disabled={reviewBusy}
                                 onClick={() =>
                                   setExcluded((current) => {
                                     const next = new Set(current);
@@ -597,6 +768,59 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                                 .filter((field) => !["height", "weight", "notes"].includes(field.key))
                                 .map(renderField)}
                             </div>
+                            {canLookup && !isExcluded && canCheckRosterImportMatch(row) && (
+                              <div className="max-w-md space-y-1">
+                                {matchError?.index === index && (
+                                  <p role="alert" className="text-xs text-amber-600 dark:text-amber-400">
+                                    {matchError.message}
+                                  </p>
+                                )}
+                                {accountResult?.results.length ? (
+                                  <>
+                                    <ImportFieldDropdown
+                                      value={accountDecision ?? ""}
+                                      label={
+                                        account
+                                          ? candidateLabel(account.email, account.previous_program)
+                                          : accountDecision === KEEP_UNLINKED
+                                            ? "Keep unlinked"
+                                            : "Review account matches"
+                                      }
+                                      ariaLabel={`Account for row ${index + 2}`}
+                                      options={[
+                                        ...accountResult.results.map(({ id, email, previous_program }) => {
+                                          const mismatch = Boolean(
+                                            row.email?.trim() && row.email.trim().toLowerCase() !== email.toLowerCase()
+                                          );
+                                          return {
+                                            value: id,
+                                            label:
+                                              candidateLabel(email, previous_program) +
+                                              (mismatch ? " · Email differs" : ""),
+                                            disabled:
+                                              mismatch || (id !== accountDecision && selectedAccounts.includes(id)),
+                                          };
+                                        }),
+                                        { value: KEEP_UNLINKED, label: "Keep unlinked" },
+                                      ]}
+                                      disabled={reviewBusy}
+                                      onChange={(value) => matches.choose(index, value)}
+                                    />
+                                    {accountResult.has_more && (
+                                      <p className="text-xs text-custom-text-300">Not all matches are shown.</p>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-xs text-custom-text-300">
+                                    {accountResult
+                                      ? "No account match"
+                                      : matches.isChecking
+                                        ? "Checking accounts…"
+                                        : "Account not checked"}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                             {visibleReviewFields.some((field) => ["height", "weight", "notes"].includes(field.key)) && (
                               <details className="min-w-0 rounded-md border border-custom-border-200 px-3 py-2">
                                 <summary className="cursor-pointer text-xs text-custom-text-300">
@@ -638,7 +862,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                                       <Button
                                         variant="neutral-primary"
                                         size="sm"
-                                        disabled={isSubmitting}
+                                        disabled={reviewBusy}
                                         onClick={() => {
                                           setExcluded((current) => new Set(current).add(index));
                                           setDifferentPeople(new Set());
@@ -649,7 +873,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                                       <Button
                                         variant={differentPeople.has(index) ? "primary" : "neutral-primary"}
                                         size="sm"
-                                        disabled={isSubmitting}
+                                        disabled={reviewBusy}
                                         aria-pressed={differentPeople.has(index)}
                                         onClick={() =>
                                           setDifferentPeople((current) => {
@@ -694,6 +918,16 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                 importing.
               </p>
             )}
+            {unresolvedMatches > 0 && (
+              <p role="status" className="text-sm text-amber-600 dark:text-amber-400">
+                Review account matches for {unresolvedMatches} row{unresolvedMatches === 1 ? "" : "s"}.
+              </p>
+            )}
+            {hasRepeatedAccount && (
+              <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">
+                The same account is selected on more than one included row.
+              </p>
+            )}
             {includedCount === 0 && <p className="text-sm text-custom-text-300">Restore at least one row to import.</p>}
           </>
         )}
@@ -703,7 +937,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
           <Button
             variant="neutral-primary"
             size="sm"
-            disabled={isSubmitting}
+            disabled={reviewBusy}
             onClick={() => setStep((current) => current - 1)}
           >
             Back
@@ -724,11 +958,13 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
             size="sm"
             disabled={mappingErrors.length > 0}
             onClick={() => {
-              setRows(mapRosterColumns(rawRows, mapping));
+              const mapped = mapRosterColumns(rawRows, mapping);
+              setRows(mapped);
               setExcluded(new Set());
               setDifferentPeople(new Set());
               setFilter("all");
               setStep(3);
+              if (canLookup) void matches.check(mapped, new Set(), true);
             }}
           >
             Review rows
@@ -741,18 +977,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
             className={!canImport ? "cursor-not-allowed opacity-50" : ""}
             disabled={!canImport}
             loading={isSubmitting}
-            onClick={() => {
-              if (canImport)
-                void importPlayers(
-                  rows
-                    .filter((_, index) => !excluded.has(index))
-                    .map((row) => ({
-                      ...row,
-                      player_name: row.player_name.trim(),
-                      email: row.email?.trim().toLowerCase() || null,
-                    }))
-                );
-            }}
+            onClick={submitImport}
           >
             Import {includedCount} player{includedCount === 1 ? "" : "s"}
           </Button>

@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from plane.db.models import CardStageHistory, Issue, Project, ProjectMember, RosterPlayer, State
+from plane.db.models import CardStageHistory, Issue, PlayerActivityProgress, Project, ProjectMember, RosterPlayer, State
 from plane.db.models import User, Workspace, WorkspaceMember
 
 
@@ -158,6 +158,52 @@ class PlayerActivityTests(TestCase):
         self.user.is_active = False
         self.user.save(update_fields=["is_active"])
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_former_players_cannot_change_card_progress_comments_reactions_or_review(self):
+        program_path = f"workspaces/{self.workspace.slug}/projects/{self.project.id}"
+        activity = f"/api/player/{program_path}/activities/{self.card.id}/"
+        review = f"/api/{program_path}/coaching-cards/{self.card.id}/review-complete/"
+        self.assertEqual(self.client.patch(activity + "progress/", {"percent": 25}, format="json").status_code, 200)
+        comment = self.client.post(activity + "comments/", {"text": "My note"}, format="json")
+        self.assertEqual(comment.status_code, 201, comment.data)
+        detail = activity + f"comments/{comment.data['id']}/"
+        for state in ("inactive", "removed"):
+            RosterPlayer.objects.filter(pk=self.player.pk).update(status=state)
+            self.assertEqual(self.client.get(activity).status_code, 200)
+            self.assertEqual(self.client.get(activity + "comments/").status_code, 200)
+            for method, url, data in (
+                (self.client.patch, activity + "progress/", {"percent": 70}),
+                (self.client.post, activity + "comments/", {"text": "New note"}),
+                (self.client.patch, detail, {"text": "Changed"}),
+                (self.client.delete, detail, {}),
+                (self.client.post, activity + "reactions/", {"reaction": "+1"}),
+                (self.client.delete, detail + "reactions/", {"reaction": "+1"}),
+                (self.client.post, review, {}),
+            ):
+                with self.subTest(state=state, method=method.__name__, url=url):
+                    self.assertEqual(method(url, data, format="json").status_code, 404)
+        self.assertEqual(PlayerActivityProgress.objects.get(issue=self.card, user=self.user).percent, 25)
+
+    def test_archived_season_keeps_only_assigned_former_player_cards(self):
+        RosterPlayer.objects.filter(pk=self.player.pk).update(status="inactive")
+        Project.objects.filter(pk=self.project.pk).update(archived_at=timezone.now())
+        draft = Issue.objects.create(
+            project=self.project,
+            state=self.state,
+            name="Draft",
+            is_draft=True,
+            category="Coaching Card",
+            coaching_card_data={"recipient_ids": [str(self.player.id)]},
+        )
+        unassigned = Issue.objects.create(
+            project=self.project, state=self.state, name="Unassigned", category="Coaching Card"
+        )
+        base = f"/api/player/workspaces/{self.workspace.slug}/projects/{self.project.id}/activities/"
+        self.assertEqual(self.client.get(base + f"{self.card.pk}/").status_code, 200)
+        self.assertEqual(self.client.get(base + f"{draft.pk}/").status_code, 404)
+        self.assertEqual(self.client.get(base + f"{unassigned.pk}/").status_code, 404)
+        self.assertEqual(self.client.get(self.url).json()["total_count"], 1)
+        self.assertEqual(self.client.get("/api/player/programs/").json()["total_count"], 1)
 
     def test_pagination_is_bounded_newest_first_with_stable_ties(self):
         timestamp = timezone.now() + timedelta(minutes=1)

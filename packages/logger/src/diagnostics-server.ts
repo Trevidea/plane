@@ -1,5 +1,6 @@
 /* global globalThis */
 import { randomUUID } from "node:crypto";
+import { decodeRosterUI } from "./roster-events.ts";
 
 type FrontendService = "plane-web" | "plane-admin" | "plane-space";
 const TYPES = new Set([
@@ -98,6 +99,39 @@ export function createFrontendReceiver(service: FrontendService) {
         at += chunk.byteLength;
       }
       const body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+      const roster = service === "plane-web" ? decodeRosterUI(body) : null;
+      if (roster) {
+        if (request.headers.get("x-request-id") !== roster.operation_id) return new Response(null, { status: 400 });
+        if (process.env.LOG_LEVEL?.toUpperCase() !== "ERROR" || roster.result === "failed") {
+          console.info(
+            JSON.stringify({
+              schema_version: "1.0",
+              timestamp: new Date().toISOString(),
+              service,
+              environment: process.env.KANAVIO_ENVIRONMENT || "production",
+              scope: "unscoped",
+              kind: "other",
+              record_id: randomUUID(),
+              clock_id: roster.operation_id,
+              event_name: roster.event,
+              operation_id: roster.operation_id,
+              request_id: roster.operation_id,
+              trace_id: roster.operation_id,
+              level: roster.result === "failed" ? "error" : "info",
+              outcome: roster.result === "confirmed" ? "ok" : roster.result === "failed" ? "error" : "unknown",
+              duration_ms: roster.duration_ms,
+              attributes: {
+                action: roster.action,
+                result: roster.result,
+                ...(roster.inactivity_ms !== undefined
+                  ? { roster_timing: "import-inactivity.v1", roster_inactivity_ms: roster.inactivity_ms }
+                  : {}),
+              },
+            })
+          );
+        }
+        return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
+      }
       if (
         !body ||
         typeof body !== "object" ||

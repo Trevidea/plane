@@ -25,8 +25,9 @@ NUMBERS = {
     "running_duration_ms",
     "timeout_ms",
     "retry_limit",
+    "roster_inactivity_ms",
 }
-LABELS = {"error_code", "dependency", "action"}
+LABELS = {"error_code", "dependency", "action", "channel", "result", "delivery_attempt_id", "roster_timing"}
 current = ContextVar("kanavio_diagnostics", default=None)
 CLOCK = "plane:" + uuid4().hex
 logger = logging.getLogger("plane.api.request")

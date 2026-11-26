@@ -107,6 +107,16 @@ class TestWorkspaceDiagnostics:
         assert response.status_code == 403
         read.assert_not_called()
 
+    def test_admin_can_open_additional_explicitly_enabled_workspace(
+        self, session_client, workspace, diagnostics_settings, settings
+    ):
+        settings.CUSTOMER_DIAGNOSTICS_WORKSPACE = "existing-pilot"
+        settings.CUSTOMER_DIAGNOSTICS_WORKSPACES = f"existing-pilot, {workspace.slug}"
+        with patch("plane.app.views.workspace.diagnostics.read_diagnostics_overview", return_value=overview()) as read:
+            response = session_client.get(f"/api/workspaces/{workspace.slug}/diagnostics/")
+            assert response.status_code == 200
+            assert read.call_args.args[1] == workspace.slug
+
     def test_query_cannot_select_sources_or_remote_actions(self, session_client, workspace, diagnostics_settings):
         with patch("plane.app.views.workspace.diagnostics.read_diagnostics_overview") as read:
             response = session_client.get(f"/api/workspaces/{workspace.slug}/diagnostics/?url=http://169.254.169.254")
