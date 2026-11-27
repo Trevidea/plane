@@ -21,7 +21,7 @@ import type { ImportField, RosterMapping } from "../utils/roster-import-review";
 import { canCheckRosterImportMatch, useRosterImportMatches } from "../utils/use-roster-import-matches";
 
 const inputClass =
-  "rounded-md border border-custom-border-200 bg-custom-background-100 px-2.5 py-2 text-sm text-custom-text-100 focus:border-custom-primary-100 focus:outline-none disabled:opacity-50";
+  "rounded-md border border-custom-border-200 bg-custom-background-100 px-2.5 py-2 text-sm text-custom-text-100 placeholder-custom-text-200 focus:border-custom-primary-100 focus:outline-none disabled:opacity-50";
 const ImportFieldDropdown = ({
   value,
   label,
@@ -331,7 +331,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
       <ModalCore isOpen={modalOpen} handleClose={handleClose} position={EModalPosition.TOP} width={EModalWidth.LG}>
         <div className="space-y-2 p-6">
           <h3 className="text-lg font-semibold text-custom-text-100">Import not confirmed</h3>
-          <p role="status" className="text-sm text-custom-text-300">
+          <p role="status" className="text-sm text-custom-text-100">
             Plane did not receive a confirmation. Retry this batch to check its result without importing it twice.
           </p>
         </div>
@@ -364,7 +364,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
       <div className="flex items-start justify-between gap-4 border-b border-custom-border-200 px-6 py-5">
         <div>
           <h3 className="text-lg font-semibold text-custom-text-100">Import roster</h3>
-          <p className="mt-1 text-sm text-custom-text-300">
+          <p className="mt-1 text-sm text-custom-text-100">
             Upload your file, map its columns, then review every player.
           </p>
         </div>
@@ -373,7 +373,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
           aria-label="Close import roster modal"
           onClick={handleClose}
           disabled={isSubmitting}
-          className="rounded p-1.5 text-custom-text-300 disabled:opacity-50"
+          className="rounded p-1.5 text-custom-text-100 disabled:opacity-50"
         >
           <X className="size-4" />
         </button>
@@ -385,7 +385,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
             aria-current={step === index + 1 ? "step" : undefined}
             className={cn(
               "flex flex-1 items-center gap-2 text-xs sm:text-sm",
-              step === index + 1 ? "font-semibold text-custom-text-100" : "text-custom-text-300"
+              step === index + 1 ? "font-semibold text-custom-text-100" : "text-custom-text-100"
             )}
           >
             <span
@@ -424,9 +424,9 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                   : "border-custom-border-300 bg-custom-background-90"
               )}
             >
-              <Upload className="mb-3 size-7 text-custom-text-300" />
+              <Upload className="mb-3 size-7 text-custom-text-100" />
               <h4 className="font-medium text-custom-text-100">Drop a CSV or Excel file here</h4>
-              <p className="mt-1 text-sm text-custom-text-300">
+              <p className="mt-1 text-sm text-custom-text-100">
                 Use the first sheet, with column names in the first row.
               </p>
               <input
@@ -461,15 +461,15 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
             </div>
             {fileName && (
               <div className="flex items-center gap-3 rounded-lg border border-custom-border-200 p-4">
-                <FileSpreadsheet className="size-5 text-custom-text-300" />
+                <FileSpreadsheet className="size-5 text-custom-text-100" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-custom-text-100">{fileName}</p>
-                  <p className="mt-1 text-xs text-custom-text-300">
+                  <p className="mt-1 text-xs text-custom-text-100">
                     {isParsing ? "Reading file…" : `${rawRows.length} rows · ${headers.length} columns`}
                   </p>
                 </div>
                 <button type="button" aria-label="Remove file" onClick={reset} disabled={isSubmitting}>
-                  <X className="size-4 text-custom-text-300" />
+                  <X className="size-4 text-custom-text-100" />
                 </button>
               </div>
             )}
@@ -479,11 +479,11 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
               </p>
             )}
             {!!rawRows.length && (
-              <p className="rounded-lg bg-custom-background-90 p-3 text-sm text-custom-text-200">
+              <p className="rounded-lg bg-custom-background-90 p-3 text-sm text-custom-text-100">
                 Recognized columns have been mapped for you. Check them on the next step.
               </p>
             )}
-            <p className="text-xs leading-5 text-custom-text-300">
+            <p className="text-xs leading-5 text-custom-text-100">
               Email is optional. Players use the team link to sign in or register, then wait for admin or coach approval
               before their account is linked to this program. Other email addresses may receive an invitation.
             </p>
@@ -491,13 +491,13 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
         )}
         {step === 2 && (
           <>
-            <p className="text-sm text-custom-text-300">
+            <p className="text-sm text-custom-text-100">
               Choose what each column contains. Map a full name, or both first and last name. Skip any columns you do
               not need.
             </p>
             <div className="overflow-x-auto rounded-lg border border-custom-border-200">
               <table className="w-full text-left text-sm">
-                <thead className="bg-custom-background-90 text-xs text-custom-text-300">
+                <thead className="bg-custom-background-90 text-xs text-custom-text-100">
                   <tr>
                     <th className="p-3">Column in your file</th>
                     <th className="p-3">Example</th>
@@ -508,7 +508,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                   {headers.map((column) => (
                     <tr key={column} className="border-t border-custom-border-200">
                       <td className="p-3 font-medium text-custom-text-100">{column}</td>
-                      <td className="max-w-48 truncate p-3 text-custom-text-300">
+                      <td className="max-w-48 truncate p-3 text-custom-text-100">
                         {String(rawRows.find((row) => row[column])?.[column] ?? "—")}
                       </td>
                       <td className="p-3">
@@ -535,7 +535,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                 {error}
               </p>
             ))}
-            <p className="rounded-lg bg-custom-background-90 p-3 text-xs leading-5 text-custom-text-300">
+            <p className="rounded-lg bg-custom-background-90 p-3 text-xs leading-5 text-custom-text-100">
               Grad year helps identify possible duplicate roster entries. Name and grad year are a review hint; they do
               not confirm an account match.
             </p>
@@ -569,7 +569,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                   >
                     {item.count}
                   </span>
-                  <span className="text-xs text-custom-text-300">{item.label}</span>
+                  <span className="text-xs text-custom-text-100">{item.label}</span>
                 </button>
               ))}
             </div>
@@ -598,7 +598,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                   </>
                 )}
                 {matches.skipMissing && (
-                  <span role="status" className="text-xs text-custom-text-300">
+                  <span role="status" className="text-xs text-custom-text-100">
                     Unchecked rows will import without an account match.
                   </span>
                 )}
@@ -606,14 +606,14 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
             )}
             <div className="max-h-[46vh] overflow-y-auto rounded-lg border border-custom-border-200">
               <table className="w-full table-fixed text-left text-sm" aria-label="Roster import review">
-                <thead className="sticky top-0 z-[1] bg-custom-background-90 text-xs text-custom-text-300">
+                <thead className="sticky top-0 z-[1] bg-custom-background-90 text-xs text-custom-text-100">
                   <tr>
                     <th className="px-4 py-3 font-medium">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span>
                           Players · {rows.length} row{rows.length === 1 ? "" : "s"}
                         </span>
-                        <span className="max-w-full truncate font-normal text-custom-text-400">{fileName}</span>
+                        <span className="max-w-full truncate font-normal text-custom-text-100">{fileName}</span>
                       </div>
                     </th>
                   </tr>
@@ -658,7 +658,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                           key={field.key}
                           className={cn("min-w-0 space-y-1", field.key === "notes" && "sm:col-span-2 lg:col-span-3")}
                         >
-                          <label htmlFor={fieldId} className="block text-[11px] font-medium text-custom-text-300">
+                          <label htmlFor={fieldId} className="block text-[11px] font-medium text-custom-text-100">
                             {field.label}
                           </label>
                           {field.key === "status" ? (
@@ -725,7 +725,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                           >
                             <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                <span className="shrink-0 rounded border border-custom-border-200 px-1.5 py-0.5 text-[11px] text-custom-text-400">
+                                <span className="shrink-0 rounded border border-custom-border-200 px-1.5 py-0.5 text-[11px] text-custom-text-100">
                                   Row {index + 2}
                                 </span>
                                 <span className="min-w-0 break-words font-medium text-custom-text-100">
@@ -736,7 +736,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                                     "inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[11px]",
                                     needsReview
                                       ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                                      : "bg-custom-background-90 text-custom-text-300"
+                                      : "bg-custom-background-90 text-custom-text-100"
                                   )}
                                 >
                                   {needsReview ? (
@@ -807,11 +807,11 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                                       onChange={(value) => matches.choose(index, value)}
                                     />
                                     {accountResult.has_more && (
-                                      <p className="text-xs text-custom-text-300">Not all matches are shown.</p>
+                                      <p className="text-xs text-custom-text-100">Not all matches are shown.</p>
                                     )}
                                   </>
                                 ) : (
-                                  <p className="text-xs text-custom-text-300">
+                                  <p className="text-xs text-custom-text-100">
                                     {accountResult
                                       ? "No account match"
                                       : matches.isChecking
@@ -823,7 +823,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                             )}
                             {visibleReviewFields.some((field) => ["height", "weight", "notes"].includes(field.key)) && (
                               <details className="min-w-0 rounded-md border border-custom-border-200 px-3 py-2">
-                                <summary className="cursor-pointer text-xs text-custom-text-300">
+                                <summary className="cursor-pointer text-xs text-custom-text-100">
                                   Additional fields · height, weight and notes
                                 </summary>
                                 <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -839,7 +839,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                               className="min-w-0 text-xs leading-5"
                             >
                               {isExcluded ? (
-                                <p className="text-custom-text-400">This row will not be imported.</p>
+                                <p className="text-custom-text-100">This row will not be imported.</p>
                               ) : (
                                 <>
                                   {result.errors.length > 0 && (
@@ -887,7 +887,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                                         Different person
                                       </Button>
                                       {differentPeople.has(index) && (
-                                        <span className="text-custom-text-300">Reviewed as a separate player</span>
+                                        <span className="text-custom-text-100">Reviewed as a separate player</span>
                                       )}
                                     </div>
                                   )}
@@ -902,7 +902,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                 </tbody>
               </table>
               {rows.length > 0 && !rows.some((_, index) => showRow(index)) && (
-                <p role="status" className="px-4 py-6 text-center text-xs text-custom-text-400">
+                <p role="status" className="px-4 py-6 text-center text-xs text-custom-text-100">
                   No rows in this category.
                 </p>
               )}
@@ -928,7 +928,7 @@ export const ImportRosterModal = observer(({ isOpen, onClose }: { isOpen?: boole
                 The same account is selected on more than one included row.
               </p>
             )}
-            {includedCount === 0 && <p className="text-sm text-custom-text-300">Restore at least one row to import.</p>}
+            {includedCount === 0 && <p className="text-sm text-custom-text-100">Restore at least one row to import.</p>}
           </>
         )}
       </div>

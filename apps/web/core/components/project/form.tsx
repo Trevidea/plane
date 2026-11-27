@@ -431,10 +431,9 @@ export const ProjectDetailsForm: FC<IProjectDetailsForm> = (props) => {
               )}
             />
           </div>
-          <div className="col-span-full flex flex-col gap-1">
-            <h4 className="text-sm">Event defaults</h4>
-            <div className="flex flex-wrap items-center gap-2">
-              <ProjectEventMetadataFields control={control} disabled={!isAdmin} />
+          <div className="col-span-full flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <ProjectEventMetadataFields control={control} disabled={!isAdmin} variant="form" lockedValues={project} />
             </div>
           </div>
           {project.sport && (
