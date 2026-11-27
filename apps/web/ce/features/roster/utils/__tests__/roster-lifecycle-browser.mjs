@@ -24,7 +24,7 @@ await put(
 import React from 'react';
 export const cn=(...args)=>args.filter(Boolean).join(' ');
 export const ToggleSwitch=({value,onChange,label,disabled})=><button type="button" role="switch" aria-checked={value} aria-label={label} disabled={disabled} onClick={()=>onChange(!value)} />;
-export const Avatar=({name})=><span aria-hidden="true">{name?.slice(0,1)}</span>;
+export const Avatar=({name,src})=>src?<img src={src} alt={name}/>:<span aria-hidden="true">{name?.slice(0,1)}</span>;
 export const Button=React.forwardRef(({children,onClick,disabled,type='button',variant,size,loading,unstyled,prependIcon,appendIcon,...props},ref)=><button ref={ref} type={type} onClick={onClick} disabled={disabled||loading} {...props}>{children}</button>);
 export const Checkbox=({checked,onClick,disabled,'aria-label':label})=><input type="checkbox" checked={checked} readOnly onClick={onClick} disabled={disabled} aria-label={label}/>;
 export const CustomMenu=({children,customButton})=><div>{customButton}{children}</div>;
@@ -68,7 +68,7 @@ await put(
   "service",
   `
 const mk=(id,name,status,user=null,registration_status=null)=>({id,player_name:name,status,user,registration_status,jersey_number:'17',created_at:'2026-11-18',updated_at:'2026-11-18'});
-let roster=[mk('a','Alex','active','account-a'),mk('b','Blake','inactive','account-b'),mk('c','Casey','injured','account-c'),mk('p','Pending','pending',null,'pending')];
+let roster=[{...mk('a','Alex','active','account-a'),account_avatar_url:'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=='},mk('b','Blake','inactive','account-b'),mk('c','Casey','injured','account-c'),mk('p','Pending','pending',null,'pending')];
 let events=[{id:'old',roster_identity:'former',player_name:'Former Athlete',jersey_number:'42',action:'removed',previous_status:'active',status:'removed',created_at:'2026-11-18',actor_name:'Coach',has_account:true}];
 const teams=[], seasons=[], staff=[];
 const response=(results)=>({results:structuredClone(results),next:null,previous:null});
@@ -219,7 +219,11 @@ try {
   await page.getByRole("tab", { name: "All players (3)", exact: true }).click();
   await row("Pending").getByText("Linked", { exact: true }).waitFor();
   await row("Alex").getByRole("button", { name: "Alex", exact: true }).click();
-  await page.getByRole("heading", { name: "Alex", exact: true }).waitFor();
+  const alexDetails = page.getByRole("complementary", { name: "Alex", exact: true });
+  await alexDetails.waitFor();
+  const rowPhoto = row("Alex").getByRole("img", { name: "Alex", exact: true });
+  const detailsPhoto = alexDetails.getByRole("img", { name: "Alex", exact: true });
+  assert.equal(await detailsPhoto.getAttribute("src"), await rowPhoto.getAttribute("src"));
   await page.getByRole("button", { name: "Reset password", exact: true }).click();
   const reset = page.getByRole("dialog").filter({ hasText: "Reset password for Alex" });
   assert.match(await reset.innerText(), /replaces any previous code/);
@@ -238,7 +242,34 @@ try {
   assert.deepEqual(await page.evaluate(() => window.requests.filter((r) => r[0] === "reset")), [
     ["reset", "a", "account-a"],
   ]);
-  await page.getByRole("button", { name: "Close player details", exact: true }).click();
+  const statusButtons = alexDetails.getByRole("group", { name: "Roster status" });
+  const inactiveStatus = statusButtons.getByRole("button", { name: "inactive", exact: true });
+  const activeStatus = statusButtons.getByRole("button", { name: "active", exact: true });
+  const confirmInactive = page.getByRole("dialog", { name: "Set player inactive?" });
+  const confirmActive = page.getByRole("dialog", { name: "Set player active?" });
+  const statusRequests = () => page.evaluate(() => window.requests.filter((r) => r[0] === "patch"));
+  await inactiveStatus.click();
+  await confirmInactive.getByRole("button", { name: "Cancel" }).click();
+  assert.equal(await activeStatus.getAttribute("aria-pressed"), "true");
+  assert.deepEqual(await statusRequests(), []);
+  await inactiveStatus.click();
+  await confirmInactive.getByRole("button", { name: "Set inactive" }).click();
+  await confirmInactive.waitFor({ state: "hidden" });
+  assert.equal(await inactiveStatus.getAttribute("aria-pressed"), "true");
+  await activeStatus.click();
+  await confirmActive.getByRole("button", { name: "Set active" }).click();
+  await confirmActive.waitFor({ state: "hidden" });
+  assert.equal(await activeStatus.getAttribute("aria-pressed"), "true");
+  assert.deepEqual(await statusRequests(), [
+    ["patch", "a", { status: "inactive" }],
+    ["patch", "a", { status: "active" }],
+  ]);
+  await alexDetails.getByRole("button", { name: "Close player details", exact: true }).click();
+  await row("Casey").getByRole("button", { name: "Casey", exact: true }).click();
+  const caseyDetails = page.getByRole("complementary", { name: "Casey", exact: true });
+  await caseyDetails.getByText("C", { exact: true }).waitFor();
+  assert.equal(await caseyDetails.locator("img").count(), 0);
+  await caseyDetails.getByRole("button", { name: "Close player details", exact: true }).click();
   await page.evaluate(() => (window.failStatus = true));
   await row("Alex").getByRole("button", { name: "Set inactive", exact: true }).click();
   await page.waitForFunction(() => window.lastToast?.message === "Fixture status failure");

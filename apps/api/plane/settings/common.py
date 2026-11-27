@@ -120,6 +120,7 @@ else:
 
 CORS_ALLOW_HEADERS = [
     *default_headers,
+    "if-match",
     "X-API-Key",
     "x-request-id",
     "x-upload-id",

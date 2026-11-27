@@ -203,8 +203,9 @@ export const RegistrationQRModal = ({
             <div className="flex items-start gap-2 rounded-lg border border-custom-border-200 bg-custom-background-90 p-3">
               <Info className="mt-0.5 size-4 shrink-0 text-custom-primary-100" />
               <p className="text-xs leading-5 text-custom-text-300">
-                Share the link by email or team chat. Players entering the short code must select this school’s server
-                in the Player App. A coach approves requests before players gain access.
+                Share the link by email or team chat. In the Player App, select this school’s server and tap{" "}
+                <strong className="font-medium text-custom-text-200">Scan team QR</strong> to scan the QR or enter the
+                short code. A coach approves requests before players gain access.
               </p>
             </div>
           </>

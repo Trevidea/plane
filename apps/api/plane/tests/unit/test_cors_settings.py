@@ -44,3 +44,27 @@ def test_private_video_preflight_allows_upload_headers_for_the_configured_origin
             HTTP_ACCESS_CONTROL_REQUEST_HEADERS="content-type,x-video-name,x-video-size",
         )
         assert "access-control-allow-origin" not in denied.headers
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("method", ["POST", "DELETE"])
+def test_roster_registration_preflight_allows_if_match(method):
+    from django.test import Client, override_settings
+
+    origin = "http://plane.fixture.test"
+    requested = {"content-type", "if-match", "x-kanavio-operation-id", "x-request-id", "x-trace-id"}
+    with override_settings(CORS_ALLOWED_ORIGINS=[origin], CORS_ALLOW_ALL_ORIGINS=False):
+        response = Client().options(
+            "/api/workspaces/school/projects/team/roster/registration/",
+            HTTP_ORIGIN=origin,
+            HTTP_ACCESS_CONTROL_REQUEST_METHOD=method,
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS=",".join(sorted(requested)),
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+    assert response.headers["access-control-allow-credentials"] == "true"
+    methods = {value.strip() for value in response.headers["access-control-allow-methods"].split(",")}
+    headers = {value.strip().lower() for value in response.headers["access-control-allow-headers"].split(",")}
+    assert method in methods
+    assert requested <= headers

@@ -8,6 +8,7 @@ from django.core.cache import cache
 from django.core import signing
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from freezegun import freeze_time
 from rest_framework.test import APIClient
 
 from plane.db.models import (
@@ -185,6 +186,22 @@ class PlayerRegistrationTests(TestCase):
             "/api/player/registration/preview/", {"code": code, "roster_offset": 0}, format="json"
         )
         self.assertEqual(bad.status_code, 400)
+
+    def test_qr_and_short_code_expire_together_at_seven_days(self):
+        started = timezone.now()
+        preview_url = "/api/player/registration/preview/"
+        with freeze_time(started):
+            invitation = self.generate()
+        qr_token = {"token": invitation["token"]}
+        expires = started + timedelta(days=7)
+        with freeze_time(expires - timedelta(seconds=1)):
+            self.assertEqual(self.public.post(preview_url, qr_token, format="json").status_code, 200)
+            exchange = self.exchange(invitation["short_code"])
+            self.assertEqual(exchange.status_code, 200)
+        with freeze_time(expires):
+            for ticket in (qr_token, exchange.json()):
+                self.assertEqual(self.public.post(preview_url, ticket, format="json").status_code, 400)
+            self.assertEqual(self.exchange(invitation["short_code"]).status_code, 400)
 
     def test_code_requests_do_not_spend_the_token_preview_budget(self):
         ticket = self.generate()
